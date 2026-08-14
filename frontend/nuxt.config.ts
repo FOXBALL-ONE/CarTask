@@ -12,8 +12,7 @@ export default defineNuxtConfig({
     '@nuxtjs/tailwindcss',
     '@pinia/nuxt',
     'dayjs-nuxt',
-    "nuxt-build-info",
-    '@bg-dev/nuxt-naiveui'
+    '@bg-dev/nuxt-naiveui',
   ],
   vite: {
     plugins: [

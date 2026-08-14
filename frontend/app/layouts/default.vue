@@ -24,9 +24,6 @@
     <n-message-provider>
       <n-dialog-provider>
         <n-notification-provider>
-          <client-only>
-            <notification-inject />
-          </client-only>
           <n-layout v-show="!loaded" class="loading-layout">
             <n-spin :show="true" class="load-container">
               <template #description>
@@ -69,24 +66,16 @@
 </template>
 
 <script setup lang="ts">
-import "~/assets/css/style.css";
 
 import { dateZhCN, zhCN, darkTheme, useOsTheme } from "naive-ui";
-
-import NotificationInject from "~/components/inject/Notification.vue";
 
 import hljs from "highlight.js/lib/core";
 import json from "highlight.js/lib/languages/json";
 import ini from "highlight.js/lib/languages/ini";
 import yaml from "highlight.js/lib/languages/yaml";
 
-import { usePageStore } from "~/store/page";
 
 const runtimeConfig = useRuntimeConfig();
-
-const env = {
-  devMode: runtimeConfig.public.devMode,
-};
 
 const loaded = ref<boolean>(false);
 
@@ -94,9 +83,6 @@ hljs.registerLanguage("json", json);
 hljs.registerLanguage("ini", ini);
 hljs.registerLanguage("toml", ini);
 hljs.registerLanguage("yaml", yaml);
-
-const pageStore = usePageStore();
-const pageSidebar = computed(() => pageStore.sidebar);
 
 const osTheme = ref<typeof darkTheme | null>(null);
 const isDark = ref(false);

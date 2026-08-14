@@ -6,6 +6,7 @@ plugins {
     id("org.hibernate.orm") version "7.4.1.Final"
     id("org.graalvm.buildtools.native") version "1.1.1"
     kotlin("plugin.jpa") version "2.3.21"
+    kotlin("plugin.lombok") version "2.3.21"
 }
 
 group = "top.foxball"
@@ -47,6 +48,7 @@ dependencies {
     testCompileOnly("org.projectlombok:lombok")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testAnnotationProcessor("org.projectlombok:lombok")
+    testImplementation(kotlin("test"))
 }
 
 kotlin {
