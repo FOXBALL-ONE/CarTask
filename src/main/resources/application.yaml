@@ -1,3 +1,8 @@
 spring:
   application:
     name: carTask
+
+app:
+  file:
+    storage-root: ${FILE_STORAGE_ROOT:${user.dir}}
+    base-url: ${FILE_BASE_URL:}
