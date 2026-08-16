@@ -39,3 +39,6 @@ out/
 ### Kotlin ###
 .kotlin
 /.env
+/旧版源码/
+/ruoyi-admin.jar
+/ruoyi-admin-sources-export.jar
