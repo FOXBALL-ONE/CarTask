@@ -24,10 +24,12 @@ import java.util.UUID
 
 @RestController
 @RequestMapping("/api/files")
+/** 文件上传、元数据查询和下载接口。 */
 class FileController(
     private val fileService: FileService,
     private val responseBuilder: ResponseBuilder,
 ) {
+    /** 接收单个 multipart 文件并返回文件元数据。 */
     @PostMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun upload(@RequestPart("file") file: MultipartFile): ResponseEntity<Response> {
         data class Response(
@@ -51,6 +53,7 @@ class FileController(
         return responseBuilder.created().data(rs).build()
     }
 
+    /** 返回指定文件的元数据和下载地址。 */
     @GetMapping("/{id}")
     fun get(@PathVariable id: UUID): ResponseEntity<Response> {
         data class Response(
@@ -74,6 +77,7 @@ class FileController(
         return responseBuilder.ok().data(rs).build()
     }
 
+    /** 以附件形式下载指定文件并恢复原始文件名。 */
     @GetMapping("/{id}/download")
     fun download(@PathVariable id: UUID): ResponseEntity<FileSystemResource> {
         val fileData = fileService.openDownload(id)

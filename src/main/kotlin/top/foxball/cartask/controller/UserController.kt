@@ -10,10 +10,12 @@ import java.time.LocalDateTime
 
 @RestController
 @RequestMapping("/api/users")
+/** 用户账户的单条和批量管理接口。 */
 class UserController(
     private val userService: UserService,
     private val responseBuilder: ResponseBuilder
 ) {
+    /** 创建一个用户账户。 */
     @PostMapping
     fun create(
         @RequestParam username: String,
@@ -37,6 +39,7 @@ class UserController(
         return responseBuilder.created().data(rs).build()
     }
     
+    /** 根据并列参数批量创建用户账户。 */
     @PostMapping("/batch")
     fun createBatch(
         @RequestParam username: List<String>,
@@ -80,6 +83,7 @@ class UserController(
         return responseBuilder.created().data(rs).build()
     }
     
+    /** 按用户 ID 查询账户信息。 */
     @GetMapping("/{id}")
     fun get(@PathVariable id: Long): ResponseEntity<Response> {
         data class Response(
@@ -97,6 +101,7 @@ class UserController(
         return responseBuilder.ok().data(rs).build()
     }
     
+    /** 分页查询用户账户。 */
     @GetMapping
     fun list(
         @RequestParam(defaultValue = "1") page: Int,
@@ -134,6 +139,7 @@ class UserController(
         return responseBuilder.ok().data(rs).build()
     }
     
+    /** 按多个用户 ID 批量查询账户信息。 */
     @GetMapping("/batch")
     fun getBatch(@RequestParam id: List<Long>): ResponseEntity<Response> {
         data class UserData(
@@ -163,6 +169,7 @@ class UserController(
         return responseBuilder.ok().data(rs).build()
     }
     
+    /** 更新指定用户账户的可变字段。 */
     @PutMapping("/{id}")
     fun update(
         @PathVariable id: Long,
@@ -185,6 +192,7 @@ class UserController(
         return responseBuilder.ok().data(rs).build()
     }
     
+    /** 对多个用户应用相同的更新内容。 */
     @PutMapping("/batch")
     fun updateBatch(
         @RequestParam id: List<Long>,
@@ -200,6 +208,7 @@ class UserController(
         return responseBuilder.ok().data(rs).build()
     }
     
+    /** 删除指定用户账户。 */
     @DeleteMapping("/{id}")
     fun delete(@PathVariable id: Long): ResponseEntity<Response> {
         data class Response(val id: Long)
@@ -208,6 +217,7 @@ class UserController(
         return responseBuilder.ok().data(rs).build()
     }
     
+    /** 按多个用户 ID 批量删除账户。 */
     @DeleteMapping("/batch")
     fun deleteBatch(@RequestParam id: List<Long>): ResponseEntity<Response> {
         data class Response(val ids: List<Long>)

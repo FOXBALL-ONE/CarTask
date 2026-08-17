@@ -6,4 +6,5 @@ import top.foxball.cartask.repository.PositionRepository
 import top.foxball.cartask.service.PositionService
 
 @Service
+/** 基于 JPA 的职位字典服务。 */
 class PositionServiceImpl(repository: PositionRepository) : JpaCrudService<Position>(repository), PositionService

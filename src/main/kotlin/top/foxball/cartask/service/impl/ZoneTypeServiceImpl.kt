@@ -6,4 +6,5 @@ import top.foxball.cartask.repository.ZoneTypeRepository
 import top.foxball.cartask.service.ZoneTypeService
 
 @Service
+/** 基于 JPA 的区域类型字典服务。 */
 class ZoneTypeServiceImpl(repository: ZoneTypeRepository) : JpaCrudService<ZoneType>(repository), ZoneTypeService

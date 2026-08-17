@@ -25,11 +25,13 @@ import java.util.HexFormat
 import java.util.UUID
 
 @Service
+/** 将上传文件写入本地存储并维护元数据的一致性。 */
 class FileServiceImpl(
     private val fileRepository: StoredFileRepository,
     private val properties: FileProperties,
     private val transactionOperations: TransactionOperations,
 ) : FileService {
+    /** 先写入磁盘，再持久化元数据；持久化失败时清理物理文件。 */
     override fun upload(file: MultipartFile): FileService.FileData {
         require(!file.isEmpty) { "文件不能为空" }
         val storedUpload = storeUpload(file)
@@ -44,8 +46,10 @@ class FileServiceImpl(
         }
     }
 
+    /** 将已存储的元数据转换为对外返回数据。 */
     override fun get(id: UUID): FileService.FileData = fileData(findFile(id))
 
+    /** 验证记录和文件均存在后，返回下载资源描述。 */
     override fun openDownload(id: UUID): FileService.DownloadData {
         val storedFile = findFile(id)
         val path = resolveStoredPath(storedFile.relativePath)
@@ -60,6 +64,7 @@ class FileServiceImpl(
         )
     }
 
+    /** 将上传流写入日期目录，并在写入过程中计算摘要和大小。 */
     private fun storeUpload(file: MultipartFile): StoredUpload {
         val safeFilename = safeFilename(file.originalFilename)
         val date = LocalDate.now()
@@ -119,6 +124,7 @@ class FileServiceImpl(
         throw IllegalStateException("Unable to allocate a unique file name.")
     }
 
+    /** 根据元数据构造包含绝对下载地址的文件数据。 */
     private fun fileData(storedFile: StoredFile): FileService.FileData = FileService.FileData(
         id = storedFile.id,
         originalFilename = storedFile.originalFilename,
@@ -131,9 +137,11 @@ class FileServiceImpl(
         createdAt = storedFile.createdAt,
     )
 
+    /** 按 ID 查询元数据；不存在时统一转换为资源不存在错误。 */
     private fun findFile(id: UUID): StoredFile = fileRepository.findById(id)
         .orElseThrow { ResourceNotFoundException("文件不存在") }
 
+    /** 将数据库相对路径安全地限制在配置的文件根目录内。 */
     private fun resolveStoredPath(relativePath: String): Path {
         val relative = try {
             Path.of(relativePath).normalize()
@@ -147,6 +155,7 @@ class FileServiceImpl(
             }
     }
 
+    /** 清理客户端文件名并验证其长度、控制字符和后缀。 */
     private fun safeFilename(submittedFilename: String?): SafeFilename {
         val value = submittedFilename
             ?.substringAfterLast('/')
@@ -165,6 +174,7 @@ class FileServiceImpl(
         return SafeFilename(value, extension)
     }
 
+    /** 在补偿或失败清理时忽略物理文件删除异常。 */
     private fun deleteQuietly(path: Path) {
         runCatching { Files.deleteIfExists(path) }
     }

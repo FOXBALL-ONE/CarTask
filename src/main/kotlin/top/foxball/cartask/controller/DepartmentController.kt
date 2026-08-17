@@ -8,4 +8,5 @@ import top.foxball.cartask.shared.ResponseBuilder
 
 @RestController
 @RequestMapping("/api/departments")
+/** 组织部门的管理接口。 */
 class DepartmentController(service: DepartmentService, responseBuilder: ResponseBuilder) : CrudController<Department>(service, responseBuilder)

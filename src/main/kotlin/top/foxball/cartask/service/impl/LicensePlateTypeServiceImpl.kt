@@ -6,4 +6,5 @@ import top.foxball.cartask.repository.LicensePlateTypeRepository
 import top.foxball.cartask.service.LicensePlateTypeService
 
 @Service
+/** 基于 JPA 的车牌类型字典服务。 */
 class LicensePlateTypeServiceImpl(repository: LicensePlateTypeRepository) : JpaCrudService<LicensePlateType>(repository), LicensePlateTypeService

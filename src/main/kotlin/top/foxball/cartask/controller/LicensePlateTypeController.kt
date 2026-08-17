@@ -8,4 +8,5 @@ import top.foxball.cartask.shared.ResponseBuilder
 
 @RestController
 @RequestMapping("/api/license-plate-types")
+/** 车牌类型字典的管理接口。 */
 class LicensePlateTypeController(service: LicensePlateTypeService, responseBuilder: ResponseBuilder) : CrudController<LicensePlateType>(service, responseBuilder)

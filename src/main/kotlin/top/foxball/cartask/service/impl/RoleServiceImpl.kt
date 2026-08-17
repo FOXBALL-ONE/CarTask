@@ -6,4 +6,5 @@ import top.foxball.cartask.repository.RoleRepository
 import top.foxball.cartask.service.RoleService
 
 @Service
+/** 基于 JPA 的角色与权限集合服务。 */
 class RoleServiceImpl(repository: RoleRepository) : JpaCrudService<Role>(repository), RoleService

@@ -17,42 +17,51 @@ abstract class CrudController<T : Any>(
     private val service: CrudService<T>,
     private val responseBuilder: ResponseBuilder,
 ) {
+    /** 创建一条实体记录。 */
     @PostMapping
     fun create(@RequestBody entity: T): ResponseEntity<Response> =
         responseBuilder.created().data(service.create(entity)).build()
 
+    /** 批量创建实体记录。 */
     @PostMapping("/batch")
     fun createBatch(@RequestBody entities: List<T>): ResponseEntity<Response> =
         responseBuilder.created().data(service.createBatch(entities)).build()
 
+    /** 按主键获取一条实体记录。 */
     @GetMapping("/{id}")
     fun get(@PathVariable id: Long): ResponseEntity<Response> =
         responseBuilder.ok().data(service.get(id)).build()
 
+    /** 按多个主键批量获取实体记录。 */
     @GetMapping("/batch")
     fun getBatch(@RequestParam id: List<Long>): ResponseEntity<Response> =
         responseBuilder.ok().data(service.getBatch(id)).build()
 
+    /** 分页查询实体记录。 */
     @GetMapping
     fun list(
         @RequestParam(defaultValue = "1") page: Int,
         @RequestParam(name = "page_size", defaultValue = "20") pageSize: Int,
     ): ResponseEntity<Response> = responseBuilder.ok().data(service.list(page, pageSize)).build()
 
+    /** 更新指定主键的实体记录。 */
     @PutMapping("/{id}")
     fun update(@PathVariable id: Long, @RequestBody entity: T): ResponseEntity<Response> =
         responseBuilder.ok().data(service.update(id, entity)).build()
 
+    /** 批量更新实体记录。 */
     @PutMapping("/batch")
     fun updateBatch(@RequestBody entities: List<T>): ResponseEntity<Response> =
         responseBuilder.ok().data(service.updateBatch(entities)).build()
 
+    /** 删除指定主键的实体记录。 */
     @DeleteMapping("/{id}")
     fun delete(@PathVariable id: Long): ResponseEntity<Response> {
         service.delete(id)
         return responseBuilder.ok().data(mapOf("id" to id)).build()
     }
 
+    /** 批量删除实体记录。 */
     @DeleteMapping("/batch")
     fun deleteBatch(@RequestParam id: List<Long>): ResponseEntity<Response> {
         service.deleteBatch(id)

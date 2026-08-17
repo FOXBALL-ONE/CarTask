@@ -8,4 +8,5 @@ import top.foxball.cartask.shared.ResponseBuilder
 
 @RestController
 @RequestMapping("/api/access-controls")
+/** 门禁授权记录的管理接口。 */
 class AccessControlController(service: AccessControlService, responseBuilder: ResponseBuilder) : CrudController<AccessControl>(service, responseBuilder)

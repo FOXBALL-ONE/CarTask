@@ -6,4 +6,5 @@ import top.foxball.cartask.repository.PermissionRepository
 import top.foxball.cartask.service.PermissionService
 
 @Service
+/** 基于 JPA 的权限字典服务。 */
 class PermissionServiceImpl(repository: PermissionRepository) : JpaCrudService<Permission>(repository), PermissionService

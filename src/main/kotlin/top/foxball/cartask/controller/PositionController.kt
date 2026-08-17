@@ -8,4 +8,5 @@ import top.foxball.cartask.shared.ResponseBuilder
 
 @RestController
 @RequestMapping("/api/positions")
+/** 职位字典的管理接口。 */
 class PositionController(service: PositionService, responseBuilder: ResponseBuilder) : CrudController<Position>(service, responseBuilder)

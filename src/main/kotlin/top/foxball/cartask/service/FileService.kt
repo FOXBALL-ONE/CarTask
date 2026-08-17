@@ -5,6 +5,7 @@ import java.nio.file.Path
 import java.time.LocalDateTime
 import java.util.UUID
 
+/** 本地文件存储、元数据查询和下载资源解析服务。 */
 interface FileService {
     data class FileData(
         val id: UUID,
@@ -22,9 +23,12 @@ interface FileService {
         val sizeBytes: Long,
     )
 
+    /** 上传文件并返回其元数据与下载地址。 */
     fun upload(file: MultipartFile): FileData
 
+    /** 按文件 ID 查询元数据。 */
     fun get(id: UUID): FileData
 
+    /** 解析下载所需的本地文件资源。 */
     fun openDownload(id: UUID): DownloadData
 }

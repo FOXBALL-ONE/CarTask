@@ -10,15 +10,18 @@ import top.foxball.cartask.service.UserService
 import java.time.LocalDateTime
 
 @Service
+/** 用户账户服务，负责凭据编码及用户信息一致性校验。 */
 class UserServiceImpl(
     private val userRepository: UserRepository,
     private val passwordEncoder: PasswordEncoder,
 ) : UserService {
 
+    /** 将单条创建委托给批量创建路径，复用一致的校验和密码编码。 */
     @Transactional
     override fun create(command: UserService.CreateCommand): UserService.UserData =
         createBatch(listOf(command)).single()
 
+    /** 校验用户名和邮箱唯一性后批量创建用户，并统一记录创建时间。 */
     @Transactional
     override fun createBatch(commands: List<UserService.CreateCommand>): List<UserService.UserData> {
         require(commands.isNotEmpty()) { "用户列表不能为空" }
@@ -45,9 +48,11 @@ class UserServiceImpl(
         }).map(::toData)
     }
 
+    /** 按 ID 查询用户并映射为不含密码的返回数据。 */
     @Transactional
     override fun get(id: Long): UserService.UserData = toData(findUser(id))
 
+    /** 保持请求 ID 顺序地批量查询用户，并拒绝缺失记录。 */
     @Transactional
     override fun getBatch(ids: List<Long>): List<UserService.UserData> {
         require(ids.isNotEmpty()) { "用户 ID 列表不能为空" }
@@ -57,6 +62,7 @@ class UserServiceImpl(
         return ids.map { toData(usersById.getValue(it)) }
     }
 
+    /** 校验分页参数后返回用户分页数据。 */
     @Transactional
     override fun list(page: Int, pageSize: Int): UserService.PageData {
         require(page >= 1) { "页码必须大于 0" }
@@ -65,10 +71,12 @@ class UserServiceImpl(
         return UserService.PageData(result.content.map(::toData), page, pageSize, result.totalElements)
     }
 
+    /** 将单条更新委托给批量更新路径，保证规则一致。 */
     @Transactional
     override fun update(id: Long, command: UserService.UpdateCommand): UserService.UserData =
         updateBatch(listOf(id), command).single()
 
+    /** 校验更新字段与唯一约束后批量更新用户。 */
     @Transactional
     override fun updateBatch(ids: List<Long>, command: UserService.UpdateCommand): List<UserService.UserData> {
         require(ids.isNotEmpty()) { "用户 ID 列表不能为空" }
@@ -98,9 +106,11 @@ class UserServiceImpl(
         return userRepository.saveAll(users).map(::toData)
     }
 
+    /** 将单条删除委托给批量删除路径。 */
     @Transactional
     override fun delete(id: Long) = deleteBatch(listOf(id))
 
+    /** 查询所有目标用户后批量删除，避免静默忽略不存在的 ID。 */
     @Transactional
     override fun deleteBatch(ids: List<Long>) {
         require(ids.distinct().size == ids.size) { "用户 ID 不能重复" }
@@ -108,9 +118,11 @@ class UserServiceImpl(
         userRepository.deleteAll(users)
     }
 
+    /** 查找用户；不存在时抛出参数错误。 */
     private fun findUser(id: Long): User = userRepository.findById(id)
         .orElseThrow { IllegalArgumentException("用户不存在: $id") }
 
+    /** 将实体映射为不暴露密码哈希的服务返回数据。 */
     private fun toData(user: User): UserService.UserData = UserService.UserData(
         id = user.id!!,
         username = user.username,

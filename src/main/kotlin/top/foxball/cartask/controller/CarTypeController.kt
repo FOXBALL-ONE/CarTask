@@ -8,4 +8,5 @@ import top.foxball.cartask.shared.ResponseBuilder
 
 @RestController
 @RequestMapping("/api/car-types")
+/** 车辆类型字典的管理接口。 */
 class CarTypeController(service: CarTypeService, responseBuilder: ResponseBuilder) : CrudController<CarType>(service, responseBuilder)
