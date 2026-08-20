@@ -4,7 +4,11 @@ import jakarta.transaction.Transactional
 import org.springframework.data.domain.PageRequest
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
+import top.foxball.cartask.authentication.RedisTokenSessionRepository
+import top.foxball.cartask.authentication.SecurityRole
 import top.foxball.cartask.entity.User
+import top.foxball.cartask.repository.DepartmentRepository
+import top.foxball.cartask.repository.PositionRepository
 import top.foxball.cartask.repository.UserRepository
 import top.foxball.cartask.service.UserService
 import java.time.LocalDateTime
@@ -13,7 +17,10 @@ import java.time.LocalDateTime
 /** 用户账户服务，负责凭据编码及用户信息一致性校验。 */
 class UserServiceImpl(
     private val userRepository: UserRepository,
+    private val departmentRepository: DepartmentRepository,
+    private val positionRepository: PositionRepository,
     private val passwordEncoder: PasswordEncoder,
+    private val tokenSessionRepository: RedisTokenSessionRepository,
 ) : UserService {
 
     /** 将单条创建委托给批量创建路径，复用一致的校验和密码编码。 */
@@ -31,6 +38,7 @@ class UserServiceImpl(
             require(command.username.isNotBlank()) { "用户名不能为空" }
             require(command.email.isNotBlank()) { "邮箱不能为空" }
             require(command.credential.isNotBlank()) { "凭据不能为空" }
+            SecurityRole.normalize(command.role)
             require(!userRepository.existsByUsername(command.username)) { "用户名已存在" }
             require(!userRepository.existsByEmail(command.email)) { "邮箱已存在" }
         }
@@ -40,8 +48,19 @@ class UserServiceImpl(
                 username = command.username
                 email = command.email
                 passwordHash = passwordEncoder.encode(command.credential).toString()
-                role = command.role
+                role = SecurityRole.normalize(command.role)
                 enabled = command.enabled
+                phone = command.phone
+                gender = command.gender
+                department = command.departmentId?.let { departmentId ->
+                    departmentRepository.findById(departmentId)
+                        .orElseThrow { IllegalArgumentException("部门不存在: $departmentId") }
+                }
+                position = command.positionId?.let { positionId ->
+                    positionRepository.findById(positionId)
+                        .orElseThrow { IllegalArgumentException("职位不存在: $positionId") }
+                }
+                status = command.status
                 createdAt = now
                 updatedAt = now
             }
@@ -81,7 +100,10 @@ class UserServiceImpl(
     override fun updateBatch(ids: List<Long>, command: UserService.UpdateCommand): List<UserService.UserData> {
         require(ids.isNotEmpty()) { "用户 ID 列表不能为空" }
         require(ids.distinct().size == ids.size) { "用户 ID 不能重复" }
-        require(command.username != null || command.email != null || command.credential != null || command.role != null || command.enabled != null) {
+        require(
+            command.username != null || command.email != null || command.credential != null || command.role != null || command.enabled != null ||
+                    command.phone != null || command.gender != null || command.departmentId != null || command.positionId != null || command.status != null
+        ) {
             "至少提供一个待更新字段"
         }
         val users = getBatch(ids).map { findUser(it.id) }
@@ -94,13 +116,28 @@ class UserServiceImpl(
             require(users.all { it.email == email } || !userRepository.existsByEmail(email)) { "邮箱已存在" }
         }
         command.credential?.let { require(it.isNotBlank()) { "凭据不能为空" } }
+        command.role?.let(SecurityRole::normalize)
+        if (command.credential != null || command.role != null || command.enabled != null || command.status != null) {
+            users.forEach { tokenSessionRepository.incrementTokenVersion(it.id!!) }
+        }
         val now = LocalDateTime.now()
         users.forEach { user ->
             command.username?.let { user.username = it }
             command.email?.let { user.email = it }
             command.credential?.let { credential -> user.passwordHash = passwordEncoder.encode(credential).toString() }
-            command.role?.let { user.role = it }
+            command.role?.let { user.role = SecurityRole.normalize(it) }
             command.enabled?.let { user.enabled = it }
+            command.phone?.let { user.phone = it }
+            command.gender?.let { user.gender = it }
+            command.departmentId?.let { departmentId ->
+                user.department = departmentRepository.findById(departmentId)
+                    .orElseThrow { IllegalArgumentException("部门不存在: $departmentId") }
+            }
+            command.positionId?.let { positionId ->
+                user.position = positionRepository.findById(positionId)
+                    .orElseThrow { IllegalArgumentException("职位不存在: $positionId") }
+            }
+            command.status?.let { user.status = it }
             user.updatedAt = now
         }
         return userRepository.saveAll(users).map(::toData)
@@ -115,6 +152,7 @@ class UserServiceImpl(
     override fun deleteBatch(ids: List<Long>) {
         require(ids.distinct().size == ids.size) { "用户 ID 不能重复" }
         val users = getBatch(ids).map { findUser(it.id) }
+        users.forEach { tokenSessionRepository.incrementTokenVersion(it.id!!) }
         userRepository.deleteAll(users)
     }
 
@@ -129,6 +167,11 @@ class UserServiceImpl(
         email = user.email,
         role = user.role,
         enabled = user.enabled,
+        phone = user.phone,
+        gender = user.gender,
+        departmentId = user.department?.id,
+        positionId = user.position?.id,
+        status = user.status,
         createdAt = user.createdAt,
         updatedAt = user.updatedAt,
     )

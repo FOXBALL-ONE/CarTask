@@ -2,6 +2,7 @@ package top.foxball.cartask.entity
 
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
+import jakarta.persistence.EntityListeners
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
 import jakarta.persistence.GeneratedValue
@@ -12,6 +13,7 @@ import java.time.LocalDateTime
 
 /** 系统接入设备及其基础状态。 */
 @Entity
+@EntityListeners(AuditingEntityListener::class)
 @Table(name = "device")
 class Device {
     @Id

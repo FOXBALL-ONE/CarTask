@@ -2,6 +2,7 @@ package top.foxball.cartask.entity.type
 
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
+import jakarta.persistence.EntityListeners
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
 import jakarta.persistence.GeneratedValue
@@ -9,9 +10,11 @@ import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.Table
 import java.time.LocalDateTime
+import top.foxball.cartask.entity.AuditingEntityListener
 
 /** 车辆类型字典。 */
 @Entity
+@EntityListeners(AuditingEntityListener::class)
 @Table(name = "car_type")
 class CarType {
     @Id

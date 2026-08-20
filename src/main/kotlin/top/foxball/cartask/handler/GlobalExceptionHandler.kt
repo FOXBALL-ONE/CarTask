@@ -27,6 +27,8 @@ import org.springframework.web.servlet.NoHandlerFoundException
 import org.springframework.web.servlet.resource.NoResourceFoundException
 import top.foxball.cartask.shared.Response
 import top.foxball.cartask.shared.ResponseBuilder
+import top.foxball.cartask.authentication.AuthenticationInfrastructureException
+import top.foxball.cartask.authentication.LoginRateLimitException
 
 
 /** 全局异常处理：将各类异常转换为统一 [Response] 响应。 */
@@ -90,6 +92,7 @@ class GlobalExceptionHandler {
             .message(ex.message)
             .build()
     }
+
     @ExceptionHandler(SupportTicketRateLimitException::class)
     fun onSupportTicketRateLimitException(ex: SupportTicketRateLimitException): ResponseEntity<Response> {
         return builder.status(ex.status)
@@ -99,10 +102,10 @@ class GlobalExceptionHandler {
     }
 
 
-
     @ExceptionHandler(AccessDeniedException::class)
     fun onAccessDeniedException(ex: AccessDeniedException): ResponseEntity<Response> {
         return builder.forbidden()
+            .header("Cache-Control", "no-store")
             .message(ex.message ?: "禁止访问")
             .build()
     }
@@ -111,7 +114,28 @@ class GlobalExceptionHandler {
     @ExceptionHandler(AuthenticationException::class)
     fun onAuthenticationException(ex: AuthenticationException): ResponseEntity<Response> {
         return builder.unauthorized()
+            .header("WWW-Authenticate", "Bearer")
+            .header("Cache-Control", "no-store")
             .message(ex.message ?: "未授权")
+            .build()
+    }
+
+    @ExceptionHandler(LoginRateLimitException::class)
+    fun onLoginRateLimitException(ex: LoginRateLimitException): ResponseEntity<Response> {
+        return builder.status(HttpStatus.TOO_MANY_REQUESTS)
+            .retryAfter(ex.retryAfterSeconds)
+            .header("Cache-Control", "no-store")
+            .message(ex.message ?: "登录尝试过于频繁，请稍后重试")
+            .build()
+    }
+
+    @ExceptionHandler(AuthenticationInfrastructureException::class)
+    fun onAuthenticationInfrastructureException(ex: AuthenticationInfrastructureException): ResponseEntity<Response> {
+        log.error("Authentication infrastructure unavailable", ex)
+        return builder.serviceUnavailable()
+            .retryAfter(1)
+            .header("Cache-Control", "no-store")
+            .message("认证服务暂不可用")
             .build()
     }
 
@@ -176,7 +200,7 @@ class GlobalExceptionHandler {
             .message(if (detail.isBlank()) "参数校验失败" else "参数校验失败: $detail")
             .build()
     }
-    
+
 
     @ExceptionHandler(HttpMessageNotReadableException::class)
     fun onHttpMessageNotReadable(ex: HttpMessageNotReadableException): ResponseEntity<Response> {
@@ -208,7 +232,7 @@ class GlobalExceptionHandler {
             .message("系统繁忙，请稍后重试")
             .build()
     }
-    
+
     @ExceptionHandler(ObjectOptimisticLockingFailureException::class)
     fun onOptimisticLockingFailureException(ex: ObjectOptimisticLockingFailureException): ResponseEntity<Response> {
         log.warn("Optimistic locking conflict: {}", ex.message)

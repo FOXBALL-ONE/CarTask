@@ -2,6 +2,7 @@ package top.foxball.cartask.entity
 
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
+import jakarta.persistence.EntityListeners
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
 import jakarta.persistence.FetchType
@@ -16,6 +17,7 @@ import top.foxball.cartask.entity.type.CarType
 
 /** 车辆进出门禁的流水记录。 */
 @Entity
+@EntityListeners(AuditingEntityListener::class)
 @Table(name = "access_record")
 class AccessRecord {
     @Id

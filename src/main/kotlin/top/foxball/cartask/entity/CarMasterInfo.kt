@@ -5,6 +5,7 @@ import jakarta.persistence.Column
 import jakarta.persistence.ElementCollection
 import jakarta.persistence.Embeddable
 import jakarta.persistence.Entity
+import jakarta.persistence.EntityListeners
 import jakarta.persistence.FetchType
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
@@ -19,6 +20,7 @@ import top.foxball.cartask.entity.type.LicensePlateType
 
 /** 车辆主档，保存车辆联系人、归属和通行卡等基础信息。 */
 @Entity
+@EntityListeners(AuditingEntityListener::class)
 @Table(name = "car_master_info")
 class CarMasterInfo {
     @Id

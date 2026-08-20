@@ -2,6 +2,7 @@ package top.foxball.cartask.entity
 
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
+import jakarta.persistence.EntityListeners
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
 import jakarta.persistence.FetchType
@@ -15,6 +16,7 @@ import java.time.LocalDateTime
 
 /** 系统用户及其组织归属信息。 */
 @Entity
+@EntityListeners(AuditingEntityListener::class)
 @Table(name = "users")
 class User {
     @Id

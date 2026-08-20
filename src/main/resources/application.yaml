@@ -1,8 +1,43 @@
 spring:
   application:
     name: carTask
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: ${REDIS_TIMEOUT:2s}
+
+shopmall:
+  security:
+    cors:
+      allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:8090,http://127.0.0.1:8090}
+      allowed-origin-patterns: ${CORS_ALLOWED_ORIGIN_PATTERNS:}
+      allow-credentials: ${CORS_ALLOW_CREDENTIALS:true}
+    login-rate-limit:
+      enabled: ${LOGIN_RATE_LIMIT_ENABLED:true}
+      max-attempts: ${LOGIN_RATE_LIMIT_MAX_ATTEMPTS:5}
+      window: ${LOGIN_RATE_LIMIT_WINDOW:15m}
+    jwt:
+      issuer: ${JWT_ISSUER:carTask}
+      audience: ${JWT_AUDIENCE:carTask-api}
+      active-signing-key-id: ${JWT_ACTIVE_SIGNING_KEY_ID:local}
+      keys:
+        local: ${JWT_SIGNING_KEY_LOCAL:}
+      ttl: ${JWT_TTL:2h}
+      clock-skew: ${JWT_CLOCK_SKEW:30s}
+      token-storage-encryption-key: ${JWT_STORAGE_ENCRYPTION_KEY:}
+      token-storage-encryption-key-id: ${JWT_STORAGE_ENCRYPTION_KEY_ID:local}
 
 app:
   file:
     storage-root: ${FILE_STORAGE_ROOT:${user.dir}}
     base-url: ${FILE_BASE_URL:}
+
+keytop:
+  base-url: ${KEYTOP_BASE_URL:https://kp-open.keytop.cn/unite-api}
+  app-id: ${KEYTOP_APP_ID:0}
+  park-id: ${KEYTOP_PARK_ID:}
+  app-secret: ${KEYTOP_APP_SECRET:}
+  version: ${KEYTOP_VERSION:1.0.0}
+  timeout: ${KEYTOP_TIMEOUT:30s}

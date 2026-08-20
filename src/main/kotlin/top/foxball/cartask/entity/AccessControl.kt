@@ -2,6 +2,7 @@ package top.foxball.cartask.entity
 
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
+import jakarta.persistence.EntityListeners
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
 import jakarta.persistence.FetchType
@@ -16,6 +17,7 @@ import top.foxball.cartask.entity.type.AccessControlType
 
 /** 门禁授权记录，描述人员在指定时间范围内的通行权限。 */
 @Entity
+@EntityListeners(AuditingEntityListener::class)
 @Table(name = "access_control")
 class AccessControl {
     @Id
