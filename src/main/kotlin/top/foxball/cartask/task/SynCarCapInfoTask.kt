@@ -11,6 +11,7 @@ import top.foxball.cartask.keytop.KeytopProperties
 import top.foxball.cartask.keytop.KeytopResponse
 import top.foxball.cartask.keytop.KeytopService
 import top.foxball.cartask.repository.AccessRecordRepository
+import top.foxball.cartask.audit.AuditRequestContext
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
@@ -28,6 +29,12 @@ class SynCarCapInfoTask(
     @Scheduled(cron = "#{@keytopProperties.carCapInfoSyncCron}", zone = "Asia/Shanghai")
     @Transactional
     fun synCarCapInfoList() {
+        AuditRequestContext.withRun {
+            synCarCapInfoListInternal()
+        }
+    }
+
+    private fun synCarCapInfoListInternal() {
         if (!executionLock.tryLock()) {
             logger.warn("车辆进出记录同步仍在执行，本次跳过")
             return

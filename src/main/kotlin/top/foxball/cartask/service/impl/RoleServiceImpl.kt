@@ -13,6 +13,9 @@ import top.foxball.cartask.entity.Role
 import top.foxball.cartask.repository.RoleRepository
 import top.foxball.cartask.repository.UserRepository
 import top.foxball.cartask.service.RoleService
+import top.foxball.cartask.audit.AuditAction
+import top.foxball.cartask.audit.AuditCommand
+import top.foxball.cartask.audit.AuditService
 
 @Service
 /** 基于 JPA 的角色与权限集合服务。 */
@@ -20,6 +23,7 @@ class RoleServiceImpl(
     private val repository: RoleRepository,
     private val userRepository: UserRepository,
     private val tokenSessionRepository: RedisTokenSessionRepository,
+    private val auditService: AuditService? = null,
 ) : RoleService {
     @Transactional
     @PreAuthorize("hasRole('SUPER_ADMIN') and hasAuthority('role:manage')")
@@ -28,7 +32,9 @@ class RoleServiceImpl(
         normalizeRoleName(entity)
         requireEnabledRole(entity)
         requireSuperAdminGovernance(entity)
-        return repository.save(entity)
+        val saved = repository.save(entity)
+        auditService?.record(AuditCommand(AuditAction.ROLE_CHANGED, "role", saved.id?.toString(), afterData = mapOf("name" to saved.name, "enabled" to saved.enabled, "permissions" to saved.permissions.map { it.code }.sorted())))
+        return saved
     }
 
     @Transactional
@@ -41,7 +47,11 @@ class RoleServiceImpl(
             requireEnabledRole(it)
             requireSuperAdminGovernance(it)
         }
-        return repository.saveAll(entities)
+        val saved = repository.saveAll(entities)
+        saved.forEach { role ->
+            auditService?.record(AuditCommand(AuditAction.ROLE_CHANGED, "role", role.id?.toString(), afterData = mapOf("name" to role.name, "enabled" to role.enabled, "permissions" to role.permissions.map { it.code }.sorted())))
+        }
+        return saved
     }
 
     @Transactional
@@ -77,11 +87,14 @@ class RoleServiceImpl(
         val current = repository.findById(id)
             .orElseThrow { IllegalArgumentException("记录不存在: $id") }
         requireStableRole(current, entity)
+        val before = mapOf("name" to current.name, "enabled" to current.enabled, "permissions" to current.permissions.map { it.code }.sorted())
         copyEditableProperties(entity, current)
         normalizeRoleName(current)
         requireSuperAdminGovernance(current)
         revokeRoleSessions(current.name)
-        return repository.save(current)
+        val saved = repository.save(current)
+        auditService?.record(AuditCommand(AuditAction.ROLE_CHANGED, "role", saved.id?.toString(), beforeData = before, afterData = mapOf("name" to saved.name, "enabled" to saved.enabled, "permissions" to saved.permissions.map { it.code }.sorted())))
+        return saved
     }
 
     @Transactional
@@ -94,6 +107,7 @@ class RoleServiceImpl(
         val currentById = repository.findAllById(ids.filterNotNull()).associateBy { entityId(it) }
         val missingIds = ids.filterNotNull().filterNot(currentById::containsKey)
         require(missingIds.isEmpty()) { "部分记录不存在: ${missingIds.joinToString(",")}" }
+        val beforeById = currentById.mapValues { (_, role) -> mapOf("name" to role.name, "enabled" to role.enabled, "permissions" to role.permissions.map { it.code }.sorted()) }
         val updated = entities.map { incoming ->
             val current = currentById.getValue(entityId(incoming))
             requireStableRole(current, incoming)
@@ -103,7 +117,11 @@ class RoleServiceImpl(
             current
         }
         updated.forEach { revokeRoleSessions(it.name) }
-        return repository.saveAll(updated)
+        val saved = repository.saveAll(updated)
+        saved.forEach { role ->
+            auditService?.record(AuditCommand(AuditAction.ROLE_CHANGED, "role", role.id?.toString(), beforeData = beforeById[role.id], afterData = mapOf("name" to role.name, "enabled" to role.enabled, "permissions" to role.permissions.map { it.code }.sorted())))
+        }
+        return saved
     }
 
     @Transactional

@@ -10,6 +10,9 @@ import top.foxball.cartask.handler.ParamErrorException
 import top.foxball.cartask.handler.ResourceNotFoundException
 import top.foxball.cartask.repository.StoredFileRepository
 import top.foxball.cartask.service.FileService
+import top.foxball.cartask.audit.AuditAction
+import top.foxball.cartask.audit.AuditCommand
+import top.foxball.cartask.audit.AuditService
 import java.nio.file.AtomicMoveNotSupportedException
 import java.nio.file.Files
 import java.nio.file.InvalidPathException
@@ -30,6 +33,7 @@ class FileServiceImpl(
     private val fileRepository: StoredFileRepository,
     private val properties: FileProperties,
     private val transactionOperations: TransactionOperations,
+    private val auditService: AuditService? = null,
 ) : FileService {
     /** 先写入磁盘，再持久化元数据；持久化失败时清理物理文件。 */
     override fun upload(file: MultipartFile): FileService.FileData {
@@ -37,7 +41,16 @@ class FileServiceImpl(
         val storedUpload = storeUpload(file)
         try {
             val saved = transactionOperations.execute {
-                fileRepository.saveAndFlush(storedUpload.metadata)
+                val persisted = fileRepository.saveAndFlush(storedUpload.metadata)
+                auditService?.record(
+                    AuditCommand(
+                        AuditAction.FILE_UPLOADED,
+                        "stored_file",
+                        persisted.id.toString(),
+                        targetSummary = mapOf("original_filename" to persisted.originalFilename, "size_bytes" to persisted.sizeBytes, "content_type" to persisted.contentType),
+                    ),
+                )
+                persisted
             }
             return fileData(saved)
         } catch (ex: Exception) {
@@ -56,6 +69,14 @@ class FileServiceImpl(
         if (!Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS)) {
             throw ResourceNotFoundException("文件不存在")
         }
+        auditService?.record(
+            AuditCommand(
+                AuditAction.FILE_DOWNLOADED,
+                "stored_file",
+                id.toString(),
+                targetSummary = mapOf("original_filename" to storedFile.originalFilename, "size_bytes" to storedFile.sizeBytes),
+            ),
+        )
         return FileService.DownloadData(
             path = path,
             originalFilename = storedFile.originalFilename,

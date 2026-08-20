@@ -10,6 +10,9 @@ import org.slf4j.LoggerFactory
 import org.springframework.security.core.context.SecurityContextHolder
 import top.foxball.cartask.authentication.CurrentUserPrincipal
 import top.foxball.cartask.entity.AccessControl
+import top.foxball.cartask.audit.AuditAction
+import top.foxball.cartask.audit.AuditCommand
+import top.foxball.cartask.audit.AuditService
 import top.foxball.cartask.repository.AccessControlRepository
 import top.foxball.cartask.service.AccessControlService
 
@@ -17,6 +20,7 @@ import top.foxball.cartask.service.AccessControlService
 /** 基于 JPA 的门禁授权记录服务。 */
 class AccessControlServiceImpl(
     private val repository: AccessControlRepository,
+    private val auditService: AuditService? = null,
 ) : AccessControlService {
     @Transactional
     override fun create(entity: AccessControl): AccessControl {
@@ -24,7 +28,17 @@ class AccessControlServiceImpl(
         requireValidAuthorizationPeriod(entity)
         entity.reviewStatus = AccessControl.ReviewStatus.PENDING
         entity.synchronizedLoading = false
-        return repository.save(entity)
+        val saved = repository.save(entity)
+        auditService?.record(
+            AuditCommand(
+                AuditAction.ACCESS_CONTROL_CREATED,
+                "access_control",
+                saved.id?.toString(),
+                targetSummary = mapOf("name" to saved.name, "department_id" to saved.department?.id),
+                afterData = mapOf("review_status" to saved.reviewStatus.name, "synchronized" to saved.synchronizedLoading),
+            ),
+        )
+        return saved
     }
 
     @Transactional
@@ -36,7 +50,19 @@ class AccessControlServiceImpl(
             it.reviewStatus = AccessControl.ReviewStatus.PENDING
             it.synchronizedLoading = false
         }
-        return repository.saveAll(entities)
+        val saved = repository.saveAll(entities)
+        saved.forEach {
+            auditService?.record(
+                AuditCommand(
+                    AuditAction.ACCESS_CONTROL_CREATED,
+                    "access_control",
+                    it.id?.toString(),
+                    targetSummary = mapOf("name" to it.name, "department_id" to it.department?.id),
+                    afterData = mapOf("review_status" to it.reviewStatus.name, "synchronized" to it.synchronizedLoading),
+                ),
+            )
+        }
+        return saved
     }
 
     @Transactional
@@ -70,13 +96,24 @@ class AccessControlServiceImpl(
         if (current.reviewStatus == AccessControl.ReviewStatus.REJECTED) {
             throw AccessDeniedException("已驳回的门禁申请必须重新提交")
         }
+        val before = mapOf("review_status" to current.reviewStatus.name, "synchronized" to current.synchronizedLoading)
         copyEditableProperties(entity, current)
         requireValidAuthorizationPeriod(current)
         if (current.reviewStatus == AccessControl.ReviewStatus.APPROVED) {
             current.reviewStatus = AccessControl.ReviewStatus.PENDING
             current.synchronizedLoading = false
         }
-        return repository.save(current)
+        val saved = repository.save(current)
+        auditService?.record(
+            AuditCommand(
+                AuditAction.ACCESS_CONTROL_UPDATED,
+                "access_control",
+                id.toString(),
+                beforeData = before,
+                afterData = mapOf("review_status" to saved.reviewStatus.name, "synchronized" to saved.synchronizedLoading),
+            ),
+        )
+        return saved
     }
 
     @Transactional
@@ -88,6 +125,9 @@ class AccessControlServiceImpl(
         val currentById = repository.findAllById(ids.filterNotNull()).associateBy { entityId(it) }
         val missingIds = ids.filterNotNull().filterNot(currentById::containsKey)
         require(missingIds.isEmpty()) { "部分记录不存在: ${missingIds.joinToString(",")}" }
+        val beforeById = currentById.mapValues { (_, accessControl) ->
+            mapOf("review_status" to accessControl.reviewStatus.name, "synchronized" to accessControl.synchronizedLoading)
+        }
         val updated = entities.map { incoming ->
             val current = currentById.getValue(entityId(incoming))
             if (current.reviewStatus == AccessControl.ReviewStatus.REJECTED) {
@@ -101,7 +141,19 @@ class AccessControlServiceImpl(
             }
             current
         }
-        return repository.saveAll(updated)
+        val saved = repository.saveAll(updated)
+        saved.forEach { accessControl ->
+            auditService?.record(
+                AuditCommand(
+                    AuditAction.ACCESS_CONTROL_UPDATED,
+                    "access_control",
+                    accessControl.id?.toString(),
+                    beforeData = beforeById[accessControl.id],
+                    afterData = mapOf("review_status" to accessControl.reviewStatus.name, "synchronized" to accessControl.synchronizedLoading),
+                ),
+            )
+        }
+        return saved
     }
 
     @Transactional
@@ -113,6 +165,7 @@ class AccessControlServiceImpl(
             throw AccessDeniedException("当前门禁申请状态不允许审核")
         }
         val actor = actorName()
+        val before = current.reviewStatus.name
         current.reviewStatus = if (approved) AccessControl.ReviewStatus.APPROVED else AccessControl.ReviewStatus.REJECTED
         logger.warn(
             "门禁授权审核，accessControlId={}, actor={}, approved={}, reason={}",
@@ -121,7 +174,18 @@ class AccessControlServiceImpl(
             approved,
             reason,
         )
-        return repository.save(current)
+        val saved = repository.save(current)
+        auditService?.record(
+            AuditCommand(
+                AuditAction.ACCESS_CONTROL_REVIEWED,
+                "access_control",
+                id.toString(),
+                reason = reason,
+                beforeData = mapOf("review_status" to before),
+                afterData = mapOf("review_status" to saved.reviewStatus.name),
+            ),
+        )
+        return saved
     }
 
     @Transactional

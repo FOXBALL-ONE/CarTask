@@ -13,6 +13,9 @@ import top.foxball.cartask.repository.DepartmentRepository
 import top.foxball.cartask.repository.PositionRepository
 import top.foxball.cartask.repository.UserRepository
 import top.foxball.cartask.service.UserService
+import top.foxball.cartask.audit.AuditAction
+import top.foxball.cartask.audit.AuditCommand
+import top.foxball.cartask.audit.AuditService
 import java.time.LocalDateTime
 
 @Service
@@ -24,6 +27,7 @@ class UserServiceImpl(
     private val passwordEncoder: PasswordEncoder,
     private val tokenSessionRepository: RedisTokenSessionRepository,
     private val roleAssignmentPolicy: RoleAssignmentPolicy,
+    private val auditService: AuditService? = null,
 ) : UserService {
 
     /** 将单条创建委托给批量创建路径，复用一致的校验和密码编码。 */
@@ -46,7 +50,7 @@ class UserServiceImpl(
             require(!userRepository.existsByEmail(command.email)) { "邮箱已存在" }
         }
         val now = LocalDateTime.now()
-        return userRepository.saveAll(commands.map { command ->
+        val savedUsers = userRepository.saveAll(commands.map { command ->
             User().apply {
                 username = command.username
                 nickName = command.nickName?.trim()?.takeIf(String::isNotEmpty)
@@ -68,7 +72,19 @@ class UserServiceImpl(
                 createdAt = now
                 updatedAt = now
             }
-        }).map(::toData)
+        })
+        savedUsers.forEach { user ->
+            auditService?.record(
+                AuditCommand(
+                    AuditAction.USER_CREATED,
+                    "user",
+                    user.id?.toString(),
+                    targetSummary = mapOf("username" to user.username, "role" to user.role, "department_id" to user.department?.id),
+                    afterData = mapOf("enabled" to user.enabled, "status" to user.status.name),
+                ),
+            )
+        }
+        return savedUsers.map(::toData)
     }
 
     /** 按 ID 查询用户并映射为不含密码的返回数据。 */
@@ -111,6 +127,7 @@ class UserServiceImpl(
             "至少提供一个待更新字段"
         }
         val users = getBatch(ids).map { findUser(it.id) }
+        val beforeById = users.associate { it.id!! to mapOf("username" to it.username, "role" to it.role, "enabled" to it.enabled, "status" to it.status.name) }
         roleAssignmentPolicy.validateManagement(users.map { it.role })
         requireActiveSuperAdminRemains(users) { user ->
             val role = command.role?.let(SecurityRole::normalize) ?: user.role
@@ -151,7 +168,25 @@ class UserServiceImpl(
             command.status?.let { user.status = it }
             user.updatedAt = now
         }
-        return userRepository.saveAll(users).map(::toData)
+        val savedUsers = userRepository.saveAll(users)
+        savedUsers.forEach { user ->
+            val action = when {
+                command.role != null -> AuditAction.USER_ROLE_ASSIGNED
+                command.enabled != null || command.status != null -> AuditAction.USER_STATUS_CHANGED
+                else -> AuditAction.USER_UPDATED
+            }
+            auditService?.record(
+                AuditCommand(
+                    action,
+                    "user",
+                    user.id?.toString(),
+                    beforeData = beforeById[user.id],
+                    afterData = mapOf("username" to user.username, "role" to user.role, "enabled" to user.enabled, "status" to user.status.name),
+                    targetSummary = mapOf("username" to user.username),
+                ),
+            )
+        }
+        return savedUsers.map(::toData)
     }
 
     /** 将单条删除委托给批量删除路径。 */
@@ -167,6 +202,17 @@ class UserServiceImpl(
         requireActiveSuperAdminRemains(users) { false }
         users.forEach { tokenSessionRepository.incrementTokenVersion(it.id!!) }
         userRepository.deleteAll(users)
+        users.forEach { user ->
+            auditService?.record(
+                AuditCommand(
+                    AuditAction.USER_DELETED,
+                    "user",
+                    user.id?.toString(),
+                    targetSummary = mapOf("username" to user.username, "role" to user.role),
+                    result = top.foxball.cartask.entity.AuditEvent.Result.SUCCESS,
+                ),
+            )
+        }
     }
 
     @Transactional

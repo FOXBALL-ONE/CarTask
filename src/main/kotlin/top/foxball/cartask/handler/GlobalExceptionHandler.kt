@@ -29,12 +29,18 @@ import top.foxball.cartask.shared.Response
 import top.foxball.cartask.shared.ResponseBuilder
 import top.foxball.cartask.authentication.AuthenticationInfrastructureException
 import top.foxball.cartask.authentication.LoginRateLimitException
+import top.foxball.cartask.audit.AuditAction
+import top.foxball.cartask.audit.AuditCommand
+import top.foxball.cartask.audit.AuditService
+import top.foxball.cartask.audit.AuditRequestContext
 
 
 /** 全局异常处理：将各类异常转换为统一 [Response] 响应。 */
 @Order(2)
 @RestControllerAdvice
-class GlobalExceptionHandler {
+class GlobalExceptionHandler(
+    private val auditService: AuditService,
+) {
     private val log = LoggerFactory.getLogger(this.javaClass)
     private val builder = ResponseBuilder()
 
@@ -103,7 +109,21 @@ class GlobalExceptionHandler {
 
 
     @ExceptionHandler(AccessDeniedException::class)
-    fun onAccessDeniedException(ex: AccessDeniedException): ResponseEntity<Response> {
+    fun onAccessDeniedException(req: HttpServletRequest, ex: AccessDeniedException): ResponseEntity<Response> {
+        runCatching {
+            auditService.record(
+                AuditCommand(
+                    AuditAction.AUTHORIZATION_DENIED,
+                    "http_request",
+                    req.requestURI,
+                    result = top.foxball.cartask.entity.AuditEvent.Result.DENIED,
+                    reasonCode = "ACCESS_DENIED",
+                    reason = ex.message,
+                    targetSummary = mapOf("method" to req.method, "path" to req.requestURI),
+                    idempotencyKey = AuditRequestContext.current()?.requestId?.let { "denied:$it:${req.method}:${req.requestURI}" },
+                ),
+            )
+        }.onFailure { log.error("写入授权拒绝审计事件失败", it) }
         return builder.forbidden()
             .header("Cache-Control", "no-store")
             .message(ex.message ?: "禁止访问")

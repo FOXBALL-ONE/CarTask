@@ -9,6 +9,9 @@ import org.springframework.security.core.context.SecurityContextHolder
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import top.foxball.cartask.entity.AccessRecord
+import top.foxball.cartask.audit.AuditAction
+import top.foxball.cartask.audit.AuditCommand
+import top.foxball.cartask.audit.AuditService
 import top.foxball.cartask.repository.AccessRecordRepository
 import top.foxball.cartask.service.AccessRecordService
 
@@ -16,6 +19,7 @@ import top.foxball.cartask.service.AccessRecordService
 /** 基于 JPA 的车辆进出记录服务。 */
 class AccessRecordServiceImpl(
     private val repository: AccessRecordRepository,
+    private val auditService: AuditService? = null,
 ) : AccessRecordService {
     @Transactional
     override fun create(entity: AccessRecord): AccessRecord {
@@ -77,10 +81,25 @@ class AccessRecordServiceImpl(
         require(entityId(entity) == id) { "路径 ID 必须与请求体 ID 一致" }
         val current = repository.findById(id)
             .orElseThrow { IllegalArgumentException("记录不存在: $id") }
-        val before = "${current.carNumber}|${current.inAndOut}|${current.inAndOutTime}"
+        val beforeData = mapOf(
+            "car_number" to maskCar(current.carNumber),
+            "in_and_out" to current.inAndOut.name,
+            "in_and_out_time" to current.inAndOutTime.toString(),
+        )
         copyEditableProperties(entity, current)
-        logger.warn("进出流水更正，recordId={}, actor={}, reason={}, before={}, after={}", id, actorName(), reason, before, "${current.carNumber}|${current.inAndOut}|${current.inAndOutTime}")
-        return repository.save(current)
+        logger.warn("进出流水更正，recordId={}, actor={}, reason={}, before={}, after={}", id, actorName(), reason, beforeData, "${current.carNumber}|${current.inAndOut}|${current.inAndOutTime}")
+        val saved = repository.save(current)
+        auditService?.record(
+            AuditCommand(
+                AuditAction.ACCESS_RECORD_CORRECTED,
+                "access_record",
+                id.toString(),
+                reason = reason,
+                beforeData = beforeData,
+                afterData = mapOf("car_number" to maskCar(saved.carNumber), "in_and_out" to saved.inAndOut.name),
+            ),
+        )
+        return saved
     }
 
     @Transactional
@@ -106,12 +125,24 @@ class AccessRecordServiceImpl(
         current.releaseInstructions = reason.trim()
         current.operatorName = actor
         logger.warn("人工放行，recordId={}, actor={}, reason={}", id, actor, reason)
-        return repository.save(current)
+        val saved = repository.save(current)
+        auditService?.record(
+            AuditCommand(
+                AuditAction.ACCESS_RECORD_RELEASED,
+                "access_record",
+                id.toString(),
+                reason = reason,
+                afterData = mapOf("release_channel" to saved.releaseChannel?.name, "operator_name" to saved.operatorName),
+            ),
+        )
+        return saved
     }
 
     private fun actorName(): String =
         (SecurityContextHolder.getContext().authentication?.principal as? top.foxball.cartask.authentication.CurrentUserPrincipal)?.username
             ?: throw AccessDeniedException("缺少有效的操作人上下文")
+
+    private fun maskCar(value: String?): String? = value?.let { if (it.length <= 4) it else "***${it.takeLast(4)}" }
 
     private fun entityId(entity: AccessRecord): Long? {
         var type: Class<*>? = entity.javaClass

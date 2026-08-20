@@ -16,12 +16,19 @@ import org.springframework.web.cors.CorsConfiguration
 import org.springframework.web.cors.CorsConfigurationSource
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 import top.foxball.cartask.authentication.JwtAuthenticationFilter
+import top.foxball.cartask.audit.AuditRequestContextFilter
+import top.foxball.cartask.audit.AuditRequestContext
+import top.foxball.cartask.audit.AuditAction
+import top.foxball.cartask.audit.AuditCommand
+import top.foxball.cartask.audit.AuditService
 
 @Configuration
 @EnableMethodSecurity
 class SecurityConfig(
     private val jwtAuthenticationFilter: JwtAuthenticationFilter,
+    private val auditRequestContextFilter: AuditRequestContextFilter,
     private val corsProperties: CorsProperties,
+    private val auditService: AuditService,
 ) {
 
     @Bean
@@ -73,11 +80,26 @@ class SecurityConfig(
                     response.setHeader(HttpHeaders.WWW_AUTHENTICATE, "Bearer")
                     writeJson(response, HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized")
                 }
-                it.accessDeniedHandler { _, response, _ ->
+                it.accessDeniedHandler { request, response, accessDenied ->
+                    runCatching {
+                        auditService.record(
+                            AuditCommand(
+                                AuditAction.AUTHORIZATION_DENIED,
+                                "http_request",
+                                request.requestURI,
+                                result = top.foxball.cartask.entity.AuditEvent.Result.DENIED,
+                                reasonCode = "ACCESS_DENIED",
+                                reason = accessDenied.message,
+                                targetSummary = mapOf("method" to request.method, "path" to request.requestURI),
+                                idempotencyKey = AuditRequestContext.current()?.requestId?.let { "denied:$it:${request.method}:${request.requestURI}" },
+                            ),
+                        )
+                    }
                     response.setHeader(HttpHeaders.CACHE_CONTROL, "no-store")
                     writeJson(response, HttpServletResponse.SC_FORBIDDEN, "Forbidden")
                 }
             }
+            .addFilterBefore(auditRequestContextFilter, JwtAuthenticationFilter::class.java)
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter::class.java)
         return http.build()
     }
@@ -100,6 +122,7 @@ class SecurityConfig(
                 "Authorization",
                 "Content-Type",
                 "Accept",
+                "X-Request-Id",
                 "X-Requested-With",
                 "Idempotency-Key",
             )
@@ -109,6 +132,7 @@ class SecurityConfig(
                 "Retry-After",
                 "X-RateLimit-Limit",
                 "X-RateLimit-Remaining",
+                "X-Request-Id",
             )
             maxAge = 3600
         }

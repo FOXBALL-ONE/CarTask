@@ -5,6 +5,9 @@ import org.springframework.security.authentication.BadCredentialsException
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import top.foxball.cartask.entity.User
+import top.foxball.cartask.audit.AuditAction
+import top.foxball.cartask.audit.AuditCommand
+import top.foxball.cartask.audit.AuditService
 import top.foxball.cartask.repository.UserRepository
 import java.time.Duration
 import java.time.LocalDateTime
@@ -34,6 +37,7 @@ class AuthServiceImpl(
     private val jwtTokenService: JwtTokenService,
     private val sessionRepository: RedisTokenSessionRepository,
     private val loginAttemptLimiter: LoginAttemptLimiter,
+    private val auditService: AuditService? = null,
 ) : AuthService {
     override fun login(command: AuthService.LoginCommand): AuthService.LoginData {
         loginAttemptLimiter.check(command.username)
@@ -52,6 +56,18 @@ class AuthServiceImpl(
                 ?: throw BadCredentialsException("用户名或密码错误")
         } catch (ex: BadCredentialsException) {
             loginAttemptLimiter.recordFailure(command.username)
+            runCatching {
+                auditService?.record(
+                    AuditCommand(
+                        AuditAction.AUTH_LOGIN_FAILED,
+                        "user",
+                        targetId = command.username.take(128),
+                        result = top.foxball.cartask.entity.AuditEvent.Result.FAILED,
+                        reasonCode = "INVALID_CREDENTIALS",
+                        targetSummary = mapOf("username" to command.username.take(128)),
+                    ),
+                )
+            }
             throw ex
         }
         loginAttemptLimiter.clear(command.username)
@@ -74,10 +90,30 @@ class AuthServiceImpl(
             ),
             Duration.between(issued.issuedAt, issued.expiresAt),
         )
+        runCatching {
+            auditService?.record(
+                AuditCommand(
+                    AuditAction.AUTH_LOGIN_SUCCEEDED,
+                    "user",
+                    userId.toString(),
+                    targetSummary = mapOf("username" to user.username, "role" to role),
+                ),
+            )
+        }
         return AuthService.LoginData(issued.accessToken, issued.expiresAt, userId, user.username, role)
     }
     
     override fun logout(tokenId: kotlin.String) {
         sessionRepository.delete(tokenId)
+        runCatching {
+            auditService?.record(
+                AuditCommand(
+                    AuditAction.AUTH_LOGOUT,
+                    "session",
+                    reasonCode = "USER_LOGOUT",
+                    targetSummary = mapOf("token_id_hash" to tokenId.hashCode().toString(16)),
+                ),
+            )
+        }
     }
 }

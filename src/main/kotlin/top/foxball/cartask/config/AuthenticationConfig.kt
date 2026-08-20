@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Configuration
 import top.foxball.cartask.authentication.JwtProperties
 import top.foxball.cartask.authentication.JwtAuthenticationFilter
 import top.foxball.cartask.authentication.LoginRateLimitProperties
+import top.foxball.cartask.audit.AuditRequestContextFilter
 import java.time.Clock
 
 @Configuration
@@ -20,6 +21,14 @@ class AuthenticationConfig {
     fun jwtAuthenticationFilterRegistration(
         filter: JwtAuthenticationFilter,
     ): FilterRegistrationBean<JwtAuthenticationFilter> = FilterRegistrationBean(filter).apply {
+        isEnabled = false
+    }
+
+    /** 审计上下文只加入 Spring Security 链，避免 Servlet 容器重复执行。 */
+    @Bean
+    fun auditRequestContextFilterRegistration(
+        filter: AuditRequestContextFilter,
+    ): FilterRegistrationBean<AuditRequestContextFilter> = FilterRegistrationBean(filter).apply {
         isEnabled = false
     }
 }

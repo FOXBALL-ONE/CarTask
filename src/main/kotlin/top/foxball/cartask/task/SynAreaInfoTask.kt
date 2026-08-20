@@ -10,6 +10,7 @@ import top.foxball.cartask.entity.type.ZoneType
 import top.foxball.cartask.keytop.KeytopProperties
 import top.foxball.cartask.keytop.KeytopService
 import top.foxball.cartask.repository.ZoneTypeRepository
+import top.foxball.cartask.audit.AuditRequestContext
 import java.util.concurrent.locks.ReentrantLock
 
 /** 从科拓同步停车区域，维护系统可用的区域字典。 */
@@ -23,6 +24,12 @@ class SynAreaInfoTask(
     @Scheduled(cron = "#{@keytopProperties.areaSyncCron}", zone = "Asia/Shanghai")
     @Transactional
     fun synAreaInfo() {
+        AuditRequestContext.withRun {
+            synAreaInfoInternal()
+        }
+    }
+
+    private fun synAreaInfoInternal() {
         if (!executionLock.tryLock()) {
             logger.warn("停车区域同步仍在执行，本次跳过")
             return

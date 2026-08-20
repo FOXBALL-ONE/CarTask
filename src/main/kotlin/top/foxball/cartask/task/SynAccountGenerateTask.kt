@@ -5,6 +5,7 @@ import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 import top.foxball.cartask.service.CarMasterInfoService
 import top.foxball.cartask.service.UserService
+import top.foxball.cartask.audit.AuditRequestContext
 
 /** 为固定车位车辆使用人补建平台账户。 */
 @Component
@@ -14,6 +15,12 @@ class SynAccountGenerateTask(
 ) {
     @Scheduled(cron = "0 0 3 * * *", zone = "Asia/Shanghai")
     fun synAccountGenerate() {
+        AuditRequestContext.withRun {
+            synAccountGenerateWithContext()
+        }
+    }
+
+    private fun synAccountGenerateWithContext() {
         if (!executionLock.tryLock()) {
             logger.warn("固定车位车辆使用人账户同步仍在执行，本次跳过")
             return

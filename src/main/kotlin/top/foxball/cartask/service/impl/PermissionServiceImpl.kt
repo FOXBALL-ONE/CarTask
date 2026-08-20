@@ -13,6 +13,9 @@ import top.foxball.cartask.repository.PermissionRepository
 import top.foxball.cartask.repository.RoleRepository
 import top.foxball.cartask.repository.UserRepository
 import top.foxball.cartask.service.PermissionService
+import top.foxball.cartask.audit.AuditAction
+import top.foxball.cartask.audit.AuditCommand
+import top.foxball.cartask.audit.AuditService
 
 @Service
 /** 基于 JPA 的权限字典服务。 */
@@ -21,13 +24,16 @@ class PermissionServiceImpl(
     private val roleRepository: RoleRepository,
     private val userRepository: UserRepository,
     private val tokenSessionRepository: RedisTokenSessionRepository,
+    private val auditService: AuditService? = null,
 ) : PermissionService {
     @Transactional
     @PreAuthorize("hasRole('SUPER_ADMIN') and hasAuthority('permission:manage')")
     override fun create(entity: Permission): Permission {
         require(entityId(entity) == null) { "创建记录时不能指定 ID" }
         normalizePermissionCode(entity)
-        return repository.save(entity)
+        val saved = repository.save(entity)
+        auditService?.record(AuditCommand(AuditAction.PERMISSION_CHANGED, "permission", saved.id?.toString(), afterData = mapOf("code" to saved.code, "name" to saved.name, "enabled" to saved.enabled)))
+        return saved
     }
 
     @Transactional
@@ -36,7 +42,11 @@ class PermissionServiceImpl(
         require(entities.isNotEmpty()) { "创建列表不能为空" }
         require(entities.all { entityId(it) == null }) { "创建记录时不能指定 ID" }
         entities.forEach(::normalizePermissionCode)
-        return repository.saveAll(entities)
+        val saved = repository.saveAll(entities)
+        saved.forEach { permission ->
+            auditService?.record(AuditCommand(AuditAction.PERMISSION_CHANGED, "permission", permission.id?.toString(), afterData = mapOf("code" to permission.code, "name" to permission.name, "enabled" to permission.enabled)))
+        }
+        return saved
     }
 
     @Transactional
@@ -72,11 +82,14 @@ class PermissionServiceImpl(
         val current = repository.findById(id)
             .orElseThrow { IllegalArgumentException("记录不存在: $id") }
         val previousCode = SecurityPermission.normalize(current.code)
+        val before = mapOf("code" to current.code, "name" to current.name, "enabled" to current.enabled)
         copyEditableProperties(entity, current)
         normalizePermissionCode(current)
         requireGovernancePermissionChange(previousCode, current)
         revokeRoleSessionsUsingPermission(id)
-        return repository.save(current)
+        val saved = repository.save(current)
+        auditService?.record(AuditCommand(AuditAction.PERMISSION_CHANGED, "permission", saved.id?.toString(), beforeData = before, afterData = mapOf("code" to saved.code, "name" to saved.name, "enabled" to saved.enabled)))
+        return saved
     }
 
     @Transactional
@@ -90,6 +103,7 @@ class PermissionServiceImpl(
         val missingIds = ids.filterNotNull().filterNot(currentById::containsKey)
         require(missingIds.isEmpty()) { "部分记录不存在: ${missingIds.joinToString(",")}" }
         val previousCodes = currentById.mapValues { (_, permission) -> SecurityPermission.normalize(permission.code) }
+        val beforeById = currentById.mapValues { (_, permission) -> mapOf("code" to permission.code, "name" to permission.name, "enabled" to permission.enabled) }
         val updated = entities.map { incoming ->
             val current = currentById.getValue(entityId(incoming))
             copyEditableProperties(incoming, current)
@@ -98,7 +112,11 @@ class PermissionServiceImpl(
             current
         }
         updated.forEach { revokeRoleSessionsUsingPermission(entityId(it)!!) }
-        return repository.saveAll(updated)
+        val saved = repository.saveAll(updated)
+        saved.forEach { permission ->
+            auditService?.record(AuditCommand(AuditAction.PERMISSION_CHANGED, "permission", permission.id?.toString(), beforeData = beforeById[permission.id], afterData = mapOf("code" to permission.code, "name" to permission.name, "enabled" to permission.enabled)))
+        }
+        return saved
     }
 
     @Transactional
@@ -108,6 +126,7 @@ class PermissionServiceImpl(
         val permission = repository.findById(id).orElseThrow { IllegalArgumentException("记录不存在: $id") }
         requireNotAssigned(permission.id!!)
         repository.delete(permission)
+        auditService?.record(AuditCommand(AuditAction.PERMISSION_CHANGED, "permission", permission.id?.toString(), afterData = mapOf("deleted" to true, "code" to permission.code)))
     }
 
     @Transactional
@@ -121,7 +140,11 @@ class PermissionServiceImpl(
         val missingIds = distinctIds.filterNot(recordsById::containsKey)
         require(missingIds.isEmpty()) { "部分记录不存在: ${missingIds.joinToString(",")}" }
         distinctIds.forEach(::requireNotAssigned)
-        repository.deleteAll(distinctIds.map(recordsById::getValue))
+        val permissions = distinctIds.map(recordsById::getValue)
+        repository.deleteAll(permissions)
+        permissions.forEach { permission ->
+            auditService?.record(AuditCommand(AuditAction.PERMISSION_CHANGED, "permission", permission.id?.toString(), afterData = mapOf("deleted" to true, "code" to permission.code)))
+        }
     }
 
     private fun entityId(entity: Permission): Long? {
