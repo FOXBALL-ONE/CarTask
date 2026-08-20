@@ -1,6 +1,7 @@
 package top.foxball.cartask.controller
 
 import org.springframework.http.ResponseEntity
+import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -24,26 +25,31 @@ class DeviceController(
 ) {
     /** 创建一条实体记录。 */
     @PostMapping
+    @PreAuthorize("hasAuthority('device:manage')")
     fun create(@RequestBody entity: Device): ResponseEntity<Response> =
         responseBuilder.created().data(service.create(entity)).build()
 
     /** 批量创建实体记录。 */
     @PostMapping("/batch")
+    @PreAuthorize("hasAuthority('device:manage')")
     fun createBatch(@RequestBody entities: List<Device>): ResponseEntity<Response> =
         responseBuilder.created().data(service.createBatch(entities)).build()
 
     /** 按主键获取一条实体记录。 */
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('device:read')")
     fun get(@PathVariable id: Long): ResponseEntity<Response> =
         responseBuilder.ok().data(service.get(id)).build()
 
     /** 按多个主键批量获取实体记录。 */
     @GetMapping("/batch")
+    @PreAuthorize("hasAuthority('device:read')")
     fun getBatch(@RequestParam id: List<Long>): ResponseEntity<Response> =
         responseBuilder.ok().data(service.getBatch(id)).build()
 
     /** 分页查询实体记录。 */
     @GetMapping
+    @PreAuthorize("hasAuthority('device:read')")
     fun list(
         @RequestParam(defaultValue = "1") page: Int,
         @RequestParam(name = "page_size", defaultValue = "20") pageSize: Int,
@@ -51,16 +57,19 @@ class DeviceController(
 
     /** 更新指定主键的实体记录。 */
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('device:manage')")
     fun update(@PathVariable id: Long, @RequestBody entity: Device): ResponseEntity<Response> =
         responseBuilder.ok().data(service.update(id, entity)).build()
 
     /** 批量更新实体记录。 */
     @PutMapping("/batch")
+    @PreAuthorize("hasAuthority('device:manage')")
     fun updateBatch(@RequestBody entities: List<Device>): ResponseEntity<Response> =
         responseBuilder.ok().data(service.updateBatch(entities)).build()
 
     /** 删除指定主键的实体记录。 */
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('device:manage')")
     fun delete(@PathVariable id: Long): ResponseEntity<Response> {
         service.delete(id)
         return responseBuilder.ok().data(mapOf("id" to id)).build()
@@ -68,6 +77,7 @@ class DeviceController(
 
     /** 批量删除实体记录。 */
     @DeleteMapping("/batch")
+    @PreAuthorize("hasAuthority('device:manage')")
     fun deleteBatch(@RequestParam id: List<Long>): ResponseEntity<Response> {
         service.deleteBatch(id)
         return responseBuilder.ok().data(mapOf("ids" to id)).build()

@@ -19,7 +19,7 @@ class Role {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     var id: Long? = null
 
-    /** 角色名称，例如 `ADMIN` 或 `CUSTOMER`。 */
+    /** 角色名称，例如 `SUPER_ADMIN`、`ADMIN` 或 `USER`。 */
     @Column(nullable = false, unique = true, length = 64)
     lateinit var name: String
 

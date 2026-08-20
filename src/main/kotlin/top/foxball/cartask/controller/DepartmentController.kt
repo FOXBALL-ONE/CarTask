@@ -2,6 +2,7 @@ package top.foxball.cartask.controller
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import org.springframework.http.ResponseEntity
+import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -23,6 +24,7 @@ class DepartmentController(
 ) {
     /** 创建一个部门。 */
     @PostMapping
+    @PreAuthorize("hasAuthority('department:manage')")
     fun create(
         @RequestParam name: String,
         @RequestParam(name = "department_code") departmentCode: String,
@@ -58,6 +60,7 @@ class DepartmentController(
 
     /** 批量创建部门。所有字段按数组下标对应。 */
     @PostMapping("/batch")
+    @PreAuthorize("hasAuthority('department:manage')")
     fun createBatch(
         @RequestParam name: List<String>,
         @RequestParam(name = "department_code") departmentCode: List<String>,
@@ -109,6 +112,7 @@ class DepartmentController(
 
     /** 向指定部门批量添加多个下级部门。 */
     @PostMapping("/{superiorId}/children/batch")
+    @PreAuthorize("hasAuthority('department:manage')")
     fun createChildrenBatch(
         @PathVariable superiorId: Long,
         @RequestParam name: List<String>,
@@ -159,6 +163,7 @@ class DepartmentController(
 
     /** 查询全部部门，返回扁平化部门树节点供前端构建树。 */
     @GetMapping
+    @PreAuthorize("hasAuthority('department:read')")
     fun list(): ResponseEntity<Response> {
         data class DepartmentData(
             val id: Long,
@@ -191,6 +196,7 @@ class DepartmentController(
 
     /** 按部门 ID 查询部门。 */
     @GetMapping("/{id:[0-9]+}")
+    @PreAuthorize("hasAuthority('department:read')")
     fun get(@PathVariable id: Long): ResponseEntity<Response> {
         data class Response(
             val id: Long,
@@ -217,6 +223,7 @@ class DepartmentController(
 
     /** 按多个部门 ID 批量查询部门。 */
     @GetMapping("/batch")
+    @PreAuthorize("hasAuthority('department:read')")
     fun getBatch(@RequestParam id: List<Long>): ResponseEntity<Response> {
         data class DepartmentData(
             val id: Long,
@@ -246,6 +253,7 @@ class DepartmentController(
 
     /** 更新一个部门。未传入的字段保持不变。 */
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('department:manage')")
     fun update(
         @PathVariable id: Long,
         @RequestParam(required = false) name: String?,
@@ -283,6 +291,7 @@ class DepartmentController(
 
     /** 对多个部门应用相同的更新内容。 */
     @PutMapping("/batch")
+    @PreAuthorize("hasAuthority('department:manage')")
     fun updateBatch(
         @RequestParam id: List<Long>,
         @RequestParam(required = false) name: String?,
@@ -304,6 +313,7 @@ class DepartmentController(
 
     /** 删除一个部门。 */
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('department:manage')")
     fun delete(@PathVariable id: Long): ResponseEntity<Response> {
         data class Response(val id: Long)
 
@@ -314,6 +324,7 @@ class DepartmentController(
 
     /** 批量删除部门。 */
     @DeleteMapping("/batch")
+    @PreAuthorize("hasAuthority('department:manage')")
     fun deleteBatch(@RequestParam id: List<Long>): ResponseEntity<Response> {
         data class Response(@param:JsonProperty("department_ids") val departmentIds: List<Long>)
 

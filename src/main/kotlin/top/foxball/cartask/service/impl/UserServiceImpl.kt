@@ -3,8 +3,10 @@ package top.foxball.cartask.service.impl
 import jakarta.transaction.Transactional
 import org.springframework.data.domain.PageRequest
 import org.springframework.security.crypto.password.PasswordEncoder
+import org.springframework.security.access.AccessDeniedException
 import org.springframework.stereotype.Service
 import top.foxball.cartask.authentication.RedisTokenSessionRepository
+import top.foxball.cartask.authentication.RoleAssignmentPolicy
 import top.foxball.cartask.authentication.SecurityRole
 import top.foxball.cartask.entity.User
 import top.foxball.cartask.repository.DepartmentRepository
@@ -21,6 +23,7 @@ class UserServiceImpl(
     private val positionRepository: PositionRepository,
     private val passwordEncoder: PasswordEncoder,
     private val tokenSessionRepository: RedisTokenSessionRepository,
+    private val roleAssignmentPolicy: RoleAssignmentPolicy,
 ) : UserService {
 
     /** 将单条创建委托给批量创建路径，复用一致的校验和密码编码。 */
@@ -38,7 +41,7 @@ class UserServiceImpl(
             require(command.username.isNotBlank()) { "用户名不能为空" }
             require(command.email.isNotBlank()) { "邮箱不能为空" }
             require(command.credential.isNotBlank()) { "凭据不能为空" }
-            SecurityRole.normalize(command.role)
+            roleAssignmentPolicy.validateAssignment(command.role)
             require(!userRepository.existsByUsername(command.username)) { "用户名已存在" }
             require(!userRepository.existsByEmail(command.email)) { "邮箱已存在" }
         }
@@ -108,6 +111,13 @@ class UserServiceImpl(
             "至少提供一个待更新字段"
         }
         val users = getBatch(ids).map { findUser(it.id) }
+        roleAssignmentPolicy.validateManagement(users.map { it.role })
+        requireActiveSuperAdminRemains(users) { user ->
+            val role = command.role?.let(SecurityRole::normalize) ?: user.role
+            val enabled = command.enabled ?: user.enabled
+            val status = command.status ?: user.status
+            role == "SUPER_ADMIN" && enabled && status == User.Status.Activity
+        }
         command.username?.let { username ->
             require(username.isNotBlank()) { "用户名不能为空" }
             require(users.all { it.username == username } || !userRepository.existsByUsername(username)) { "用户名已存在" }
@@ -117,7 +127,7 @@ class UserServiceImpl(
             require(users.all { it.email == email } || !userRepository.existsByEmail(email)) { "邮箱已存在" }
         }
         command.credential?.let { require(it.isNotBlank()) { "凭据不能为空" } }
-        command.role?.let(SecurityRole::normalize)
+        command.role?.let(roleAssignmentPolicy::validateAssignment)
         if (command.credential != null || command.role != null || command.enabled != null || command.status != null) {
             users.forEach { tokenSessionRepository.incrementTokenVersion(it.id!!) }
         }
@@ -153,6 +163,8 @@ class UserServiceImpl(
     override fun deleteBatch(ids: List<Long>) {
         require(ids.distinct().size == ids.size) { "用户 ID 不能重复" }
         val users = getBatch(ids).map { findUser(it.id) }
+        roleAssignmentPolicy.validateManagement(users.map { it.role })
+        requireActiveSuperAdminRemains(users) { false }
         users.forEach { tokenSessionRepository.incrementTokenVersion(it.id!!) }
         userRepository.deleteAll(users)
     }
@@ -169,6 +181,20 @@ class UserServiceImpl(
     /** 查找用户；不存在时抛出参数错误。 */
     private fun findUser(id: Long): User = userRepository.findById(id)
         .orElseThrow { IllegalArgumentException("用户不存在: $id") }
+
+    private fun requireActiveSuperAdminRemains(
+        users: Collection<User>,
+        remainsActiveSuperAdmin: (User) -> Boolean,
+    ) {
+        val removedCount = users.count { user ->
+            user.role == "SUPER_ADMIN" && user.enabled && user.status == User.Status.Activity && !remainsActiveSuperAdmin(user)
+        }
+        if (removedCount == 0) return
+        val activeCount = userRepository.countByRoleAndEnabledTrueAndStatus("SUPER_ADMIN", User.Status.Activity)
+        if (activeCount - removedCount < 1) {
+            throw AccessDeniedException("不能禁用、降级或删除最后一个启用的超级管理员")
+        }
+    }
 
     /** 将实体映射为不暴露密码哈希的服务返回数据。 */
     private fun toData(user: User): UserService.UserData = UserService.UserData(

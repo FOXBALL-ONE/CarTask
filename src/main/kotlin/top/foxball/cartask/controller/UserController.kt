@@ -2,6 +2,7 @@ package top.foxball.cartask.controller
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import org.springframework.http.ResponseEntity
+import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -25,6 +26,7 @@ class UserController(
 ) {
     /** 创建一个用户账户。 */
     @PostMapping
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('user:create')")
     fun create(
         @RequestParam username: String,
         @RequestParam email: String,
@@ -85,6 +87,7 @@ class UserController(
 
     /** 根据并列参数批量创建用户账户。 */
     @PostMapping("/batch")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('user:create')")
     fun createBatch(
         @RequestParam username: List<String>,
         @RequestParam email: List<String>,
@@ -157,6 +160,7 @@ class UserController(
 
     /** 按用户 ID 查询账户信息。 */
     @GetMapping("/{id}")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('user:read')")
     fun get(@PathVariable id: Long): ResponseEntity<Response> {
         data class Response(
             val id: Long,
@@ -193,6 +197,7 @@ class UserController(
 
     /** 分页查询用户账户。 */
     @GetMapping
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('user:read')")
     fun list(
         @RequestParam(defaultValue = "1") page: Int,
         @RequestParam(name = "page_size", defaultValue = "20") pageSize: Int,
@@ -240,6 +245,7 @@ class UserController(
 
     /** 按多个用户 ID 批量查询账户信息。 */
     @GetMapping("/batch")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('user:read')")
     fun getBatch(@RequestParam id: List<Long>): ResponseEntity<Response> {
         data class UserData(
             val id: Long,
@@ -279,6 +285,7 @@ class UserController(
 
     /** 更新指定用户账户的可变字段。 */
     @PutMapping("/{id}")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('user:update')")
     fun update(
         @PathVariable id: Long,
         @RequestParam(required = false) username: String?,
@@ -305,6 +312,7 @@ class UserController(
             val status: User.Status,
         )
 
+        require(role == null && enabled == null && status == null) { "角色和账号状态必须使用专用接口更新" }
         val user = userService.update(
             id,
             UserService.UpdateCommand(username, email, credential, role, enabled, phone, gender, departmentId, positionId, status),
@@ -326,6 +334,7 @@ class UserController(
 
     /** 对多个用户应用相同的更新内容。 */
     @PutMapping("/batch")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('user:update')")
     fun updateBatch(
         @RequestParam id: List<Long>,
         @RequestParam(required = false) username: String?,
@@ -340,6 +349,7 @@ class UserController(
         @RequestParam(required = false) status: User.Status?,
     ): ResponseEntity<Response> {
         data class Response(@param:JsonProperty("user_ids") val userIds: List<Long>)
+        require(role == null && enabled == null && status == null) { "角色和账号状态必须使用专用接口更新" }
         userService.updateBatch(
             id,
             UserService.UpdateCommand(username, email, credential, role, enabled, phone, gender, departmentId, positionId, status),
@@ -348,8 +358,38 @@ class UserController(
         return responseBuilder.ok().data(rs).build()
     }
 
+    /** 仅超级管理员可变更账户角色，避免普通资料更新形成提权路径。 */
+    @PutMapping("/{id}/role")
+    @PreAuthorize("hasRole('SUPER_ADMIN') and hasAuthority('user:role-assign')")
+    fun assignRole(
+        @PathVariable id: Long,
+        @RequestParam role: String,
+    ): ResponseEntity<Response> {
+        data class Response(val id: Long, val role: String)
+
+        val user = userService.update(id, UserService.UpdateCommand(role = role))
+        val rs = Response(user.id, user.role)
+        return responseBuilder.ok().data(rs).build()
+    }
+
+    /** 启停或封禁账户会撤销旧会话，独立于普通资料更新。 */
+    @PutMapping("/{id}/account-status")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('user:disable')")
+    fun updateAccountStatus(
+        @PathVariable id: Long,
+        @RequestParam enabled: Boolean,
+        @RequestParam status: User.Status,
+    ): ResponseEntity<Response> {
+        data class Response(val id: Long, val enabled: Boolean, val status: User.Status)
+
+        val user = userService.update(id, UserService.UpdateCommand(enabled = enabled, status = status))
+        val rs = Response(user.id, user.enabled, user.status)
+        return responseBuilder.ok().data(rs).build()
+    }
+
     /** 删除指定用户账户。 */
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('SUPER_ADMIN') and hasAuthority('user:disable')")
     fun delete(@PathVariable id: Long): ResponseEntity<Response> {
         data class Response(val id: Long)
         userService.delete(id)
@@ -359,6 +399,7 @@ class UserController(
 
     /** 按多个用户 ID 批量删除账户。 */
     @DeleteMapping("/batch")
+    @PreAuthorize("hasRole('SUPER_ADMIN') and hasAuthority('user:disable')")
     fun deleteBatch(@RequestParam id: List<Long>): ResponseEntity<Response> {
         data class Response(@param:JsonProperty("user_ids") val userIds: List<Long>)
         userService.deleteBatch(id)

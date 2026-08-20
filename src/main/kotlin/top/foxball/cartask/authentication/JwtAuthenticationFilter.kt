@@ -18,6 +18,7 @@ import java.security.MessageDigest
 class JwtAuthenticationFilter(
     private val jwtTokenService: JwtTokenService,
     private val sessionRepository: RedisTokenSessionRepository,
+    private val rolePermissionService: RolePermissionService,
 ) : OncePerRequestFilter() {
     private val tokenResolver = DefaultBearerTokenResolver()
     
@@ -50,7 +51,13 @@ class JwtAuthenticationFilter(
             ) {
                 throw JwtAuthenticationException("JWT 与登录状态不匹配")
             }
-            val principal = CurrentUserPrincipal(verified.userId, verified.username, verified.role, verified.tokenId)
+            val principal = CurrentUserPrincipal(
+                verified.userId,
+                verified.username,
+                verified.role,
+                verified.tokenId,
+                rolePermissionService.permissionsFor(verified.role),
+            )
             val context = SecurityContextHolder.createEmptyContext()
             context.authentication = UsernamePasswordAuthenticationToken(principal, null, principal.authorities).apply {
                 details = WebAuthenticationDetailsSource().buildDetails(request)

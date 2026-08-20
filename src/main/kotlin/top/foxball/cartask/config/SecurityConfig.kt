@@ -6,6 +6,7 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpMethod
 import org.springframework.security.config.Customizer
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.http.SessionCreationPolicy
 import org.springframework.security.web.SecurityFilterChain
@@ -17,6 +18,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 import top.foxball.cartask.authentication.JwtAuthenticationFilter
 
 @Configuration
+@EnableMethodSecurity
 class SecurityConfig(
     private val jwtAuthenticationFilter: JwtAuthenticationFilter,
     private val corsProperties: CorsProperties,
@@ -38,7 +40,7 @@ class SecurityConfig(
                     "/error",
                 ).permitAll()
                 it.requestMatchers(HttpMethod.POST, "/api/auth/logout").authenticated()
-                it.requestMatchers("/api/users/**").hasRole("ADMIN")
+                it.requestMatchers("/api/users/**").authenticated()
                 it.requestMatchers(HttpMethod.GET, "/api/project/**").permitAll()
                 it.requestMatchers(
                     HttpMethod.GET,
@@ -51,7 +53,6 @@ class SecurityConfig(
                     "/api/announcements/**",
                     "/api/home/recommendations",
                 ).permitAll()
-                it.requestMatchers(HttpMethod.GET, "/api/files/**").permitAll()
                 it.requestMatchers("/api/files/**").authenticated()
                 it.requestMatchers(
                     HttpMethod.POST,
@@ -63,8 +64,7 @@ class SecurityConfig(
                 it.requestMatchers(HttpMethod.POST, "/webhook").permitAll()
                 it.requestMatchers(HttpMethod.POST, "/api/logistics/webhook/**").permitAll()
                 it.requestMatchers(HttpMethod.GET, "/api/orders/*/shipments/**").authenticated()
-                it.requestMatchers("/admin/api/**").hasRole("ADMIN")
-                it.requestMatchers("/api/support-tickets/**").hasRole("CUSTOMER")
+                it.requestMatchers("/admin/api/**").authenticated()
                 it.requestMatchers("/actuator/health", "/actuator/info").permitAll()
                 it.anyRequest().authenticated()
             }

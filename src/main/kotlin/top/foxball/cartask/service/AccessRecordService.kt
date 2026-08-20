@@ -14,4 +14,7 @@ interface AccessRecordService {
     fun updateBatch(entities: List<AccessRecord>): List<AccessRecord>
     fun delete(id: Long)
     fun deleteBatch(ids: List<Long>)
+    fun correct(id: Long, entity: AccessRecord, reason: String): AccessRecord
+    fun correctBatch(entities: List<AccessRecord>, reason: String): List<AccessRecord>
+    fun release(id: Long, reason: String): AccessRecord
 }

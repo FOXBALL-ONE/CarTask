@@ -10,9 +10,13 @@ interface UserRepository : JpaRepository<User, Long> {
 
     fun findAllByUsernameIn(usernames: Collection<String>): List<User>
 
+    fun findAllByRoleIn(roles: Collection<String>): List<User>
+
     fun existsByUsernameAndIdNot(username: String, id: Long): Boolean
 
     fun existsByEmail(email: String): Boolean
 
     fun existsByEmailAndIdNot(email: String, id: Long): Boolean
+
+    fun countByRoleAndEnabledTrueAndStatus(role: String, status: User.Status): Long
 }

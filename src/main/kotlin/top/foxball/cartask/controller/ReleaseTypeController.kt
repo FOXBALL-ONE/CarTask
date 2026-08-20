@@ -1,6 +1,7 @@
 package top.foxball.cartask.controller
 
 import org.springframework.http.ResponseEntity
+import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -17,6 +18,7 @@ import top.foxball.cartask.shared.ResponseBuilder
 
 @RestController
 @RequestMapping("/api/release-types")
+@PreAuthorize("hasAuthority('dictionary:read')")
 /** 放行类型字典的管理接口。 */
 class ReleaseTypeController(
     private val service: ReleaseTypeService,
@@ -24,11 +26,13 @@ class ReleaseTypeController(
 ) {
     /** 创建一条实体记录。 */
     @PostMapping
+    @PreAuthorize("hasAuthority('dictionary:manage')")
     fun create(@RequestBody entity: ReleaseType): ResponseEntity<Response> =
         responseBuilder.created().data(service.create(entity)).build()
 
     /** 批量创建实体记录。 */
     @PostMapping("/batch")
+    @PreAuthorize("hasAuthority('dictionary:manage')")
     fun createBatch(@RequestBody entities: List<ReleaseType>): ResponseEntity<Response> =
         responseBuilder.created().data(service.createBatch(entities)).build()
 
@@ -51,16 +55,19 @@ class ReleaseTypeController(
 
     /** 更新指定主键的实体记录。 */
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('dictionary:manage')")
     fun update(@PathVariable id: Long, @RequestBody entity: ReleaseType): ResponseEntity<Response> =
         responseBuilder.ok().data(service.update(id, entity)).build()
 
     /** 批量更新实体记录。 */
     @PutMapping("/batch")
+    @PreAuthorize("hasAuthority('dictionary:manage')")
     fun updateBatch(@RequestBody entities: List<ReleaseType>): ResponseEntity<Response> =
         responseBuilder.ok().data(service.updateBatch(entities)).build()
 
     /** 删除指定主键的实体记录。 */
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('dictionary:manage')")
     fun delete(@PathVariable id: Long): ResponseEntity<Response> {
         service.delete(id)
         return responseBuilder.ok().data(mapOf("id" to id)).build()
@@ -68,6 +75,7 @@ class ReleaseTypeController(
 
     /** 批量删除实体记录。 */
     @DeleteMapping("/batch")
+    @PreAuthorize("hasAuthority('dictionary:manage')")
     fun deleteBatch(@RequestParam id: List<Long>): ResponseEntity<Response> {
         service.deleteBatch(id)
         return responseBuilder.ok().data(mapOf("ids" to id)).build()
