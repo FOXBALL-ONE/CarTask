@@ -16,4 +16,8 @@ data class KeytopProperties(
     val appSecret: String = "",
     val version: String = "1.0.0",
     val timeout: Duration = Duration.ofSeconds(30),
+    val areaSyncCron: String = "0 0 2 * * *",
+    val carCapInfoSyncCron: String = "0 */5 * * * *",
+    val carCapInfoPageSize: Int = 100,
+    val carCapInfoLookbackMinutes: Long = 5,
 )

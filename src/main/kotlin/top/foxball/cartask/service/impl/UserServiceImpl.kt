@@ -46,6 +46,7 @@ class UserServiceImpl(
         return userRepository.saveAll(commands.map { command ->
             User().apply {
                 username = command.username
+                nickName = command.nickName?.trim()?.takeIf(String::isNotEmpty)
                 email = command.email
                 passwordHash = passwordEncoder.encode(command.credential).toString()
                 role = SecurityRole.normalize(command.role)
@@ -154,6 +155,15 @@ class UserServiceImpl(
         val users = getBatch(ids).map { findUser(it.id) }
         users.forEach { tokenSessionRepository.incrementTokenVersion(it.id!!) }
         userRepository.deleteAll(users)
+    }
+
+    @Transactional
+    override fun existsByUsername(username: String): Boolean = userRepository.existsByUsername(username)
+
+    @Transactional
+    override fun findExistingUsernames(usernames: Collection<String>): Set<String> {
+        if (usernames.isEmpty()) return emptySet()
+        return userRepository.findAllByUsernameIn(usernames).map { it.username }.toSet()
     }
 
     /** 查找用户；不存在时抛出参数错误。 */

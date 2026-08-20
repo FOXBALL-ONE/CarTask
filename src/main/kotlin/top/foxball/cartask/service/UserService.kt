@@ -18,6 +18,7 @@ interface UserService {
         @param:JsonProperty("department_id") val departmentId: Long? = null,
         @param:JsonProperty("position_id") val positionId: Long? = null,
         @param:JsonProperty("status") val status: User.Status = User.Status.Activity,
+        @param:JsonProperty("nick_name") val nickName: String? = null,
     )
 
     /** 用户可变字段命令；未提供的字段保持原值。 */
@@ -71,4 +72,8 @@ interface UserService {
     fun delete(id: Long)
     /** 批量删除用户账户。 */
     fun deleteBatch(ids: List<Long>)
+    /** 判断指定登录名是否已有账户。 */
+    fun existsByUsername(username: String): Boolean
+    /** 批量返回已存在的登录名。 */
+    fun findExistingUsernames(usernames: Collection<String>): Set<String>
 }

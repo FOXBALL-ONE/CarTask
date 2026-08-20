@@ -2,8 +2,10 @@ package top.foxball.cartask
 
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
+import org.springframework.scheduling.annotation.EnableScheduling
 
 @SpringBootApplication
+@EnableScheduling
 class CarTaskApplication
 
 fun main(args: Array<String>) {

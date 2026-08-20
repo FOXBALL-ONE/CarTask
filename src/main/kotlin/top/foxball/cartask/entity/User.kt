@@ -27,6 +27,10 @@ class User {
     @Column(nullable = false, unique = true, length = 64)
     lateinit var username: String
 
+
+    @Column(nullable = false, unique = true, length = 64)
+     var nickName: String?=null
+
     /** 用户邮箱。 */
     @Column(nullable = false, unique = true, length = 255)
     lateinit var email: String

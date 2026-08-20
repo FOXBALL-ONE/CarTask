@@ -20,6 +20,10 @@ class ZoneType {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     var id: Long? = null
+
+    /** 外部停车平台的稳定区域编码，用于同步幂等匹配。 */
+    @Column(name = "zone_code", length = 64, unique = true)
+    var zoneCode: String? = null
     
     @Column(name = "zone_name", length = 32)
     var zoneName:String?=null
