@@ -1,9 +1,19 @@
 package top.foxball.cartask.service
 
 import top.foxball.cartask.entity.Department
+import org.springframework.data.domain.Page
 
 /** 组织部门的业务服务。 */
-interface DepartmentService : CrudService<Department> {
+interface DepartmentService {
+    fun create(entity: Department): Department
+    fun createBatch(entities: List<Department>): List<Department>
+    fun get(id: Long): Department
+    fun getBatch(ids: List<Long>): List<Department>
+    fun list(page: Int, pageSize: Int): Page<Department>
+    fun update(id: Long, entity: Department): Department
+    fun updateBatch(entities: List<Department>): List<Department>
+    fun delete(id: Long)
+    fun deleteBatch(ids: List<Long>)
     data class CreateCommand(
         val name: String,
         val departmentNumber: String,
