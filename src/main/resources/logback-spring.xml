@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration scan="false">
+    <springProperty scope="context" name="LOG_DIR" source="app.logging.directory" defaultValue="${user.dir}/logs"/>
+    <springProperty scope="context" name="LOG_ZONE" source="app.logging.time-zone" defaultValue="Asia/Shanghai"/>
+    <springProperty scope="context" name="RETENTION_DAYS" source="app.logging.retention-days" defaultValue="30"/>
+    <springProperty scope="context" name="TOTAL_SIZE_CAP" source="app.logging.total-size-cap" defaultValue="10GB"/>
+    <springProperty scope="context" name="MAX_FILE_SIZE" source="app.logging.max-file-size" defaultValue="256MB"/>
+    <springProperty scope="context" name="MAX_MESSAGE_LENGTH" source="app.logging.max-message-length" defaultValue="8192"/>
+    <springProperty scope="context" name="QUEUE_SIZE" source="app.logging.queue-size" defaultValue="8192"/>
+
+    <appender name="APP_FILE_BASE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/app/app.log</file>
+        <encoder class="ch.qos.logback.core.encoder.LayoutWrappingEncoder">
+            <layout class="top.foxball.cartask.logging.JsonLogLayout">
+                <service>carTask</service>
+                <timeZone>${LOG_ZONE}</timeZone>
+                <includeException>false</includeException>
+                <maxMessageLength>${MAX_MESSAGE_LENGTH}</maxMessageLength>
+            </layout>
+            <charset>UTF-8</charset>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}/app/app.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>${MAX_FILE_SIZE}</maxFileSize>
+            <maxHistory>${RETENTION_DAYS}</maxHistory>
+            <totalSizeCap>${TOTAL_SIZE_CAP}</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+
+    <appender name="ERROR_FILE_BASE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/error/error.log</file>
+        <encoder class="ch.qos.logback.core.encoder.LayoutWrappingEncoder">
+            <layout class="top.foxball.cartask.logging.JsonLogLayout">
+                <service>carTask</service>
+                <timeZone>${LOG_ZONE}</timeZone>
+                <includeException>true</includeException>
+                <maxMessageLength>${MAX_MESSAGE_LENGTH}</maxMessageLength>
+            </layout>
+            <charset>UTF-8</charset>
+        </encoder>
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>WARN</level>
+        </filter>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}/error/error.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>${MAX_FILE_SIZE}</maxFileSize>
+            <maxHistory>${RETENTION_DAYS}</maxHistory>
+            <totalSizeCap>${TOTAL_SIZE_CAP}</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+
+    <appender name="ASYNC_APP" class="ch.qos.logback.classic.AsyncAppender">
+        <queueSize>${QUEUE_SIZE}</queueSize>
+        <neverBlock>false</neverBlock>
+        <discardingThreshold>0</discardingThreshold>
+        <appender-ref ref="APP_FILE_BASE"/>
+    </appender>
+    <appender name="ASYNC_ERROR" class="ch.qos.logback.classic.AsyncAppender">
+        <queueSize>${QUEUE_SIZE}</queueSize>
+        <neverBlock>false</neverBlock>
+        <discardingThreshold>0</discardingThreshold>
+        <appender-ref ref="ERROR_FILE_BASE"/>
+    </appender>
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="ch.qos.logback.core.encoder.LayoutWrappingEncoder">
+            <layout class="top.foxball.cartask.logging.JsonLogLayout">
+                <service>carTask</service>
+                <timeZone>${LOG_ZONE}</timeZone>
+                <includeException>false</includeException>
+                <maxMessageLength>${MAX_MESSAGE_LENGTH}</maxMessageLength>
+            </layout>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <logger name="top.foxball.cartask" level="INFO" additivity="false">
+        <appender-ref ref="ASYNC_APP"/>
+        <appender-ref ref="ASYNC_ERROR"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+    <root level="WARN">
+        <appender-ref ref="ASYNC_ERROR"/>
+        <appender-ref ref="CONSOLE"/>
+    </root>
+</configuration>

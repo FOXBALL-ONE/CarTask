@@ -8,6 +8,7 @@ import org.springframework.security.core.AuthenticationException
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.security.oauth2.server.resource.web.DefaultBearerTokenResolver
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource
+import org.slf4j.MDC
 import org.springframework.stereotype.Component
 import org.springframework.web.filter.OncePerRequestFilter
 import java.nio.charset.StandardCharsets
@@ -58,6 +59,9 @@ class JwtAuthenticationFilter(
                 verified.tokenId,
                 rolePermissionService.permissionsFor(verified.role),
             )
+            MDC.put("actor_type", "USER")
+            MDC.put("actor_id", "user:${principal.userId}")
+            MDC.put("actor_role", principal.role)
             val context = SecurityContextHolder.createEmptyContext()
             context.authentication = UsernamePasswordAuthenticationToken(principal, null, principal.authorities).apply {
                 details = WebAuthenticationDetailsSource().buildDetails(request)

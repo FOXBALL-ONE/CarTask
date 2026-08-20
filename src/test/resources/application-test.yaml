@@ -1,0 +1,28 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:cartask_test;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    database-platform: org.hibernate.dialect.H2Dialect
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+app:
+  file:
+    storage-root: ${java.io.tmpdir}/cartask-test-files
+    base-url: http://localhost:8080/files
+  logging:
+    directory: ${java.io.tmpdir}/cartask-test-logs
+
+shopmall:
+  security:
+    jwt:
+      keys:
+        local: QkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkI=
+      token-storage-encryption-key: QUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUE=

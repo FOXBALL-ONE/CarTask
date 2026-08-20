@@ -21,7 +21,7 @@ class SynAreaInfoTask(
     private val objectMapper: ObjectMapper,
     private val keytopProperties: KeytopProperties,
 ) {
-    @Scheduled(cron = "#{@keytopProperties.areaSyncCron}", zone = "Asia/Shanghai")
+    @Scheduled(cron = "\${keytop.area-sync-cron:0 0 2 * * *}", zone = "Asia/Shanghai")
     @Transactional
     fun synAreaInfo() {
         AuditRequestContext.withRun {

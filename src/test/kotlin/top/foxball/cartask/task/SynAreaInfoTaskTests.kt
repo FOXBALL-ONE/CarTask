@@ -27,7 +27,7 @@ class SynAreaInfoTaskTests {
             .getDeclaredMethod("synAreaInfo")
             .getAnnotation(Scheduled::class.java)
 
-        assertEquals("#{@keytopProperties.areaSyncCron}", scheduled.cron)
+        assertEquals("\${keytop.area-sync-cron:0 0 2 * * *}", scheduled.cron)
         assertEquals("Asia/Shanghai", scheduled.zone)
     }
 

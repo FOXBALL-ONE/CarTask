@@ -37,7 +37,7 @@ class SynCarCapInfoTaskTests {
             .getDeclaredMethod("synCarCapInfoList")
             .getAnnotation(Scheduled::class.java)
 
-        assertEquals("#{@keytopProperties.carCapInfoSyncCron}", scheduled.cron)
+        assertEquals("\${keytop.car-cap-info-sync-cron:0 */5 * * * *}", scheduled.cron)
         assertEquals("Asia/Shanghai", scheduled.zone)
     }
 

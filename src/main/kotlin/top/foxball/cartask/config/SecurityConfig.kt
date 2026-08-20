@@ -99,8 +99,8 @@ class SecurityConfig(
                     writeJson(response, HttpServletResponse.SC_FORBIDDEN, "Forbidden")
                 }
             }
-            .addFilterBefore(auditRequestContextFilter, JwtAuthenticationFilter::class.java)
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter::class.java)
+            .addFilterBefore(auditRequestContextFilter, JwtAuthenticationFilter::class.java)
         return http.build()
     }
 

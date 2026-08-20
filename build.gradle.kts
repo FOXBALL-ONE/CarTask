@@ -53,6 +53,7 @@ dependencies {
     testAnnotationProcessor("org.projectlombok:lombok")
     testImplementation(kotlin("test"))
     testImplementation("org.mockito.kotlin:mockito-kotlin:6.1.0")
+    testRuntimeOnly("com.h2database:h2:2.4.240")
 }
 
 kotlin {

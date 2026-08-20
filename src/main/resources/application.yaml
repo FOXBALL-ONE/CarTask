@@ -38,6 +38,14 @@ app:
   file:
     storage-root: ${FILE_STORAGE_ROOT:${user.dir}}
     base-url: ${FILE_BASE_URL:}
+  logging:
+    directory: ${APP_LOG_DIR:${user.dir}/logs}
+    time-zone: ${APP_LOG_TIME_ZONE:Asia/Shanghai}
+    retention-days: ${APP_LOG_RETENTION_DAYS:30}
+    total-size-cap: ${APP_LOG_TOTAL_SIZE_CAP:10GB}
+    max-file-size: ${APP_LOG_MAX_FILE_SIZE:256MB}
+    max-message-length: ${APP_LOG_MAX_MESSAGE_LENGTH:8192}
+    queue-size: ${APP_LOG_QUEUE_SIZE:8192}
 
 keytop:
   base-url: ${KEYTOP_BASE_URL:https://kp-open.keytop.cn/unite-api}

@@ -26,7 +26,7 @@ class SynCarCapInfoTask(
     private val objectMapper: ObjectMapper,
     private val keytopProperties: KeytopProperties,
 ) {
-    @Scheduled(cron = "#{@keytopProperties.carCapInfoSyncCron}", zone = "Asia/Shanghai")
+    @Scheduled(cron = "\${keytop.car-cap-info-sync-cron:0 */5 * * * *}", zone = "Asia/Shanghai")
     @Transactional
     fun synCarCapInfoList() {
         AuditRequestContext.withRun {
