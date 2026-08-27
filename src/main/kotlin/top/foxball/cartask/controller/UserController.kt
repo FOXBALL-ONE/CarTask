@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import top.foxball.cartask.entity.User
@@ -24,6 +25,69 @@ class UserController(
     private val userService: UserService,
     private val responseBuilder: ResponseBuilder,
 ) {
+    /** 文档兼容的 JSON 用户创建入口。 */
+    @PostMapping(consumes = ["application/json"])
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('user:create')")
+    fun createDocument(@RequestBody body: DocumentUserRequest): ResponseEntity<Response> {
+        data class Response(
+            val id: Long,
+            val username: String,
+            val name: String?,
+            @param:JsonProperty("deptId") val deptId: Long?,
+            val phone: String?,
+            val email: String,
+            @param:JsonProperty("roleIds") val roleIds: List<Long>,
+            val status: Int,
+            @param:JsonProperty("createTime") val createTime: LocalDateTime,
+        )
+        val username = requireNotNull(body.username) { "用户名不能为空" }
+        val password = requireNotNull(body.password) { "密码不能为空" }
+        val user = userService.create(
+            UserService.CreateCommand(
+                username = username,
+                email = body.email ?: "$username@local.invalid",
+                credential = password,
+                phone = body.phone,
+                departmentId = body.deptId,
+                status = if (body.status == 0) User.Status.BANNED else User.Status.Activity,
+                nickName = body.name,
+            ),
+        )
+        val rs = Response(user.id, user.username, body.name, user.departmentId, user.phone, user.email, body.roleIds.orEmpty(), if (user.status == User.Status.Activity) 1 else 0, user.createdAt)
+        return responseBuilder.created().data(rs).build()
+    }
+
+    /** 文档兼容的 JSON 用户更新入口。 */
+    @PutMapping("/{id}", consumes = ["application/json"])
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('user:update')")
+    fun updateDocument(@PathVariable id: Long, @RequestBody body: DocumentUserRequest): ResponseEntity<Response> {
+        data class Response(
+            val id: Long,
+            val username: String,
+            val name: String?,
+            @param:JsonProperty("deptId") val deptId: Long?,
+            val phone: String?,
+            val email: String,
+            @param:JsonProperty("roleIds") val roleIds: List<Long>,
+            val status: Int,
+            @param:JsonProperty("createTime") val createTime: LocalDateTime,
+        )
+        val user = userService.update(
+            id,
+            UserService.UpdateCommand(
+                username = body.username,
+                email = body.email,
+                credential = body.password,
+                phone = body.phone,
+                departmentId = body.deptId,
+                status = body.status?.let { if (it == 0) User.Status.BANNED else User.Status.Activity },
+                nickName = body.name,
+            ),
+        )
+        val rs = Response(user.id, user.username, body.name, user.departmentId, user.phone, user.email, body.roleIds.orEmpty(), if (user.status == User.Status.Activity) 1 else 0, user.createdAt)
+        return responseBuilder.ok().data(rs).build()
+    }
+
     /** 创建一个用户账户。 */
     @PostMapping
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('user:create')")
@@ -165,38 +229,81 @@ class UserController(
         data class Response(
             val id: Long,
             val username: String,
-            val email: String,
-            val role: String,
-            val enabled: Boolean,
+            val name: String?,
+            @param:JsonProperty("deptId") val deptId: Long?,
             val phone: String?,
-            val gender: User.Gender,
-            @param:JsonProperty("department_id") val departmentId: Long?,
-            @param:JsonProperty("position_id") val positionId: Long?,
-            val status: User.Status,
-            @param:JsonProperty("created_at") val createdAt: LocalDateTime,
-            @param:JsonProperty("updated_at") val updatedAt: LocalDateTime,
+            val email: String,
+            @param:JsonProperty("roleIds") val roleIds: List<Long>,
+            val status: Int,
+            @param:JsonProperty("createTime") val createTime: LocalDateTime,
         )
 
         val user = userService.get(id)
         val rs = Response(
             user.id,
             user.username,
-            user.email,
-            user.role,
-            user.enabled,
-            user.phone,
-            user.gender,
+            user.name,
             user.departmentId,
-            user.positionId,
-            user.status,
+            user.phone,
+            user.email,
+            emptyList(),
+            if (user.status == User.Status.Activity) 1 else 0,
             user.createdAt,
-            user.updatedAt,
         )
         return responseBuilder.ok().data(rs).build()
     }
 
     /** 分页查询用户账户。 */
     @GetMapping
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('user:read')")
+    fun listDocument(
+        @RequestParam(required = false) keyword: String?,
+        @RequestParam(required = false) status: Int?,
+        @RequestParam(defaultValue = "1") page: Int,
+        @RequestParam(name = "pageSize", defaultValue = "8") pageSize: Int,
+    ): ResponseEntity<Response> {
+        data class UserData(
+            val id: Long,
+            val username: String,
+            val name: String?,
+            @param:JsonProperty("deptId") val deptId: Long?,
+            val phone: String?,
+            val email: String,
+            @param:JsonProperty("roleIds") val roleIds: List<Long>,
+            val status: Int,
+            @param:JsonProperty("createTime") val createTime: LocalDateTime,
+        )
+        data class Response(
+            val items: List<UserData>,
+            val total: Int,
+            val page: Int,
+            @param:JsonProperty("pageSize") val pageSize: Int,
+        )
+
+        require(page >= 1) { "页码必须大于 0" }
+        require(pageSize in 1..100) { "每页数量必须在 1 到 100 之间" }
+        val users = userService.list(1, 100).users.filter {
+            (keyword.isNullOrBlank() || it.username.contains(keyword, true) || it.name.orEmpty().contains(keyword, true) || it.phone.orEmpty().contains(keyword, true)) &&
+                (status == null || (if (it.status == User.Status.Activity) 1 else 0) == status)
+        }
+        val from = ((page - 1) * pageSize).coerceAtMost(users.size)
+        val to = (from + pageSize).coerceAtMost(users.size)
+        val rs = Response(
+            users.subList(from, to).map {
+                UserData(
+                    it.id, it.username, it.name, it.departmentId, it.phone, it.email, emptyList(),
+                    if (it.status == User.Status.Activity) 1 else 0, it.createdAt,
+                )
+            },
+            users.size,
+            page,
+            pageSize,
+        )
+        return responseBuilder.ok().data(rs).build()
+    }
+
+    /** 兼容原有 snake_case 分页参数。 */
+    @GetMapping(params = ["page_size"])
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('user:read')")
     fun list(
         @RequestParam(defaultValue = "1") page: Int,

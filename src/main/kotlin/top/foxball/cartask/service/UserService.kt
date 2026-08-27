@@ -33,12 +33,14 @@ interface UserService {
         @param:JsonProperty("department_id") val departmentId: Long? = null,
         @param:JsonProperty("position_id") val positionId: Long? = null,
         @param:JsonProperty("status") val status: User.Status? = null,
+        @param:JsonProperty("nick_name") val nickName: String? = null,
     )
 
     /** 对外返回的用户数据，不包含密码哈希和实体关联对象。 */
     data class UserData(
         val id: Long,
         val username: String,
+        val name: String?,
         val email: String,
         val role: String,
         val enabled: Boolean,

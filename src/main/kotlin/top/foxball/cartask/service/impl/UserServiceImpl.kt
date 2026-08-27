@@ -122,7 +122,8 @@ class UserServiceImpl(
         require(ids.distinct().size == ids.size) { "用户 ID 不能重复" }
         require(
             command.username != null || command.email != null || command.credential != null || command.role != null || command.enabled != null ||
-                    command.phone != null || command.gender != null || command.departmentId != null || command.positionId != null || command.status != null
+                    command.phone != null || command.gender != null || command.departmentId != null || command.positionId != null ||
+                    command.status != null || command.nickName != null
         ) {
             "至少提供一个待更新字段"
         }
@@ -166,6 +167,7 @@ class UserServiceImpl(
                     .orElseThrow { IllegalArgumentException("职位不存在: $positionId") }
             }
             command.status?.let { user.status = it }
+            command.nickName?.let { user.nickName = it.trim().takeIf(String::isNotEmpty) }
             user.updatedAt = now
         }
         val savedUsers = userRepository.saveAll(users)
@@ -246,6 +248,7 @@ class UserServiceImpl(
     private fun toData(user: User): UserService.UserData = UserService.UserData(
         id = user.id!!,
         username = user.username,
+        name = user.nickName,
         email = user.email,
         role = user.role,
         enabled = user.enabled,

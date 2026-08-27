@@ -4,5 +4,8 @@ package top.foxball.cartask.shared
 data class Response(
     val status: Int,
     val message: String,
-    val data: Any?
-)
+    val data: Any?,
+) {
+    val success: Boolean
+        get() = status in 200..299
+}
