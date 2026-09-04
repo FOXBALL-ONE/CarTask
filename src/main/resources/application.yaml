@@ -1,18 +1,23 @@
 spring:
   application:
     name: carTask
+  output:
+    ansi:
+      enabled: ALWAYS
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/cartask}
     username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD:}
     driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:update}
   data:
     redis:
       host: ${REDIS_HOST:192.168.1.95}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:redis_YH22Ad}
       timeout: ${REDIS_TIMEOUT:2s}
-
 shopmall:
   security:
     cors:
@@ -35,6 +40,8 @@ shopmall:
       token-storage-encryption-key-id: ${JWT_STORAGE_ENCRYPTION_KEY_ID:local}
 
 app:
+  mock-data:
+    enabled: ${MOCK_DATA_ENABLED:false}
   file:
     storage-root: ${FILE_STORAGE_ROOT:${user.dir}}
     base-url: ${FILE_BASE_URL:}

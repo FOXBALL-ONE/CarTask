@@ -1,5 +1,6 @@
 package top.foxball.cartask.controller
 
+import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonProperty
 import java.math.BigDecimal
 
@@ -22,15 +23,36 @@ data class DocumentRoleRequest(
     @param:JsonProperty("remark") val remark: String? = null,
 )
 
-data class DocumentDepartmentRequest(
-    @param:JsonProperty("name") val name: String? = null,
-    @param:JsonProperty("code") val code: String? = null,
-    @param:JsonProperty("parent") val parent: Long? = null,
-    @param:JsonProperty("sort") val sort: Int? = null,
-    @param:JsonProperty("leader") val leader: String? = null,
-    @param:JsonProperty("phone") val phone: String? = null,
-    @param:JsonProperty("status") val status: Int? = null,
-)
+class DocumentDepartmentRequest {
+    @JsonProperty("name")
+    var name: String? = null
+
+    @JsonProperty("code")
+    var code: String? = null
+
+    @JsonProperty("parent")
+    var parent: Long? = null
+        set(value) {
+            field = value
+            parentProvided = true
+        }
+
+    @JsonProperty("sort")
+    var sort: Int? = null
+
+    @JsonProperty("leader")
+    var leader: String? = null
+
+    @JsonProperty("phone")
+    var phone: String? = null
+
+    @JsonProperty("status")
+    var status: Int? = null
+
+    @get:JsonIgnore
+    @set:JsonIgnore
+    var parentProvided: Boolean = false
+}
 
 data class DocumentPostRequest(
     @param:JsonProperty("name") val name: String? = null,
@@ -65,14 +87,33 @@ data class OwnerRequest(
 
 data class RechargeRequest(@param:JsonProperty("amount") val amount: BigDecimal? = null)
 
-data class SpotRequest(
-    @param:JsonProperty("code") val code: String? = null,
-    @param:JsonProperty("area") val area: String? = null,
-    @param:JsonProperty("type") val type: String? = null,
-    @param:JsonProperty("owner") val owner: String? = null,
-    @param:JsonProperty("status") val status: Int? = null,
-    @param:JsonProperty("remark") val remark: String? = null,
-)
+class SpotRequest {
+    @JsonProperty("code")
+    var code: String? = null
+
+    @JsonProperty("area")
+    var area: String? = null
+
+    @JsonProperty("type")
+    var type: String? = null
+
+    @JsonProperty("owner")
+    var owner: String? = null
+        set(value) {
+            field = value
+            ownerProvided = true
+        }
+
+    @JsonProperty("status")
+    var status: Int? = null
+
+    @JsonProperty("remark")
+    var remark: String? = null
+
+    @get:JsonIgnore
+    @set:JsonIgnore
+    var ownerProvided: Boolean = false
+}
 
 data class PlateRequest(
     @param:JsonProperty("plate") val plate: String? = null,
@@ -90,6 +131,8 @@ data class GatePersonRequest(
     @param:JsonProperty("idCard") val idCard: String? = null,
     @param:JsonProperty("face") val face: String? = null,
 )
+
+data class DeleteRequestBody(@param:JsonProperty("reason") val reason: String? = null)
 
 data class StoredOwner(
     val id: Long,

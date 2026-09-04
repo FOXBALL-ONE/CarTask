@@ -51,26 +51,13 @@ class SecurityConfig(
                 it.requestMatchers(HttpMethod.GET, "/api/project/**").permitAll()
                 it.requestMatchers(
                     HttpMethod.GET,
-                    "/api/products/**",
-                    "/api/product-types/**",
-                    "/api/product-categories/**",
-                    "/api/product-images/**",
                     "/api/tags/**",
                     "/api/customer-reviews/**",
                     "/api/announcements/**",
                     "/api/home/recommendations",
                 ).permitAll()
                 it.requestMatchers("/api/files/**").authenticated()
-                it.requestMatchers(
-                    HttpMethod.POST,
-                    "/api/project/object-items",
-                    "/api/project/object-items/*/comments",
-                    "/api/project/object-items/*/join-applications",
-                    "/api/project/minds",
-                ).permitAll()
-                it.requestMatchers(HttpMethod.POST, "/webhook").permitAll()
                 it.requestMatchers(HttpMethod.POST, "/api/logistics/webhook/**").permitAll()
-                it.requestMatchers(HttpMethod.GET, "/api/orders/*/shipments/**").authenticated()
                 it.requestMatchers("/admin/api/**").authenticated()
                 it.requestMatchers("/actuator/health", "/actuator/info").permitAll()
                 it.anyRequest().authenticated()
@@ -108,7 +95,7 @@ class SecurityConfig(
         response.contentType = "application/json;charset=UTF-8"
         response.status = status
         response.setHeader(HttpHeaders.CACHE_CONTROL, "no-store")
-        response.writer.write("""{"status":$status,"message":"$message","data":{}}""")
+        response.writer.write("""{"status":$status,"success":${status in 200..299},"message":"$message"}""")
     }
 
     @Bean

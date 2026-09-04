@@ -13,6 +13,7 @@ import top.foxball.cartask.keytop.KeytopService
 import top.foxball.cartask.repository.AccessRecordRepository
 import top.foxball.cartask.audit.AuditRequestContext
 import java.time.LocalDateTime
+import java.math.BigDecimal
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
 import java.util.concurrent.locks.ReentrantLock
@@ -112,10 +113,17 @@ class SynCarCapInfoTask(
                 existing.inAndOut = record.inAndOut
                 existing.inAndOutTime = record.inAndOutTime
                 existing.admissionTicketNumber = record.admissionTicketNumber
+                existing.departmentName = record.departmentName
+                existing.vehicleTypeName = record.vehicleTypeName
+                existing.passType = record.passType
                 existing.releaseInstructions = record.releaseInstructions
                 existing.releaseChannel = record.releaseChannel
                 existing.operatorName = record.operatorName
                 existing.carOwnerName = record.carOwnerName
+                existing.gateName = record.gateName
+                existing.photoUrl = record.photoUrl
+                existing.feeAmount = record.feeAmount
+                existing.recordStatus = record.recordStatus
                 accessRecordRepository.save(existing)
                 seen[key] = existing
             }
@@ -140,10 +148,17 @@ class SynCarCapInfoTask(
             inAndOut = direction
             inAndOutTime = time
             admissionTicketNumber = firstText(node, "cardNo", "card_no", "carSerial", "car_serial", "serialNo")
-            releaseInstructions = firstText(node, "passRemark", "pass_remark", "remark", "releaseInstructions")
+            departmentName = firstText(node, "dept", "department", "departmentName", "department_name", "deptName", "dept_name", "orgName", "org_name")
+            vehicleTypeName = firstText(node, "vehicleType", "vehicle_type", "carTypeName", "car_type_name", "carType", "car_type")
+            passType = parsePassType(node)
+            releaseInstructions = firstText(node, "passDesc", "pass_desc", "passRemark", "pass_remark", "remark", "releaseInstructions")
             releaseChannel = parseReleaseChannel(node)
             operatorName = firstText(node, "operName", "oper_name", "operator", "operatorName", "operator_name")
-            carOwnerName = firstText(node, "carOwnerName", "car_owner_name", "ownerName", "owner_name")
+            carOwnerName = firstText(node, "carOwnerName", "car_owner_name", "ownerName", "owner_name", "owner")
+            gateName = firstText(node, "gate", "gateName", "gate_name", "laneName", "lane_name", "channelName", "channel_name", "placeName", "place_name")
+            photoUrl = firstText(node, "photo", "photoUrl", "photo_url", "imageUrl", "image_url", "pictureUrl", "picture_url", "picUrl", "pic_url", "captureUrl", "capture_url")
+            feeAmount = firstText(node, "amount", "fee", "feeAmount", "fee_amount", "chargeAmount", "charge_amount")?.toBigDecimalOrNull() ?: BigDecimal.ZERO
+            recordStatus = firstText(node, "status", "recordStatus", "record_status") ?: "正常"
         }
     }
 
@@ -160,6 +175,16 @@ class SynCarCapInfoTask(
         }
     }
 
+    private fun parsePassType(node: JsonNode): String? {
+        val raw = firstText(node, "passType", "pass_type", "releaseType", "release_type")
+            ?.trim() ?: return null
+        return when {
+            raw == "1" || raw.contains("auto", ignoreCase = true) || raw.contains("自动") -> "自动放行"
+            raw == "2" || raw.contains("manual", ignoreCase = true) || raw.contains("人工") -> "人工放行"
+            raw == "3" || raw.contains("remote", ignoreCase = true) || raw.contains("远程") -> "远程放行"
+            else -> raw
+        }
+    }
     private fun parseReleaseChannel(node: JsonNode): AccessRecord.ReleaseChannel? {
         val raw = firstText(node, "passType", "pass_type", "releaseChannel", "release_channel")
             ?.trim()?.lowercase() ?: return null

@@ -97,16 +97,10 @@ import { NButton, NSpace, NTag } from "naive-ui";
 interface Position {
   id: number;
   name: string;
-  position_code: string;
-  order_number: number;
+  code: string;
+  sort: number;
   status: "Activity" | "BANNED";
-}
-
-interface PositionPage {
-  content?: Position[];
-  positions?: Position[];
-  totalElements?: number;
-  total?: number;
+  remark: string | null;
 }
 
 const http = useHttp("http://127.0.0.1:8080");
@@ -142,7 +136,7 @@ const editorTitle = computed(() => editingId.value ? "编辑岗位" : "新增岗
 const filteredPositions = computed(() => {
   const text = keyword.value.trim().toLowerCase();
   return positions.value.filter(position => {
-    const matchesKeyword = !text || position.name.toLowerCase().includes(text) || position.position_code.toLowerCase().includes(text);
+    const matchesKeyword = !text || position.name.toLowerCase().includes(text) || position.code.toLowerCase().includes(text);
     return matchesKeyword && (!statusFilter.value || position.status === statusFilter.value);
   });
 });
@@ -154,10 +148,10 @@ const columns = [
     key: "name",
     minWidth: 220,
     render: (row: Position) => h(NSpace, { align: "center", wrap: false }, {
-      default: () => [h("strong", row.name), h(NTag, { size: "small", bordered: false }, { default: () => row.position_code })],
+      default: () => [h("strong", row.name), h(NTag, { size: "small", bordered: false }, { default: () => row.code })],
     }),
   },
-  { title: "显示顺序", key: "order_number", width: 120 },
+  { title: "显示顺序", key: "sort", width: 120 },
   {
     title: "状态",
     key: "status",
@@ -178,26 +172,22 @@ const columns = [
   },
 ];
 
-function params(values: Record<string, unknown>) {
-  return Object.fromEntries(Object.entries(values).filter(([, value]) => value !== undefined && value !== null && value !== ""));
-}
-
-function normalizePosition(value: Position & { code_number?: string; orderNumber?: number; codeNumber?: string }): Position {
+function normalizePosition(value: { id: number; name: string; code: string; sort: number; status: number; remark?: string | null }): Position {
   return {
     id: value.id,
     name: value.name,
-    position_code: value.position_code ?? value.code_number ?? value.codeNumber ?? "",
-    order_number: value.order_number ?? value.orderNumber ?? 0,
-    status: value.status,
+    code: value.code,
+    sort: value.sort,
+    status: value.status === 1 ? "Activity" : "BANNED",
+    remark: value.remark ?? null,
   };
 }
 
 async function loadPositions() {
   loading.value = true;
   try {
-    const result = await http.get<PositionPage>("/api/positions", { page: 1, page_size: 100 });
-    const records = result.positions ?? result.content ?? [];
-    positions.value = records.map(normalizePosition).sort((a, b) => a.order_number - b.order_number || a.name.localeCompare(b.name, "zh-CN"));
+    const result = await http.get<Array<{ id: number; name: string; code: string; sort: number; status: number; remark?: string | null }>>("/api/posts");
+    positions.value = result.map(normalizePosition).sort((a, b) => a.sort - b.sort || a.name.localeCompare(b.name, "zh-CN"));
     checkedRowKeys.value = checkedRowKeys.value.filter(id => positions.value.some(position => position.id === id));
   } catch (error) {
     message.error((error as { statusMessage?: string }).statusMessage || "岗位列表加载失败");
@@ -216,20 +206,19 @@ function openCreate() {
 }
 function openEdit(row: Position) {
   editingId.value = row.id;
-  Object.assign(form, { name: row.name, codeNumber: row.position_code, orderNumber: row.order_number, status: row.status });
+  Object.assign(form, { name: row.name, codeNumber: row.code, orderNumber: row.sort, status: row.status });
   editorVisible.value = true;
 }
 async function submitEditor() {
   await formRef.value?.validate();
   submitting.value = true;
   try {
-    const payload = params({ name: form.name, position_code: form.codeNumber, sort_order: form.orderNumber, status: form.status });
+    const payload = { name: form.name, code: form.codeNumber, sort: form.orderNumber, status: form.status === "Activity" ? 1 : 0 };
     if (editingId.value) {
-      await http.put(`/api/positions/${editingId.value}`, { id: editingId.value, name: form.name, codeNumber: form.codeNumber, orderNumber: form.orderNumber, status: form.status }, { payloadMode: "json" });
+      await http.put(`/api/posts/${editingId.value}`, payload, { payloadMode: "json" });
     } else {
-      await http.post("/api/positions", { name: form.name, codeNumber: form.codeNumber, orderNumber: form.orderNumber, status: form.status }, { payloadMode: "json" });
+      await http.post("/api/posts", payload, { payloadMode: "json" });
     }
-    void payload;
     message.success(editingId.value ? "岗位更新成功" : "岗位创建成功");
     editorVisible.value = false;
     await loadPositions();
@@ -252,14 +241,18 @@ async function submitBatchEdit() {
   }
   submitting.value = true;
   try {
-    const records = positions.value.filter(position => checkedRowKeys.value.includes(position.id)).map(position => ({
-      id: position.id,
-      name: position.name,
-      codeNumber: position.position_code,
-      orderNumber: batch.enabled.orderNumber ? batch.orderNumber : position.order_number,
-      status: batch.enabled.status ? batch.status : position.status,
-    }));
-    await http.put("/api/positions/batch", records, { payloadMode: "json" });
+    const results = await Promise.allSettled(positions.value.filter(position => checkedRowKeys.value.includes(position.id)).map(position => http.put(`/api/posts/${position.id}`, {
+      sort: batch.enabled.orderNumber ? batch.orderNumber : position.sort,
+      status: batch.enabled.status ? (batch.status === "Activity" ? 1 : 0) : (position.status === "Activity" ? 1 : 0),
+    }, { payloadMode: "json" })));
+    const failedCount = results.filter(result => result.status === "rejected").length;
+    const successCount = results.length - failedCount;
+    await loadPositions();
+    if (failedCount > 0) {
+      if (successCount > 0) message.warning(`${failedCount} 个岗位更新失败，其余 ${successCount} 个已完成`);
+      else message.error("岗位更新全部失败");
+      return;
+    }
     message.success("批量修改成功");
     batchVisible.value = false;
     await loadPositions();
@@ -276,7 +269,7 @@ function confirmDelete(row: Position) {
     positiveText: "删除",
     negativeText: "取消",
     onPositiveClick: async () => {
-      await http.delete(`/api/positions/${row.id}`);
+      await http.delete(`/api/posts/${row.id}`);
       message.success("删除成功");
       await loadPositions();
     },
@@ -289,8 +282,11 @@ function confirmBatchDelete() {
     positiveText: "删除",
     negativeText: "取消",
     onPositiveClick: async () => {
-      await http.delete("/api/positions/batch", { id: checkedRowKeys.value });
-      message.success("批量删除成功");
+      const results = await Promise.allSettled(checkedRowKeys.value.map(id => http.delete(`/api/posts/${id}`)));
+      const failedCount = results.filter(result => result.status === "rejected").length;
+      const successCount = results.length - failedCount;
+      if (successCount > 0) message.success(`已删除 ${successCount} 个岗位`);
+      if (failedCount > 0) message.warning(`${failedCount} 个岗位删除失败`);
       checkedRowKeys.value = [];
       await loadPositions();
     },

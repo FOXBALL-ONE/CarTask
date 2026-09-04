@@ -11,6 +11,8 @@ import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
+import jakarta.persistence.ManyToMany
+import jakarta.persistence.JoinTable
 import jakarta.persistence.Table
 import java.time.LocalDateTime
 
@@ -28,8 +30,8 @@ class User {
     lateinit var username: String
 
 
-    @Column(nullable = false, unique = true, length = 64)
-     var nickName: String?=null
+    @Column(length = 64)
+    var nickName: String? = null
 
     /** 用户邮箱。 */
     @Column(nullable = false, unique = true, length = 255)
@@ -57,6 +59,15 @@ class User {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "position_id")
     var position: Position? = null
+
+    /** 文档接口中的角色关联；保留 [role] 作为现有认证系统的主角色编码。 */
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+        name = "user_roles",
+        joinColumns = [JoinColumn(name = "user_id")],
+        inverseJoinColumns = [JoinColumn(name = "role_id")],
+    )
+    var roles: MutableSet<Role> = linkedSetOf()
 
     /** 兼容现有权限接口的角色编码，例如 USER 或 ADMIN。 */
     @Column(nullable = false, length = 32)

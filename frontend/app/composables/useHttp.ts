@@ -309,6 +309,7 @@ export const useHttp = (baseURL?: string) => {
         options: HttpRequestOptions<TPayload> = {},
     ): Promise<TResponse> => {
         const response = await requestBase<TResponse, TPayload>(url, payload, options);
+        // ofetch 已将统一响应解析为 ApiResult，业务载荷位于唯一的 data 字段。
         return response.data;
     };
 

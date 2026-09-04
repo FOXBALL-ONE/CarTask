@@ -19,6 +19,7 @@ interface UserService {
         @param:JsonProperty("position_id") val positionId: Long? = null,
         @param:JsonProperty("status") val status: User.Status = User.Status.Activity,
         @param:JsonProperty("nick_name") val nickName: String? = null,
+        @param:JsonProperty("role_ids") val roleIds: List<Long>? = null,
     )
 
     /** 用户可变字段命令；未提供的字段保持原值。 */
@@ -34,13 +35,13 @@ interface UserService {
         @param:JsonProperty("position_id") val positionId: Long? = null,
         @param:JsonProperty("status") val status: User.Status? = null,
         @param:JsonProperty("nick_name") val nickName: String? = null,
+        @param:JsonProperty("role_ids") val roleIds: List<Long>? = null,
     )
 
     /** 对外返回的用户数据，不包含密码哈希和实体关联对象。 */
     data class UserData(
         val id: Long,
         val username: String,
-        val name: String?,
         val email: String,
         val role: String,
         val enabled: Boolean,
@@ -51,6 +52,8 @@ interface UserService {
         val status: User.Status,
         @param:JsonProperty("created_at") val createdAt: LocalDateTime,
         @param:JsonProperty("updated_at") val updatedAt: LocalDateTime,
+        val name: String? = null,
+        @param:JsonProperty("role_ids") val roleIds: List<Long> = emptyList(),
     )
 
     /** 分页返回数据。 */

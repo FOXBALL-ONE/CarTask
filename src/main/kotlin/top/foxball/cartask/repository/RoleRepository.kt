@@ -7,4 +7,8 @@ import top.foxball.cartask.entity.Role
 interface RoleRepository : JpaRepository<Role, Long> {
     @EntityGraph(attributePaths = ["permissions"])
     fun findByNameIgnoreCase(name: String): Role?
+
+    fun existsByNameIgnoreCase(name: String): Boolean
+
+    fun existsByNameIgnoreCaseAndIdNot(name: String, id: Long): Boolean
 }

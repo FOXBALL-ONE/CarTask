@@ -42,4 +42,7 @@ class Department {
     /** 部门联系电话。 */
     @Column(name = "contact_phone", length = 32)
     var contactPhone: String? = null
+
+    @Column(nullable = false)
+    var status: Int = 1
 }

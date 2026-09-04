@@ -12,6 +12,7 @@ import top.foxball.cartask.entity.User
 import top.foxball.cartask.repository.DepartmentRepository
 import top.foxball.cartask.repository.PositionRepository
 import top.foxball.cartask.repository.UserRepository
+import top.foxball.cartask.repository.RoleRepository
 import top.foxball.cartask.service.UserService
 import top.foxball.cartask.audit.AuditAction
 import top.foxball.cartask.audit.AuditCommand
@@ -28,6 +29,7 @@ class UserServiceImpl(
     private val tokenSessionRepository: RedisTokenSessionRepository,
     private val roleAssignmentPolicy: RoleAssignmentPolicy,
     private val auditService: AuditService? = null,
+    private val roleRepository: RoleRepository? = null,
 ) : UserService {
 
     /** 将单条创建委托给批量创建路径，复用一致的校验和密码编码。 */
@@ -51,12 +53,14 @@ class UserServiceImpl(
         }
         val now = LocalDateTime.now()
         val savedUsers = userRepository.saveAll(commands.map { command ->
+            val assignedRoles = resolveRoles(command.roleIds)
             User().apply {
                 username = command.username
                 nickName = command.nickName?.trim()?.takeIf(String::isNotEmpty)
                 email = command.email
                 passwordHash = passwordEncoder.encode(command.credential).toString()
-                role = SecurityRole.normalize(command.role)
+                role = assignedRoles.mapNotNull { SecurityRole.normalizeOrNull(it.name) }.firstOrNull()
+                    ?: SecurityRole.normalize(command.role)
                 enabled = command.enabled
                 phone = command.phone
                 gender = command.gender
@@ -69,6 +73,7 @@ class UserServiceImpl(
                         .orElseThrow { IllegalArgumentException("职位不存在: $positionId") }
                 }
                 status = command.status
+                roles = assignedRoles
                 createdAt = now
                 updatedAt = now
             }
@@ -123,7 +128,7 @@ class UserServiceImpl(
         require(
             command.username != null || command.email != null || command.credential != null || command.role != null || command.enabled != null ||
                     command.phone != null || command.gender != null || command.departmentId != null || command.positionId != null ||
-                    command.status != null || command.nickName != null
+                    command.status != null || command.nickName != null || command.roleIds != null
         ) {
             "至少提供一个待更新字段"
         }
@@ -146,7 +151,7 @@ class UserServiceImpl(
         }
         command.credential?.let { require(it.isNotBlank()) { "凭据不能为空" } }
         command.role?.let(roleAssignmentPolicy::validateAssignment)
-        if (command.credential != null || command.role != null || command.enabled != null || command.status != null) {
+        if (command.credential != null || command.role != null || command.roleIds != null || command.enabled != null || command.status != null) {
             users.forEach { tokenSessionRepository.incrementTokenVersion(it.id!!) }
         }
         val now = LocalDateTime.now()
@@ -168,12 +173,20 @@ class UserServiceImpl(
             }
             command.status?.let { user.status = it }
             command.nickName?.let { user.nickName = it.trim().takeIf(String::isNotEmpty) }
+            command.roleIds?.let {
+                val assignedRoles = resolveRoles(it)
+                user.roles = assignedRoles
+                assignedRoles.mapNotNull { role -> SecurityRole.normalizeOrNull(role.name) }.firstOrNull()?.let { role ->
+                    roleAssignmentPolicy.validateAssignment(role)
+                    user.role = role
+                }
+            }
             user.updatedAt = now
         }
         val savedUsers = userRepository.saveAll(users)
         savedUsers.forEach { user ->
             val action = when {
-                command.role != null -> AuditAction.USER_ROLE_ASSIGNED
+                command.role != null || command.roleIds != null -> AuditAction.USER_ROLE_ASSIGNED
                 command.enabled != null || command.status != null -> AuditAction.USER_STATUS_CHANGED
                 else -> AuditAction.USER_UPDATED
             }
@@ -257,7 +270,22 @@ class UserServiceImpl(
         departmentId = user.department?.id,
         positionId = user.position?.id,
         status = user.status,
+        roleIds = user.roles.mapNotNull { it.id }.toList(),
         createdAt = user.createdAt,
         updatedAt = user.updatedAt,
     )
+
+    private fun resolveRoles(roleIds: List<Long>?): MutableSet<top.foxball.cartask.entity.Role> {
+        if (roleIds == null) return linkedSetOf()
+        require(roleIds.distinct().size == roleIds.size) { "角色 ID 不能重复" }
+        require(roleIds.all { it > 0 }) { "角色 ID 必须大于 0" }
+        val repository = roleRepository ?: throw IllegalStateException("角色仓储不可用")
+        val roles = repository.findAllById(roleIds)
+        require(roles.size == roleIds.size) { "部分角色不存在" }
+        val rolesById = roles.associateBy { requireNotNull(it.id) }
+        val orderedRoles = roleIds.map { rolesById.getValue(it) }
+        orderedRoles.mapNotNull { SecurityRole.normalizeOrNull(it.name) }
+            .forEach(roleAssignmentPolicy::validateAssignment)
+        return orderedRoles.toCollection(linkedSetOf())
+    }
 }

@@ -46,6 +46,12 @@
         <n-form-item label="显示顺序"><n-input-number v-model:value="form.sortOrder" :min="0" style="width: 100%" /></n-form-item>
         <n-form-item label="负责人"><n-input v-model:value="form.director" clearable placeholder="请输入负责人" /></n-form-item>
         <n-form-item label="联系电话"><n-input v-model:value="form.contactPhone" clearable placeholder="请输入联系电话" /></n-form-item>
+        <n-form-item label="状态">
+          <n-switch v-model:value="form.status" :checked-value="1" :unchecked-value="0">
+            <template #checked>正常</template>
+            <template #unchecked>停用</template>
+          </n-switch>
+        </n-form-item>
       </n-form>
       <template #footer>
         <n-space justify="end">
@@ -105,14 +111,14 @@ import { NButton, NSpace, NTag } from "naive-ui";
 interface Department {
   id: number;
   name: string;
-  department_code: string;
-  superior_id: number | null;
-  sort_order: number;
-  director: string | null;
-  contact_phone: string | null;
+  code: string;
+  parent: number | null;
+  sort: number;
+  leader: string | null;
+  phone: string | null;
+  status: number;
   children?: Department[];
 }
-interface DepartmentList { departments: Department[]; total: number }
 interface ChildForm { name: string; departmentCode: string; sortOrder: number; director: string; contactPhone: string }
 
 const http = useHttp("http://127.0.0.1:8080");
@@ -129,7 +135,7 @@ const batchVisible = ref(false);
 const editingId = ref<number | null>(null);
 const activeDepartment = ref<Department | null>(null);
 const formRef = ref<FormInst | null>(null);
-const form = reactive({ name: "", departmentCode: "", superiorId: null as number | null, sortOrder: 0, director: "", contactPhone: "" });
+const form = reactive({ name: "", departmentCode: "", superiorId: null as number | null, sortOrder: 0, director: "", contactPhone: "", status: 1 });
 const childForms = ref<ChildForm[]>([createChildForm()]);
 const batch = reactive({
   superiorId: null as number | null, sortOrder: 0, director: "", contactPhone: "",
@@ -141,15 +147,14 @@ const rules: FormRules = {
 };
 
 function createChildForm(): ChildForm { return { name: "", departmentCode: "", sortOrder: 0, director: "", contactPhone: "" }; }
-function params(values: Record<string, unknown>) { return Object.fromEntries(Object.entries(values).filter(([, value]) => value !== undefined && value !== null && value !== "")); }
 function buildTree(items: Department[]): Department[] {
   const map = new Map(items.map(item => [item.id, { ...item, children: [] as Department[] }]));
   const roots: Department[] = [];
-  map.forEach(item => { const parent = item.superior_id ? map.get(item.superior_id) : undefined; (parent ? parent.children! : roots).push(item); });
-  const sort = (nodes: Department[]) => { nodes.sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name, "zh-CN")); nodes.forEach(node => sort(node.children ?? [])); };
+  map.forEach(item => { const parent = item.parent ? map.get(item.parent) : undefined; (parent ? parent.children! : roots).push(item); });
+  const sort = (nodes: Department[]) => { nodes.sort((a, b) => a.sort - b.sort || a.name.localeCompare(b.name, "zh-CN")); nodes.forEach(node => sort(node.children ?? [])); };
   sort(roots); return roots;
 }
-function matches(item: Department, text: string) { return [item.name, item.department_code, item.director, item.contact_phone].some(value => value?.toLowerCase().includes(text)); }
+function matches(item: Department, text: string) { return [item.name, item.code, item.leader, item.phone].some(value => value?.toLowerCase().includes(text)); }
 function filterTree(nodes: Department[], text: string): Department[] {
   if (!text) return nodes;
   return nodes.flatMap(node => { const children = filterTree(node.children ?? [], text); return matches(node, text) || children.length ? [{ ...node, children }] : []; });
@@ -157,19 +162,19 @@ function filterTree(nodes: Department[], text: string): Department[] {
 const departmentTree = computed(() => buildTree(departments.value));
 const filteredTree = computed(() => filterTree(departmentTree.value, keyword.value.trim().toLowerCase()));
 function toOptions(nodes: Department[], disabledIds = new Set<number>()): TreeSelectOption[] {
-  return nodes.map(node => ({ label: `${node.name}（${node.department_code}）`, key: node.id, disabled: disabledIds.has(node.id), children: toOptions(node.children ?? [], disabledIds) }));
+  return nodes.map(node => ({ label: `${node.name}（${node.code}）`, key: node.id, disabled: disabledIds.has(node.id), children: toOptions(node.children ?? [], disabledIds) }));
 }
-function descendantsOf(id: number) { const result = new Set<number>([id]); let changed = true; while (changed) { changed = false; departments.value.forEach(item => { if (item.superior_id && result.has(item.superior_id) && !result.has(item.id)) { result.add(item.id); changed = true; } }); } return result; }
+function descendantsOf(id: number) { const result = new Set<number>([id]); let changed = true; while (changed) { changed = false; departments.value.forEach(item => { if (item.parent && result.has(item.parent) && !result.has(item.id)) { result.add(item.id); changed = true; } }); } return result; }
 const superiorOptions = computed(() => toOptions(departmentTree.value, editingId.value ? descendantsOf(editingId.value) : new Set()));
 const batchSuperiorOptions = computed(() => toOptions(departmentTree.value, new Set(checkedRowKeys.value)));
 const editorTitle = computed(() => editingId.value ? "编辑部门" : "新增部门");
 
 const columns: DataTableColumns<Department> = [
   { type: "selection" },
-  { title: "部门名称", key: "name", minWidth: 220, render: row => h(NSpace, { align: "center", wrap: false }, { default: () => [h("strong", row.name), h(NTag, { size: "small", bordered: false }, { default: () => row.department_code })] }) },
-  { title: "负责人", key: "director", width: 130, render: row => row.director || "—" },
-  { title: "联系电话", key: "contact_phone", width: 150, render: row => row.contact_phone || "—" },
-  { title: "排序", key: "sort_order", width: 80 },
+  { title: "部门名称", key: "name", minWidth: 220, render: row => h(NSpace, { align: "center", wrap: false }, { default: () => [h("strong", row.name), h(NTag, { size: "small", bordered: false }, { default: () => row.code })] }) },
+  { title: "负责人", key: "leader", width: 130, render: row => row.leader || "—" },
+  { title: "联系电话", key: "phone", width: 150, render: row => row.phone || "—" },
+  { title: "排序", key: "sort", width: 80 },
   { title: "操作", key: "actions", width: 310, fixed: "right", render: row => h(NSpace, { size: 6 }, { default: () => [
     h(NButton, { size: "small", type: "primary", secondary: true, onClick: () => openCreate(row) }, { default: () => "新增下级" }),
     h(NButton, { size: "small", onClick: () => openChildren(row) }, { default: () => "批量下级" }),
@@ -180,18 +185,18 @@ const columns: DataTableColumns<Department> = [
 
 async function loadDepartments() {
   loading.value = true;
-  try { const result = await http.get<DepartmentList>("/api/departments"); departments.value = result.departments; checkedRowKeys.value = checkedRowKeys.value.filter(id => result.departments.some(item => item.id === id)); }
+  try { const result = await http.get<Department[]>("/api/depts"); departments.value = result; checkedRowKeys.value = checkedRowKeys.value.filter(id => result.some(item => item.id === id)); }
   catch (error) { message.error((error as { statusMessage?: string }).statusMessage || "部门列表加载失败"); }
   finally { loading.value = false; }
 }
-function resetForm() { Object.assign(form, { name: "", departmentCode: "", superiorId: null, sortOrder: 0, director: "", contactPhone: "" }); }
+function resetForm() { Object.assign(form, { name: "", departmentCode: "", superiorId: null, sortOrder: 0, director: "", contactPhone: "", status: 1 }); }
 function openCreate(parent?: Department) { editingId.value = null; resetForm(); form.superiorId = parent?.id ?? null; editorVisible.value = true; }
-function openEdit(row: Department) { editingId.value = row.id; Object.assign(form, { name: row.name, departmentCode: row.department_code, superiorId: row.superior_id, sortOrder: row.sort_order, director: row.director ?? "", contactPhone: row.contact_phone ?? "" }); editorVisible.value = true; }
+function openEdit(row: Department) { editingId.value = row.id; Object.assign(form, { name: row.name, departmentCode: row.code, superiorId: row.parent, sortOrder: row.sort, director: row.leader ?? "", contactPhone: row.phone ?? "", status: row.status }); editorVisible.value = true; }
 async function submitEditor() {
   await formRef.value?.validate(); submitting.value = true;
   try {
-    const payload = params({ name: form.name, department_code: form.departmentCode, superior_id: form.superiorId ?? (editingId.value ? 0 : undefined), sort_order: form.sortOrder, director: form.director, contact_phone: form.contactPhone });
-    if (editingId.value) await http.put(`/api/departments/${editingId.value}`, payload); else await http.post("/api/departments", payload);
+    const payload = { name: form.name, code: form.departmentCode, parent: form.superiorId, sort: form.sortOrder, leader: form.director || null, phone: form.contactPhone || null, status: form.status };
+    if (editingId.value) await http.put(`/api/depts/${editingId.value}`, payload, { payloadMode: "json" }); else await http.post("/api/depts", payload, { payloadMode: "json" });
     message.success(editingId.value ? "部门更新成功" : "部门创建成功"); editorVisible.value = false; await loadDepartments();
   } catch (error) { if ((error as { errors?: unknown }).errors) return; message.error((error as { statusMessage?: string }).statusMessage || "保存失败"); }
   finally { submitting.value = false; }
@@ -202,10 +207,16 @@ async function submitChildren() {
   if (childForms.value.some(item => !item.name.trim() || !item.departmentCode.trim())) { message.warning("请填写每个下级部门的名称和编码"); return; }
   submitting.value = true;
   try {
-    await http.post(`/api/departments/${activeDepartment.value.id}/children/batch`, {
-      name: childForms.value.map(item => item.name), department_code: childForms.value.map(item => item.departmentCode), sort_order: childForms.value.map(item => item.sortOrder), director: childForms.value.map(item => item.director), contact_phone: childForms.value.map(item => item.contactPhone),
-    });
-    message.success(`已新增 ${childForms.value.length} 个下级部门`); childrenVisible.value = false; await loadDepartments();
+    const results = await Promise.allSettled(childForms.value.map(item => http.post("/api/depts", {
+      name: item.name, code: item.departmentCode, parent: activeDepartment.value!.id,
+      sort: item.sortOrder, leader: item.director || null, phone: item.contactPhone || null, status: 1,
+    }, { payloadMode: "json" })));
+    const failedCount = results.filter(result => result.status === "rejected").length;
+    const successCount = childForms.value.length - failedCount;
+    childrenVisible.value = false;
+    await loadDepartments();
+    if (successCount > 0) message.success(`已新增 ${successCount} 个下级部门`);
+    if (failedCount > 0) message.warning(`${failedCount} 个下级部门创建失败`);
   } catch (error) { message.error((error as { statusMessage?: string }).statusMessage || "批量新增失败"); }
   finally { submitting.value = false; }
 }
@@ -214,13 +225,26 @@ async function submitBatchEdit() {
   const enabled = batch.enabled; if (!Object.values(enabled).some(Boolean)) { message.warning("请至少勾选一个要修改的字段"); return; }
   submitting.value = true;
   try {
-    await http.put("/api/departments/batch", params({ id: checkedRowKeys.value, superior_id: enabled.superiorId ? (batch.superiorId ?? 0) : undefined, sort_order: enabled.sortOrder ? batch.sortOrder : undefined, director: enabled.director ? batch.director : undefined, contact_phone: enabled.contactPhone ? batch.contactPhone : undefined }));
-    message.success("批量修改成功"); batchVisible.value = false; await loadDepartments();
+    const payload: Record<string, unknown> = {};
+    if (enabled.superiorId) payload.parent = batch.superiorId;
+    if (enabled.sortOrder) payload.sort = batch.sortOrder;
+    if (enabled.director) payload.leader = batch.director || null;
+    if (enabled.contactPhone) payload.phone = batch.contactPhone || null;
+    const results = await Promise.allSettled(checkedRowKeys.value.map(id => http.put(`/api/depts/${id}`, payload, { payloadMode: "json" })));
+    const failedCount = results.filter(result => result.status === "rejected").length;
+    const successCount = results.length - failedCount;
+    await loadDepartments();
+    if (failedCount > 0) {
+      if (successCount > 0) message.warning(`${failedCount} 个部门更新失败，其余 ${successCount} 个已完成`);
+      else message.error("部门更新全部失败");
+      return;
+    }
+    message.success("批量修改成功"); batchVisible.value = false;
   } catch (error) { message.error((error as { statusMessage?: string }).statusMessage || "批量修改失败"); }
   finally { submitting.value = false; }
 }
-function confirmDelete(row: Department) { dialog.warning({ title: "删除部门", content: `确认删除“${row.name}”吗？存在下级部门时将无法删除。`, positiveText: "删除", negativeText: "取消", onPositiveClick: async () => { await http.delete(`/api/departments/${row.id}`); message.success("删除成功"); await loadDepartments(); } }); }
-function confirmBatchDelete() { dialog.warning({ title: "批量删除", content: `确认删除选中的 ${checkedRowKeys.value.length} 个部门吗？存在未选中的下级部门时将无法删除。`, positiveText: "删除", negativeText: "取消", onPositiveClick: async () => { await http.delete("/api/departments/batch", { id: checkedRowKeys.value }); message.success("批量删除成功"); checkedRowKeys.value = []; await loadDepartments(); } }); }
+function confirmDelete(row: Department) { dialog.warning({ title: "删除部门", content: `确认删除“${row.name}”吗？存在下级部门时将无法删除。`, positiveText: "删除", negativeText: "取消", onPositiveClick: async () => { await http.delete(`/api/depts/${row.id}`); message.success("删除成功"); await loadDepartments(); } }); }
+function confirmBatchDelete() { dialog.warning({ title: "批量删除", content: `确认删除选中的 ${checkedRowKeys.value.length} 个部门吗？存在未选中的下级部门时将无法删除。`, positiveText: "删除", negativeText: "取消", onPositiveClick: async () => { const results = await Promise.allSettled(checkedRowKeys.value.map(id => http.delete(`/api/depts/${id}`))); const failedCount = results.filter(result => result.status === "rejected").length; const successCount = results.length - failedCount; checkedRowKeys.value = []; await loadDepartments(); if (successCount > 0) message.success(`已删除 ${successCount} 个部门`); if (failedCount > 0) message.warning(`${failedCount} 个部门删除失败`); } }); }
 
 onMounted(loadDepartments);
 </script>

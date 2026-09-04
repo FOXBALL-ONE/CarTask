@@ -62,14 +62,9 @@
         <appender-ref ref="ERROR_FILE_BASE"/>
     </appender>
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-        <encoder class="ch.qos.logback.core.encoder.LayoutWrappingEncoder">
-            <layout class="top.foxball.cartask.logging.JsonLogLayout">
-                <service>carTask</service>
-                <timeZone>${LOG_ZONE}</timeZone>
-                <includeException>false</includeException>
-                <maxMessageLength>${MAX_MESSAGE_LENGTH}</maxMessageLength>
-            </layout>
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
             <charset>UTF-8</charset>
+            <pattern>%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX,${LOG_ZONE}} %highlight(%-5level) %cyan(%logger{36}) %yellow([request_id=%X{request_id:-} actor=%X{actor_type:-} duration_ms=%X{duration_ms:-}]) - %msg%n%ex{full}</pattern>
         </encoder>
     </appender>
 

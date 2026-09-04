@@ -1,17 +1,16 @@
 package top.foxball.cartask.service.impl
 
 import jakarta.transaction.Transactional
+import java.time.format.DateTimeFormatter
+import org.slf4j.LoggerFactory
 import org.springframework.beans.BeanWrapperImpl
-import org.springframework.data.domain.Page
-import org.springframework.data.domain.PageRequest
 import org.springframework.security.access.AccessDeniedException
 import org.springframework.security.core.context.SecurityContextHolder
-import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
-import top.foxball.cartask.entity.AccessRecord
 import top.foxball.cartask.audit.AuditAction
 import top.foxball.cartask.audit.AuditCommand
 import top.foxball.cartask.audit.AuditService
+import top.foxball.cartask.entity.AccessRecord
 import top.foxball.cartask.repository.AccessRecordRepository
 import top.foxball.cartask.service.AccessRecordService
 
@@ -22,44 +21,51 @@ class AccessRecordServiceImpl(
     private val auditService: AuditService? = null,
 ) : AccessRecordService {
     @Transactional
-    override fun create(entity: AccessRecord): AccessRecord {
+    override fun create(entity: AccessRecord): AccessRecordService.AccessRecordData {
         throw AccessDeniedException("进出流水只能由设备同步任务写入")
     }
 
     @Transactional
-    override fun createBatch(entities: List<AccessRecord>): List<AccessRecord> {
+    override fun createBatch(entities: List<AccessRecord>): List<AccessRecordService.AccessRecordData> {
         throw AccessDeniedException("进出流水只能由设备同步任务写入")
     }
 
     @Transactional
-    override fun get(id: Long): AccessRecord = repository.findById(id)
+    override fun get(id: Long): AccessRecordService.AccessRecordData = repository.findById(id)
         .orElseThrow { IllegalArgumentException("记录不存在: $id") }
+        .let(::toData)
 
     @Transactional
-    override fun getBatch(ids: List<Long>): List<AccessRecord> {
+    override fun getBatch(ids: List<Long>): List<AccessRecordService.AccessRecordData> {
         require(ids.isNotEmpty()) { "ID 列表不能为空" }
         require(ids.all { it > 0 }) { "ID 必须大于 0" }
         val distinctIds = ids.distinct()
         val recordsById = repository.findAllById(distinctIds).associateBy { entityId(it) }
         val missingIds = distinctIds.filterNot(recordsById::containsKey)
         require(missingIds.isEmpty()) { "部分记录不存在: ${missingIds.joinToString(",")}" }
-        return ids.map { recordsById.getValue(it) }
+        return ids.map { toData(recordsById.getValue(it)) }
     }
 
     @Transactional
-    override fun list(page: Int, pageSize: Int): Page<AccessRecord> {
+    override fun list(page: Int, pageSize: Int): AccessRecordService.PageData {
         require(page >= 1) { "页码必须大于 0" }
         require(pageSize in 1..100) { "每页数量必须在 1 到 100 之间" }
-        return repository.findAll(PageRequest.of(page - 1, pageSize))
+        val result = repository.findAll(org.springframework.data.domain.PageRequest.of(page - 1, pageSize))
+        return AccessRecordService.PageData(
+            records = result.content.map(::toData),
+            page = page,
+            pageSize = pageSize,
+            total = result.totalElements,
+        )
     }
 
     @Transactional
-    override fun update(id: Long, entity: AccessRecord): AccessRecord {
+    override fun update(id: Long, entity: AccessRecord): AccessRecordService.AccessRecordData {
         throw AccessDeniedException("进出流水只能通过带原因的更正接口修改")
     }
 
     @Transactional
-    override fun updateBatch(entities: List<AccessRecord>): List<AccessRecord> {
+    override fun updateBatch(entities: List<AccessRecord>): List<AccessRecordService.AccessRecordData> {
         throw AccessDeniedException("进出流水只能通过带原因的更正接口修改")
     }
 
@@ -74,7 +80,11 @@ class AccessRecordServiceImpl(
     }
 
     @Transactional
-    override fun correct(id: Long, entity: AccessRecord, reason: String): AccessRecord {
+    override fun correct(
+        id: Long,
+        entity: AccessRecord,
+        reason: String,
+    ): AccessRecordService.AccessRecordData {
         require(reason.isNotBlank()) { "更正原因不能为空" }
         require(reason.trim().length <= 512) { "更正原因不能超过 512 个字符" }
         require(id > 0) { "ID 必须大于 0" }
@@ -87,7 +97,14 @@ class AccessRecordServiceImpl(
             "in_and_out_time" to current.inAndOutTime.toString(),
         )
         copyEditableProperties(entity, current)
-        logger.warn("进出流水更正，recordId={}, actor={}, reason={}, before={}, after={}", id, actorName(), reason, beforeData, "${current.carNumber}|${current.inAndOut}|${current.inAndOutTime}")
+        logger.warn(
+            "进出流水更正，recordId={}, actor={}, reason={}, before={}, after={}",
+            id,
+            actorName(),
+            reason,
+            beforeData,
+            "${current.carNumber}|${current.inAndOut}|${current.inAndOutTime}",
+        )
         val saved = repository.save(current)
         auditService?.record(
             AuditCommand(
@@ -99,11 +116,14 @@ class AccessRecordServiceImpl(
                 afterData = mapOf("car_number" to maskCar(saved.carNumber), "in_and_out" to saved.inAndOut.name),
             ),
         )
-        return saved
+        return toData(saved)
     }
 
     @Transactional
-    override fun correctBatch(entities: List<AccessRecord>, reason: String): List<AccessRecord> {
+    override fun correctBatch(
+        entities: List<AccessRecord>,
+        reason: String,
+    ): List<AccessRecordService.AccessRecordData> {
         require(entities.isNotEmpty()) { "更正列表不能为空" }
         require(reason.isNotBlank()) { "更正原因不能为空" }
         val ids = entities.map { entityId(it) }
@@ -113,7 +133,7 @@ class AccessRecordServiceImpl(
     }
 
     @Transactional
-    override fun release(id: Long, reason: String): AccessRecord {
+    override fun release(id: Long, reason: String): AccessRecordService.AccessRecordData {
         require(reason.isNotBlank()) { "放行原因不能为空" }
         require(reason.trim().length <= 512) { "放行原因不能超过 512 个字符" }
         val current = repository.findById(id)
@@ -122,6 +142,7 @@ class AccessRecordServiceImpl(
         require(current.releaseChannel == null) { "已有放行渠道的流水不能再次人工放行" }
         val actor = actorName()
         current.releaseChannel = AccessRecord.ReleaseChannel.MANUAL
+        current.passType = "人工放行"
         current.releaseInstructions = reason.trim()
         current.operatorName = actor
         logger.warn("人工放行，recordId={}, actor={}, reason={}", id, actor, reason)
@@ -135,8 +156,28 @@ class AccessRecordServiceImpl(
                 afterData = mapOf("release_channel" to saved.releaseChannel?.name, "operator_name" to saved.operatorName),
             ),
         )
-        return saved
+        return toData(saved)
     }
+
+    private fun toData(record: AccessRecord): AccessRecordService.AccessRecordData = AccessRecordService.AccessRecordData(
+        id = requireNotNull(record.id),
+        plate = record.carNumber,
+        owner = record.carOwnerName,
+        dept = record.departmentName,
+        time = record.inAndOutTime.format(DISPLAY_TIME),
+        direction = if (record.inAndOut == AccessRecord.InAndOut.IN) "进" else "出",
+        gate = record.gateName,
+        vehicleType = record.vehicleTypeName ?: record.carType?.carName,
+        passType = record.passType ?: when (record.releaseChannel) {
+            AccessRecord.ReleaseChannel.AUTOMATIC -> "自动放行"
+            AccessRecord.ReleaseChannel.MANUAL -> "人工放行"
+            AccessRecord.ReleaseChannel.REMOTE -> "远程放行"
+            AccessRecord.ReleaseChannel.UNKNOWN -> "未知"
+            null -> null
+        },
+        passDesc = record.releaseInstructions,
+        photo = record.photoUrl,
+    )
 
     private fun actorName(): String =
         (SecurityContextHolder.getContext().authentication?.principal as? top.foxball.cartask.authentication.CurrentUserPrincipal)?.username
@@ -177,5 +218,6 @@ class AccessRecordServiceImpl(
 
     private companion object {
         val logger = LoggerFactory.getLogger(AccessRecordServiceImpl::class.java)
+        val DISPLAY_TIME: DateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME
     }
 }

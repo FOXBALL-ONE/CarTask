@@ -16,6 +16,8 @@ class AuditingEntityListener {
     fun onPrePersist(entity: Any) {
         val now = LocalDateTime.now()
         setIfPresent(entity, "createdAt", now, onlyWhenNull = true)
+        setIfPresent(entity, "createTime", now, onlyWhenNull = true)
+        setIfPresent(entity, "applyTime", now, onlyWhenNull = true)
         setIfPresent(entity, "updatedAt", now, onlyWhenNull = true)
         setIfPresent(entity, "updateTime", now, onlyWhenNull = true)
     }

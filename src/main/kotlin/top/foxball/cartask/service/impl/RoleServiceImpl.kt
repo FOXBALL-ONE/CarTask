@@ -4,6 +4,7 @@ import jakarta.transaction.Transactional
 import org.springframework.beans.BeanWrapperImpl
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageRequest
+import org.springframework.security.access.AccessDeniedException
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.stereotype.Service
 import top.foxball.cartask.authentication.RedisTokenSessionRepository
@@ -13,6 +14,7 @@ import top.foxball.cartask.entity.Role
 import top.foxball.cartask.repository.RoleRepository
 import top.foxball.cartask.repository.UserRepository
 import top.foxball.cartask.service.RoleService
+import java.util.Locale
 import top.foxball.cartask.audit.AuditAction
 import top.foxball.cartask.audit.AuditCommand
 import top.foxball.cartask.audit.AuditService
@@ -30,6 +32,7 @@ class RoleServiceImpl(
     override fun create(entity: Role): Role {
         require(entityId(entity) == null) { "创建记录时不能指定 ID" }
         normalizeRoleName(entity)
+        require(!repository.existsByNameIgnoreCase(entity.name)) { "角色编码已存在" }
         requireEnabledRole(entity)
         requireSuperAdminGovernance(entity)
         val saved = repository.save(entity)
@@ -87,6 +90,9 @@ class RoleServiceImpl(
         val current = repository.findById(id)
             .orElseThrow { IllegalArgumentException("记录不存在: $id") }
         requireStableRole(current, entity)
+        if (SecurityRole.normalizeOrNull(current.name) == null) {
+            require(!repository.existsByNameIgnoreCaseAndIdNot(entity.name, id)) { "角色编码已存在" }
+        }
         val before = mapOf("name" to current.name, "enabled" to current.enabled, "permissions" to current.permissions.map { it.code }.sorted())
         copyEditableProperties(entity, current)
         normalizeRoleName(current)
@@ -129,7 +135,10 @@ class RoleServiceImpl(
     override fun delete(id: Long) {
         require(id > 0) { "ID 必须大于 0" }
         val role = repository.findById(id).orElseThrow { IllegalArgumentException("记录不存在: $id") }
-        throw org.springframework.security.access.AccessDeniedException("系统角色不允许删除: ${SecurityRole.normalize(role.name)}")
+        if (SecurityRole.normalizeOrNull(role.name) != null) {
+            throw AccessDeniedException("系统角色不允许删除: ${role.name}")
+        }
+        repository.delete(role)
     }
 
     @Transactional
@@ -142,7 +151,10 @@ class RoleServiceImpl(
         val recordsById = records.associateBy { entityId(it) }
         val missingIds = distinctIds.filterNot(recordsById::containsKey)
         require(missingIds.isEmpty()) { "部分记录不存在: ${missingIds.joinToString(",")}" }
-        throw org.springframework.security.access.AccessDeniedException("系统角色不允许删除: ${records.joinToString(",") { SecurityRole.normalize(it.name) }}")
+        if (records.any { SecurityRole.normalizeOrNull(it.name) != null }) {
+            throw AccessDeniedException("系统角色不允许删除")
+        }
+        repository.deleteAll(records)
     }
 
     private fun entityId(entity: Role): Long? {
@@ -174,22 +186,28 @@ class RoleServiceImpl(
     }
 
     private fun normalizeRoleName(entity: Role) {
-        entity.name = SecurityRole.normalize(entity.name)
+        val normalized = entity.name.trim().uppercase(Locale.ROOT).removePrefix("ROLE_")
+        require(normalized.isNotBlank()) { "角色编码不能为空" }
+        entity.name = normalized
     }
 
     private fun requireEnabledRole(entity: Role) {
-        require(entity.enabled) { "系统角色必须保持启用" }
+        if (SecurityRole.normalizeOrNull(entity.name) != null) {
+            require(entity.enabled) { "系统角色必须保持启用" }
+        }
     }
 
     private fun requireStableRole(current: Role, incoming: Role) {
-        val currentName = SecurityRole.normalize(current.name)
-        val incomingName = SecurityRole.normalize(incoming.name)
-        require(currentName == incomingName) { "系统角色名称不可变更" }
-        require(incoming.enabled) { "系统角色不能禁用" }
+        if (SecurityRole.normalizeOrNull(current.name) != null) {
+            val currentName = SecurityRole.normalize(current.name)
+            val incomingName = SecurityRole.normalize(incoming.name)
+            require(currentName == incomingName) { "系统角色名称不可变更" }
+            require(incoming.enabled) { "系统角色不能禁用" }
+        }
     }
 
     private fun requireSuperAdminGovernance(role: Role) {
-        if (SecurityRole.normalize(role.name) != "SUPER_ADMIN") return
+        if (SecurityRole.normalizeOrNull(role.name) != "SUPER_ADMIN") return
         val enabledCodes = role.permissions.asSequence()
             .filter { it.enabled }
             .map { SecurityPermission.normalize(it.code) }
@@ -200,7 +218,8 @@ class RoleServiceImpl(
     }
 
     private fun revokeRoleSessions(role: String) {
-        userRepository.findAllByRoleIn(listOf(SecurityRole.normalize(role)))
+        val normalized = SecurityRole.normalizeOrNull(role) ?: return
+        userRepository.findAllByRoleIn(listOf(normalized))
             .mapNotNull { it.id }
             .forEach(tokenSessionRepository::incrementTokenVersion)
     }

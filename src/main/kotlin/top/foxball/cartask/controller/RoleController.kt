@@ -1,7 +1,5 @@
 package top.foxball.cartask.controller
 
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.atomic.AtomicLong
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.web.bind.annotation.DeleteMapping
@@ -14,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import top.foxball.cartask.entity.Role
+import top.foxball.cartask.authentication.SecurityRole
 import top.foxball.cartask.service.RoleService
 import top.foxball.cartask.shared.Response
 import top.foxball.cartask.shared.ResponseBuilder
@@ -25,9 +24,6 @@ class RoleController(
     private val service: RoleService,
     private val responseBuilder: ResponseBuilder,
 ) {
-    private val documentRoleSequence = AtomicLong(1_000_000)
-    private val documentRoles = ConcurrentHashMap<Long, DocumentRoleRequest>()
-
     /** 创建文档约定的业务角色。 */
     @PostMapping(consumes = ["application/json"])
     @PreAuthorize("hasRole('SUPER_ADMIN') and hasAuthority('role:manage')")
@@ -43,11 +39,18 @@ class RoleController(
 
         val name = requireNotNull(body.name) { "角色名称不能为空" }
         val code = requireNotNull(body.code) { "角色编码不能为空" }
-        require(documentRoles.values.none { it.code.equals(code, true) }) { "角色编码已存在" }
-        val id = documentRoleSequence.getAndIncrement()
-        val role = DocumentRoleRequest(name, code, body.sort ?: 0, body.status ?: 1, body.remark)
-        documentRoles[id] = role
-        val rs = Response(id, name, code, role.sort ?: 0, role.status ?: 1, role.remark)
+        val status = requireNotNull(body.status) { "状态不能为空" }
+        require(status == 0 || status == 1) { "状态必须为 0 或 1" }
+        require(!service.list(1, 100).content.any { it.name.equals(code, true) }) { "角色编码已存在" }
+        val role = Role().apply {
+            this.name = code
+            description = name
+            enabled = status != 0
+            documentSort = requireNotNull(body.sort) { "排序不能为空" }
+            documentRemark = body.remark
+        }
+        val saved = service.create(role)
+        val rs = Response(requireNotNull(saved.id), name, saved.name, saved.documentSort ?: 0, if (saved.enabled) 1 else 0, saved.documentRemark)
         return responseBuilder.created().data(rs).build()
     }
 
@@ -60,8 +63,12 @@ class RoleController(
     /** 按主键获取一条实体记录。 */
     @GetMapping("/{id}")
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('role:read')")
-    fun get(@PathVariable id: Long): ResponseEntity<Response> =
-        responseBuilder.ok().data(service.get(id)).build()
+    fun get(@PathVariable id: Long): ResponseEntity<Response> {
+        data class Response(val id: Long, val name: String, val code: String, val sort: Int, val status: Int, val remark: String?)
+        val role = service.get(id)
+        val rs = Response(requireNotNull(role.id), role.description ?: role.name, role.documentCode ?: role.name, role.documentSort ?: 0, role.documentStatus ?: if (role.enabled) 1 else 0, role.documentRemark)
+        return responseBuilder.ok().data(rs).build()
+    }
 
     /** 按多个主键批量获取实体记录。 */
     @GetMapping("/batch")
@@ -82,15 +89,22 @@ class RoleController(
             val remark: String?,
         )
 
-        val systemRoles = service.list(1, 100).content.map {
+        val allRoles = mutableListOf<Role>()
+        var sourcePage = 1
+        var sourceTotal = 0L
+        do {
+            val source = service.list(sourcePage, 100)
+            allRoles += source.content
+            sourceTotal = source.totalElements
+            sourcePage++
+        } while (allRoles.size < sourceTotal)
+        val systemRoles = allRoles.map {
             RoleData(
                 requireNotNull(it.id), it.description ?: it.name, it.documentCode ?: it.name,
                 it.documentSort ?: 0, it.documentStatus ?: if (it.enabled) 1 else 0, it.documentRemark,
             )
         }
-        val rs = systemRoles + documentRoles.entries.sortedBy { it.key }.map { (id, role) ->
-            RoleData(id, requireNotNull(role.name), requireNotNull(role.code), role.sort ?: 0, role.status ?: 1, role.remark)
-        }
+        val rs = systemRoles
         return responseBuilder.ok().data(rs).build()
     }
 
@@ -115,17 +129,19 @@ class RoleController(
             val remark: String?,
         )
 
-        val current = documentRoles[id] ?: throw IllegalArgumentException("角色不存在")
-        val role = DocumentRoleRequest(
-            body.name ?: current.name,
-            body.code ?: current.code,
-            body.sort ?: current.sort,
-            body.status ?: current.status,
-            body.remark ?: current.remark,
-        )
-        require(documentRoles.entries.none { it.key != id && it.value.code.equals(role.code, true) }) { "角色编码已存在" }
-        documentRoles[id] = role
-        val rs = Response(id, requireNotNull(role.name), requireNotNull(role.code), role.sort ?: 0, role.status ?: 1, role.remark)
+        require(body.status == null || body.status == 0 || body.status == 1) { "状态必须为 0 或 1" }
+        val current = service.get(id)
+        val role = Role().apply {
+            this.id = id
+            name = if (SecurityRole.normalizeOrNull(current.name) == null) body.code ?: current.name else current.name
+            description = body.name ?: current.description
+            enabled = body.status?.let { it != 0 } ?: current.enabled
+            documentSort = body.sort ?: current.documentSort ?: 0
+            documentRemark = body.remark ?: current.documentRemark
+            permissions = current.permissions
+        }
+        val saved = service.update(id, role)
+        val rs = Response(id, saved.description ?: saved.name, saved.name, saved.documentSort ?: 0, if (saved.enabled) 1 else 0, saved.documentRemark)
         return responseBuilder.ok().data(rs).build()
     }
 
@@ -139,7 +155,7 @@ class RoleController(
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('SUPER_ADMIN') and hasAuthority('role:manage')")
     fun delete(@PathVariable id: Long): ResponseEntity<Response> {
-        if (documentRoles.remove(id) == null) service.delete(id)
+        service.delete(id)
         return responseBuilder.ok().data(mapOf("id" to id)).build()
     }
 

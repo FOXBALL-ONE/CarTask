@@ -1,6 +1,5 @@
 package top.foxball.cartask.entity
 
-import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EntityListeners
 import jakarta.persistence.EnumType
@@ -9,6 +8,7 @@ import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.Table
+import jakarta.persistence.Column
 import java.time.LocalDateTime
 
 /** 系统接入设备及其基础状态。 */
@@ -31,6 +31,21 @@ class Device {
     /** 设备类别，例如门禁、摄像头或传感器。 */
     @Column(name = "device_type", length = 32)
     var deviceType: String? = null
+
+    @Column(length = 64)
+    var brand: String? = null
+
+    @Column(length = 64)
+    var model: String? = null
+
+    @Column(length = 255)
+    var location: String? = null
+
+    @Column(name = "ip_address", length = 64)
+    var ip: String? = null
+
+    @Column(name = "install_date", length = 32)
+    var installDate: String? = null
 
     /** 设备状态使用字符串保存，避免枚举顺序变化造成数据错误。 */
     @Enumerated(EnumType.STRING)

@@ -5,12 +5,14 @@
 - **Base URL**: `http://localhost:3000/api`
 - **数据格式**: JSON
 - **字符编码**: UTF-8
+- 除 `/auth/login` 外，接口均需在请求头中携带 `Authorization: Bearer <token>`。
 
 ## 通用响应格式
 
 ### 成功响应
 ```json
 {
+  "status": 200,
   "success": true,
   "message": "操作成功",
   "data": {}
@@ -20,8 +22,60 @@
 ### 失败响应
 ```json
 {
+  "status": 400,
   "success": false,
   "message": "错误信息"
+}
+```
+
+- `status` 与 HTTP 响应状态码一致。
+- `success` 在 HTTP 状态码为 2xx 时为 `true`，其他情况为 `false`。
+
+---
+
+## 0. 认证
+
+### 0.1 登录
+- **接口**: `POST /auth/login`
+- **Content-Type**: `application/json`
+- **说明**: 此接口无需 `Authorization` 请求头。
+- **请求体**:
+```json
+{
+  "username": "admin",
+  "password": "123456"
+}
+```
+- **响应**:
+```json
+{
+  "status": 200,
+  "success": true,
+  "message": "操作成功",
+  "data": {
+    "access_token": "<token>",
+    "expires_at": "2026-08-27T12:00:00",
+    "user": {
+      "user_id": 1,
+      "username": "admin",
+      "role": "ADMIN"
+    }
+  }
+}
+```
+
+### 0.2 退出登录
+- **接口**: `POST /auth/logout`
+- **请求头**: `Authorization: Bearer <token>`
+- **响应**:
+```json
+{
+  "status": 200,
+  "success": true,
+  "message": "操作成功",
+  "data": {
+    "logged_out": true
+  }
 }
 ```
 
@@ -45,14 +99,13 @@
       {
         "id": 1,                        // 用户ID
         "username": "admin",            // 用户名（登录账号）
-        "password": "123456",           // 密码
         "name": "管理员",                // 真实姓名
         "deptId": 1,                    // 所属部门ID
         "phone": "13800000001",         // 手机号
         "email": "admin@example.com",   // 邮箱
         "roleIds": [1],                 // 角色ID数组
         "status": 1,                    // 状态：1=正常, 0=停用
-        "createTime": "2025-01-15 10:00" // 创建时间
+        "createTime": "2025-01-15T10:00:00" // 创建时间
       }
     ],
     "total": 10,      // 总记录数
@@ -61,6 +114,7 @@
   }
 }
 ```
+> `password` 仅用于创建或更新请求，任何用户查询响应都不会返回密码。
 
 ### 1.2 获取单个用户
 - **接口**: `GET /users/:id`
@@ -540,7 +594,7 @@
         "phone": "13800010001",                   // 手机号
         "idCard": "110101199001011234",           // 身份证号
         "face": "https://picsum.photos/...",      // 人脸照片URL
-        "createTime": "2025-03-15 09:00",         // 创建时间
+        "createTime": "2025-03-15T09:00:00",         // 创建时间
         "approveStatus": "通过",                   // 审核状态：审核中/通过/拒绝
         "syncStatus": "已同步"                     // 同步状态：已同步/未同步
       }
@@ -607,7 +661,20 @@
   - `id` (number): 人员ID
 - **说明**: 直接删除人员记录
 
-### 9.8 获取删除申请列表
+### 9.8 发起删除申请
+- **接口**: `POST /gate-persons/:id/delete-requests`
+- **URL参数**:
+  - `id` (number): 人员ID
+- **Content-Type**: `application/json`
+- **请求体**:
+```json
+{
+  "reason": "人员离职"
+}
+```
+- **响应**: 返回删除申请对象，字段结构同删除申请列表中的单项。
+
+### 9.9 获取删除申请列表
 - **接口**: `GET /gate-persons/delete-requests`
 - **说明**: 获取所有人员删除申请记录
 - **响应**:
@@ -625,14 +692,14 @@
       "idCard": "110108199107204567",           // 身份证号
       "face": "https://i.pravatar.cc/...",      // 人脸照片URL
       "reason": "人员离职",                      // 删除原因
-      "applyTime": "2025-08-22 14:30",          // 申请时间
+      "applyTime": "2025-08-22T14:30:00",          // 申请时间
       "status": "待处理"                         // 申请状态：待处理/已同意/已拒绝
     }
   ]
 }
 ```
 
-### 9.9 同意删除申请
+### 9.10 同意删除申请
 - **接口**: `PUT /gate-persons/delete-requests/:id/approve`
 - **URL参数**:
   - `id` (number): 申请ID
@@ -645,7 +712,7 @@
 }
 ```
 
-### 9.10 拒绝删除申请
+### 9.11 拒绝删除申请
 - **接口**: `PUT /gate-persons/delete-requests/:id/reject`
 - **URL参数**:
   - `id` (number): 申请ID
@@ -684,7 +751,7 @@
         "person": "张伟",                      // 人员姓名
         "cardId": "C001",                     // 卡号
         "dept": "安保部",                      // 部门
-        "time": "2026-08-23 08:02:15",        // 通行时间
+        "time": "2026-08-23T08:02:15",        // 通行时间
         "direction": "进",                     // 方向：进/出
         "gate": "东门门禁",                    // 门禁点
         "method": "人脸识别",                  // 通行方式：人脸识别/刷卡/密码
@@ -717,7 +784,7 @@
         "plate": "京A12345",                  // 车牌号
         "owner": "张伟",                       // 车主姓名
         "dept": "研发中心",                    // 部门
-        "time": "2026-08-23 08:15:22",        // 通行时间
+        "time": "2026-08-23T08:15:22",        // 通行时间
         "direction": "进",                     // 方向：进/出
         "gate": "地下车库入口",                 // 通行门点
         "amount": 0,                          // 收费金额（元）
@@ -758,7 +825,7 @@
         "browser": "Chrome 119",          // 浏览器
         "os": "Windows 11",               // 操作系统
         "status": "成功",                  // 登录状态：成功/失败
-        "time": "2026-08-23 08:00:15",    // 登录时间
+        "time": "2026-08-23T08:00:15",    // 登录时间
         "message": "登录成功"              // 提示信息
       }
     ],
@@ -790,7 +857,7 @@
         "desc": "新增用户【张三】",         // 操作描述
         "ip": "192.168.1.10",             // IP地址
         "status": "成功",                  // 操作状态：成功/失败
-        "time": "2026-08-23 09:15:30",    // 操作时间
+        "time": "2026-08-23T09:15:30",    // 操作时间
         "cost": "120ms"                   // 耗时
       }
     ],
@@ -992,10 +1059,10 @@
 
 ## 注意事项
 
-1. **文件上传**: 上传人脸照片时使用`multipart/form-data`格式
+1. **文件上传**: 上传人脸照片时使用`multipart/form-data`格式，支持 `jpg`、`jpeg`、`png`、`gif`、`webp`、`bmp`
 2. **分页**: 默认`page=1`, `pageSize=8`
-3. **日期格式**: `YYYY-MM-DD HH:mm:ss`
-4. **apiCall函数**: 前端使用的`apiCall`函数已自动处理了响应，直接返回`data`字段，无需再次访问`result.data`
+3. **日期格式**: `LocalDateTime` 使用 ISO-8601 的 `YYYY-MM-DDTHH:mm:ss`，日期字段使用 `YYYY-MM-DD`
+4. **前端请求**: 前端使用 `useHttp` 请求组合函数，它会自动处理统一响应并直接返回 `data` 字段，无需再次访问 `result.data`。
 
 ---
 

@@ -38,12 +38,12 @@ class Role {
     @JsonProperty("code")
     var documentCode: String? = null
 
-    @Transient
     @JsonProperty("sort")
+    @Column(name = "display_sort")
     var documentSort: Int? = null
 
-    @Transient
     @JsonProperty("remark")
+    @Column(name = "display_remark", length = 255)
     var documentRemark: String? = null
 
     @Transient

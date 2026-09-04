@@ -34,6 +34,9 @@ class Position {
     @Column(nullable = false, length = 16)
     var status: Status = Status.Activity
 
+    @Column(length = 512)
+    var remark: String? = null
+
     enum class Status {
         Activity,
         BANNED,

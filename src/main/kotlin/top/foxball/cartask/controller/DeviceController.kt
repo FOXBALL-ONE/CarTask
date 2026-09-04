@@ -1,7 +1,7 @@
 package top.foxball.cartask.controller
 
 import com.fasterxml.jackson.annotation.JsonProperty
-import java.util.concurrent.ConcurrentHashMap
+import java.time.LocalDate
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.web.bind.annotation.DeleteMapping
@@ -25,8 +25,6 @@ class DeviceController(
     private val service: DeviceService,
     private val responseBuilder: ResponseBuilder,
 ) {
-    private val documentDevices = ConcurrentHashMap<Long, DocumentDeviceRequest>()
-
     /** 文档兼容的 JSON 设备创建入口。 */
     @PostMapping(consumes = ["application/json"])
     @PreAuthorize("hasAuthority('device:manage')")
@@ -48,19 +46,18 @@ class DeviceController(
             deviceCode = requireNotNull(body.code) { "设备编号不能为空" }
             deviceName = requireNotNull(body.name) { "设备名称不能为空" }
             deviceType = requireNotNull(body.type) { "设备类型不能为空" }
-            status = if (body.status == 0) Device.Status.BANNED else Device.Status.Activity
+            brand = requireNotNull(body.brand) { "设备品牌不能为空" }
+            model = requireNotNull(body.model) { "设备型号不能为空" }
+            location = requireNotNull(body.location) { "设备安装位置不能为空" }
+            ip = requireNotNull(body.ip) { "设备 IP 地址不能为空" }
+            installDate = requireNotNull(body.installDate) { "设备安装日期不能为空" }.also { LocalDate.parse(it) }
+            status = requireNotNull(body.status) { "设备状态不能为空" }.let { value -> require(value == 0 || value == 1) { "状态必须为 0 或 1" }; if (value == 0) Device.Status.BANNED else Device.Status.Activity }
         }
-        requireNotNull(body.brand) { "设备品牌不能为空" }
-        requireNotNull(body.model) { "设备型号不能为空" }
-        requireNotNull(body.location) { "设备安装位置不能为空" }
-        requireNotNull(body.ip) { "设备 IP 地址不能为空" }
-        requireNotNull(body.installDate) { "设备安装日期不能为空" }
         val saved = service.create(device)
         val savedId = requireNotNull(saved.id)
-        documentDevices[savedId] = body
         val rs = Response(
-            savedId, saved.deviceCode, saved.deviceName, saved.deviceType, body.brand, body.model,
-            body.location, body.ip, if (saved.status == Device.Status.Activity) 1 else 0, body.installDate,
+            savedId, saved.deviceCode, saved.deviceName, saved.deviceType, saved.brand, saved.model,
+            saved.location, saved.ip, if (saved.status == Device.Status.Activity) 1 else 0, saved.installDate,
         )
         return responseBuilder.created().data(rs).build()
     }
@@ -82,32 +79,25 @@ class DeviceController(
             @param:JsonProperty("installDate") val installDate: String?,
         )
 
+        require(body.status == null || body.status == 0 || body.status == 1) { "状态必须为 0 或 1" }
         val current = service.get(id)
-        val currentDocument = documentDevices[id]
         val device = Device().apply {
             this.id = id
             deviceCode = body.code ?: current.deviceCode
             deviceName = body.name ?: current.deviceName
             deviceType = body.type ?: current.deviceType
+            brand = body.brand ?: current.brand
+            model = body.model ?: current.model
+            location = body.location ?: current.location
+            ip = body.ip ?: current.ip
+            installDate = body.installDate?.also { LocalDate.parse(it) } ?: current.installDate
             orderNumber = current.orderNumber
             status = body.status?.let { if (it == 0) Device.Status.BANNED else Device.Status.Activity } ?: current.status
         }
         val saved = service.update(id, device)
-        val document = DocumentDeviceRequest(
-            code = saved.deviceCode,
-            name = saved.deviceName,
-            type = saved.deviceType,
-            brand = body.brand ?: currentDocument?.brand,
-            model = body.model ?: currentDocument?.model,
-            location = body.location ?: currentDocument?.location,
-            ip = body.ip ?: currentDocument?.ip,
-            status = if (saved.status == Device.Status.Activity) 1 else 0,
-            installDate = body.installDate ?: currentDocument?.installDate,
-        )
-        documentDevices[id] = document
         val rs = Response(
-            requireNotNull(saved.id), saved.deviceCode, saved.deviceName, saved.deviceType, document.brand, document.model,
-            document.location, document.ip, if (saved.status == Device.Status.Activity) 1 else 0, document.installDate,
+            requireNotNull(saved.id), saved.deviceCode, saved.deviceName, saved.deviceType, saved.brand, saved.model,
+            saved.location, saved.ip, if (saved.status == Device.Status.Activity) 1 else 0, saved.installDate,
         )
         return responseBuilder.ok().data(rs).build()
     }
@@ -137,28 +127,34 @@ class DeviceController(
         data class Response(
             val items: List<DeviceData>,
             val total: Int,
-            val page: Int,
-            @param:JsonProperty("pageSize") val pageSize: Int,
         )
 
         require(page >= 1) { "页码必须大于 0" }
         require(pageSize in 1..100) { "每页数量必须在 1 到 100 之间" }
-        val filtered = service.list(1, 100).content.asSequence()
+        val allDevices = mutableListOf<Device>()
+        var sourcePage = 1
+        var sourceTotal = 0L
+        do {
+            val source = service.list(sourcePage, 100)
+            allDevices += source.content
+            sourceTotal = source.totalElements
+            sourcePage++
+        } while (allDevices.size < sourceTotal)
+        val filtered = allDevices.asSequence()
             .filter { keyword.isNullOrBlank() || it.deviceCode?.contains(keyword, true) == true || it.deviceName?.contains(keyword, true) == true }
             .filter { type.isNullOrBlank() || it.deviceType == type }
             .filter { status == null || (if (it.status == Device.Status.Activity) 1 else 0) == status }
             .map {
-                val document = documentDevices[it.id]
                 DeviceData(
                     requireNotNull(it.id), it.deviceCode, it.deviceName, it.deviceType,
-                    document?.brand, document?.model, document?.location, document?.ip,
-                    if (it.status == Device.Status.Activity) 1 else 0, document?.installDate,
+                    it.brand, it.model, it.location, it.ip,
+                    if (it.status == Device.Status.Activity) 1 else 0, it.installDate,
                 )
             }
             .toList()
         val from = ((page - 1) * pageSize).coerceAtMost(filtered.size)
         val to = (from + pageSize).coerceAtMost(filtered.size)
-        val rs = Response(filtered.subList(from, to), filtered.size, page, pageSize)
+        val rs = Response(filtered.subList(from, to), filtered.size)
         return responseBuilder.ok().data(rs).build()
     }
 
@@ -211,7 +207,6 @@ class DeviceController(
     @PreAuthorize("hasAuthority('device:manage')")
     fun delete(@PathVariable id: Long): ResponseEntity<Response> {
         service.delete(id)
-        documentDevices.remove(id)
         return responseBuilder.ok().data(mapOf("id" to id)).build()
     }
 

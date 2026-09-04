@@ -13,6 +13,7 @@ import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 import java.time.LocalDateTime
+import java.math.BigDecimal
 import top.foxball.cartask.entity.type.CarType
 
 /** 车辆进出门禁的流水记录。 */
@@ -28,6 +29,10 @@ class AccessRecord {
     @Column(name = "car_number", length = 64)
     var carNumber: String? = null
 
+    /** 车辆所属部门名称；由同步接口直接保存快照，避免部门变更影响历史记录展示。 */
+    @Column(name = "department_name", length = 128)
+    var departmentName: String? = null
+
     /** 进场或出场方向。 */
     @Enumerated(EnumType.STRING)
     @Column(name = "in_and_out", nullable = false, length = 8)
@@ -37,14 +42,22 @@ class AccessRecord {
     @Column(name = "in_and_out_time", nullable = false)
     lateinit var inAndOutTime: LocalDateTime
 
-    /** 车辆类型。 */
+    /** 车辆类型关联。 */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "car_type_id")
     var carType: CarType? = null
 
+    /** 车辆类型名称快照；同步接口没有本地字典关联时使用。 */
+    @Column(name = "vehicle_type_name", length = 64)
+    var vehicleTypeName: String? = null
+
     /** 无牌车辆入场时使用的票据或卡号。 */
     @Column(name = "admission_ticket_number", length = 128)
     var admissionTicketNumber: String? = null
+
+    /** 放行类型原始展示文本，例如“自动放行”。 */
+    @Column(name = "pass_type", length = 64)
+    var passType: String? = null
 
     /** 放行指令或审核说明。 */
     @Column(name = "release_instructions", length = 512)
@@ -62,6 +75,22 @@ class AccessRecord {
     /** 车主姓名。 */
     @Column(name = "car_owner_name", length = 128)
     var carOwnerName: String? = null
+
+    /** 车辆通过的闸口或车场入口名称。 */
+    @Column(name = "gate_name", length = 128)
+    var gateName: String? = null
+
+    /** 车辆进出抓拍图片地址。 */
+    @Column(name = "photo_url", length = 1024)
+    var photoUrl: String? = null
+
+    /** 通行收费金额。 */
+    @Column(name = "fee_amount", nullable = false, precision = 18, scale = 2)
+    var feeAmount: BigDecimal = BigDecimal.ZERO
+
+    /** 通行记录状态，例如“正常”或“异常”。 */
+    @Column(name = "record_status", nullable = false, length = 16)
+    var recordStatus: String = "正常"
 
     /** 记录创建时间。 */
     @Column(nullable = false, updatable = false)

@@ -115,7 +115,7 @@ class DepartmentServiceImpl(
     }
 
     @Transactional
-    override fun listAll(): List<Department> = departmentRepository.findAll(
+    override fun listAll(): List<Department> = departmentRepository.findAllWithSuperior(
         Sort.by(Sort.Order.asc("sortOrder"), Sort.Order.asc("name"), Sort.Order.asc("id")),
     )
 
@@ -178,6 +178,7 @@ class DepartmentServiceImpl(
         department.sortOrder = command.sortOrder
         department.director = command.director?.trim()?.takeIf(String::isNotEmpty)
         department.contactPhone = command.contactPhone?.trim()?.takeIf(String::isNotEmpty)
+        department.status = command.status
     }
 
     private fun applyUpdateCommand(
@@ -222,6 +223,7 @@ class DepartmentServiceImpl(
         if (command.contactPhone != null) {
             department.contactPhone = command.contactPhone.trim().takeIf(String::isNotEmpty)
         }
+        command.status?.let { department.status = it }
     }
 
     private fun entityId(entity: Department): Long? {

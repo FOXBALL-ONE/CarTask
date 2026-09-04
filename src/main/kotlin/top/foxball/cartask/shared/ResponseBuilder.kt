@@ -73,7 +73,7 @@ class ResponseBuilder {
         }
 
         fun build(): ResponseEntity<Response> {
-            val finalData = this.data ?: HashMap<String, Any?>()
+            val finalData = this.data ?: if (this.status in 200..299) HashMap<String, Any?>() else null
 
             val responseBody = Response(
                 status = this.status,
@@ -89,8 +89,8 @@ class ResponseBuilder {
     }
 
     enum class ResponseCode(val code: Int, val message: String) {
-        OK(200, "OK"),
-        CREATED(201, "Created"),
+        OK(200, "操作成功"),
+        CREATED(201, "操作成功"),
         NOT_FOUND(404, "Not Found"),
         UNAUTHORIZED(401, "Unauthorized"),
         FORBIDDEN(403, "Forbidden"),

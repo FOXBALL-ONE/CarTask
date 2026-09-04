@@ -21,6 +21,7 @@ interface DepartmentService {
         val sortOrder: Int,
         val director: String?,
         val contactPhone: String?,
+        val status: Int = 1,
     )
 
     data class UpdateCommand(
@@ -30,6 +31,7 @@ interface DepartmentService {
         val sortOrder: Int?,
         val director: String?,
         val contactPhone: String?,
+        val status: Int? = null,
     )
 
     fun create(command: CreateCommand): Department

@@ -42,18 +42,26 @@ class UserController(
         )
         val username = requireNotNull(body.username) { "用户名不能为空" }
         val password = requireNotNull(body.password) { "密码不能为空" }
+        val name = requireNotNull(body.name) { "姓名不能为空" }
+        val deptId = requireNotNull(body.deptId) { "部门不能为空" }
+        val phone = requireNotNull(body.phone) { "手机号不能为空" }
+        val roleIds = requireNotNull(body.roleIds) { "角色不能为空" }
+        require(roleIds.isNotEmpty()) { "角色不能为空" }
+        val status = requireNotNull(body.status) { "状态不能为空" }
+        require(status == 0 || status == 1) { "状态必须为 0 或 1" }
         val user = userService.create(
             UserService.CreateCommand(
                 username = username,
                 email = body.email ?: "$username@local.invalid",
                 credential = password,
-                phone = body.phone,
-                departmentId = body.deptId,
-                status = if (body.status == 0) User.Status.BANNED else User.Status.Activity,
-                nickName = body.name,
+                phone = phone,
+                departmentId = deptId,
+                status = if (status == 0) User.Status.BANNED else User.Status.Activity,
+                nickName = name,
+                roleIds = roleIds,
             ),
         )
-        val rs = Response(user.id, user.username, body.name, user.departmentId, user.phone, user.email, body.roleIds.orEmpty(), if (user.status == User.Status.Activity) 1 else 0, user.createdAt)
+        val rs = Response(user.id, user.username, user.name, user.departmentId, user.phone, user.email, user.roleIds, if (user.status == User.Status.Activity) 1 else 0, user.createdAt)
         return responseBuilder.created().data(rs).build()
     }
 
@@ -72,6 +80,7 @@ class UserController(
             val status: Int,
             @param:JsonProperty("createTime") val createTime: LocalDateTime,
         )
+        require(body.status == null || body.status == 0 || body.status == 1) { "状态必须为 0 或 1" }
         val user = userService.update(
             id,
             UserService.UpdateCommand(
@@ -82,9 +91,10 @@ class UserController(
                 departmentId = body.deptId,
                 status = body.status?.let { if (it == 0) User.Status.BANNED else User.Status.Activity },
                 nickName = body.name,
+                roleIds = body.roleIds,
             ),
         )
-        val rs = Response(user.id, user.username, body.name, user.departmentId, user.phone, user.email, body.roleIds.orEmpty(), if (user.status == User.Status.Activity) 1 else 0, user.createdAt)
+        val rs = Response(user.id, user.username, user.name, user.departmentId, user.phone, user.email, user.roleIds, if (user.status == User.Status.Activity) 1 else 0, user.createdAt)
         return responseBuilder.ok().data(rs).build()
     }
 
@@ -246,7 +256,7 @@ class UserController(
             user.departmentId,
             user.phone,
             user.email,
-            emptyList(),
+            user.roleIds,
             if (user.status == User.Status.Activity) 1 else 0,
             user.createdAt,
         )
@@ -282,7 +292,16 @@ class UserController(
 
         require(page >= 1) { "页码必须大于 0" }
         require(pageSize in 1..100) { "每页数量必须在 1 到 100 之间" }
-        val users = userService.list(1, 100).users.filter {
+        val allUsers = mutableListOf<UserService.UserData>()
+        var sourcePage = 1
+        var sourceTotal = 0L
+        do {
+            val source = userService.list(sourcePage, 100)
+            allUsers += source.users
+            sourceTotal = source.total
+            sourcePage++
+        } while (allUsers.size < sourceTotal)
+        val users = allUsers.filter {
             (keyword.isNullOrBlank() || it.username.contains(keyword, true) || it.name.orEmpty().contains(keyword, true) || it.phone.orEmpty().contains(keyword, true)) &&
                 (status == null || (if (it.status == User.Status.Activity) 1 else 0) == status)
         }
@@ -291,7 +310,7 @@ class UserController(
         val rs = Response(
             users.subList(from, to).map {
                 UserData(
-                    it.id, it.username, it.name, it.departmentId, it.phone, it.email, emptyList(),
+                    it.id, it.username, it.name, it.departmentId, it.phone, it.email, it.roleIds,
                     if (it.status == User.Status.Activity) 1 else 0, it.createdAt,
                 )
             },

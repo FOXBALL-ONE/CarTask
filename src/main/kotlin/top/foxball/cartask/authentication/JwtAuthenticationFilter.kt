@@ -82,6 +82,6 @@ class JwtAuthenticationFilter(
         response.contentType = "application/json;charset=UTF-8"
         response.setHeader("Cache-Control", "no-store")
         if (retryable) response.setHeader("Retry-After", "1") else response.setHeader("WWW-Authenticate", "Bearer")
-        response.writer.write("{\"status\":$status,\"message\":\"$message\",\"data\":{}}")
+        response.writer.write("{\"status\":$status,\"success\":${status in 200..299},\"message\":\"$message\",\"data\":{}}")
     }
 }

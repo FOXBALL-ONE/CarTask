@@ -12,6 +12,20 @@ interface AccessRecordRepository : JpaRepository<AccessRecord, Long> {
     @Query(
         """
         select record from AccessRecord record
+        where record.carNumber = :carNumber
+          and record.inAndOut = :inAndOut
+        order by record.inAndOutTime desc, record.id desc
+        """,
+    )
+    fun findFirstByCarNumberAndInAndOutOrderByInAndOutTimeDesc(
+        @Param("carNumber") carNumber: String,
+        @Param("inAndOut") inAndOut: AccessRecord.InAndOut,
+    ): AccessRecord?
+
+
+    @Query(
+        """
+        select record from AccessRecord record
         where ((:carNumber is null and record.carNumber is null) or record.carNumber = :carNumber)
           and record.inAndOut = :inAndOut
           and record.inAndOutTime = :inAndOutTime
