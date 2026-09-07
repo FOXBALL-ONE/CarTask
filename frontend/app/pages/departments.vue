@@ -1,261 +1,215 @@
 <template>
-  <div class="department-page">
-    <n-page-header title="部门管理" subtitle="维护组织架构、负责人和部门层级">
-      <template #extra>
-        <n-space>
-          <n-button :loading="loading" @click="loadDepartments">刷新</n-button>
-          <n-button type="primary" @click="openCreate()">新增部门</n-button>
-        </n-space>
-      </template>
-    </n-page-header>
+  <section class="page">
+    <header class="page__header">
+      <div>
+        <h1 class="page__title">部门管理</h1>
+        <p class="page__desc">维护组织架构树形结构</p>
+      </div>
+      <div class="page__actions">
+        <button class="button button--ghost button--sm" type="button" @click="toggleAll">
+          <span class="material-icons-outlined">unfold_more</span>展开/折叠
+        </button>
+        <button class="button button--primary button--sm" type="button" @click="openCreate">
+          <span class="material-icons-outlined">add</span>新增部门
+        </button>
+      </div>
+    </header>
 
-    <n-card class="toolbar-card" :bordered="false">
-      <n-space justify="space-between" align="center">
-        <n-input v-model:value="keyword" clearable placeholder="搜索部门名称、编码、负责人或电话" style="max-width: 420px">
-          <template #prefix>⌕</template>
-        </n-input>
-        <n-space>
-          <n-text depth="3">已选择 {{ checkedRowKeys.length }} 项</n-text>
-          <n-button :disabled="checkedRowKeys.length === 0" @click="openBatchEdit">批量修改</n-button>
-          <n-button type="error" secondary :disabled="checkedRowKeys.length === 0" @click="confirmBatchDelete">批量删除</n-button>
-        </n-space>
-      </n-space>
-    </n-card>
+    <section class="card">
+      <header class="card__head"><h2 class="card__title">部门架构</h2></header>
+      <div v-if="loading" class="state">正在加载部门数据...</div>
+      <div v-else-if="errorMessage" class="state state--error">{{ errorMessage }}</div>
+      <div v-else class="card__body">
+        <ul v-if="roots.length" class="tree">
+          <department-node
+            v-for="department in roots"
+            :key="department.id"
+            :department="department"
+            :departments="departments"
+            :level="0"
+            :open="openDepartments"
+            @toggle="toggleDepartment"
+            @edit="openEdit"
+            @remove="removeDepartment"
+          />
+        </ul>
+        <p v-else class="empty-state">暂无数据</p>
+      </div>
+    </section>
 
-    <n-card :bordered="false">
-      <n-data-table
-        remote
-        :columns="columns"
-        :data="filteredTree"
-        :loading="loading"
-        :row-key="row => row.id"
-        :checked-row-keys="checkedRowKeys"
-        default-expand-all
-        @update:checked-row-keys="keys => checkedRowKeys = keys as number[]"
-      />
-      <n-empty v-if="!loading && filteredTree.length === 0" class="empty" description="暂无部门数据" />
-    </n-card>
-
-    <n-modal v-model:show="editorVisible" preset="card" :title="editorTitle" style="width: min(640px, 92vw)">
-      <n-form ref="formRef" :model="form" :rules="rules" label-placement="left" label-width="92">
-        <n-form-item label="部门名称" path="name"><n-input v-model:value="form.name" placeholder="请输入部门名称" /></n-form-item>
-        <n-form-item label="部门编码" path="departmentCode"><n-input v-model:value="form.departmentCode" placeholder="请输入唯一部门编码" /></n-form-item>
-        <n-form-item label="上级部门">
-          <n-tree-select v-model:value="form.superiorId" clearable :options="superiorOptions" placeholder="不选择则为顶级部门" />
-        </n-form-item>
-        <n-form-item label="显示顺序"><n-input-number v-model:value="form.sortOrder" :min="0" style="width: 100%" /></n-form-item>
-        <n-form-item label="负责人"><n-input v-model:value="form.director" clearable placeholder="请输入负责人" /></n-form-item>
-        <n-form-item label="联系电话"><n-input v-model:value="form.contactPhone" clearable placeholder="请输入联系电话" /></n-form-item>
-        <n-form-item label="状态">
-          <n-switch v-model:value="form.status" :checked-value="1" :unchecked-value="0">
-            <template #checked>正常</template>
-            <template #unchecked>停用</template>
-          </n-switch>
-        </n-form-item>
-      </n-form>
-      <template #footer>
-        <n-space justify="end">
-          <n-button @click="editorVisible = false">取消</n-button>
-          <n-button type="primary" :loading="submitting" @click="submitEditor">保存</n-button>
-        </n-space>
-      </template>
-    </n-modal>
-
-    <n-modal v-model:show="childrenVisible" preset="card" title="批量新增下级部门" style="width: min(900px, 94vw)">
-      <n-alert type="info" :show-icon="false">上级部门：{{ activeDepartment?.name }}</n-alert>
-      <n-dynamic-input v-model:value="childForms" :min="1" class="children-input" @create="createChildForm">
-        <template #default="{ value }">
-          <n-grid :cols="24" :x-gap="8">
-            <n-form-item-gi :span="6" label="部门名称" required><n-input v-model:value="value.name" /></n-form-item-gi>
-            <n-form-item-gi :span="5" label="部门编码" required><n-input v-model:value="value.departmentCode" /></n-form-item-gi>
-            <n-form-item-gi :span="3" label="排序"><n-input-number v-model:value="value.sortOrder" :min="0" /></n-form-item-gi>
-            <n-form-item-gi :span="5" label="负责人"><n-input v-model:value="value.director" /></n-form-item-gi>
-            <n-form-item-gi :span="5" label="联系电话"><n-input v-model:value="value.contactPhone" /></n-form-item-gi>
-          </n-grid>
-        </template>
-      </n-dynamic-input>
-      <template #footer>
-        <n-space justify="end">
-          <n-button @click="childrenVisible = false">取消</n-button>
-          <n-button type="primary" :loading="submitting" @click="submitChildren">批量新增</n-button>
-        </n-space>
-      </template>
-    </n-modal>
-
-    <n-modal v-model:show="batchVisible" preset="card" title="批量修改部门" style="width: min(620px, 92vw)">
-      <n-alert type="warning">仅勾选的字段会应用到 {{ checkedRowKeys.length }} 个部门。</n-alert>
-      <n-form label-placement="left" label-width="100" class="batch-form">
-        <n-form-item label="移动到部门">
-          <n-space align="center"><n-checkbox v-model:checked="batch.enabled.superiorId" /> <n-tree-select v-model:value="batch.superiorId" clearable :disabled="!batch.enabled.superiorId" :options="batchSuperiorOptions" style="width: 360px" /></n-space>
-        </n-form-item>
-        <n-form-item label="显示顺序">
-          <n-space align="center"><n-checkbox v-model:checked="batch.enabled.sortOrder" /> <n-input-number v-model:value="batch.sortOrder" :disabled="!batch.enabled.sortOrder" :min="0" style="width: 360px" /></n-space>
-        </n-form-item>
-        <n-form-item label="负责人">
-          <n-space align="center"><n-checkbox v-model:checked="batch.enabled.director" /> <n-input v-model:value="batch.director" :disabled="!batch.enabled.director" style="width: 360px" /></n-space>
-        </n-form-item>
-        <n-form-item label="联系电话">
-          <n-space align="center"><n-checkbox v-model:checked="batch.enabled.contactPhone" /> <n-input v-model:value="batch.contactPhone" :disabled="!batch.enabled.contactPhone" style="width: 360px" /></n-space>
-        </n-form-item>
-      </n-form>
-      <template #footer>
-        <n-space justify="end"><n-button @click="batchVisible = false">取消</n-button><n-button type="primary" :loading="submitting" @click="submitBatchEdit">应用修改</n-button></n-space>
-      </template>
-    </n-modal>
-  </div>
+    <div v-if="editorVisible" class="modal-mask" @click.self="editorVisible = false">
+      <form class="modal" @submit.prevent="saveDepartment">
+        <header class="modal__head">
+          <h2 class="modal__title">{{ editingId === null ? "新增部门" : "编辑部门" }}</h2>
+          <button class="icon-button" type="button" title="关闭" @click="editorVisible = false"><span class="material-icons-outlined">close</span></button>
+        </header>
+        <div class="modal__body">
+          <div class="form-grid">
+            <label class="field"><span class="field__label">部门名称<em>*</em></span><input v-model.trim="form.name" class="input" required></label>
+            <label class="field"><span class="field__label">部门编码<em>*</em></span><input v-model.trim="form.code" class="input" required></label>
+            <label class="field"><span class="field__label">上级部门</span><select v-model.number="form.parent" class="select"><option :value="0">顶级部门</option><option v-for="department in parentOptions" :key="department.id" :value="department.id">{{ department.name }}</option></select></label>
+            <label class="field"><span class="field__label">显示排序</span><input v-model.number="form.sort" class="input" type="number" min="1"></label>
+            <label class="field"><span class="field__label">负责人</span><input v-model.trim="form.leader" class="input"></label>
+            <label class="field"><span class="field__label">联系电话</span><input v-model.trim="form.phone" class="input"></label>
+            <label class="field full"><span class="field__label">状态</span><select v-model.number="form.status" class="select"><option :value="1">正常</option><option :value="0">停用</option></select></label>
+          </div>
+          <p v-if="formError" class="form-error">{{ formError }}</p>
+        </div>
+        <footer class="modal__foot">
+          <button class="button button--ghost" type="button" @click="editorVisible = false">取消</button>
+          <button class="button button--primary" type="submit" :disabled="saving">{{ saving ? "保存中..." : "保存" }}</button>
+        </footer>
+      </form>
+    </div>
+  </section>
 </template>
 
 <script setup lang="ts">
-import { NButton, NSpace, NTag } from "naive-ui";
-
 interface Department {
   id: number;
   name: string;
   code: string;
   parent: number | null;
   sort: number;
-  leader: string | null;
-  phone: string | null;
+  leader?: string;
+  phone?: string;
   status: number;
-  children?: Department[];
 }
-interface ChildForm { name: string; departmentCode: string; sortOrder: number; director: string; contactPhone: string }
 
-const http = useHttp("http://127.0.0.1:8080");
-const message = useMessage();
-const dialog = useDialog();
-const loading = ref(false);
-const submitting = ref(false);
-const departments = ref<Department[]>([]);
-const keyword = ref("");
-const checkedRowKeys = ref<number[]>([]);
-const editorVisible = ref(false);
-const childrenVisible = ref(false);
-const batchVisible = ref(false);
-const editingId = ref<number | null>(null);
-const activeDepartment = ref<Department | null>(null);
-const formRef = ref<FormInst | null>(null);
-const form = reactive({ name: "", departmentCode: "", superiorId: null as number | null, sortOrder: 0, director: "", contactPhone: "", status: 1 });
-const childForms = ref<ChildForm[]>([createChildForm()]);
-const batch = reactive({
-  superiorId: null as number | null, sortOrder: 0, director: "", contactPhone: "",
-  enabled: { superiorId: false, sortOrder: false, director: false, contactPhone: false },
+interface DepartmentNodeProps {
+  department: Department;
+  departments: Department[];
+  level: number;
+  open: Set<number>;
+}
+
+const DepartmentNode = defineComponent({
+  name: "DepartmentNode",
+  props: {
+    department: { type: Object as PropType<Department>, required: true },
+    departments: { type: Array as PropType<Department[]>, required: true },
+    level: { type: Number, required: true },
+    open: { type: Object as PropType<Set<number>>, required: true },
+  },
+  emits: ["toggle", "edit", "remove"],
+  setup(props: DepartmentNodeProps, { emit }) {
+    const children = computed(() => props.departments.filter((item) => item.parent === props.department.id).sort((a, b) => a.sort - b.sort || a.id - b.id));
+    const hasChildren = computed(() => children.value.length > 0);
+    return () => h("li", { class: "tree-node" }, [
+      h("div", { class: "tree-row", style: { paddingLeft: `${10 + props.level * 16}px` } }, [
+        h("button", { class: ["tree-toggle", { open: props.open.has(props.department.id) }], type: "button", title: hasChildren.value ? "展开/折叠" : undefined, onClick: () => hasChildren.value && emit("toggle", props.department.id) }, [
+          h("span", { class: "material-icons-outlined" }, hasChildren.value ? "chevron_right" : "circle"),
+        ]),
+        h("span", { class: "material-icons-outlined tree-icon" }, "apartment"),
+        h("strong", { class: "department-name" }, props.department.name),
+        h("span", { class: "tag tag--gray" }, props.department.code),
+        h("span", { class: "tree-meta" }, `负责人：${props.department.leader || "-"} · ${props.department.phone || "-"}`),
+        h("span", { class: ["tag", props.department.status === 1 ? "tag--green" : "tag--red"] }, props.department.status === 1 ? "正常" : "停用"),
+        h("button", { class: "row-act", type: "button", title: "编辑", onClick: (event: Event) => { event.stopPropagation(); emit("edit", props.department.id); } }, [h("span", { class: "material-icons-outlined" }, "edit")]),
+        h("button", { class: "row-act row-act--danger", type: "button", title: "删除", onClick: (event: Event) => { event.stopPropagation(); emit("remove", props.department.id); } }, [h("span", { class: "material-icons-outlined" }, "delete")]),
+      ]),
+      hasChildren.value && props.open.has(props.department.id)
+        ? h("ul", { class: "tree tree-children open" }, children.value.map((child) => h(DepartmentNode, { department: child, departments: props.departments, level: props.level + 1, open: props.open, onToggle: (id: number) => emit("toggle", id), onEdit: (id: number) => emit("edit", id), onRemove: (id: number) => emit("remove", id) })))
+        : null,
+    ]);
+  },
 });
-const rules: FormRules = {
-  name: { required: true, message: "请输入部门名称", trigger: ["input", "blur"] },
-  departmentCode: { required: true, message: "请输入部门编码", trigger: ["input", "blur"] },
-};
 
-function createChildForm(): ChildForm { return { name: "", departmentCode: "", sortOrder: 0, director: "", contactPhone: "" }; }
-function buildTree(items: Department[]): Department[] {
-  const map = new Map(items.map(item => [item.id, { ...item, children: [] as Department[] }]));
-  const roots: Department[] = [];
-  map.forEach(item => { const parent = item.parent ? map.get(item.parent) : undefined; (parent ? parent.children! : roots).push(item); });
-  const sort = (nodes: Department[]) => { nodes.sort((a, b) => a.sort - b.sort || a.name.localeCompare(b.name, "zh-CN")); nodes.forEach(node => sort(node.children ?? [])); };
-  sort(roots); return roots;
-}
-function matches(item: Department, text: string) { return [item.name, item.code, item.leader, item.phone].some(value => value?.toLowerCase().includes(text)); }
-function filterTree(nodes: Department[], text: string): Department[] {
-  if (!text) return nodes;
-  return nodes.flatMap(node => { const children = filterTree(node.children ?? [], text); return matches(node, text) || children.length ? [{ ...node, children }] : []; });
-}
-const departmentTree = computed(() => buildTree(departments.value));
-const filteredTree = computed(() => filterTree(departmentTree.value, keyword.value.trim().toLowerCase()));
-function toOptions(nodes: Department[], disabledIds = new Set<number>()): TreeSelectOption[] {
-  return nodes.map(node => ({ label: `${node.name}（${node.code}）`, key: node.id, disabled: disabledIds.has(node.id), children: toOptions(node.children ?? [], disabledIds) }));
-}
-function descendantsOf(id: number) { const result = new Set<number>([id]); let changed = true; while (changed) { changed = false; departments.value.forEach(item => { if (item.parent && result.has(item.parent) && !result.has(item.id)) { result.add(item.id); changed = true; } }); } return result; }
-const superiorOptions = computed(() => toOptions(departmentTree.value, editingId.value ? descendantsOf(editingId.value) : new Set()));
-const batchSuperiorOptions = computed(() => toOptions(departmentTree.value, new Set(checkedRowKeys.value)));
-const editorTitle = computed(() => editingId.value ? "编辑部门" : "新增部门");
+const http = useHttp();
+const departments = ref<Department[]>([]);
+const openDepartments = ref<Set<number>>(new Set());
+const loading = ref(true);
+const saving = ref(false);
+const errorMessage = ref("");
+const formError = ref("");
+const editorVisible = ref(false);
+const editingId = ref<number | null>(null);
+const form = reactive({ name: "", code: "", parent: 0, sort: 1, leader: "", phone: "", status: 1 });
 
-const columns: DataTableColumns<Department> = [
-  { type: "selection" },
-  { title: "部门名称", key: "name", minWidth: 220, render: row => h(NSpace, { align: "center", wrap: false }, { default: () => [h("strong", row.name), h(NTag, { size: "small", bordered: false }, { default: () => row.code })] }) },
-  { title: "负责人", key: "leader", width: 130, render: row => row.leader || "—" },
-  { title: "联系电话", key: "phone", width: 150, render: row => row.phone || "—" },
-  { title: "排序", key: "sort", width: 80 },
-  { title: "操作", key: "actions", width: 310, fixed: "right", render: row => h(NSpace, { size: 6 }, { default: () => [
-    h(NButton, { size: "small", type: "primary", secondary: true, onClick: () => openCreate(row) }, { default: () => "新增下级" }),
-    h(NButton, { size: "small", onClick: () => openChildren(row) }, { default: () => "批量下级" }),
-    h(NButton, { size: "small", onClick: () => openEdit(row) }, { default: () => "编辑" }),
-    h(NButton, { size: "small", type: "error", tertiary: true, onClick: () => confirmDelete(row) }, { default: () => "删除" }),
-  ] }) },
-];
+const roots = computed(() => departments.value.filter((department) => (department.parent ?? 0) === 0).sort((a, b) => a.sort - b.sort || a.id - b.id));
+const parentOptions = computed(() => departments.value.filter((department) => department.id !== editingId.value && !descendantIds(editingId.value).has(department.id)).sort((a, b) => a.sort - b.sort || a.id - b.id));
+
+function descendantIds(id: number | null) {
+  const result = new Set<number>();
+  if (id === null) return result;
+  const pending = [id];
+  while (pending.length) {
+    const current = pending.shift()!;
+    departments.value.filter((item) => item.parent === current).forEach((item) => { result.add(item.id); pending.push(item.id); });
+  }
+  return result;
+}
 
 async function loadDepartments() {
   loading.value = true;
-  try { const result = await http.get<Department[]>("/api/depts"); departments.value = result; checkedRowKeys.value = checkedRowKeys.value.filter(id => result.some(item => item.id === id)); }
-  catch (error) { message.error((error as { statusMessage?: string }).statusMessage || "部门列表加载失败"); }
-  finally { loading.value = false; }
-}
-function resetForm() { Object.assign(form, { name: "", departmentCode: "", superiorId: null, sortOrder: 0, director: "", contactPhone: "", status: 1 }); }
-function openCreate(parent?: Department) { editingId.value = null; resetForm(); form.superiorId = parent?.id ?? null; editorVisible.value = true; }
-function openEdit(row: Department) { editingId.value = row.id; Object.assign(form, { name: row.name, departmentCode: row.code, superiorId: row.parent, sortOrder: row.sort, director: row.leader ?? "", contactPhone: row.phone ?? "", status: row.status }); editorVisible.value = true; }
-async function submitEditor() {
-  await formRef.value?.validate(); submitting.value = true;
+  errorMessage.value = "";
   try {
-    const payload = { name: form.name, code: form.departmentCode, parent: form.superiorId, sort: form.sortOrder, leader: form.director || null, phone: form.contactPhone || null, status: form.status };
-    if (editingId.value) await http.put(`/api/depts/${editingId.value}`, payload, { payloadMode: "json" }); else await http.post("/api/depts", payload, { payloadMode: "json" });
-    message.success(editingId.value ? "部门更新成功" : "部门创建成功"); editorVisible.value = false; await loadDepartments();
-  } catch (error) { if ((error as { errors?: unknown }).errors) return; message.error((error as { statusMessage?: string }).statusMessage || "保存失败"); }
-  finally { submitting.value = false; }
+    departments.value = (await http.get<Department[]>("/depts")) || [];
+  } catch (error) {
+    errorMessage.value = (error as { statusMessage?: string }).statusMessage || "部门数据加载失败";
+  } finally {
+    loading.value = false;
+  }
 }
-function openChildren(row: Department) { activeDepartment.value = row; childForms.value = [createChildForm(), createChildForm()]; childrenVisible.value = true; }
-async function submitChildren() {
-  if (!activeDepartment.value) return;
-  if (childForms.value.some(item => !item.name.trim() || !item.departmentCode.trim())) { message.warning("请填写每个下级部门的名称和编码"); return; }
-  submitting.value = true;
+
+function toggleDepartment(id: number) {
+  const next = new Set(openDepartments.value);
+  if (next.has(id)) next.delete(id); else next.add(id);
+  openDepartments.value = next;
+}
+
+function toggleAll() {
+  const allOpen = departments.value.some((department) => departments.value.some((item) => item.parent === department.id)) && departments.value.filter((department) => departments.value.some((item) => item.parent === department.id)).every((department) => openDepartments.value.has(department.id));
+  openDepartments.value = allOpen ? new Set() : new Set(departments.value.map((department) => department.id));
+}
+
+function openCreate() {
+  editingId.value = null;
+  Object.assign(form, { name: "", code: "", parent: 0, sort: 1, leader: "", phone: "", status: 1 });
+  formError.value = "";
+  editorVisible.value = true;
+}
+
+function openEdit(id: number) {
+  const department = departments.value.find((item) => item.id === id);
+  if (!department) return;
+  editingId.value = id;
+  Object.assign(form, { name: department.name, code: department.code, parent: department.parent ?? 0, sort: department.sort, leader: department.leader || "", phone: department.phone || "", status: department.status });
+  formError.value = "";
+  editorVisible.value = true;
+}
+
+async function saveDepartment() {
+  if (!form.name || !form.code) { formError.value = "名称和编码不能为空"; return; }
+  saving.value = true;
+  formError.value = "";
+  const payload = { name: form.name, code: form.code, parent: form.parent === 0 ? null : form.parent, sort: Number(form.sort) || 1, leader: form.leader, phone: form.phone, status: form.status };
   try {
-    const results = await Promise.allSettled(childForms.value.map(item => http.post("/api/depts", {
-      name: item.name, code: item.departmentCode, parent: activeDepartment.value!.id,
-      sort: item.sortOrder, leader: item.director || null, phone: item.contactPhone || null, status: 1,
-    }, { payloadMode: "json" })));
-    const failedCount = results.filter(result => result.status === "rejected").length;
-    const successCount = childForms.value.length - failedCount;
-    childrenVisible.value = false;
+    if (editingId.value === null) await http.post<Department>("/depts", payload, { payloadMode: "json" });
+    else await http.put<Department>(`/depts/${editingId.value}`, payload, { payloadMode: "json" });
+    editorVisible.value = false;
     await loadDepartments();
-    if (successCount > 0) message.success(`已新增 ${successCount} 个下级部门`);
-    if (failedCount > 0) message.warning(`${failedCount} 个下级部门创建失败`);
-  } catch (error) { message.error((error as { statusMessage?: string }).statusMessage || "批量新增失败"); }
-  finally { submitting.value = false; }
+  } catch (error) {
+    formError.value = (error as { statusMessage?: string }).statusMessage || "保存失败";
+  } finally { saving.value = false; }
 }
-function openBatchEdit() { Object.assign(batch, { superiorId: null, sortOrder: 0, director: "", contactPhone: "" }); Object.values(batch.enabled).forEach((_, key) => { batch.enabled[key as keyof typeof batch.enabled] = false; }); batchVisible.value = true; }
-async function submitBatchEdit() {
-  const enabled = batch.enabled; if (!Object.values(enabled).some(Boolean)) { message.warning("请至少勾选一个要修改的字段"); return; }
-  submitting.value = true;
-  try {
-    const payload: Record<string, unknown> = {};
-    if (enabled.superiorId) payload.parent = batch.superiorId;
-    if (enabled.sortOrder) payload.sort = batch.sortOrder;
-    if (enabled.director) payload.leader = batch.director || null;
-    if (enabled.contactPhone) payload.phone = batch.contactPhone || null;
-    const results = await Promise.allSettled(checkedRowKeys.value.map(id => http.put(`/api/depts/${id}`, payload, { payloadMode: "json" })));
-    const failedCount = results.filter(result => result.status === "rejected").length;
-    const successCount = results.length - failedCount;
-    await loadDepartments();
-    if (failedCount > 0) {
-      if (successCount > 0) message.warning(`${failedCount} 个部门更新失败，其余 ${successCount} 个已完成`);
-      else message.error("部门更新全部失败");
-      return;
-    }
-    message.success("批量修改成功"); batchVisible.value = false;
-  } catch (error) { message.error((error as { statusMessage?: string }).statusMessage || "批量修改失败"); }
-  finally { submitting.value = false; }
+
+async function removeDepartment(id: number) {
+  const department = departments.value.find((item) => item.id === id);
+  if (!window.confirm(`确认删除“${department?.name || "该部门"}”？子部门将一并删除`)) return;
+  try { await http.delete(`/depts/${id}`); await loadDepartments(); }
+  catch (error) { errorMessage.value = (error as { statusMessage?: string }).statusMessage || "删除失败"; }
 }
-function confirmDelete(row: Department) { dialog.warning({ title: "删除部门", content: `确认删除“${row.name}”吗？存在下级部门时将无法删除。`, positiveText: "删除", negativeText: "取消", onPositiveClick: async () => { await http.delete(`/api/depts/${row.id}`); message.success("删除成功"); await loadDepartments(); } }); }
-function confirmBatchDelete() { dialog.warning({ title: "批量删除", content: `确认删除选中的 ${checkedRowKeys.value.length} 个部门吗？存在未选中的下级部门时将无法删除。`, positiveText: "删除", negativeText: "取消", onPositiveClick: async () => { const results = await Promise.allSettled(checkedRowKeys.value.map(id => http.delete(`/api/depts/${id}`))); const failedCount = results.filter(result => result.status === "rejected").length; const successCount = results.length - failedCount; checkedRowKeys.value = []; await loadDepartments(); if (successCount > 0) message.success(`已删除 ${successCount} 个部门`); if (failedCount > 0) message.warning(`${failedCount} 个部门删除失败`); } }); }
 
 onMounted(loadDepartments);
 </script>
 
 <style scoped>
-.department-page { min-height: 100%; padding: 24px; background: #f5f7fa; }
-.toolbar-card { margin: 20px 0 12px; }
-.empty { padding: 64px 0; }
-.children-input, .batch-form { margin-top: 20px; }
-:deep(.n-data-table) { border-radius: 8px; overflow: hidden; }
-@media (max-width: 720px) { .department-page { padding: 14px; } }
+.page { min-height: 100%; padding: 24px; }.page__header { align-items: center; display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; margin-bottom: 20px; }.page__title { color: var(--text); font-size: 18px; font-weight: 600; margin: 0; }.page__desc { color: var(--text-sub); margin: 2px 0 0; }.page__actions { display: flex; gap: 8px; }
+.card { background: var(--card); border: 1px solid var(--border-strong); border-radius: 8px; }.card__head { align-items: center; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; padding: 14px 18px; }.card__title { color: var(--text); font-size: 14px; font-weight: 600; margin: 0; }.card__body { padding: 18px; }.state, .empty-state { color: var(--text-mute); padding: 30px; text-align: center; }.state--error, .form-error { color: var(--red); }
+.button { align-items: center; border: 1px solid transparent; border-radius: 6px; cursor: pointer; display: inline-flex; font: inherit; font-size: 13px; gap: 5px; height: 32px; justify-content: center; padding: 0 12px; white-space: nowrap; }.button--sm { font-size: 12px; height: 28px; padding: 0 10px; }.button--primary { background: var(--primary); color: #fff; }.button--ghost { background: var(--card); border-color: var(--border-strong); color: var(--text-sub); }.button:hover:not(:disabled) { filter: brightness(.97); }.button:disabled { cursor: wait; opacity: .6; }.button .material-icons-outlined { font-size: 16px; }
+.tree { list-style: none; margin: 0; padding: 0; }.tree-node { margin-bottom: 1px; }.tree-row { align-items: center; cursor: default; display: flex; gap: 6px; min-height: 34px; padding: 7px 10px; }.tree-row:hover { background: var(--bg); }.tree-toggle { align-items: center; background: transparent; border: 0; color: var(--text-mute); cursor: pointer; display: inline-flex; height: 24px; justify-content: center; padding: 0; width: 18px; }.tree-toggle:not(.open) .material-icons-outlined { transform: none; }.tree-toggle.open .material-icons-outlined { transform: rotate(90deg); }.tree-toggle .material-icons-outlined { font-size: 16px; transition: transform var(--tr); }.tree-icon { color: #ea580c; font-size: 18px; }.department-name { color: var(--text); margin-right: 4px; }.tree-children { margin-left: 16px; }.tag { align-items: center; border-radius: 4px; display: inline-flex; font-size: 12px; gap: 4px; line-height: 1.5; padding: 2px 8px; }.tag::before { background: currentColor; border-radius: 50%; content: ""; height: 5px; width: 5px; }.tag--gray { background: #f4f4f5; color: var(--text-sub); margin-left: 4px; }.tag--green { background: #ecfdf5; color: #059669; }.tag--red { background: #fef2f2; color: #dc2626; }.tree-meta { color: var(--text-mute); font-size: 12px; margin-left: auto; margin-right: 8px; }.row-act, .icon-button { align-items: center; background: transparent; border: 0; border-radius: 5px; color: var(--text-mute); cursor: pointer; display: inline-flex; height: 26px; justify-content: center; margin: 0 1px; width: 26px; }.row-act:hover { background: var(--bg); color: var(--text); }.row-act--danger:hover { background: #fef2f2; color: var(--red); }.row-act .material-icons-outlined, .icon-button .material-icons-outlined { font-size: 16px; }
+:deep(.tree-node) { margin-bottom: 1px; }:deep(.tree-row) { align-items: center; background: transparent; border-radius: 6px; display: flex; gap: 6px; min-height: 34px; padding: 7px 10px; }:deep(.tree-row:hover) { background: var(--bg); }:deep(.tree-toggle) { align-items: center; background: transparent; border: 0; color: var(--text-mute); cursor: pointer; display: inline-flex; height: 24px; justify-content: center; padding: 0; width: 18px; }:deep(.tree-toggle .material-icons-outlined) { font-size: 16px; transition: transform var(--tr); }:deep(.tree-toggle.open .material-icons-outlined) { transform: rotate(90deg); }:deep(.tree-children) { margin-left: 16px; }:deep(.tree-icon) { color: #ea580c; font-size: 18px; }:deep(.department-name) { color: var(--text); margin-right: 4px; }:deep(.tree-meta) { color: var(--text-mute); font-size: 12px; margin-left: auto; margin-right: 8px; }:deep(.tag) { align-items: center; border-radius: 4px; display: inline-flex; font-size: 12px; gap: 4px; line-height: 1.5; padding: 2px 8px; }:deep(.tag::before) { background: currentColor; border-radius: 50%; content: ""; height: 5px; width: 5px; }:deep(.tag--gray) { background: #f4f4f5; color: var(--text-sub); margin-left: 4px; }:deep(.tag--green) { background: #ecfdf5; color: #059669; }:deep(.tag--red) { background: #fef2f2; color: #dc2626; }:deep(.row-act), :deep(.icon-button) { align-items: center; background: transparent; border: 0; border-radius: 5px; color: var(--text-mute); cursor: pointer; display: inline-flex; height: 26px; justify-content: center; margin: 0 1px; width: 26px; }:deep(.row-act:hover) { background: var(--bg); color: var(--text); }:deep(.row-act--danger:hover) { background: #fef2f2; color: var(--red); }:deep(.row-act .material-icons-outlined), :deep(.icon-button .material-icons-outlined) { font-size: 16px; }
+.modal-mask { align-items: center; background: rgb(0 0 0 / 40%); display: flex; inset: 0; justify-content: center; padding: 20px; position: fixed; z-index: 300; }.modal { background: var(--card); border: 1px solid var(--border-strong); border-radius: 8px; box-shadow: 0 16px 48px rgb(0 0 0 / 20%); max-width: 620px; width: 100%; }.modal__head, .modal__foot { align-items: center; display: flex; justify-content: space-between; padding: 14px 20px; }.modal__head { border-bottom: 1px solid var(--border); }.modal__title { color: var(--text); font-size: 15px; font-weight: 600; margin: 0; }.modal__body { padding: 20px; }.modal__foot { border-top: 1px solid var(--border); gap: 8px; justify-content: flex-end; }.form-grid { display: grid; gap: 0 16px; grid-template-columns: 1fr 1fr; }.field { margin-bottom: 14px; }.field__label { color: var(--text-sub); display: block; font-size: 12px; font-weight: 500; margin-bottom: 5px; }.field__label em { color: var(--red); font-style: normal; margin-left: 2px; }.input, .select { background: var(--card); border: 1px solid var(--border-strong); border-radius: 6px; box-sizing: border-box; color: var(--text); font: inherit; height: 34px; outline: none; padding: 0 10px; width: 100%; }.input:focus, .select:focus { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-soft); }.full { grid-column: 1 / -1; }
+@media (max-width: 700px) { .page { padding: 16px; }.tree-row { align-items: flex-start; flex-wrap: wrap; }.tree-meta { margin-left: 24px; width: 100%; }.tag--green, .tag--red { margin-left: 0; }.form-grid { grid-template-columns: 1fr; }.full { grid-column: auto; }.modal-mask { padding: 12px; } }
 </style>
-
-
