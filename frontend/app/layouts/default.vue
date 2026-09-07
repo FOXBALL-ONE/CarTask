@@ -101,6 +101,9 @@ const routePages: Record<string, string> = {
   "/owners": "owners",
   "/spots": "spots",
   "/plates": "plates",
+  "/person-records": "person-records",
+  "/vehicle-records": "vehicle-records",
+  "/logs": "logs",
 };
 const pagePaths: Record<string, string> = {
   dashboard: "/",
@@ -113,6 +116,9 @@ const pagePaths: Record<string, string> = {
   owners: "/owners",
   spots: "/spots",
   plates: "/plates",
+  "person-records": "/person-records",
+  "vehicle-records": "/vehicle-records",
+  logs: "/logs",
 };
 const isLoginPage = computed(() => route.path === "/login");
 const activePage = computed(() => typeof route.query.page === "string" ? route.query.page : (routePages[route.path] ?? "dashboard"));

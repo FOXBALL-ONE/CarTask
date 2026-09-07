@@ -148,12 +148,12 @@ const navigation: { title: string; items: NavigationItem[] }[] = [
       label: "进出记录",
       icon: "swap_horiz",
       children: [
-        { label: "人员进出", icon: "directions_walk", page: "person-records" },
-        { label: "车辆进出", icon: "directions_car", page: "vehicle-records" },
+        { label: "人员进出", icon: "directions_walk", page: "person-records", route: "/person-records" },
+        { label: "车辆进出", icon: "directions_car", page: "vehicle-records", route: "/vehicle-records" },
       ],
     }],
   },
-  { title: "系统", items: [{ label: "日志管理", icon: "receipt_long", page: "logs" }] },
+  { title: "系统", items: [{ label: "日志管理", icon: "receipt_long", page: "logs", route: "/logs" }] },
 ];
 
 const expandedGroups = ref<string[]>([]);
