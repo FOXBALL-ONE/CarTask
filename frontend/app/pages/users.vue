@@ -1,0 +1,266 @@
+<template>
+  <section class="page">
+    <header class="page__header">
+      <div>
+        <h1 class="page__title">用户管理</h1>
+        <p class="page__desc">维护系统用户账号信息</p>
+      </div>
+      <div class="page__actions">
+        <button class="button button--ghost" type="button" @click="exportUsers">
+          <span class="material-icons-outlined">download</span>导出
+        </button>
+        <button class="button button--primary" type="button" @click="openCreate">
+          <span class="material-icons-outlined">add</span>新增用户
+        </button>
+      </div>
+    </header>
+
+    <div class="user-layout">
+      <aside class="panel department-panel">
+        <div class="panel__head"><h2>部门列表</h2></div>
+        <div class="department-tree">
+          <button class="department-item" :class="{ active: selectedDepartment === 0 }" type="button" @click="selectDepartment(0)">
+            <span class="material-icons-outlined">apartment</span>全部部门
+          </button>
+          <template v-for="department in departmentRoots" :key="department.id">
+            <department-node
+              :department="department"
+              :children="departmentChildren"
+              :level="0"
+              :selected="selectedDepartment"
+              @select="selectDepartment"
+            />
+          </template>
+        </div>
+      </aside>
+
+      <section class="panel user-panel">
+        <div class="filter-bar">
+          <input v-model="keyword" class="input" type="search" placeholder="账号 / 用户名 / 手机号" @keyup.enter="search">
+          <select v-model="status" class="select" aria-label="用户状态">
+            <option value="">全部状态</option>
+            <option value="1">正常</option>
+            <option value="0">停用</option>
+          </select>
+          <div class="filter-actions">
+            <button class="button button--soft" type="button" @click="search"><span class="material-icons-outlined">search</span>搜索</button>
+            <button class="button button--ghost" type="button" @click="resetFilters"><span class="material-icons-outlined">restart_alt</span>重置</button>
+          </div>
+        </div>
+
+        <div v-if="loading" class="state">正在加载用户数据...</div>
+        <div v-else-if="errorMessage" class="state state--error">{{ errorMessage }}</div>
+        <div v-else class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th class="checkbox-cell"><input v-model="allChecked" class="checkbox" type="checkbox" aria-label="选择全部用户"></th>
+                <th>编号</th><th>账号</th><th>用户名</th><th>部门</th><th>手机号</th><th>角色</th><th>状态</th><th class="actions-cell">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="user in users" :key="user.id">
+                <td class="checkbox-cell"><input v-model="selectedIds" class="checkbox" type="checkbox" :value="user.id" :aria-label="`选择${user.name || user.username}`"></td>
+                <td>{{ String(user.id).padStart(4, "0") }}</td>
+                <td><strong class="username">{{ user.username }}</strong></td>
+                <td>{{ user.name || "-" }}</td>
+                <td>{{ departmentName(user.deptId) }}</td>
+                <td>{{ user.phone || "-" }}</td>
+                <td><span class="role-tag">{{ roleName(user) }}</span></td>
+                <td>
+                  <button class="status-switch" :class="{ enabled: user.status === 1 }" type="button" :aria-label="user.status === 1 ? '停用用户' : '启用用户'" :aria-pressed="user.status === 1" @click="toggleStatus(user)">
+                    <span />
+                  </button>
+                </td>
+                <td class="actions-cell">
+                  <button class="row-action" type="button" title="编辑" @click="openEdit(user)"><span class="material-icons-outlined">edit</span></button>
+                  <button class="row-action row-action--danger" type="button" title="删除" @click="removeUser(user)"><span class="material-icons-outlined">delete</span></button>
+                </td>
+              </tr>
+              <tr v-if="users.length === 0"><td class="empty" colspan="9">暂无数据</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <footer v-if="!loading && !errorMessage" class="pagination">
+          <span>共 {{ total }} 条</span>
+          <button type="button" :disabled="page <= 1" @click="changePage(page - 1)"><span class="material-icons-outlined">chevron_left</span></button>
+          <button v-for="pageNumber in pageNumbers" :key="pageNumber" type="button" :class="{ active: pageNumber === page }" @click="changePage(pageNumber)">{{ pageNumber }}</button>
+          <button type="button" :disabled="page >= totalPages" @click="changePage(page + 1)"><span class="material-icons-outlined">chevron_right</span></button>
+        </footer>
+      </section>
+    </div>
+
+    <div v-if="editorVisible" class="modal-mask" @click.self="editorVisible = false">
+      <form class="modal" @submit.prevent="saveUser">
+        <header class="modal__head"><h2>{{ editingId ? "编辑用户" : "新增用户" }}</h2><button type="button" class="icon-button" title="关闭" @click="editorVisible = false"><span class="material-icons-outlined">close</span></button></header>
+        <div class="modal__body">
+          <div class="form-grid">
+            <label class="field"><span>账号 <em>*</em></span><input v-model.trim="form.username" class="input" required placeholder="请输入登录账号"></label>
+            <label class="field"><span>用户名 <em>*</em></span><input v-model.trim="form.name" class="input" required placeholder="请输入用户名"></label>
+            <label v-if="!editingId" class="field"><span>初始密码 <em>*</em></span><input v-model="form.password" class="input" type="password" required placeholder="请输入初始密码"></label>
+            <label class="field"><span>部门 <em>*</em></span><select v-model="form.deptId" class="select" required><option :value="null">请选择部门</option><option v-for="department in departments" :key="department.id" :value="department.id">{{ department.name }}</option></select></label>
+            <label class="field"><span>角色 <em>*</em></span><select v-model="form.roleId" class="select" required><option :value="null">请选择角色</option><option v-for="role in roles" :key="role.id" :value="role.id">{{ role.name }}</option></select></label>
+            <label class="field"><span>手机号 <em>*</em></span><input v-model.trim="form.phone" class="input" required placeholder="请输入手机号"></label>
+            <label class="field"><span>状态</span><select v-model.number="form.status" class="select"><option :value="1">正常</option><option :value="0">停用</option></select></label>
+          </div>
+          <p v-if="formError" class="form-error">{{ formError }}</p>
+        </div>
+        <footer class="modal__foot"><button class="button button--ghost" type="button" @click="editorVisible = false">取消</button><button class="button button--primary" type="submit" :disabled="saving">{{ saving ? "保存中..." : "保存" }}</button></footer>
+      </form>
+    </div>
+  </section>
+</template>
+
+<script setup lang="ts">
+interface User {
+  id: number;
+  username: string;
+  name?: string | null;
+  deptId?: number | null;
+  phone?: string | null;
+  roleIds?: number[];
+  status: number;
+}
+interface Department { id: number; name: string; parent?: number | null }
+interface Role { id: number; name: string; code?: string }
+interface UserList { items: User[]; total: number; page: number; pageSize: number }
+interface DepartmentNodeProps { department: Department; children: Department[]; level: number; selected: number }
+
+const DepartmentNode = defineComponent({
+  name: "DepartmentNode",
+  props: {
+    department: { type: Object as PropType<Department>, required: true },
+    children: { type: Array as PropType<Department[]>, required: true },
+    level: { type: Number, required: true },
+    selected: { type: Number, required: true },
+  },
+  emits: ["select"],
+  setup(props: DepartmentNodeProps, { emit }) {
+    const children = computed(() => props.children.filter((item) => (item.parent ?? 0) === props.department.id));
+    return () => h("div", [
+      h("button", { class: ["department-item", { active: props.selected === props.department.id }], style: { paddingLeft: `${12 + props.level * 16}px` }, type: "button", onClick: () => emit("select", props.department.id) }, [
+        h("span", { class: "material-icons-outlined" }, children.value.length ? "folder" : "badge"),
+        h("span", { class: "department-name" }, props.department.name),
+      ]),
+      ...children.value.map((child) => h(DepartmentNode, { department: child, children: props.children, level: props.level + 1, selected: props.selected, onSelect: (id: number) => emit("select", id) })),
+    ]);
+  },
+});
+
+const http = useHttp();
+const keyword = ref("");
+const status = ref("");
+const selectedDepartment = ref(0);
+const page = ref(1);
+const pageSize = 8;
+const users = ref<User[]>([]);
+const total = ref(0);
+const departments = ref<Department[]>([]);
+const roles = ref<Role[]>([]);
+const allUsers = ref<User[]>([]);
+const loading = ref(true);
+const saving = ref(false);
+const errorMessage = ref("");
+const formError = ref("");
+const editorVisible = ref(false);
+const editingId = ref<number | null>(null);
+const selectedIds = ref<number[]>([]);
+const form = reactive({ username: "", name: "", password: "", deptId: null as number | null, roleId: null as number | null, phone: "", status: 1 });
+
+const departmentRoots = computed(() => departments.value.filter((department) => (department.parent ?? 0) === 0));
+const departmentChildren = computed(() => departments.value);
+const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize)));
+const pageNumbers = computed(() => Array.from({ length: totalPages.value }, (_, index) => index + 1).slice(Math.max(0, page.value - 3), page.value + 2));
+const allChecked = computed({ get: () => users.value.length > 0 && users.value.every((user) => selectedIds.value.includes(user.id)), set: (checked: boolean) => { selectedIds.value = checked ? users.value.map((user) => user.id) : []; } });
+
+function departmentName(id?: number | null) { return departments.value.find((department) => department.id === id)?.name || "-"; }
+function roleName(user: User) { return roles.value.filter((role) => user.roleIds?.includes(role.id)).map((role) => role.name).join("、") || "未分配"; }
+
+async function loadReferenceData() {
+  const [departmentResult, roleResult] = await Promise.all([http.get<Department[]>("/depts"), http.get<Role[]>("/roles")]);
+  departments.value = departmentResult || [];
+  roles.value = roleResult || [];
+}
+
+async function loadUsers() {
+  loading.value = true;
+  errorMessage.value = "";
+  try {
+    const result = await http.get<UserList>("/users", { keyword: keyword.value || undefined, status: status.value || undefined, page: 1, pageSize: 100 });
+    allUsers.value = result.items || [];
+    applyUserView();
+  } catch (error) {
+    errorMessage.value = (error as { statusMessage?: string }).statusMessage || "用户数据加载失败";
+  } finally {
+    loading.value = false;
+  }
+}
+
+function applyUserView() {
+  const filtered = selectedDepartment.value === 0
+    ? allUsers.value
+    : allUsers.value.filter((user) => user.deptId === selectedDepartment.value);
+  total.value = filtered.length;
+  const maxPage = Math.max(1, Math.ceil(total.value / pageSize));
+  if (page.value > maxPage) page.value = maxPage;
+  const start = (page.value - 1) * pageSize;
+  users.value = filtered.slice(start, start + pageSize);
+  selectedIds.value = [];
+}
+
+async function initialize() {
+  try { await loadReferenceData(); } catch { /* The list request reports the visible failure state. */ }
+  await loadUsers();
+}
+function search() { page.value = 1; void loadUsers(); }
+function resetFilters() { keyword.value = ""; status.value = ""; selectedDepartment.value = 0; page.value = 1; void loadUsers(); }
+function selectDepartment(id: number) { selectedDepartment.value = id; page.value = 1; void loadUsers(); }
+function changePage(nextPage: number) { page.value = nextPage; applyUserView(); }
+function openCreate() { editingId.value = null; Object.assign(form, { username: "", name: "", password: "", deptId: departments.value[0]?.id ?? null, roleId: roles.value[0]?.id ?? null, phone: "", status: 1 }); formError.value = ""; editorVisible.value = true; }
+function openEdit(user: User) { editingId.value = user.id; Object.assign(form, { username: user.username, name: user.name || "", password: "", deptId: user.deptId ?? null, roleId: user.roleIds?.[0] ?? null, phone: user.phone || "", status: user.status }); formError.value = ""; editorVisible.value = true; }
+
+async function saveUser() {
+  saving.value = true;
+  formError.value = "";
+  if (!form.username || !form.name || (!editingId.value && !form.password) || !form.deptId || !form.roleId || !form.phone) {
+    formError.value = "请完整填写账号、用户名、密码、部门、角色和手机号";
+    saving.value = false;
+    return;
+  }
+  const payload = { username: form.username, name: form.name, password: form.password || undefined, deptId: form.deptId, phone: form.phone || undefined, status: form.status, roleIds: form.roleId ? [form.roleId] : [] };
+  try {
+    if (editingId.value) await http.put(`/users/${editingId.value}`, payload, { payloadMode: "json" });
+    else await http.post("/users", { ...payload, email: `${form.username}@local.invalid` }, { payloadMode: "json" });
+    editorVisible.value = false;
+    await loadUsers();
+  } catch (error) {
+    formError.value = (error as { statusMessage?: string }).statusMessage || "保存失败";
+  } finally { saving.value = false; }
+}
+
+async function toggleStatus(user: User) {
+  const nextStatus = user.status === 1 ? 0 : 1;
+  try { await http.put(`/users/${user.id}`, { status: nextStatus }, { payloadMode: "json" }); user.status = nextStatus; }
+  catch (error) { errorMessage.value = (error as { statusMessage?: string }).statusMessage || "状态更新失败"; }
+}
+async function removeUser(user: User) {
+  if (!window.confirm(`确认删除“${user.name || user.username}”吗？`)) return;
+  try { await http.delete(`/users/${user.id}`); await loadUsers(); }
+  catch (error) { errorMessage.value = (error as { statusMessage?: string }).statusMessage || "删除失败"; }
+}
+function exportUsers() {
+  const rows = [["编号", "账号", "用户名", "部门", "手机号", "角色", "状态"], ...users.value.map((user) => [user.id, user.username, user.name || "", departmentName(user.deptId), user.phone || "", roleName(user), user.status === 1 ? "正常" : "停用"])];
+  const csv = rows.map((row) => row.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(",")).join("\r\n");
+  const link = document.createElement("a"); link.href = URL.createObjectURL(new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" })); link.download = "用户列表.csv"; link.click(); URL.revokeObjectURL(link.href);
+}
+onMounted(initialize);
+</script>
+
+<style scoped>
+.page { min-height: 100%; padding: 24px; }.page__header { align-items: center; display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; margin-bottom: 20px; }.page__title { color: var(--text); font-size: 18px; font-weight: 600; margin: 0; }.page__desc { color: var(--text-sub); margin: 2px 0 0; }.page__actions, .filter-actions { display: flex; gap: 8px; }
+.user-layout { align-items: flex-start; display: flex; gap: 16px; }.panel { background: var(--card); border: 1px solid var(--border-strong); border-radius: 8px; min-width: 0; }.department-panel { flex: 0 0 240px; }.user-panel { flex: 1; overflow: hidden; }.panel__head { border-bottom: 1px solid var(--border); padding: 14px 18px; }.panel__head h2 { color: var(--text); font-size: 14px; margin: 0; }.department-tree { max-height: 580px; overflow-y: auto; padding: 6px 0 10px; }.department-item { align-items: center; background: transparent; border: 0; border-radius: 6px; color: var(--text-sub); cursor: pointer; display: flex; font: inherit; gap: 6px; margin: 1px 8px; min-height: 32px; padding: 6px 8px; text-align: left; width: calc(100% - 16px); }.department-item:hover { background: var(--bg); color: var(--text); }.department-item.active { background: var(--primary-soft); color: var(--primary); font-weight: 500; }.department-item .material-icons-outlined { color: var(--text-mute); font-size: 16px; }.department-item.active .material-icons-outlined { color: var(--primary); }.department-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.filter-bar { align-items: center; display: flex; flex-wrap: wrap; gap: 10px; padding: 18px; }.input, .select { background: var(--card); border: 1px solid var(--border-strong); border-radius: 6px; box-sizing: border-box; color: var(--text); font: inherit; height: 34px; outline: none; padding: 0 10px; }.input { min-width: 200px; }.select { min-width: 120px; }.input:focus, .select:focus { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-soft); }.button { align-items: center; border: 1px solid transparent; border-radius: 6px; cursor: pointer; display: inline-flex; font: inherit; gap: 5px; height: 32px; justify-content: center; padding: 0 12px; white-space: nowrap; }.button:disabled { cursor: wait; opacity: .6; }.button--primary { background: var(--primary); color: #fff; }.button--soft { background: var(--primary-soft); color: var(--primary); }.button--ghost { background: var(--card); border-color: var(--border-strong); color: var(--text-sub); }.button:hover:not(:disabled) { filter: brightness(.97); }.button .material-icons-outlined { font-size: 16px; }
+.table-wrap { overflow-x: auto; }.table { border-collapse: collapse; font-size: 13px; min-width: 850px; width: 100%; }.table th { background: var(--bg); border-bottom: 1px solid var(--border); color: var(--text-mute); font-size: 12px; font-weight: 500; padding: 10px 14px; text-align: left; white-space: nowrap; }.table td { border-bottom: 1px solid var(--border); color: var(--text); padding: 11px 14px; white-space: nowrap; }.table tbody tr:hover { background: var(--bg); }.checkbox-cell { padding-left: 18px !important; width: 36px; }.actions-cell { text-align: right !important; }.checkbox { accent-color: var(--primary); height: 15px; width: 15px; }.username { color: var(--primary); }.role-tag { background: var(--primary-soft); border-radius: 4px; color: var(--primary); display: inline-flex; font-size: 12px; padding: 2px 8px; }.status-switch { background: #d4d4d8; border: 0; border-radius: 18px; cursor: pointer; height: 18px; padding: 2px; transition: background var(--tr); width: 34px; }.status-switch span { background: #fff; border-radius: 50%; display: block; height: 14px; transition: transform var(--tr); width: 14px; }.status-switch.enabled { background: #059669; }.status-switch.enabled span { transform: translateX(16px); }.row-action, .icon-button { align-items: center; background: transparent; border: 0; border-radius: 5px; color: var(--text-mute); cursor: pointer; display: inline-flex; height: 28px; justify-content: center; width: 28px; }.row-action:hover { background: var(--bg); color: var(--text); }.row-action--danger:hover { background: #fef2f2; color: #dc2626; }.row-action .material-icons-outlined { font-size: 16px; }.empty, .state { color: var(--text-mute); padding: 48px; text-align: center; }.state--error, .form-error { color: #dc2626; }.pagination { align-items: center; color: var(--text-sub); display: flex; gap: 4px; justify-content: flex-end; padding: 14px 18px; }.pagination button { align-items: center; background: transparent; border: 1px solid transparent; border-radius: 5px; color: var(--text-sub); cursor: pointer; display: inline-flex; height: 28px; justify-content: center; min-width: 28px; }.pagination button:hover:not(:disabled), .pagination button.active { background: var(--primary-soft); color: var(--primary); }.pagination button:disabled { cursor: not-allowed; opacity: .4; }.pagination .material-icons-outlined { font-size: 18px; }
+.modal-mask { align-items: center; background: rgb(0 0 0 / 38%); display: flex; inset: 0; justify-content: center; padding: 20px; position: fixed; z-index: 300; }.modal { background: var(--card); border-radius: 8px; box-shadow: 0 16px 48px rgb(0 0 0 / 20%); max-width: 620px; width: 100%; }.modal__head, .modal__foot { align-items: center; display: flex; justify-content: space-between; padding: 14px 18px; }.modal__head { border-bottom: 1px solid var(--border); }.modal__head h2 { color: var(--text); font-size: 16px; margin: 0; }.modal__foot { border-top: 1px solid var(--border); gap: 8px; justify-content: flex-end; }.modal__body { padding: 20px 18px; }.form-grid { display: grid; gap: 14px 16px; grid-template-columns: repeat(2, minmax(0, 1fr)); }.field { display: grid; gap: 6px; }.field span { color: var(--text-sub); font-size: 12px; font-weight: 500; }.field em { color: #dc2626; font-style: normal; }.field .input, .field .select { width: 100%; }
+@media (max-width: 900px) { .user-layout { flex-direction: column; }.department-panel { width: 100%; }.department-tree { display: flex; flex-wrap: wrap; max-height: 180px; }.department-item { width: auto; } }.department-panel { max-width: 100%; } @media (max-width: 600px) { .page { padding: 16px; }.input { min-width: 0; width: 100%; }.filter-bar { align-items: stretch; flex-direction: column; }.filter-actions { justify-content: flex-end; }.form-grid { grid-template-columns: 1fr; }.modal-mask { padding: 12px; } }
+</style>
