@@ -7,7 +7,7 @@
       :mobile-open="mobileSidebarOpen"
       :system-name="systemName"
       @expand="sidebarCollapsed = false"
-      @navigate="navigate"
+      @navigate="closeMobileSidebar"
       @settings="handleSettings"
     />
     <button
@@ -64,26 +64,17 @@
 </template>
 
 <script setup lang="ts">
-import { TOKEN_COOKIE } from "~/composables/useHttp";
-
-interface LoginUser {
-  username?: string;
-  role?: string;
-  user?: { username?: string; role?: string };
-}
-
 const route = useRoute();
 const router = useRouter();
-const http = useHttp();
-const authToken = useCookie<string | null>(TOKEN_COOKIE, { path: "/" });
+const authStore = useAuthStore();
 const sidebarCollapsed = ref(false);
 const mobileSidebarOpen = ref(false);
 const darkTheme = ref(false);
 const userMenuOpen = ref(false);
 const searchQuery = ref("");
 const systemName = ref("Admin Pro");
-const userName = ref("超级管理员");
-const userRole = ref("admin");
+const userName = computed(() => authStore.user?.username || "超级管理员");
+const userRole = computed(() => authStore.user?.role || "admin");
 
 const pageLabels: Record<string, string> = {
   dashboard: "仪表盘", users: "用户管理", roles: "角色管理", depts: "部门管理", posts: "岗位管理",
@@ -138,9 +129,13 @@ function toggleSidebar() {
   sidebarCollapsed.value = !sidebarCollapsed.value;
 }
 
+function closeMobileSidebar() {
+  mobileSidebarOpen.value = false;
+}
+
 async function navigate(page: string, routePath?: string) {
   userMenuOpen.value = false;
-  mobileSidebarOpen.value = false;
+  closeMobileSidebar();
   const path = routePath || pagePaths[page];
   if (path) {
     await router.replace(path);
@@ -170,12 +165,10 @@ async function toggleFullscreen() {
 async function logout() {
   userMenuOpen.value = false;
   try {
-    await http.post("/auth/logout", {}, { payloadMode: "json" });
+    await authStore.logout();
   } catch {
     // The local token must be removed even when the server session is already unavailable.
   }
-  authToken.value = null;
-  sessionStorage.removeItem("loginUser");
   await router.replace("/login");
 }
 
@@ -185,16 +178,7 @@ onMounted(() => {
   if (storedSystemName) systemName.value = storedSystemName;
   darkTheme.value = storedTheme === "dark";
   document.documentElement.dataset.theme = darkTheme.value ? "dark" : "light";
-
-  const rawUser = sessionStorage.getItem("loginUser");
-  if (!rawUser) return;
-  try {
-    const user = JSON.parse(rawUser) as LoginUser;
-    userName.value = user.user?.username || user.username || userName.value;
-    userRole.value = user.user?.role || user.role || userRole.value;
-  } catch {
-    sessionStorage.removeItem("loginUser");
-  }
+  authStore.restoreSession();
 });
 </script>
 

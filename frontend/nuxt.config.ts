@@ -7,11 +7,30 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
 
+  runtimeConfig: {
+    public: {
+      baseUrl: process.env.BASE_URL || process.env.NUXT_PUBLIC_BASE_URL || 'http://127.0.0.1:8080/api',
+    },
+  },
+
+  app: {
+    head: {
+      // 与原型页面的 <meta name="viewport"> 完全一致
+      meta: [
+        {
+          name: 'viewport',
+          content: 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover',
+          // 压过 unhead 默认注入的 viewport meta（tagPriority high → 权重更低，去重时胜出）
+          tagPriority: 'high',
+        },
+      ],
+    },
+  },
+
   modules: [
     '@nuxt/eslint',
     '@nuxtjs/tailwindcss',
     '@pinia/nuxt',
-    'dayjs-nuxt',
     '@bg-dev/nuxt-naiveui',
   ],
   vite: {
@@ -33,14 +52,8 @@ export default defineNuxtConfig({
       }),
     ]
   },
-  dayjs: {
-    locales: ["zh-cn"],
-    defaultLocale: "zh-cn",
-    plugins: ["timezone", "localizedFormat"],
-    defaultTimezone: "Asia/Shanghai",
-  },
   devServer: {
-    host: "0.0.0.0",
+    host: '0.0.0.0',
     port: 8090,
   },
 })
