@@ -8,6 +8,7 @@ import java.time.LocalDateTime
 import java.time.Duration
 import java.util.Locale
 import org.springframework.http.ResponseEntity
+import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -27,6 +28,10 @@ import top.foxball.cartask.entity.ParkingOwner
 import top.foxball.cartask.entity.ParkingPlate
 import top.foxball.cartask.entity.ParkingSpot
 import top.foxball.cartask.entity.Position
+import top.foxball.cartask.audit.AuditAction
+import top.foxball.cartask.audit.AuditCommand
+import top.foxball.cartask.audit.AuditService
+import top.foxball.cartask.logging.LogVisibilityService
 import top.foxball.cartask.repository.AccessRecordRepository
 import top.foxball.cartask.repository.GateDeleteRequestRepository
 import top.foxball.cartask.repository.GatePersonRepository
@@ -60,6 +65,8 @@ class ParkingApiController(
     private val auditEventRepository: AuditEventRepository,
     private val violationRecordRepository: ViolationRecordRepository,
     private val objectMapper: ObjectMapper,
+    private val auditService: AuditService,
+    private val logVisibilityService: LogVisibilityService,
 ) {
     @GetMapping("/depts")
     fun listDepartments(): ResponseEntity<Response> {
@@ -444,7 +451,27 @@ class ParkingApiController(
     }
 
     @GetMapping("/gate-persons/delete-requests")
-    fun listDeleteRequests(): ResponseEntity<Response> = responseBuilder.ok().data(gateDeleteRequestRepository.findAll().sortedBy { it.id }.map { request -> StoredDeleteRequest(requireNotNull(request.id), request.personId, request.code, request.dept, request.name, request.phone, request.idCard, request.face, request.reason, request.applyTime.toString(), request.status.value()) }).build()
+    fun listDeleteRequests(
+        @RequestParam(required = false) keyword: String?,
+        @RequestParam(required = false) status: String?,
+        @RequestParam(defaultValue = "1") page: Int,
+        @RequestParam(name = "page_size", defaultValue = "8") pageSize: Int,
+    ): ResponseEntity<Response> {
+        data class Response(val items: List<StoredDeleteRequest>, val total: Int)
+        require(page >= 1) { "页码必须大于 0" }
+        require(pageSize in 1..100) { "每页数量必须在 1 到 100 之间" }
+        val requests = gateDeleteRequestRepository.findAll()
+            .filter { request ->
+                (keyword.isNullOrBlank() || listOf(request.code, request.name, request.phone, request.idCard).any { it.contains(keyword, true) }) &&
+                    (status.isNullOrBlank() || request.status.name == status || request.status.value() == status)
+            }
+            .sortedByDescending { it.applyTime }
+            .map { request -> StoredDeleteRequest(requireNotNull(request.id), request.personId, request.code, request.dept, request.name, request.phone, request.idCard, request.face, request.reason, request.applyTime.toString(), request.status.value()) }
+        val from = ((page - 1) * pageSize).coerceAtMost(requests.size)
+        val to = (from + pageSize).coerceAtMost(requests.size)
+        val rs = Response(requests.subList(from, to), requests.size)
+        return responseBuilder.ok().data(rs).build()
+    }
 
     @Transactional
     @PutMapping("/gate-persons/delete-requests/{id}/approve")
@@ -467,6 +494,7 @@ class ParkingApiController(
         @RequestParam(required = false) direction: String?,
         @RequestParam(required = false) gate: String?,
         @RequestParam(name = "passType", required = false) passType: String?,
+        @RequestParam(name = "status", required = false) recordStatus: String?,
         @RequestParam(name = "startDate", required = false) startDate: LocalDate?,
         @RequestParam(name = "endDate", required = false) endDate: LocalDate?,
         @RequestParam(defaultValue = "1") page: Int,
@@ -479,7 +507,7 @@ class ParkingApiController(
         val filtered = personAccessRecordRepository.findAll().filter {
             (keyword.isNullOrBlank() || it.person.contains(keyword, true) || it.cardId.orEmpty().contains(keyword, true)) &&
                 (direction.isNullOrBlank() || it.direction == direction) && (gate.isNullOrBlank() || it.gate == gate) &&
-                (passType.isNullOrBlank() || it.method == passType) && (startDate == null || !it.time.toLocalDate().isBefore(startDate)) &&
+                (passType.isNullOrBlank() || it.method == passType) && (recordStatus.isNullOrBlank() || it.status == recordStatus) && (startDate == null || !it.time.toLocalDate().isBefore(startDate)) &&
                 (endDate == null || !it.time.toLocalDate().isAfter(endDate))
         }.sortedByDescending { it.time }
         val from = ((page - 1).coerceAtLeast(0) * pageSize.coerceAtLeast(1)).coerceAtMost(filtered.size)
@@ -492,6 +520,8 @@ class ParkingApiController(
     fun vehicleRecords(
         @RequestParam(required = false) keyword: String?,
         @RequestParam(required = false) direction: String?,
+        @RequestParam(required = false) gate: String?,
+        @RequestParam(name = "passType", required = false) passType: String?,
         @RequestParam(name = "startDate", required = false) startDate: LocalDate?,
         @RequestParam(name = "endDate", required = false) endDate: LocalDate?,
         @RequestParam(defaultValue = "1") page: Int,
@@ -516,7 +546,7 @@ class ParkingApiController(
         val all = accessRecordRepository.findAll().filter {
             val recordDirection = if (it.inAndOut == AccessRecord.InAndOut.IN) "进" else "出"
             (keyword.isNullOrBlank() || it.carNumber.orEmpty().contains(keyword, true) || it.carOwnerName.orEmpty().contains(keyword, true)) &&
-                (direction.isNullOrBlank() || recordDirection == direction) &&
+                (direction.isNullOrBlank() || recordDirection == direction) && (gate.isNullOrBlank() || it.gateName == gate) &&
                 (startDate == null || it.inAndOutTime.toLocalDate() >= startDate) &&
                 (endDate == null || it.inAndOutTime.toLocalDate() <= endDate)
         }.map {
@@ -537,7 +567,7 @@ class ParkingApiController(
                 it.recordStatus,
                 it.photoUrl,
             )
-        }
+        }.filter { passType.isNullOrBlank() || it.method == passType }.sortedByDescending { it.time }
         val from = ((page - 1).coerceAtLeast(0) * pageSize.coerceAtLeast(1)).coerceAtMost(all.size)
         val to = (from + pageSize.coerceAtLeast(1)).coerceAtMost(all.size)
         return responseBuilder.ok().data(PageData(all.subList(from, to), all.size)).build()
@@ -556,11 +586,13 @@ class ParkingApiController(
         require(pageSize in 1..100) { "每页数量必须在 1 到 100 之间" }
         data class LogData(val id: Long, @param:JsonProperty("user") val user: String, val ip: String?, val location: String?, val browser: String?, val os: String?, val status: String, val time: String, val message: String?)
         data class PageData(val items: List<LogData>, val total: Int)
+        val visibleAfter = logVisibilityService.visibleAfter(LogVisibilityService.Type.LOGIN)
         val logs = auditEventRepository.findAll().filter {
             val targetUsername = runCatching { objectMapper.readTree(it.targetSummary ?: "{}").get("username")?.asString() }.getOrNull()
             it.category.name == "AUTHENTICATION" && (it.action == "AUTH_LOGIN_SUCCEEDED" || it.action == "AUTH_LOGIN_FAILED") &&
                 (keyword.isNullOrBlank() || it.actorUsername.contains(keyword, true) || it.sourceIp.orEmpty().contains(keyword, true) || targetUsername?.contains(keyword, true) == true) &&
                 (status.isNullOrBlank() || (status == "成功" && it.result.name == "SUCCESS") || (status == "失败" && it.result.name != "SUCCESS")) &&
+                (visibleAfter == null || it.occurredAt.isAfter(visibleAfter)) &&
                 (startDate == null || !it.occurredAt.toLocalDate().isBefore(startDate)) && (endDate == null || !it.occurredAt.toLocalDate().isAfter(endDate))
         }.sortedByDescending { it.occurredAt }
         val from = ((page - 1).coerceAtLeast(0) * pageSize.coerceAtLeast(1)).coerceAtMost(logs.size)
@@ -597,10 +629,27 @@ class ParkingApiController(
         return responseBuilder.ok().data(PageData(items, logs.size)).build()
     }
 
+    @DeleteMapping("/login-logs")
+    @PreAuthorize("hasRole('SUPER_ADMIN') and hasAuthority('audit:delete')")
+    fun clearLoginLogs(): ResponseEntity<Response> {
+        data class Response(@param:JsonProperty("cleared_at") val clearedAt: String)
+        val clearedAt = logVisibilityService.clear(LogVisibilityService.Type.LOGIN)
+        auditService.record(
+            AuditCommand(
+                action = AuditAction.LOGS_CLEARED,
+                targetType = "login_log",
+                scopeSummary = mapOf("target_type" to "login_log", "occurred_to" to clearedAt.toString()),
+            ),
+        )
+        val rs = Response(clearedAt.toString())
+        return responseBuilder.ok().message("登录日志已清空").data(rs).build()
+    }
+
     @GetMapping("/operation-logs")
     fun operationLogs(
         @RequestParam(required = false) keyword: String?,
         @RequestParam(required = false) module: String?,
+        @RequestParam(required = false) status: String?,
         @RequestParam(name = "startDate", required = false) startDate: LocalDate?,
         @RequestParam(name = "endDate", required = false) endDate: LocalDate?,
         @RequestParam(defaultValue = "1") page: Int,
@@ -610,6 +659,7 @@ class ParkingApiController(
         require(pageSize in 1..100) { "每页数量必须在 1 到 100 之间" }
         data class LogData(val id: Long, val user: String, val module: String, val action: String, @param:JsonProperty("desc") val description: String, val ip: String?, val status: String, val time: String, val cost: String?)
         data class PageData(val items: List<LogData>, val total: Int)
+        val visibleAfter = logVisibilityService.visibleAfter(LogVisibilityService.Type.OPERATION)
         val logs = auditEventRepository.findAll().filter {
             it.category.name != "AUTHENTICATION" && (keyword.isNullOrBlank() || it.actorUsername.contains(keyword, true) || it.action.contains(keyword, true) || it.targetType.contains(keyword, true)) &&
                 (module.isNullOrBlank() || it.category.name.equals(module, true) || it.targetType.equals(module, true) || when (it.category) {
@@ -621,6 +671,8 @@ class ParkingApiController(
                     top.foxball.cartask.entity.AuditEvent.Category.CONFIGURATION -> "配置管理"
                     else -> it.category.name
                 }.equals(module, true)) &&
+                (status.isNullOrBlank() || (status == "成功" && it.result.name == "SUCCESS") || (status == "失败" && it.result.name != "SUCCESS")) &&
+                (visibleAfter == null || it.occurredAt.isAfter(visibleAfter)) &&
                 (startDate == null || !it.occurredAt.toLocalDate().isBefore(startDate)) && (endDate == null || !it.occurredAt.toLocalDate().isAfter(endDate))
         }.sortedByDescending { it.occurredAt }
         val from = ((page - 1).coerceAtLeast(0) * pageSize.coerceAtLeast(1)).coerceAtMost(logs.size)
@@ -650,6 +702,22 @@ class ParkingApiController(
             LogData(requireNotNull(it.id), it.actorUsername, moduleName, actionName, description, it.sourceIp, if (it.result.name == "SUCCESS") "成功" else "失败", it.occurredAt.toString(), "${costMillis}ms")
         }
         return responseBuilder.ok().data(PageData(items, logs.size)).build()
+    }
+
+    @DeleteMapping("/operation-logs")
+    @PreAuthorize("hasRole('SUPER_ADMIN') and hasAuthority('audit:delete')")
+    fun clearOperationLogs(): ResponseEntity<Response> {
+        data class Response(@param:JsonProperty("cleared_at") val clearedAt: String)
+        val clearedAt = logVisibilityService.clear(LogVisibilityService.Type.OPERATION)
+        auditService.record(
+            AuditCommand(
+                action = AuditAction.LOGS_CLEARED,
+                targetType = "operation_log",
+                scopeSummary = mapOf("target_type" to "operation_log", "occurred_to" to clearedAt.toString()),
+            ),
+        )
+        val rs = Response(clearedAt.toString())
+        return responseBuilder.ok().message("操作日志已清空").data(rs).build()
     }
 
     @GetMapping("/dashboard")

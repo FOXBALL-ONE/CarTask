@@ -159,7 +159,16 @@ class UserServiceImpl(
             command.username?.let { user.username = it }
             command.email?.let { user.email = it }
             command.credential?.let { credential -> user.passwordHash = passwordEncoder.encode(credential).toString() }
-            command.role?.let { user.role = SecurityRole.normalize(it) }
+            command.role?.let { roleName ->
+                val normalizedRole = SecurityRole.normalize(roleName)
+                user.role = normalizedRole
+                if (command.roleIds == null) {
+                    val repository = roleRepository ?: throw IllegalStateException("角色仓储不可用")
+                    val assignedRole = repository.findByNameIgnoreCase(normalizedRole)
+                        ?: throw IllegalArgumentException("角色不存在: $normalizedRole")
+                    user.roles = linkedSetOf(assignedRole)
+                }
+            }
             command.enabled?.let { user.enabled = it }
             command.phone?.let { user.phone = it }
             command.gender?.let { user.gender = it }

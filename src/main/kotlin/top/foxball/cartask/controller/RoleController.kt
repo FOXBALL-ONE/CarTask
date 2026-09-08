@@ -1,5 +1,6 @@
 package top.foxball.cartask.controller
 
+import com.fasterxml.jackson.annotation.JsonProperty
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.web.bind.annotation.DeleteMapping
@@ -13,6 +14,9 @@ import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import top.foxball.cartask.entity.Role
 import top.foxball.cartask.authentication.SecurityRole
+import top.foxball.cartask.authentication.SecurityPermission
+import top.foxball.cartask.repository.PermissionRepository
+import top.foxball.cartask.repository.RoleRepository
 import top.foxball.cartask.service.RoleService
 import top.foxball.cartask.shared.Response
 import top.foxball.cartask.shared.ResponseBuilder
@@ -22,6 +26,8 @@ import top.foxball.cartask.shared.ResponseBuilder
 /** 角色及其权限集合的管理接口。 */
 class RoleController(
     private val service: RoleService,
+    private val roleRepository: RoleRepository,
+    private val permissionRepository: PermissionRepository,
     private val responseBuilder: ResponseBuilder,
 ) {
     /** 创建文档约定的业务角色。 */
@@ -48,6 +54,7 @@ class RoleController(
             enabled = status != 0
             documentSort = requireNotNull(body.sort) { "排序不能为空" }
             documentRemark = body.remark
+            body.permissions?.let { permissions = resolvePermissions(it) }
         }
         val saved = service.create(role)
         val rs = Response(requireNotNull(saved.id), name, saved.name, saved.documentSort ?: 0, if (saved.enabled) 1 else 0, saved.documentRemark)
@@ -64,9 +71,18 @@ class RoleController(
     @GetMapping("/{id}")
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('role:read')")
     fun get(@PathVariable id: Long): ResponseEntity<Response> {
-        data class Response(val id: Long, val name: String, val code: String, val sort: Int, val status: Int, val remark: String?)
-        val role = service.get(id)
-        val rs = Response(requireNotNull(role.id), role.description ?: role.name, role.documentCode ?: role.name, role.documentSort ?: 0, role.documentStatus ?: if (role.enabled) 1 else 0, role.documentRemark)
+        data class Response(
+            val id: Long,
+            val name: String,
+            val code: String,
+            val sort: Int,
+            val status: Int,
+            val remark: String?,
+            @param:JsonProperty("permission_codes") val permissionCodes: List<String>,
+        )
+        val role = roleRepository.findById(id).orElseThrow { IllegalArgumentException("角色不存在") }
+        val loadedRole = roleRepository.findByNameIgnoreCase(role.name) ?: role
+        val rs = Response(requireNotNull(loadedRole.id), loadedRole.description ?: loadedRole.name, loadedRole.documentCode ?: loadedRole.name, loadedRole.documentSort ?: 0, loadedRole.documentStatus ?: if (loadedRole.enabled) 1 else 0, loadedRole.documentRemark, loadedRole.permissions.map { it.code }.sorted())
         return responseBuilder.ok().data(rs).build()
     }
 
@@ -79,7 +95,10 @@ class RoleController(
     /** 返回文档约定的角色列表。 */
     @GetMapping
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('role:read')")
-    fun list(): ResponseEntity<Response> {
+    fun list(
+        @RequestParam(defaultValue = "1") page: Int,
+        @RequestParam(name = "pageSize", defaultValue = "8") pageSize: Int,
+    ): ResponseEntity<Response> {
         data class RoleData(
             val id: Long,
             val name: String,
@@ -88,7 +107,10 @@ class RoleController(
             val status: Int,
             val remark: String?,
         )
+        data class Response(val items: List<RoleData>, val total: Int)
 
+        require(page >= 1) { "页码必须大于 0" }
+        require(pageSize in 1..100) { "每页数量必须在 1 到 100 之间" }
         val allRoles = mutableListOf<Role>()
         var sourcePage = 1
         var sourceTotal = 0L
@@ -104,7 +126,9 @@ class RoleController(
                 it.documentSort ?: 0, it.documentStatus ?: if (it.enabled) 1 else 0, it.documentRemark,
             )
         }
-        val rs = systemRoles
+        val from = ((page - 1) * pageSize).coerceAtMost(systemRoles.size)
+        val to = (from + pageSize).coerceAtMost(systemRoles.size)
+        val rs = Response(systemRoles.subList(from, to), systemRoles.size)
         return responseBuilder.ok().data(rs).build()
     }
 
@@ -139,10 +163,51 @@ class RoleController(
             documentSort = body.sort ?: current.documentSort ?: 0
             documentRemark = body.remark ?: current.documentRemark
             permissions = current.permissions
+            body.permissions?.let { permissions = resolvePermissions(it) }
         }
         val saved = service.update(id, role)
         val rs = Response(id, saved.description ?: saved.name, saved.name, saved.documentSort ?: 0, if (saved.enabled) 1 else 0, saved.documentRemark)
         return responseBuilder.ok().data(rs).build()
+    }
+
+    /** 替换角色权限集合；只接受已存在且启用的稳定权限编码。 */
+    @PutMapping("/{id}/permissions", consumes = ["application/json"])
+    @PreAuthorize("hasRole('SUPER_ADMIN') and hasAuthority('role:manage')")
+    fun replacePermissions(
+        @PathVariable id: Long,
+        @RequestBody permissionCodes: List<String>,
+    ): ResponseEntity<Response> {
+        data class Response(
+            val id: Long,
+            @param:JsonProperty("permission_codes") val permissionCodes: List<String>,
+        )
+
+        val permissions = resolvePermissions(permissionCodes)
+        val current = service.get(id)
+        val role = Role().apply {
+            this.id = id
+            name = current.name
+            description = current.description
+            enabled = current.enabled
+            documentCode = current.documentCode
+            documentSort = current.documentSort
+            documentRemark = current.documentRemark
+            documentStatus = current.documentStatus
+            this.permissions = permissions.toMutableSet()
+        }
+        val saved = service.update(id, role)
+        val rs = Response(requireNotNull(saved.id), saved.permissions.map { it.code }.sorted())
+        return responseBuilder.ok().data(rs).build()
+    }
+
+    private fun resolvePermissions(codes: Collection<String>): MutableSet<top.foxball.cartask.entity.Permission> {
+        val normalizedCodes = codes.map(SecurityPermission::normalize)
+        require(normalizedCodes.distinct().size == normalizedCodes.size) { "权限编码不能重复" }
+        val permissions = permissionRepository.findAllByCodeIn(normalizedCodes)
+        require(permissions.size == normalizedCodes.size) { "包含不存在的权限编码" }
+        require(permissions.all { it.enabled }) { "不能授予已停用的权限" }
+        val byCode = permissions.associateBy { SecurityPermission.normalize(it.code) }
+        return normalizedCodes.map(byCode::getValue).toMutableSet()
     }
 
     /** 批量更新实体记录。 */

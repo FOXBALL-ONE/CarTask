@@ -28,4 +28,5 @@ enum class AuditAction(
     FILE_UPLOADED("FILE_UPLOADED", AuditEvent.Category.FILE, AuditEvent.RiskLevel.MEDIUM),
     FILE_DOWNLOADED("FILE_DOWNLOADED", AuditEvent.Category.FILE, AuditEvent.RiskLevel.HIGH),
     SENSITIVE_DATA_EXPORTED("SENSITIVE_DATA_EXPORTED", AuditEvent.Category.DATA_EXPORT, AuditEvent.RiskLevel.HIGH),
+    LOGS_CLEARED("LOGS_CLEARED", AuditEvent.Category.CONFIGURATION, AuditEvent.RiskLevel.CRITICAL),
 }

@@ -269,6 +269,7 @@ class UserController(
     fun listDocument(
         @RequestParam(required = false) keyword: String?,
         @RequestParam(required = false) status: Int?,
+        @RequestParam(name = "department_id", required = false) departmentId: Long?,
         @RequestParam(defaultValue = "1") page: Int,
         @RequestParam(name = "pageSize", defaultValue = "8") pageSize: Int,
     ): ResponseEntity<Response> {
@@ -303,7 +304,8 @@ class UserController(
         } while (allUsers.size < sourceTotal)
         val users = allUsers.filter {
             (keyword.isNullOrBlank() || it.username.contains(keyword, true) || it.name.orEmpty().contains(keyword, true) || it.phone.orEmpty().contains(keyword, true)) &&
-                (status == null || (if (it.status == User.Status.Activity) 1 else 0) == status)
+                (status == null || (if (it.status == User.Status.Activity) 1 else 0) == status) &&
+                (departmentId == null || it.departmentId == departmentId)
         }
         val from = ((page - 1) * pageSize).coerceAtMost(users.size)
         val to = (from + pageSize).coerceAtMost(users.size)

@@ -21,6 +21,7 @@ data class DocumentRoleRequest(
     @param:JsonProperty("sort") val sort: Int? = null,
     @param:JsonProperty("status") val status: Int? = null,
     @param:JsonProperty("remark") val remark: String? = null,
+    @param:JsonProperty("permissions") val permissions: List<String>? = null,
 )
 
 class DocumentDepartmentRequest {
