@@ -51,7 +51,7 @@
                 <td v-if="activeTab === 'all'"><span class="tag" :class="person.syncStatus === '已同步' ? 'tag--green' : 'tag--orange'">{{ person.syncStatus }}</span></td>
                 <td class="right actions-cell">
                   <button class="row-act" type="button" title="查看" @click="openDetail(person)"><span class="material-icons-outlined">visibility</span></button>
-                  <template v-if="activeTab === 'all'"><button class="row-act" type="button" title="编辑" @click="openEdit(person)"><span class="material-icons-outlined">edit</span></button><button class="row-act row-act--danger" type="button" title="删除" @click="removePerson(person)"><span class="material-icons-outlined">delete</span></button></template>
+                  <template v-if="activeTab === 'all'"><button class="row-act" type="button" title="编辑" @click="openEdit(person)"><span class="material-icons-outlined">edit</span></button><button class="row-act row-act--danger" type="button" title="申请删除" @click="requestDelete(person)"><span class="material-icons-outlined">delete</span></button></template>
                   <template v-else><button class="btn btn--primary btn--sm" type="button" @click="approvePerson(person)"><span class="material-icons-outlined">check</span>通过</button><button class="btn btn--soft btn--sm" type="button" @click="rejectPerson(person)"><span class="material-icons-outlined">close</span>拒绝</button></template>
                 </td>
               </tr>
@@ -66,7 +66,7 @@
           </tbody>
         </table>
       </div>
-      <footer v-if="!loading && !errorMessage" class="pagination"><span class="pagination__info">共 {{ totalRows }} 条</span><button class="page-btn" type="button" :disabled="page <= 1" @click="page--"><span class="material-icons-outlined">chevron_left</span></button><button v-for="number in pageNumbers" :key="number" class="page-btn" :class="{ active: number === page }" type="button" @click="page = number">{{ number }}</button><button class="page-btn" type="button" :disabled="page >= totalPages" @click="page++"><span class="material-icons-outlined">chevron_right</span></button></footer>
+      <footer v-if="!loading && !errorMessage" class="pagination"><span class="pagination__info">共 {{ totalRows }} 条</span><button class="page-btn" type="button" :disabled="page <= 1" @click="changePage(page - 1)"><span class="material-icons-outlined">chevron_left</span></button><button v-for="number in pageNumbers" :key="number" class="page-btn" :class="{ active: number === page }" type="button" @click="changePage(number)">{{ number }}</button><button class="page-btn" type="button" :disabled="page >= totalPages" @click="changePage(page + 1)"><span class="material-icons-outlined">chevron_right</span></button></footer>
     </section>
 
     <div v-if="detailPerson || detailRequest" class="modal-mask" @click.self="closeDetail">
@@ -88,6 +88,8 @@ const fallbackFace = "/favicon.ico";
 const activeTab = ref<"all" | "pending" | "delete">("all");
 const persons = ref<Person[]>([]);
 const requests = ref<DeleteRequest[]>([]);
+const personTotal = ref(0);
+const requestTotal = ref(0);
 const loading = ref(true);
 const saving = ref(false);
 const errorMessage = ref("");
@@ -112,11 +114,11 @@ const filteredPersons = computed(() => persons.value.filter((person) => (!filter
 const pendingPersons = computed(() => persons.value.filter((person) => person.approveStatus === "审核中" && (!filters.keyword || `${person.code}${person.name}${person.phone}${person.idCard}`.toLowerCase().includes(filters.keyword.toLowerCase()))));
 const filteredRequests = computed(() => requests.value.filter((request) => (!filters.keyword || `${request.code}${request.name}${request.phone}${request.idCard}`.toLowerCase().includes(filters.keyword.toLowerCase())) && (!deleteStatus.value || request.status === deleteStatus.value)));
 const currentRows = computed(() => activeTab.value === "all" ? filteredPersons.value : activeTab.value === "pending" ? pendingPersons.value : filteredRequests.value);
-const totalRows = computed(() => currentRows.value.length);
+const totalRows = computed(() => activeTab.value === "delete" ? requestTotal.value : personTotal.value);
 const totalPages = computed(() => Math.max(1, Math.ceil(totalRows.value / pageSize)));
 const pageNumbers = computed(() => Array.from({ length: totalPages.value }, (_, index) => index + 1).slice(Math.max(0, page.value - 3), page.value + 2));
-const visiblePersons = computed(() => currentRows.value.slice((page.value - 1) * pageSize, page.value * pageSize) as Person[]);
-const visibleRequests = computed(() => currentRows.value.slice((page.value - 1) * pageSize, page.value * pageSize) as DeleteRequest[]);
+const visiblePersons = computed(() => currentRows.value as Person[]);
+const visibleRequests = computed(() => currentRows.value as DeleteRequest[]);
 
 watch(activeTab, () => { page.value = 1; resetFilters(false); });
 watch([filters, deleteStatus], () => { if (page.value > totalPages.value) page.value = 1; }, { deep: true });
@@ -124,26 +126,34 @@ watch([filters, deleteStatus], () => { if (page.value > totalPages.value) page.v
 async function loadData() {
   loading.value = true; errorMessage.value = "";
   try {
-    const personData = await http.get<{ items: Person[] }>("/gate-persons", {
+    const personData = await http.get<{ items: Person[]; total: number }>("/gate-persons", {
       keyword: filters.keyword || undefined,
       dept: filters.dept || undefined,
       approveStatus: activeTab.value === "pending" ? "审核中" : filters.approveStatus || undefined,
       syncStatus: filters.syncStatus || undefined,
-      page: 1,
-      pageSize: 100,
+      page: page.value,
+      pageSize,
     });
-    const requestData = await http.get<DeleteRequest[]>("/gate-persons/delete-requests");
+    const requestData = await http.get<{ items: DeleteRequest[]; total: number }>("/gate-persons/delete-requests", {
+      keyword: filters.keyword || undefined,
+      status: deleteStatus.value || undefined,
+      page: page.value,
+      page_size: pageSize,
+    });
     persons.value = personData.items || [];
-    requests.value = requestData || [];
+    personTotal.value = personData.total || 0;
+    requests.value = requestData.items || [];
+    requestTotal.value = requestData.total || 0;
   } catch (error) { errorMessage.value = (error as { statusMessage?: string }).statusMessage || "门禁人员数据加载失败"; }
   finally { loading.value = false; }
 }
 async function search() { page.value = 1; await loadData(); }
 async function resetFilters(resetKeyword = true) { if (resetKeyword) filters.keyword = ""; filters.dept = ""; filters.approveStatus = ""; filters.syncStatus = ""; deleteStatus.value = ""; page.value = 1; await loadData(); }
+function changePage(nextPage: number) { if (nextPage < 1 || nextPage > totalPages.value) return; page.value = nextPage; void loadData(); }
 function approveClass(status: string) { return status === "通过" ? "tag--green" : status === "审核中" ? "tag--blue" : "tag--red"; }
 function deleteClass(status: string) { return status === "待处理" ? "tag--orange" : status === "已同意" ? "tag--green" : "tag--red"; }
 function useFallbackFace(event: Event) { (event.target as HTMLImageElement).src = fallbackFace; }
-function openDetail(person: Person) { detailRequest.value = null; detailPerson.value = person; }
+async function openDetail(person: Person) { detailRequest.value = null; try { detailPerson.value = await http.get<Person>(`/gate-persons/${person.id}`); } catch { detailPerson.value = person; } }
 function openDeleteDetail(request: DeleteRequest) { detailPerson.value = null; detailRequest.value = request; }
 function closeDetail() { detailPerson.value = null; detailRequest.value = null; }
 function openCreate() { editingId.value = null; Object.assign(form, { code: `GP${String(persons.value.length + 1).padStart(4, "0")}`, dept: "", name: "", phone: "", idCard: "" }); selectedFace.value = null; formError.value = ""; editorVisible.value = true; }
@@ -161,7 +171,7 @@ async function savePerson() {
   } catch (error) { formError.value = (error as { statusMessage?: string }).statusMessage || "保存失败"; }
   finally { saving.value = false; }
 }
-async function removePerson(person: Person) { if (!window.confirm(`确认删除“${person.name}”吗？`)) return; try { await http.delete(`/gate-persons/${person.id}`); await loadData(); } catch (error) { errorMessage.value = (error as { statusMessage?: string }).statusMessage || "删除失败"; } }
+async function requestDelete(person: Person) { const reason = window.prompt(`请输入删除“${person.name}”的原因`); if (!reason?.trim()) return; try { await http.post(`/gate-persons/${person.id}/delete-requests`, { reason: reason.trim() }, { payloadMode: "json" }); await loadData(); } catch (error) { errorMessage.value = (error as { statusMessage?: string }).statusMessage || "提交删除申请失败"; } }
 async function approvePerson(person: Person) { await updateApproval(person, "approve"); }
 async function rejectPerson(person: Person) { await updateApproval(person, "reject"); }
 async function updateApproval(person: Person, action: "approve" | "reject") { try { await http.put(`/gate-persons/${person.id}/${action}`); await loadData(); } catch (error) { errorMessage.value = (error as { statusMessage?: string }).statusMessage || "审批操作失败"; } }

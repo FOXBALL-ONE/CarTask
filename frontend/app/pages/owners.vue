@@ -28,7 +28,7 @@
       <div v-else-if="errorMessage" class="state state--error">{{ errorMessage }}</div>
       <div v-else class="table-wrap">
         <table class="table">
-          <thead><tr><th>编号</th><th>卡片ID</th><th>户主名</th><th>部门</th><th>手机号</th><th>车位数量</th><th>车牌号码</th><th>到期时间</th><th>状态</th><th>备注</th><th class="actions-cell">操作</th></tr></thead>
+          <thead><tr><th>编号</th><th>卡片ID</th><th>户主名</th><th>部门</th><th>手机号</th><th>车位数量</th><th>余额</th><th>车牌号码</th><th>到期时间</th><th>状态</th><th>备注</th><th class="actions-cell">操作</th></tr></thead>
           <tbody>
             <tr v-for="owner in owners" :key="owner.id">
               <td>{{ String(owner.id).padStart(4, "0") }}</td>
@@ -37,16 +37,17 @@
               <td>{{ owner.dept }}</td>
               <td>{{ owner.phone }}</td>
               <td><span class="tag tag--blue">{{ owner.spotCount }} 个</span></td>
+              <td>{{ Number(owner.balance).toFixed(2) }}</td>
               <td><template v-if="platesByOwner[owner.id]?.length"><span v-for="plate in platesByOwner[owner.id]" :key="plate" class="tag tag--gray plate-tag">{{ plate }}</span></template><span v-else class="muted">{{ owner.plateCount ? `${owner.plateCount} 个` : "-" }}</span></td>
               <td class="muted">-</td>
               <td><span class="tag" :class="owner.status === 1 ? 'tag--green' : 'tag--red'">{{ owner.status === 1 ? "正常" : "停用" }}</span></td>
               <td class="muted">-</td>
               <td class="actions-cell">
-                <button class="row-action" type="button" title="修改信息" @click="openEdit(owner)"><span class="material-icons-outlined">edit</span></button>
+                <button class="row-action" type="button" title="充值" @click="rechargeOwner(owner)"><span class="material-icons-outlined">account_balance_wallet</span></button><button class="row-action" type="button" title="修改信息" @click="openEdit(owner)"><span class="material-icons-outlined">edit</span></button>
                 <button class="row-action row-action--danger" type="button" title="删除" @click="removeOwner(owner)"><span class="material-icons-outlined">delete</span></button>
               </td>
             </tr>
-            <tr v-if="owners.length === 0"><td colspan="11" class="empty">暂无数据</td></tr>
+            <tr v-if="owners.length === 0"><td colspan="12" class="empty">暂无数据</td></tr>
           </tbody>
         </table>
       </div>
@@ -141,6 +142,14 @@ async function removeOwner(owner: Owner) {
   if (!window.confirm(`确认删除“${owner.name}”吗？`)) return;
   try { await http.delete(`/owners/${owner.id}`); await loadOwners(); }
   catch (error) { errorMessage.value = (error as { statusMessage?: string }).statusMessage || "删除失败"; }
+}
+async function rechargeOwner(owner: Owner) {
+  const rawAmount = window.prompt(`请输入“${owner.name}”的充值金额`);
+  if (!rawAmount?.trim()) return;
+  const amount = Number(rawAmount);
+  if (!Number.isFinite(amount) || amount <= 0) { errorMessage.value = "充值金额必须为正数"; return; }
+  try { await http.post(`/owners/${owner.id}/recharge`, { amount }, { payloadMode: "json" }); await loadOwners(); }
+  catch (error) { errorMessage.value = (error as { statusMessage?: string }).statusMessage || "充值失败"; }
 }
 onMounted(loadOwners);
 </script>

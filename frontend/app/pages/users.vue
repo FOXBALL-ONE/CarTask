@@ -123,6 +123,7 @@ interface User {
 }
 interface Department { id: number; name: string; parent?: number | null }
 interface Role { id: number; name: string; code?: string }
+interface RoleList { items: Role[] }
 interface UserList { items: User[]; total: number; page: number; pageSize: number }
 interface DepartmentNodeProps { department: Department; children: Department[]; level: number; selected: number }
 
@@ -164,6 +165,8 @@ const errorMessage = ref("");
 const formError = ref("");
 const editorVisible = ref(false);
 const editingId = ref<number | null>(null);
+const originalRoleId = ref<number | null>(null);
+const originalStatus = ref(1);
 const selectedIds = ref<number[]>([]);
 const form = reactive({ username: "", name: "", password: "", deptId: null as number | null, roleId: null as number | null, phone: "", status: 1 });
 
@@ -177,18 +180,19 @@ function departmentName(id?: number | null) { return departments.value.find((dep
 function roleName(user: User) { return roles.value.filter((role) => user.roleIds?.includes(role.id)).map((role) => role.name).join("、") || "未分配"; }
 
 async function loadReferenceData() {
-  const [departmentResult, roleResult] = await Promise.all([http.get<Department[]>("/depts"), http.get<Role[]>("/roles")]);
+  const [departmentResult, roleResult] = await Promise.all([http.get<Department[]>("/depts"), http.get<RoleList>("/roles", { page: 1, pageSize: 100 })]);
   departments.value = departmentResult || [];
-  roles.value = roleResult || [];
+  roles.value = roleResult.items || [];
 }
 
 async function loadUsers() {
   loading.value = true;
   errorMessage.value = "";
   try {
-    const result = await http.get<UserList>("/users", { keyword: keyword.value || undefined, status: status.value || undefined, page: 1, pageSize: 100 });
-    allUsers.value = result.items || [];
-    applyUserView();
+    const result = await http.get<UserList>("/users", { keyword: keyword.value || undefined, status: status.value || undefined, department_id: selectedDepartment.value || undefined, page: page.value, pageSize });
+    users.value = result.items || [];
+    total.value = result.total || 0;
+    selectedIds.value = [];
   } catch (error) {
     errorMessage.value = (error as { statusMessage?: string }).statusMessage || "用户数据加载失败";
   } finally {
@@ -215,9 +219,9 @@ async function initialize() {
 function search() { page.value = 1; void loadUsers(); }
 function resetFilters() { keyword.value = ""; status.value = ""; selectedDepartment.value = 0; page.value = 1; void loadUsers(); }
 function selectDepartment(id: number) { selectedDepartment.value = id; page.value = 1; void loadUsers(); }
-function changePage(nextPage: number) { page.value = nextPage; applyUserView(); }
-function openCreate() { editingId.value = null; Object.assign(form, { username: "", name: "", password: "", deptId: departments.value[0]?.id ?? null, roleId: roles.value[0]?.id ?? null, phone: "", status: 1 }); formError.value = ""; editorVisible.value = true; }
-function openEdit(user: User) { editingId.value = user.id; Object.assign(form, { username: user.username, name: user.name || "", password: "", deptId: user.deptId ?? null, roleId: user.roleIds?.[0] ?? null, phone: user.phone || "", status: user.status }); formError.value = ""; editorVisible.value = true; }
+function changePage(nextPage: number) { if (nextPage < 1 || nextPage > totalPages.value) return; page.value = nextPage; void loadUsers(); }
+function openCreate() { editingId.value = null; originalRoleId.value = null; originalStatus.value = 1; Object.assign(form, { username: "", name: "", password: "", deptId: departments.value[0]?.id ?? null, roleId: roles.value[0]?.id ?? null, phone: "", status: 1 }); formError.value = ""; editorVisible.value = true; }
+function openEdit(user: User) { editingId.value = user.id; originalRoleId.value = user.roleIds?.[0] ?? null; originalStatus.value = user.status; Object.assign(form, { username: user.username, name: user.name || "", password: "", deptId: user.deptId ?? null, roleId: user.roleIds?.[0] ?? null, phone: user.phone || "", status: user.status }); formError.value = ""; editorVisible.value = true; }
 
 async function saveUser() {
   saving.value = true;
@@ -229,7 +233,12 @@ async function saveUser() {
   }
   const payload = { username: form.username, name: form.name, password: form.password || undefined, deptId: form.deptId, phone: form.phone || undefined, status: form.status, roleIds: form.roleId ? [form.roleId] : [] };
   try {
-    if (editingId.value) await http.put(`/users/${editingId.value}`, payload, { payloadMode: "json" });
+    if (editingId.value) {
+      await http.put(`/users/${editingId.value}`, { ...payload, roleIds: undefined, status: undefined }, { payloadMode: "json" });
+      const role = roles.value.find((item) => item.id === form.roleId);
+      if (form.roleId !== originalRoleId.value && role?.code) await http.put(`/users/${editingId.value}/role`, undefined, { params: { role: role.code } });
+      if (form.status !== originalStatus.value) await http.put(`/users/${editingId.value}/account-status`, undefined, { params: { enabled: form.status === 1, status: form.status === 1 ? "Activity" : "BANNED" } });
+    }
     else await http.post("/users", { ...payload, email: `${form.username}@local.invalid` }, { payloadMode: "json" });
     editorVisible.value = false;
     await loadUsers();
