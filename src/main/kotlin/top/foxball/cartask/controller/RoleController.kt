@@ -54,7 +54,15 @@ class RoleController(
             enabled = status != 0
             documentSort = requireNotNull(body.sort) { "排序不能为空" }
             documentRemark = body.remark
-            body.permissions?.let { permissions = resolvePermissions(it) }
+            body.permissions?.let { codes ->
+                val normalizedCodes = codes.map(SecurityPermission::normalize)
+                require(normalizedCodes.distinct().size == normalizedCodes.size) { "权限编码不能重复" }
+                val resolved = permissionRepository.findAllByCodeIn(normalizedCodes)
+                require(resolved.size == normalizedCodes.size) { "包含不存在的权限编码" }
+                require(resolved.all { it.enabled }) { "不能授予已停用的权限" }
+                val byCode = resolved.associateBy { SecurityPermission.normalize(it.code) }
+                permissions = normalizedCodes.map(byCode::getValue).toMutableSet()
+            }
         }
         val saved = service.create(role)
         val rs = Response(requireNotNull(saved.id), name, saved.name, saved.documentSort ?: 0, if (saved.enabled) 1 else 0, saved.documentRemark)
@@ -163,7 +171,15 @@ class RoleController(
             documentSort = body.sort ?: current.documentSort ?: 0
             documentRemark = body.remark ?: current.documentRemark
             permissions = current.permissions
-            body.permissions?.let { permissions = resolvePermissions(it) }
+            body.permissions?.let { codes ->
+                val normalizedCodes = codes.map(SecurityPermission::normalize)
+                require(normalizedCodes.distinct().size == normalizedCodes.size) { "权限编码不能重复" }
+                val resolved = permissionRepository.findAllByCodeIn(normalizedCodes)
+                require(resolved.size == normalizedCodes.size) { "包含不存在的权限编码" }
+                require(resolved.all { it.enabled }) { "不能授予已停用的权限" }
+                val byCode = resolved.associateBy { SecurityPermission.normalize(it.code) }
+                permissions = normalizedCodes.map(byCode::getValue).toMutableSet()
+            }
         }
         val saved = service.update(id, role)
         val rs = Response(id, saved.description ?: saved.name, saved.name, saved.documentSort ?: 0, if (saved.enabled) 1 else 0, saved.documentRemark)
@@ -182,7 +198,13 @@ class RoleController(
             @param:JsonProperty("permission_codes") val permissionCodes: List<String>,
         )
 
-        val permissions = resolvePermissions(permissionCodes)
+        val normalizedCodes = permissionCodes.map(SecurityPermission::normalize)
+        require(normalizedCodes.distinct().size == normalizedCodes.size) { "权限编码不能重复" }
+        val resolvedPermissions = permissionRepository.findAllByCodeIn(normalizedCodes)
+        require(resolvedPermissions.size == normalizedCodes.size) { "包含不存在的权限编码" }
+        require(resolvedPermissions.all { it.enabled }) { "不能授予已停用的权限" }
+        val byCode = resolvedPermissions.associateBy { SecurityPermission.normalize(it.code) }
+        val permissions = normalizedCodes.map(byCode::getValue).toMutableSet()
         val current = service.get(id)
         val role = Role().apply {
             this.id = id
@@ -193,21 +215,11 @@ class RoleController(
             documentSort = current.documentSort
             documentRemark = current.documentRemark
             documentStatus = current.documentStatus
-            this.permissions = permissions.toMutableSet()
+            this.permissions = permissions
         }
         val saved = service.update(id, role)
         val rs = Response(requireNotNull(saved.id), saved.permissions.map { it.code }.sorted())
         return responseBuilder.ok().data(rs).build()
-    }
-
-    private fun resolvePermissions(codes: Collection<String>): MutableSet<top.foxball.cartask.entity.Permission> {
-        val normalizedCodes = codes.map(SecurityPermission::normalize)
-        require(normalizedCodes.distinct().size == normalizedCodes.size) { "权限编码不能重复" }
-        val permissions = permissionRepository.findAllByCodeIn(normalizedCodes)
-        require(permissions.size == normalizedCodes.size) { "包含不存在的权限编码" }
-        require(permissions.all { it.enabled }) { "不能授予已停用的权限" }
-        val byCode = permissions.associateBy { SecurityPermission.normalize(it.code) }
-        return normalizedCodes.map(byCode::getValue).toMutableSet()
     }
 
     /** 批量更新实体记录。 */
