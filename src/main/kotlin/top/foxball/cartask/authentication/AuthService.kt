@@ -16,6 +16,8 @@ interface AuthService {
     data class LoginCommand(
         @param:JsonProperty("username") val username: kotlin.String,
         @param:JsonProperty("password") val password: CredentialValue,
+        @param:JsonProperty("captchaToken") val captchaToken: kotlin.String?,
+        @param:JsonProperty("captchaAnswer") val captchaAnswer: kotlin.String?,
     )
     
     data class LoginData(
@@ -36,10 +38,13 @@ class AuthServiceImpl(
     private val passwordEncoder: PasswordEncoder,
     private val jwtTokenService: JwtTokenService,
     private val sessionRepository: RedisTokenSessionRepository,
+    private val captchaService: CaptchaService,
     private val loginAttemptLimiter: LoginAttemptLimiter,
     private val auditService: AuditService? = null,
 ) : AuthService {
     override fun login(command: AuthService.LoginCommand): AuthService.LoginData {
+        // 验证码先于凭据校验，与原型一致：验证码错误不计入登录失败次数。
+        captchaService.verify(command.captchaToken, command.captchaAnswer)
         loginAttemptLimiter.check(command.username)
         val user: User
         val role: String

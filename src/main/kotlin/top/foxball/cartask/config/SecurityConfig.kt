@@ -44,6 +44,7 @@ class SecurityConfig(
             .authorizeHttpRequests {
                 it.requestMatchers(
                     "/api/auth/login",
+                    "/api/auth/captcha",
                     "/error",
                 ).permitAll()
                 it.requestMatchers(HttpMethod.POST, "/api/auth/logout").authenticated()

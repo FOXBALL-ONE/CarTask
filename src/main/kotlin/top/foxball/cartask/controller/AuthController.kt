@@ -4,12 +4,14 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import org.springframework.http.HttpHeaders
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
+import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import top.foxball.cartask.authentication.AccessTokenValue
 import top.foxball.cartask.authentication.AuthService
+import top.foxball.cartask.authentication.CaptchaService
 import top.foxball.cartask.authentication.CurrentUserPrincipal
 import top.foxball.cartask.shared.Response
 import top.foxball.cartask.shared.ResponseBuilder
@@ -19,8 +21,19 @@ import java.time.LocalDateTime
 @RequestMapping("/api/auth")
 class AuthController(
     private val authService: AuthService,
+    private val captchaService: CaptchaService,
     private val responseBuilder: ResponseBuilder,
 ) {
+    /** 登录图形验证码：无需认证，返回一次性 token 与 base64 SVG 图片。 */
+    @GetMapping("/captcha")
+    fun captcha(): ResponseEntity<Response> {
+        val captcha = captchaService.generate()
+        return responseBuilder.ok()
+            .header(HttpHeaders.CACHE_CONTROL, "no-store")
+            .data(captcha)
+            .build()
+    }
+
     @PostMapping("/login")
     fun login(@RequestBody command: AuthService.LoginCommand): ResponseEntity<Response> {
         data class UserData(
