@@ -4,7 +4,6 @@ import type {ApiResult} from "~/types/http";
 type ParamMode = "query" | "json";
 type QueryParams = Record<string, unknown>;
 type JsonBody = BodyInit | Record<string, unknown> | null | undefined;
-type NotificationType = "warning" | "error";
 
 interface AuthResponse {
     access_token: string;
@@ -28,7 +27,7 @@ export interface HttpRequestOptions<T> extends Omit<FetchOptions<"json">, "baseU
 }
 
 const AUTH_FAILURE_STATUSES = new Set([401]);
-const TOKEN_COOKIE = "cartask_auth_token";
+export const TOKEN_COOKIE = "cartask_auth_token";
 const LOGIN_PATH = "/login";
 
 let clientSessionCleanupPromise: Promise<void> | null = null;
@@ -132,9 +131,8 @@ export const useHttp = (baseURL?: string) => {
         sameSite: "lax",
         path: "/",
     });
-    const toast = useToast();
     const router = useRouter();
-    const configuredApiBase = useRuntimeConfig().public.apiBase;
+    const configuredApiBase = useRuntimeConfig().public.baseUrl;
     const authApiBase = typeof configuredApiBase === "string" && configuredApiBase
         ? configuredApiBase
         : "http://127.0.0.1:8080/api";
@@ -159,18 +157,6 @@ export const useHttp = (baseURL?: string) => {
         },
     });
 
-    const notify = (type: NotificationType, title: string, description?: string) => {
-        if (import.meta.server) {
-            return;
-        }
-
-        toast.add({
-            title,
-            description,
-            color: type,
-        });
-    };
-
     const persistAccessToken = (token: string) => {
         authToken.value = token;
         clientSessionExpired = false;
@@ -186,7 +172,6 @@ export const useHttp = (baseURL?: string) => {
             clientSessionExpired = true;
             const tokenToLogout = authToken.value;
             authToken.value = null;
-            notify("error", message);
 
             clientSessionCleanupPromise = (async () => {
                 try {
