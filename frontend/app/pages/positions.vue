@@ -142,7 +142,7 @@ async function loadPositions() {
   loading.value = true;
   errorMessage.value = "";
   try {
-    const result = await http.get<PositionPage | Position[]>("/positions", { page: 1, page_size: 100 });
+    const result = await http.get<PositionPage | Position[]>("/posts");
     const rows = Array.isArray(result) ? result : (result.content ?? result.items ?? []);
     positions.value = rows.map(normalizePosition);
     if (page.value > totalPages.value) page.value = totalPages.value;
@@ -176,10 +176,10 @@ async function savePosition() {
   }
   saving.value = true;
   formError.value = "";
-  const payload = { name: form.name, codeNumber: form.code, orderNumber: form.sort || 1, status: form.status === 1 ? "Activity" : "BANNED", remark: form.remark || null };
+  const payload = { name: form.name, code: form.code, sort: form.sort || 1, status: form.status, remark: form.remark || null };
   try {
-    if (editingId.value) await http.put(`/positions/${editingId.value}`, payload, { payloadMode: "json" });
-    else await http.post("/positions", payload, { payloadMode: "json" });
+    if (editingId.value) await http.put(`/posts/${editingId.value}`, payload, { payloadMode: "json" });
+    else await http.post("/posts", payload, { payloadMode: "json" });
     editorVisible.value = false;
     await loadPositions();
   } catch (error) {
@@ -192,7 +192,7 @@ async function savePosition() {
 async function removePosition(position: Position) {
   if (!window.confirm(`确认删除“${position.name}”吗？`)) return;
   try {
-    await http.delete(`/positions/${position.id}`);
+    await http.delete(`/posts/${position.id}`);
     await loadPositions();
   } catch (error) {
     errorMessage.value = (error as { statusMessage?: string }).statusMessage || "删除失败";

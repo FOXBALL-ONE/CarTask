@@ -62,7 +62,7 @@
               <td><span class="tag" :class="deleteClass(request.status)">{{ request.status }}</span></td>
               <td class="right actions-cell"><button class="row-act" type="button" title="查看" @click="openDeleteDetail(request)"><span class="material-icons-outlined">visibility</span></button><template v-if="request.status === '待处理'"><button class="btn btn--primary btn--sm" type="button" @click="approveDelete(request)"><span class="material-icons-outlined">check</span>同意</button><button class="btn btn--soft btn--sm" type="button" @click="rejectDelete(request)"><span class="material-icons-outlined">close</span>拒绝</button></template></td>
             </tr>
-            <tr v-if="visibleRows === 0"><td class="empty-row" :colspan="activeTab === 'all' ? 10 : 9">{{ activeTab === 'pending' ? '暂无待审核人员' : activeTab === 'delete' ? '暂无删除申请' : '暂无记录' }}</td></tr>
+            <tr v-if="totalRows === 0"><td class="empty-row" :colspan="activeTab === 'all' ? 10 : 9">{{ activeTab === 'pending' ? '暂无待审核人员' : activeTab === 'delete' ? '暂无删除申请' : '暂无记录' }}</td></tr>
           </tbody>
         </table>
       </div>
@@ -124,14 +124,22 @@ watch([filters, deleteStatus], () => { if (page.value > totalPages.value) page.v
 async function loadData() {
   loading.value = true; errorMessage.value = "";
   try {
-    const [personData, requestData] = await Promise.all([http.get<{ items: Person[] }>("/gate-persons", { page: 1, pageSize: 100 }), http.get<DeleteRequest[]>("/gate-persons/delete-requests")]);
+    const personData = await http.get<{ items: Person[] }>("/gate-persons", {
+      keyword: filters.keyword || undefined,
+      dept: filters.dept || undefined,
+      approveStatus: activeTab.value === "pending" ? "审核中" : filters.approveStatus || undefined,
+      syncStatus: filters.syncStatus || undefined,
+      page: 1,
+      pageSize: 100,
+    });
+    const requestData = await http.get<DeleteRequest[]>("/gate-persons/delete-requests");
     persons.value = personData.items || [];
     requests.value = requestData || [];
   } catch (error) { errorMessage.value = (error as { statusMessage?: string }).statusMessage || "门禁人员数据加载失败"; }
   finally { loading.value = false; }
 }
-function search() { page.value = 1; }
-function resetFilters(resetKeyword = true) { if (resetKeyword) filters.keyword = ""; filters.dept = ""; filters.approveStatus = ""; filters.syncStatus = ""; deleteStatus.value = ""; page.value = 1; }
+async function search() { page.value = 1; await loadData(); }
+async function resetFilters(resetKeyword = true) { if (resetKeyword) filters.keyword = ""; filters.dept = ""; filters.approveStatus = ""; filters.syncStatus = ""; deleteStatus.value = ""; page.value = 1; await loadData(); }
 function approveClass(status: string) { return status === "通过" ? "tag--green" : status === "审核中" ? "tag--blue" : "tag--red"; }
 function deleteClass(status: string) { return status === "待处理" ? "tag--orange" : status === "已同意" ? "tag--green" : "tag--red"; }
 function useFallbackFace(event: Event) { (event.target as HTMLImageElement).src = fallbackFace; }

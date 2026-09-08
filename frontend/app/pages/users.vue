@@ -240,7 +240,13 @@ async function saveUser() {
 
 async function toggleStatus(user: User) {
   const nextStatus = user.status === 1 ? 0 : 1;
-  try { await http.put(`/users/${user.id}`, { status: nextStatus }, { payloadMode: "json" }); user.status = nextStatus; }
+  try {
+    await http.put(`/users/${user.id}/account-status`, {
+      enabled: nextStatus === 1,
+      status: nextStatus === 1 ? "Activity" : "BANNED",
+    });
+    user.status = nextStatus;
+  }
   catch (error) { errorMessage.value = (error as { statusMessage?: string }).statusMessage || "状态更新失败"; }
 }
 async function removeUser(user: User) {
