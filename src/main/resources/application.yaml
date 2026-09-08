@@ -1,3 +1,5 @@
+server:
+  port: 8080
 spring:
   application:
     name: carTask
@@ -40,6 +42,11 @@ shopmall:
       token-storage-encryption-key-id: ${JWT_STORAGE_ENCRYPTION_KEY_ID:local}
 
 app:
+  admin-initializer:
+    enabled: ${ADMIN_INITIALIZER_ENABLED:false}
+    username: ${ADMIN_INITIALIZER_USERNAME:admin}
+    password: ${ADMIN_INITIALIZER_PASSWORD:}
+    force-write: ${ADMIN_INITIALIZER_FORCE_WRITE:false}
   mock-data:
     enabled: ${MOCK_DATA_ENABLED:false}
   file:
