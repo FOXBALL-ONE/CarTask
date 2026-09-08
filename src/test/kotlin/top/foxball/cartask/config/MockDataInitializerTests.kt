@@ -16,6 +16,7 @@ import top.foxball.cartask.repository.DepartmentRepository
 import top.foxball.cartask.repository.DeviceRepository
 import top.foxball.cartask.repository.LicensePlateTypeRepository
 import top.foxball.cartask.repository.PositionRepository
+import top.foxball.cartask.repository.RoleRepository
 import top.foxball.cartask.repository.ReleaseTypeRepository
 import top.foxball.cartask.repository.RestrictionTypeRepository
 import top.foxball.cartask.repository.UserRepository
@@ -26,6 +27,7 @@ class MockDataInitializerTests {
     private val departmentRepository = mock<DepartmentRepository>()
     private val positionRepository = mock<PositionRepository>()
     private val userRepository = mock<UserRepository>()
+    private val roleRepository = mock<RoleRepository>()
     private val deviceRepository = mock<DeviceRepository>()
     private val carTypeRepository = mock<CarTypeRepository>()
     private val licensePlateTypeRepository = mock<LicensePlateTypeRepository>()
@@ -43,6 +45,7 @@ class MockDataInitializerTests {
         departmentRepository,
         positionRepository,
         userRepository,
+        roleRepository,
         deviceRepository,
         carTypeRepository,
         licensePlateTypeRepository,
@@ -84,6 +87,7 @@ class MockDataInitializerTests {
             departmentRepository,
             positionRepository,
             userRepository,
+            roleRepository,
             deviceRepository,
             carTypeRepository,
             licensePlateTypeRepository,

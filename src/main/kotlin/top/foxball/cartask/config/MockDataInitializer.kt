@@ -13,6 +13,7 @@ import top.foxball.cartask.entity.CarMasterInfo
 import top.foxball.cartask.entity.Department
 import top.foxball.cartask.entity.Device
 import top.foxball.cartask.entity.Position
+import top.foxball.cartask.entity.Role
 import top.foxball.cartask.entity.User
 import top.foxball.cartask.entity.type.AccessControlType
 import top.foxball.cartask.entity.type.CarType
@@ -29,6 +30,7 @@ import top.foxball.cartask.repository.DepartmentRepository
 import top.foxball.cartask.repository.DeviceRepository
 import top.foxball.cartask.repository.LicensePlateTypeRepository
 import top.foxball.cartask.repository.PositionRepository
+import top.foxball.cartask.repository.RoleRepository
 import top.foxball.cartask.repository.ReleaseTypeRepository
 import top.foxball.cartask.repository.RestrictionTypeRepository
 import top.foxball.cartask.repository.UserRepository
@@ -49,6 +51,7 @@ class MockDataInitializer(
     private val departmentRepository: DepartmentRepository,
     private val positionRepository: PositionRepository,
     private val userRepository: UserRepository,
+    private val roleRepository: RoleRepository,
     private val deviceRepository: DeviceRepository,
     private val carTypeRepository: CarTypeRepository,
     private val licensePlateTypeRepository: LicensePlateTypeRepository,
@@ -108,6 +111,17 @@ class MockDataInitializer(
                 }
             },
             positionRepository::save,
+        )
+        ensure(
+            roleRepository.findByNameIgnoreCase("USER"),
+            {
+                Role().apply {
+                    name = "USER"
+                    description = "普通用户"
+                    enabled = true
+                }
+            },
+            roleRepository::save,
         )
         ensure(
             userRepository.findByUsername("mock.operator"),

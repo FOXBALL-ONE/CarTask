@@ -3,6 +3,7 @@ package top.foxball.cartask.authentication
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
+import org.slf4j.LoggerFactory
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.core.AuthenticationException
 import org.springframework.security.core.context.SecurityContextHolder
@@ -21,6 +22,7 @@ class JwtAuthenticationFilter(
     private val sessionRepository: RedisTokenSessionRepository,
     private val rolePermissionService: RolePermissionService,
 ) : OncePerRequestFilter() {
+    private val log = LoggerFactory.getLogger(javaClass)
     private val tokenResolver = DefaultBearerTokenResolver()
     
     override fun doFilterInternal(
@@ -68,10 +70,12 @@ class JwtAuthenticationFilter(
             }
             SecurityContextHolder.setContext(context)
             filterChain.doFilter(request, response)
-        } catch (_: AuthenticationInfrastructureException) {
+        } catch (ex: AuthenticationInfrastructureException) {
+            log.warn("JWT 认证基础设施不可用: {}", ex.message)
             SecurityContextHolder.clearContext()
             writeFailure(response, HttpServletResponse.SC_SERVICE_UNAVAILABLE, "认证服务暂不可用", true)
-        } catch (_: AuthenticationException) {
+        } catch (ex: AuthenticationException) {
+            log.warn("JWT 认证失败: {}", ex.message)
             SecurityContextHolder.clearContext()
             writeFailure(response, HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized", false)
         }
