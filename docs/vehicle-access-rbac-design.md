@@ -266,7 +266,9 @@ URL 级规则负责区分公开接口和必须登录的接口；业务 Controlle
 | 类型、限制、区域相关接口 | dictionary:read、dictionary:manage；后续可按字典类型进一步细分。 |
 | /api/files | file:upload、file:read、file:delete，并校验文件所属业务对象和数据范围。 |
 
-历史版本曾使用 user:manage、role:manage、permission:manage 作为过渡权限。当前实现已将用户、角色和权限接口拆分为本方案的读、建、改、停用或删除权限；部署时仍需清理历史权限记录。
+前端兼容接口同样必须执行上述方法级授权：`/api/depts` 与 `/api/posts` 分别复用 department、position 权限，`/api/owners`、`/api/spots`、`/api/plates` 和 `/api/gate-persons` 使用各自资源的 read/manage 权限，记录、日志和仪表盘接口使用对应的 read 权限。不能因为兼容接口只聚合现有 Service 或 Repository，就省略 `@PreAuthorize`。
+
+历史版本曾使用 user:manage 作为过渡权限。当前实现已将用户接口拆分为读、建、改、停用/删除和角色分配权限；角色与权限字典保留 read/manage 两级治理权限，避免普通管理员通过任一写入口形成自我提权。部署时仍需清理不再使用的历史权限记录。
 
 当前实现中的以下规则只能视为过渡规则：
 

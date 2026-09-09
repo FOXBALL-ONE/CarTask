@@ -69,6 +69,7 @@ class ParkingApiController(
     private val logVisibilityService: LogVisibilityService,
 ) {
     @GetMapping("/depts")
+    @PreAuthorize("hasAuthority('department:read')")
     fun listDepartments(): ResponseEntity<Response> {
         data class DepartmentData(
             val id: Long,
@@ -87,6 +88,7 @@ class ParkingApiController(
     }
 
     @PostMapping("/depts")
+    @PreAuthorize("hasAuthority('department:manage')")
     fun createDepartment(@RequestBody body: DocumentDepartmentRequest): ResponseEntity<Response> {
         require(body.status == 0 || body.status == 1) { "状态必须为 0 或 1" }
         val department = departmentService.create(DepartmentService.CreateCommand(
@@ -100,6 +102,7 @@ class ParkingApiController(
     }
 
     @PutMapping("/depts/{id}")
+    @PreAuthorize("hasAuthority('department:manage')")
     fun updateDepartment(@PathVariable id: Long, @RequestBody body: DocumentDepartmentRequest): ResponseEntity<Response> {
         require(body.status == null || body.status == 0 || body.status == 1) { "状态必须为 0 或 1" }
         val parentId = if (body.parentProvided) body.parent ?: 0L else null
@@ -112,12 +115,14 @@ class ParkingApiController(
     }
 
     @DeleteMapping("/depts/{id}")
+    @PreAuthorize("hasAuthority('department:manage')")
     fun deleteDepartment(@PathVariable id: Long): ResponseEntity<Response> {
         departmentService.deleteDepartment(id)
         return responseBuilder.ok().message("删除成功").data(mapOf("id" to id)).build()
     }
 
     @GetMapping("/posts")
+    @PreAuthorize("hasAuthority('position:read')")
     fun listPosts(): ResponseEntity<Response> {
         data class PostData(val id: Long, val name: String, val code: String, val sort: Int, val status: Int, val remark: String?)
         val allPosts = mutableListOf<Position>()
@@ -134,6 +139,7 @@ class ParkingApiController(
     }
 
     @PostMapping("/posts")
+    @PreAuthorize("hasAuthority('position:manage')")
     fun createPost(@RequestBody body: DocumentPostRequest): ResponseEntity<Response> {
         require(body.status == 0 || body.status == 1) { "状态必须为 0 或 1" }
         val position = Position().apply {
@@ -148,6 +154,7 @@ class ParkingApiController(
     }
 
     @PutMapping("/posts/{id}")
+    @PreAuthorize("hasAuthority('position:manage')")
     fun updatePost(@PathVariable id: Long, @RequestBody body: DocumentPostRequest): ResponseEntity<Response> {
         require(body.status == null || body.status == 0 || body.status == 1) { "状态必须为 0 或 1" }
         val current = positionService.get(id)
@@ -164,12 +171,14 @@ class ParkingApiController(
     }
 
     @DeleteMapping("/posts/{id}")
+    @PreAuthorize("hasAuthority('position:manage')")
     fun deletePost(@PathVariable id: Long): ResponseEntity<Response> {
         positionService.delete(id)
         return responseBuilder.ok().message("删除成功").data(mapOf("id" to id)).build()
     }
 
     @GetMapping("/owners")
+    @PreAuthorize("hasAuthority('owner:read')")
     fun listOwners(
         @RequestParam(required = false) keyword: String?,
         @RequestParam(required = false) dept: String?,
@@ -190,6 +199,7 @@ class ParkingApiController(
     }
 
     @PostMapping("/owners")
+    @PreAuthorize("hasAuthority('owner:manage')")
     fun createOwner(@RequestBody body: OwnerRequest): ResponseEntity<Response> {
         val cardId = requireNotNull(body.cardId) { "车主卡号不能为空" }
         require(!ownerRepository.existsByCardId(cardId)) { "车主卡号已存在" }
@@ -211,6 +221,7 @@ class ParkingApiController(
     }
 
     @PutMapping("/owners/{id}")
+    @PreAuthorize("hasAuthority('owner:manage')")
     fun updateOwner(@PathVariable id: Long, @RequestBody body: OwnerRequest): ResponseEntity<Response> {
         val owner = ownerRepository.findById(id).orElseThrow { IllegalArgumentException("车主不存在") }
         val previousName = owner.name
@@ -236,6 +247,7 @@ class ParkingApiController(
     }
 
     @DeleteMapping("/owners/{id}")
+    @PreAuthorize("hasAuthority('owner:manage')")
     fun deleteOwner(@PathVariable id: Long): ResponseEntity<Response> {
         val owner = ownerRepository.findById(id).orElseThrow { IllegalArgumentException("车主不存在") }
         require(plateRepository.findAll().none { it.ownerId == id } && spotRepository.findAll().none { it.owner == owner.name }) {
@@ -246,6 +258,7 @@ class ParkingApiController(
     }
 
     @PostMapping("/owners/{id}/recharge")
+    @PreAuthorize("hasAuthority('owner:manage')")
     fun rechargeOwner(@PathVariable id: Long, @RequestBody body: RechargeRequest): ResponseEntity<Response> {
         val old = ownerRepository.findById(id).orElseThrow { IllegalArgumentException("车主不存在") }
         val amount = body.amount ?: throw IllegalArgumentException("充值金额不能为空")
@@ -256,6 +269,7 @@ class ParkingApiController(
     }
 
     @GetMapping("/spots")
+    @PreAuthorize("hasAuthority('spot:read')")
     fun listSpots(
         @RequestParam(required = false) keyword: String?, @RequestParam(required = false) area: String?,
         @RequestParam(required = false) type: String?, @RequestParam(required = false) status: Int?,
@@ -271,6 +285,7 @@ class ParkingApiController(
     }
 
     @PostMapping("/spots")
+    @PreAuthorize("hasAuthority('spot:manage')")
     fun createSpot(@RequestBody body: SpotRequest): ResponseEntity<Response> {
         val code = requireNotNull(body.code) { "车位编号不能为空" }
         require(!spotRepository.existsByCode(code)) { "车位编号已存在" }
@@ -282,6 +297,7 @@ class ParkingApiController(
     }
 
     @PutMapping("/spots/{id}")
+    @PreAuthorize("hasAuthority('spot:manage')")
     fun updateSpot(@PathVariable id: Long, @RequestBody body: SpotRequest): ResponseEntity<Response> {
         val spot = spotRepository.findById(id).orElseThrow { IllegalArgumentException("车位不存在") }
         body.code?.let { require(!spotRepository.existsByCodeAndIdNot(it, id)) { "车位编号已存在" }; spot.code = it }
@@ -295,9 +311,11 @@ class ParkingApiController(
     }
 
     @DeleteMapping("/spots/{id}")
+    @PreAuthorize("hasAuthority('spot:manage')")
     fun deleteSpot(@PathVariable id: Long): ResponseEntity<Response> { require(spotRepository.existsById(id)) { "车位不存在" }; spotRepository.deleteById(id); refreshOwnerCounts(); return responseBuilder.ok().message("删除成功").data(mapOf("id" to id)).build() }
 
     @GetMapping("/plates")
+    @PreAuthorize("hasAuthority('plate:read')")
     fun listPlates(@RequestParam(required = false) keyword: String?, @RequestParam(required = false) status: Int?, @RequestParam(defaultValue = "1") page: Int, @RequestParam(name = "pageSize", defaultValue = "8") pageSize: Int): ResponseEntity<Response> {
         require(page >= 1) { "页码必须大于 0" }
         require(pageSize in 1..100) { "每页数量必须在 1 到 100 之间" }
@@ -308,6 +326,7 @@ class ParkingApiController(
     }
 
     @PostMapping("/plates")
+    @PreAuthorize("hasAuthority('plate:manage')")
     fun createPlate(@RequestBody body: PlateRequest): ResponseEntity<Response> {
         val plateNumber = requireNotNull(body.plate) { "车牌号不能为空" }
         require(!plateRepository.existsByPlate(plateNumber)) { "车牌号已存在" }
@@ -329,6 +348,7 @@ class ParkingApiController(
     }
 
     @PutMapping("/plates/{id}")
+    @PreAuthorize("hasAuthority('plate:manage')")
     fun updatePlate(@PathVariable id: Long, @RequestBody body: PlateRequest): ResponseEntity<Response> {
         val plate = plateRepository.findById(id).orElseThrow { IllegalArgumentException("车牌不存在") }
         body.plate?.let {
@@ -349,9 +369,11 @@ class ParkingApiController(
     }
 
     @DeleteMapping("/plates/{id}")
+    @PreAuthorize("hasAuthority('plate:manage')")
     fun deletePlate(@PathVariable id: Long): ResponseEntity<Response> { require(plateRepository.existsById(id)) { "车牌不存在" }; plateRepository.deleteById(id); refreshOwnerCounts(); return responseBuilder.ok().message("删除成功").data(mapOf("id" to id)).build() }
 
     @GetMapping("/gate-persons")
+    @PreAuthorize("hasAuthority('gate-person:read')")
     fun listGatePersons(@RequestParam(required = false) keyword: String?, @RequestParam(required = false) dept: String?, @RequestParam(name = "approveStatus", required = false) approveStatus: String?, @RequestParam(name = "syncStatus", required = false) syncStatus: String?, @RequestParam(defaultValue = "1") page: Int, @RequestParam(name = "pageSize", defaultValue = "8") pageSize: Int): ResponseEntity<Response> {
         require(page >= 1) { "页码必须大于 0" }
         require(pageSize in 1..100) { "每页数量必须在 1 到 100 之间" }
@@ -362,6 +384,7 @@ class ParkingApiController(
     }
 
     @GetMapping("/gate-persons/{id}")
+    @PreAuthorize("hasAuthority('gate-person:read')")
     fun getGatePerson(@PathVariable id: Long): ResponseEntity<Response> {
         val person = gatePersonRepository.findById(id).orElseThrow { IllegalArgumentException("人员不存在") }
         val data = StoredGatePerson(requireNotNull(person.id), person.code, person.dept, person.name, person.phone, person.idCard, person.face, person.createTime.toString(), person.approveStatus.value(), person.syncStatus.value())
@@ -369,6 +392,7 @@ class ParkingApiController(
     }
 
     @PostMapping("/gate-persons", consumes = ["multipart/form-data"])
+    @PreAuthorize("hasAuthority('gate-person:manage')")
     fun createGatePersonMultipart(
         @RequestPart("code") code: String,
         @RequestPart("dept") dept: String,
@@ -397,6 +421,7 @@ class ParkingApiController(
     }
 
     @PutMapping("/gate-persons/{id}", consumes = ["multipart/form-data"])
+    @PreAuthorize("hasAuthority('gate-person:manage')")
     fun updateGatePersonMultipart(
         @PathVariable id: Long,
         @RequestPart("code", required = false) code: String?,
@@ -420,15 +445,19 @@ class ParkingApiController(
     }
 
     @PutMapping("/gate-persons/{id}/approve")
+    @PreAuthorize("hasAuthority('gate-person:manage')")
     fun approveGatePerson(@PathVariable id: Long): ResponseEntity<Response> { val person = gatePersonRepository.findById(id).orElseThrow { IllegalArgumentException("人员不存在") }; person.approveStatus = GatePerson.ApproveStatus.APPROVED; gatePersonRepository.save(person); return responseBuilder.ok().message("审批通过").build() }
 
     @PutMapping("/gate-persons/{id}/reject")
+    @PreAuthorize("hasAuthority('gate-person:manage')")
     fun rejectGatePerson(@PathVariable id: Long): ResponseEntity<Response> { val person = gatePersonRepository.findById(id).orElseThrow { IllegalArgumentException("人员不存在") }; person.approveStatus = GatePerson.ApproveStatus.REJECTED; gatePersonRepository.save(person); return responseBuilder.ok().message("审批拒绝").build() }
 
     @DeleteMapping("/gate-persons/{id}")
+    @PreAuthorize("hasAuthority('gate-person:manage')")
     fun deleteGatePerson(@PathVariable id: Long): ResponseEntity<Response> { require(gatePersonRepository.existsById(id)) { "人员不存在" }; gatePersonRepository.deleteById(id); return responseBuilder.ok().message("删除成功").data(mapOf("id" to id)).build() }
 
     @PostMapping("/gate-persons/{id}/delete-requests")
+    @PreAuthorize("hasAuthority('gate-person:manage')")
     fun createDeleteRequest(@PathVariable id: Long, @RequestBody body: DeleteRequestBody): ResponseEntity<Response> {
         val person = gatePersonRepository.findById(id).orElseThrow { IllegalArgumentException("人员不存在") }
         val request = GateDeleteRequest().apply {
@@ -451,6 +480,7 @@ class ParkingApiController(
     }
 
     @GetMapping("/gate-persons/delete-requests")
+    @PreAuthorize("hasAuthority('gate-person:read')")
     fun listDeleteRequests(
         @RequestParam(required = false) keyword: String?,
         @RequestParam(required = false) status: String?,
@@ -475,6 +505,7 @@ class ParkingApiController(
 
     @Transactional
     @PutMapping("/gate-persons/delete-requests/{id}/approve")
+    @PreAuthorize("hasAuthority('gate-person:manage')")
     fun approveDeleteRequest(@PathVariable id: Long): ResponseEntity<Response> {
         val request = gateDeleteRequestRepository.findById(id).orElseThrow { IllegalArgumentException("删除申请不存在") }
         require(request.status == GateDeleteRequest.Status.PENDING) { "删除申请已处理" }
@@ -486,9 +517,11 @@ class ParkingApiController(
     }
 
     @PutMapping("/gate-persons/delete-requests/{id}/reject")
+    @PreAuthorize("hasAuthority('gate-person:manage')")
     fun rejectDeleteRequest(@PathVariable id: Long): ResponseEntity<Response> { val request = gateDeleteRequestRepository.findById(id).orElseThrow { IllegalArgumentException("删除申请不存在") }; require(request.status == GateDeleteRequest.Status.PENDING) { "删除申请已处理" }; request.status = GateDeleteRequest.Status.REJECTED; gateDeleteRequestRepository.save(request); return responseBuilder.ok().message("已拒绝删除申请").build() }
 
     @GetMapping("/person-records")
+    @PreAuthorize("hasAuthority('person-record:read')")
     fun personRecords(
         @RequestParam(required = false) keyword: String?,
         @RequestParam(required = false) direction: String?,
@@ -517,6 +550,7 @@ class ParkingApiController(
     }
 
     @GetMapping("/vehicle-records")
+    @PreAuthorize("hasAuthority('vehicle-record:read')")
     fun vehicleRecords(
         @RequestParam(required = false) keyword: String?,
         @RequestParam(required = false) direction: String?,
@@ -574,6 +608,7 @@ class ParkingApiController(
     }
 
     @GetMapping("/login-logs")
+    @PreAuthorize("hasAuthority('audit:read')")
     fun loginLogs(
         @RequestParam(required = false) keyword: String?,
         @RequestParam(required = false) status: String?,
@@ -646,6 +681,7 @@ class ParkingApiController(
     }
 
     @GetMapping("/operation-logs")
+    @PreAuthorize("hasAuthority('audit:read')")
     fun operationLogs(
         @RequestParam(required = false) keyword: String?,
         @RequestParam(required = false) module: String?,
@@ -721,6 +757,7 @@ class ParkingApiController(
     }
 
     @GetMapping("/dashboard")
+    @PreAuthorize("hasAuthority('dashboard:read')")
     fun dashboard(): ResponseEntity<Response> {
         data class Stat(val label: String, val value: Int, val delta: String, val trend: String, val color: String)
         data class Parking(val area: String, val total: Int, val used: Int)
