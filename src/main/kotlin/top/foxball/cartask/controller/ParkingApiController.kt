@@ -5,7 +5,6 @@ import jakarta.transaction.Transactional
 import java.math.BigDecimal
 import java.time.LocalDate
 import java.time.LocalDateTime
-import java.time.Duration
 import java.util.Locale
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
@@ -40,6 +39,8 @@ import top.foxball.cartask.repository.ParkingPlateRepository
 import top.foxball.cartask.repository.ParkingSpotRepository
 import top.foxball.cartask.repository.PersonAccessRecordRepository
 import top.foxball.cartask.repository.AuditEventRepository
+import top.foxball.cartask.repository.OperationLogRepository
+import top.foxball.cartask.entity.OperationLog
 import top.foxball.cartask.repository.ViolationRecordRepository
 import top.foxball.cartask.service.DepartmentService
 import top.foxball.cartask.service.PositionService
@@ -63,6 +64,7 @@ class ParkingApiController(
     private val personAccessRecordRepository: PersonAccessRecordRepository,
     private val fileService: FileService,
     private val auditEventRepository: AuditEventRepository,
+    private val operationLogRepository: OperationLogRepository,
     private val violationRecordRepository: ViolationRecordRepository,
     private val objectMapper: ObjectMapper,
     private val auditService: AuditService,
@@ -696,46 +698,45 @@ class ParkingApiController(
         data class LogData(val id: Long, val user: String, val module: String, val action: String, @param:JsonProperty("desc") val description: String, val ip: String?, val status: String, val time: String, val cost: String?)
         data class PageData(val items: List<LogData>, val total: Int)
         val visibleAfter = logVisibilityService.visibleAfter(LogVisibilityService.Type.OPERATION)
-        val logs = auditEventRepository.findAll().filter {
-            it.category.name != "AUTHENTICATION" && (keyword.isNullOrBlank() || it.actorUsername.contains(keyword, true) || it.action.contains(keyword, true) || it.targetType.contains(keyword, true)) &&
-                (module.isNullOrBlank() || it.category.name.equals(module, true) || it.targetType.equals(module, true) || when (it.category) {
-                    top.foxball.cartask.entity.AuditEvent.Category.ACCOUNT -> "用户管理"
-                    top.foxball.cartask.entity.AuditEvent.Category.DEVICE -> "设备管理"
-                    top.foxball.cartask.entity.AuditEvent.Category.ACCESS_CONTROL -> "门禁管理"
-                    top.foxball.cartask.entity.AuditEvent.Category.ACCESS_RECORD -> "记录管理"
-                    top.foxball.cartask.entity.AuditEvent.Category.FILE -> "文件管理"
-                    top.foxball.cartask.entity.AuditEvent.Category.CONFIGURATION -> "配置管理"
-                    else -> it.category.name
-                }.equals(module, true)) &&
-                (status.isNullOrBlank() || (status == "成功" && it.result.name == "SUCCESS") || (status == "失败" && it.result.name != "SUCCESS")) &&
+        val logs = operationLogRepository.findAll().filter {
+            val moduleName = it.path.trim('/').split('/').drop(1).firstOrNull()?.let { segment ->
+                when (segment) {
+                    "users", "depts", "roles", "permissions" -> "用户管理"
+                    "files" -> "文件管理"
+                    "access-controls", "gate-persons" -> "门禁管理"
+                    "access-records", "records" -> "记录管理"
+                    "devices", "synchronizations" -> "设备管理"
+                    else -> segment
+                }
+            } ?: "系统"
+            !it.path.startsWith("/api/auth/") &&
+                (keyword.isNullOrBlank() || it.actorUsername.contains(keyword, true) || it.path.contains(keyword, true) || it.method.contains(keyword, true)) &&
+                (module.isNullOrBlank() || moduleName.equals(module, true)) &&
+                (status.isNullOrBlank() || (status == "成功" && it.result == OperationLog.Result.SUCCESS) || (status == "失败" && it.result != OperationLog.Result.SUCCESS)) &&
                 (visibleAfter == null || it.occurredAt.isAfter(visibleAfter)) &&
                 (startDate == null || !it.occurredAt.toLocalDate().isBefore(startDate)) && (endDate == null || !it.occurredAt.toLocalDate().isAfter(endDate))
         }.sortedByDescending { it.occurredAt }
         val from = ((page - 1).coerceAtLeast(0) * pageSize.coerceAtLeast(1)).coerceAtMost(logs.size)
         val to = (from + pageSize.coerceAtLeast(1)).coerceAtMost(logs.size)
         val items = logs.subList(from, to).map {
-            val moduleName = when (it.category) {
-                top.foxball.cartask.entity.AuditEvent.Category.ACCOUNT -> "用户管理"
-                top.foxball.cartask.entity.AuditEvent.Category.DEVICE -> "设备管理"
-                top.foxball.cartask.entity.AuditEvent.Category.ACCESS_CONTROL -> "门禁管理"
-                top.foxball.cartask.entity.AuditEvent.Category.ACCESS_RECORD -> "记录管理"
-                top.foxball.cartask.entity.AuditEvent.Category.FILE -> "文件管理"
-                top.foxball.cartask.entity.AuditEvent.Category.CONFIGURATION -> "配置管理"
-                else -> it.category.name
+            val moduleName = it.path.trim('/').split('/').drop(1).firstOrNull()?.let { segment ->
+                when (segment) {
+                    "users", "depts", "roles", "permissions" -> "用户管理"
+                    "files" -> "文件管理"
+                    "access-controls", "gate-persons" -> "门禁管理"
+                    "access-records", "records" -> "记录管理"
+                    "devices", "synchronizations" -> "设备管理"
+                    else -> segment
+                }
+            } ?: "系统"
+            val actionName = when (it.method.uppercase()) {
+                "POST" -> "新增"
+                "PUT", "PATCH" -> "修改"
+                "DELETE" -> "删除"
+                else -> "查询"
             }
-            val actionName = when {
-                it.action.contains("CREATED", true) -> "新增"
-                it.action.contains("UPDATED", true) || it.action.contains("CORRECTED", true) -> "修改"
-                it.action.contains("DELETED", true) -> "删除"
-                it.action.contains("READ", true) || it.action.contains("QUERY", true) -> "查询"
-                else -> it.action
-            }
-            val targetSummary = runCatching { objectMapper.readTree(it.targetSummary ?: "{}") }.getOrNull()
-            val targetName = listOf("username", "name", "code", "car_number")
-                .firstNotNullOfOrNull { key -> targetSummary?.get(key)?.asString()?.takeIf(String::isNotBlank) }
-            val description = it.reason ?: targetName?.let { name -> "${actionName}【$name】" } ?: "${actionName}${it.targetType}"
-            val costMillis = Duration.between(it.occurredAt, it.recordedAt).toMillis().coerceAtLeast(0)
-            LogData(requireNotNull(it.id), it.actorUsername, moduleName, actionName, description, it.sourceIp, if (it.result.name == "SUCCESS") "成功" else "失败", it.occurredAt.toString(), "${costMillis}ms")
+            val description = "${it.method.uppercase()} ${it.path}"
+            LogData(requireNotNull(it.id), it.actorUsername, moduleName, actionName, description, it.sourceIp, if (it.result == OperationLog.Result.SUCCESS) "成功" else "失败", it.occurredAt.toString(), "${it.durationMs}ms")
         }
         return responseBuilder.ok().data(PageData(items, logs.size)).build()
     }

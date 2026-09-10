@@ -7,6 +7,13 @@ import org.slf4j.LoggerFactory
 import org.slf4j.MDC
 import org.springframework.stereotype.Component
 import org.springframework.web.filter.OncePerRequestFilter
+import org.springframework.security.core.context.SecurityContextHolder
+import top.foxball.cartask.authentication.CurrentUserPrincipal
+import top.foxball.cartask.entity.AuditEvent
+import top.foxball.cartask.logging.OperationLogService
+import top.foxball.cartask.logging.OperationLogCommand
+import top.foxball.cartask.entity.OperationLog
+import java.time.LocalDateTime
 import java.util.UUID
 
 data class AuditRequestInfo(
@@ -18,7 +25,9 @@ data class AuditRequestInfo(
 
 /** 为请求生成可回传的关联 ID；任务线程没有 HTTP 上下文时由审计服务使用 SYSTEM 主体。 */
 @Component
-class AuditRequestContextFilter : OncePerRequestFilter() {
+class AuditRequestContextFilter(
+    private val operationLogService: OperationLogService,
+) : OncePerRequestFilter() {
     private val log = LoggerFactory.getLogger(AuditRequestContextFilter::class.java)
 
     override fun doFilterInternal(
@@ -36,6 +45,7 @@ class AuditRequestContextFilter : OncePerRequestFilter() {
         AuditRequestContext.set(info)
         val previousMdc = MDC.getCopyOfContextMap()
         val startedAt = System.nanoTime()
+        var failure: Throwable? = null
         MDC.clear()
         MDC.put("request_id", requestId)
         MDC.put("source_ip", info.sourceIp ?: "")
@@ -44,8 +54,36 @@ class AuditRequestContextFilter : OncePerRequestFilter() {
         response.setHeader("X-Request-Id", requestId)
         try {
             filterChain.doFilter(request, response)
+        } catch (error: Throwable) {
+            failure = error
+            throw error
         } finally {
-            MDC.put("duration_ms", ((System.nanoTime() - startedAt) / 1_000_000).toString())
+            val durationMs = (System.nanoTime() - startedAt) / 1_000_000
+            val principal = SecurityContextHolder.getContext().authentication?.principal as? CurrentUserPrincipal
+            val result = when {
+                failure != null || response.status >= 500 -> OperationLog.Result.FAILED
+                response.status == 401 || response.status == 403 -> OperationLog.Result.DENIED
+                else -> OperationLog.Result.SUCCESS
+            }
+            operationLogService.recordAsync(
+                OperationLogCommand(
+                    requestId = requestId,
+                    actorType = if (principal == null) AuditEvent.ActorType.ANONYMOUS else AuditEvent.ActorType.USER,
+                    actorUserId = principal?.userId,
+                    actorUsername = principal?.username ?: "anonymous",
+                    actorRole = principal?.role,
+                    method = request.method,
+                    path = request.requestURI,
+                    statusCode = response.status,
+                    result = result,
+                    occurredAt = LocalDateTime.now(),
+                    durationMs = durationMs,
+                    sourceIp = info.sourceIp,
+                    userAgent = info.userAgent,
+                    error = failure?.javaClass?.simpleName,
+                ),
+            )
+            MDC.put("duration_ms", durationMs.toString())
             MDC.put("http_method", request.method)
             MDC.put("http_path", request.requestURI)
             MDC.put("http_status", response.status.toString())
