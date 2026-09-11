@@ -167,7 +167,7 @@ class AccessRecordServiceImpl(
         time = record.inAndOutTime.format(DISPLAY_TIME),
         direction = if (record.inAndOut == AccessRecord.InAndOut.IN) "进" else "出",
         gate = record.gateName,
-        vehicleType = record.vehicleTypeName ?: record.carType?.carName,
+        vehicleType = AccessRecord.displayVehicleTypeName(record.vehicleTypeName) ?: record.carType?.carName,
         passType = record.passType ?: when (record.releaseChannel) {
             AccessRecord.ReleaseChannel.AUTOMATIC -> "自动放行"
             AccessRecord.ReleaseChannel.MANUAL -> "人工放行"

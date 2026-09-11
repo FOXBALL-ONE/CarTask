@@ -6,22 +6,21 @@ import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.ObjectMapper
+import top.foxball.cartask.audit.AuditRequestContext
 import top.foxball.cartask.entity.AccessRecord
+import top.foxball.cartask.entity.SyncCheckpoint
+import top.foxball.cartask.handler.VehicleAccessRecordSyncInProgressException
 import top.foxball.cartask.keytop.KeytopProperties
-import top.foxball.cartask.keytop.KeytopResponse
 import top.foxball.cartask.keytop.KeytopService
 import top.foxball.cartask.repository.AccessRecordRepository
 import top.foxball.cartask.repository.SyncCheckpointRepository
-import top.foxball.cartask.entity.SyncCheckpoint
-import top.foxball.cartask.audit.AuditRequestContext
 import top.foxball.cartask.service.FileService
-import top.foxball.cartask.handler.VehicleAccessRecordSyncInProgressException
-import java.time.LocalDateTime
 import java.math.BigDecimal
+import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
+import java.util.*
 import java.util.concurrent.locks.ReentrantLock
-import java.util.UUID
 import kotlin.math.ceil
 
 data class CarCapInfoSyncResult(
@@ -63,11 +62,11 @@ class SynCarCapInfoTask(
             }
         }
     }
-
+    
     /** 手动执行一次基于上次成功检查点的车辆进出记录增量同步。 */
     @Transactional(noRollbackFor = [RuntimeException::class])
     fun synchronize(): CarCapInfoSyncResult = synchronizeInternal()
-
+    
     /** 只读取待同步总数和时间范围，供手动同步确认前展示。 */
     @Transactional(readOnly = true)
     fun previewSynchronization(): CarCapInfoSyncPreview {
@@ -103,7 +102,7 @@ class SynCarCapInfoTask(
             executionLock.unlock()
         }
     }
-
+    
     private fun synchronizeInternal(): CarCapInfoSyncResult {
         if (!executionLock.tryLock()) {
             throw VehicleAccessRecordSyncInProgressException()
@@ -131,7 +130,7 @@ class SynCarCapInfoTask(
             require(firstPage.code == 0) {
                 "Keytop 车辆进出接口返回失败：${firstPage.code ?: "未知"} ${firstPage.message.orEmpty()}".trim()
             }
-
+            
             val firstData = parseData(firstPage.data)
             val totalCount = firstData.totalCount
             val pages = if (totalCount != null) {
@@ -189,7 +188,7 @@ class SynCarCapInfoTask(
             executionLock.unlock()
         }
     }
-
+    
     private fun processRecords(
         records: List<JsonNode>,
         seen: MutableMap<String, AccessRecord>,
@@ -240,7 +239,7 @@ class SynCarCapInfoTask(
         }
         return ProcessResult(processed, localPhotoCount, failedPhotoCount)
     }
-
+    
     private fun parseRecord(node: JsonNode): AccessRecord? {
         val time = firstText(node, "capTime", "cap_time", "inAndOutTime", "in_and_out_time", "captureTime", "time")
             ?.let(::parseTime)
@@ -262,33 +261,90 @@ class SynCarCapInfoTask(
             inAndOutTime = time
             sourceRecordId = buildSourceRecordId(trafficId, capFlag, time, carSerial, nodeId, carNumber, direction)
             admissionTicketNumber = firstText(node, "cardNo", "card_no") ?: carSerial
-            departmentName = firstText(node, "dept", "department", "departmentName", "department_name", "deptName", "dept_name", "orgName", "org_name")
-            vehicleTypeName = firstText(node, "vehicleType", "vehicle_type", "carTypeName", "car_type_name", "carType", "car_type")
+            departmentName = firstText(
+                node,
+                "dept",
+                "department",
+                "departmentName",
+                "department_name",
+                "deptName",
+                "dept_name",
+                "orgName",
+                "org_name"
+            )
+            vehicleTypeName = parseVehicleTypeName(node)
             passType = parsePassType(node)
-            releaseInstructions = firstText(node, "passDesc", "pass_desc", "passRemark", "pass_remark", "remark", "releaseInstructions")
+            releaseInstructions =
+                firstText(node, "passDesc", "pass_desc", "passRemark", "pass_remark", "remark", "releaseInstructions")
             releaseChannel = parseReleaseChannel(node)
             operatorName = firstText(node, "operName", "oper_name", "operator", "operatorName", "operator_name")
             carOwnerName = firstText(node, "carOwnerName", "car_owner_name", "ownerName", "owner_name", "owner")
-            gateName = firstText(node, "gate", "gateName", "gate_name", "laneName", "lane_name", "channelName", "channel_name", "placeName", "place_name")
-            sourcePhotoUrl = firstText(node, "imgInfo", "img_info", "photo", "photoUrl", "photo_url", "imageUrl", "image_url", "pictureUrl", "picture_url", "picUrl", "pic_url", "captureUrl", "capture_url")
-            feeAmount = firstText(node, "amount", "fee", "feeAmount", "fee_amount", "chargeAmount", "charge_amount")?.toBigDecimalOrNull() ?: BigDecimal.ZERO
+            gateName = firstText(
+                node,
+                "gate",
+                "gateName",
+                "gate_name",
+                "capPlace",
+                "cap_place",
+                "laneName",
+                "lane_name",
+                "channelName",
+                "channel_name",
+                "placeName",
+                "place_name"
+            )
+            sourcePhotoUrl = firstText(
+                node,
+                "imgInfo",
+                "img_info",
+                "photo",
+                "photoUrl",
+                "photo_url",
+                "imageUrl",
+                "image_url",
+                "pictureUrl",
+                "picture_url",
+                "picUrl",
+                "pic_url",
+                "captureUrl",
+                "capture_url"
+            )
+            feeAmount = firstText(
+                node,
+                "amount",
+                "fee",
+                "feeAmount",
+                "fee_amount",
+                "chargeAmount",
+                "charge_amount"
+            )?.toBigDecimalOrNull() ?: BigDecimal.ZERO
             recordStatus = firstText(node, "status", "recordStatus", "record_status") ?: "正常"
         }
     }
-
+    
     private fun parseDirection(node: JsonNode): AccessRecord.InAndOut? {
         val raw = firstText(node, "inAndOut", "in_and_out", "direction", "capFlag", "cap_flag", "type")
             ?.trim()?.lowercase() ?: return null
         return when {
-            raw in setOf("out", "exit", "leave", "1", "2", "出", "出场") || raw.contains("出场") || raw.contains("出口") ->
+            raw in setOf(
+                "out",
+                "exit",
+                "leave",
+                "1",
+                "2",
+                "出",
+                "出场"
+            ) || raw.contains("出场") || raw.contains("出口") ->
                 AccessRecord.InAndOut.OUT
+            
             raw in setOf("in", "entry", "enter", "0", "抓拍", "capture", "3", "入", "入场") ||
-                raw.contains("入场") || raw.contains("入口") || raw.contains("抓拍") ->
+                    raw.contains("入场") || raw.contains("入口") || raw.contains("抓拍") ->
                 AccessRecord.InAndOut.IN
+            
             else -> null
         }
     }
-
+    
     private fun parsePassType(node: JsonNode): String? {
         val raw = firstText(node, "passType", "pass_type", "releaseType", "release_type")
             ?.trim() ?: return null
@@ -300,6 +356,11 @@ class SynCarCapInfoTask(
         }
     }
 
+    /** 解析车辆类型；科拓返回数字编码，转换后存入快照，详见 [AccessRecord.displayVehicleTypeName]。 */
+    private fun parseVehicleTypeName(node: JsonNode): String? = AccessRecord.displayVehicleTypeName(
+        firstText(node, "vehicleType", "vehicle_type", "carTypeName", "car_type_name", "carType", "car_type")?.trim(),
+    )
+    
     /**
      * Keytop 的 trafficId 标识一次车辆通行，不标识单次抓拍；同一次通行的进场、出场会复用它。
      * 因此必须合并方向、抓拍时间、设备流水和节点，才能作为本地幂等键。
@@ -320,7 +381,7 @@ class SynCarCapInfoTask(
         carSerial?.trim().orEmpty(),
         nodeId?.trim().orEmpty(),
     ).joinToString("|")
-
+    
     private fun retryFailedPhotos() {
         accessRecordRepository.findTop100ByPhotoSyncStatusOrderByIdAsc(AccessRecord.PhotoSyncStatus.FAILED)
             .forEach { record ->
@@ -328,7 +389,7 @@ class SynCarCapInfoTask(
                 accessRecordRepository.save(record)
             }
     }
-
+    
     private fun importPhoto(sourceUrl: String?): PhotoImportResult {
         val url = sourceUrl?.trim()
         if (url.isNullOrBlank()) {
@@ -337,18 +398,29 @@ class SynCarCapInfoTask(
         if (!url.startsWith("http://") && !url.startsWith("https://")) {
             return PhotoImportResult(url, AccessRecord.PhotoSyncStatus.NOT_AVAILABLE, null)
         }
-        return runCatching { PhotoImportResult(fileService.importRemote(url).downloadUrl, AccessRecord.PhotoSyncStatus.LOCAL, null) }
+        return runCatching {
+            PhotoImportResult(
+                fileService.importRemote(url).downloadUrl,
+                AccessRecord.PhotoSyncStatus.LOCAL,
+                null
+            )
+        }
             .getOrElse { exception ->
                 logger.warn("车辆进出抓拍图片下载失败，保留源地址：{}", url, exception)
-                PhotoImportResult(url, AccessRecord.PhotoSyncStatus.FAILED, exception.message?.take(2048) ?: exception.javaClass.simpleName)
+                PhotoImportResult(
+                    url,
+                    AccessRecord.PhotoSyncStatus.FAILED,
+                    exception.message?.take(2048) ?: exception.javaClass.simpleName
+                )
             }
     }
-
+    
     private fun applyPhoto(record: AccessRecord, photo: PhotoImportResult) {
         record.photoUrl = photo.localOrFallbackUrl
         record.photoSyncStatus = photo.status
         record.photoSyncError = photo.error
     }
+    
     private fun parseReleaseChannel(node: JsonNode): AccessRecord.ReleaseChannel? {
         val raw = firstText(node, "passType", "pass_type", "releaseChannel", "release_channel")
             ?.trim()?.lowercase() ?: return null
@@ -359,7 +431,7 @@ class SynCarCapInfoTask(
             else -> AccessRecord.ReleaseChannel.UNKNOWN
         }
     }
-
+    
     private fun parseTime(raw: String): LocalDateTime? {
         val value = raw.trim()
         return try {
@@ -372,12 +444,12 @@ class SynCarCapInfoTask(
             }
         }
     }
-
+    
     private fun firstText(node: JsonNode, vararg names: String): String? = names.asSequence()
         .mapNotNull { node.get(it) }
         .firstOrNull { !it.isNull && !it.isMissingNode && it.asString().isNotBlank() }
         ?.asString()
-
+    
     private fun parseData(data: JsonNode?): ParsedData {
         if (data == null || data.isNull) return ParsedData(emptyList(), 0)
         var container = if (data.isTextual) objectMapper.readTree(data.asString()) else data
@@ -389,32 +461,33 @@ class SynCarCapInfoTask(
         }
         if (container.isArray) return ParsedData(container.toList(), null)
         val rawRecords = container.get("detailList") ?: container.get("detail_list")
-            ?: container.get("records") ?: container.get("list")
-        val recordsNode = if (rawRecords?.isTextual == true) objectMapper.readTree(rawRecords.asString()) else rawRecords
+        ?: container.get("records") ?: container.get("list")
+        val recordsNode =
+            if (rawRecords?.isTextual == true) objectMapper.readTree(rawRecords.asString()) else rawRecords
         val records = if (recordsNode?.isArray == true) recordsNode.toList() else emptyList()
         val totalCount = firstText(container, "totalCount", "total_count", "total", "count")?.toIntOrNull()
         return ParsedData(records, totalCount)
     }
-
+    
     private data class ParsedData(val records: List<JsonNode>, val totalCount: Int?)
-
+    
     private data class ProcessResult(
         val processedCount: Int,
         val localPhotoCount: Int,
         val failedPhotoCount: Int,
     )
-
+    
     private data class PhotoImportResult(
         val localOrFallbackUrl: String?,
         val status: AccessRecord.PhotoSyncStatus,
         val error: String?,
     )
-
+    
     private companion object {
         val logger = LoggerFactory.getLogger(SynCarCapInfoTask::class.java)
         val executionLock = ReentrantLock()
         val PLATFORM_TIME: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
         const val SYNC_KEY = "keytop.car_cap_info"
-        const val INITIAL_SYNC_DAYS = 30L
+        const val INITIAL_SYNC_DAYS = 1L
     }
 }

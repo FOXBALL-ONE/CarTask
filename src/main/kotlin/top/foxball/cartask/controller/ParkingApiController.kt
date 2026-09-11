@@ -1,12 +1,16 @@
 package top.foxball.cartask.controller
 
 import com.fasterxml.jackson.annotation.JsonProperty
+import jakarta.persistence.criteria.Predicate
 import jakarta.transaction.Transactional
 import java.math.BigDecimal
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.util.Locale
 import org.springframework.http.ResponseEntity
+import org.springframework.data.domain.PageRequest
+import org.springframework.data.domain.Sort
+import org.springframework.data.jpa.domain.Specification
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
@@ -551,6 +555,7 @@ class ParkingApiController(
         return responseBuilder.ok().data(PageData(items, filtered.size)).build()
     }
 
+    @Transactional
     @GetMapping("/vehicle-records")
     @PreAuthorize("hasAuthority('vehicle-record:read')")
     fun vehicleRecords(
@@ -573,19 +578,21 @@ class ParkingApiController(
             val time: String,
             val direction: String,
             val gate: String?,
+            val vehicleType: String?,
             val amount: BigDecimal,
             val method: String?,
             val status: String,
             val photo: String?,
         )
         data class PageData(val items: List<VehicleRecord>, val total: Int)
-        val all = accessRecordRepository.findAll().filter {
-            val recordDirection = if (it.inAndOut == AccessRecord.InAndOut.IN) "进" else "出"
-            (keyword.isNullOrBlank() || it.carNumber.orEmpty().contains(keyword, true) || it.carOwnerName.orEmpty().contains(keyword, true)) &&
-                (direction.isNullOrBlank() || recordDirection == direction) && (gate.isNullOrBlank() || it.gateName == gate) &&
-                (startDate == null || it.inAndOutTime.toLocalDate() >= startDate) &&
-                (endDate == null || it.inAndOutTime.toLocalDate() <= endDate)
-        }.map {
+        val directionFilter = when (direction) {
+            "进" -> AccessRecord.InAndOut.IN
+            "出" -> AccessRecord.InAndOut.OUT
+            else -> null
+        }
+        val spec = vehicleRecordSpec(keyword?.trim()?.ifBlank { null }, directionFilter, gate?.ifBlank { null }, passType?.ifBlank { null }, startDate, endDate)
+        val records = accessRecordRepository.findAll(spec, PageRequest.of(page - 1, pageSize, Sort.by(Sort.Direction.DESC, "inAndOutTime", "id")))
+        val items = records.content.map {
             VehicleRecord(
                 requireNotNull(it.id),
                 it.carNumber,
@@ -594,6 +601,7 @@ class ParkingApiController(
                 it.inAndOutTime.toString(),
                 if (it.inAndOut == AccessRecord.InAndOut.IN) "进" else "出",
                 it.gateName,
+                AccessRecord.displayVehicleTypeName(it.vehicleTypeName) ?: it.carType?.carName,
                 it.feeAmount,
                 it.passType ?: when (it.releaseChannel) {
                     AccessRecord.ReleaseChannel.AUTOMATIC -> "车牌识别"
@@ -603,10 +611,8 @@ class ParkingApiController(
                 it.recordStatus,
                 it.photoUrl,
             )
-        }.filter { passType.isNullOrBlank() || it.method == passType }.sortedByDescending { it.time }
-        val from = ((page - 1).coerceAtLeast(0) * pageSize.coerceAtLeast(1)).coerceAtMost(all.size)
-        val to = (from + pageSize.coerceAtLeast(1)).coerceAtMost(all.size)
-        return responseBuilder.ok().data(PageData(all.subList(from, to), all.size)).build()
+        }
+        return responseBuilder.ok().data(PageData(items, records.totalElements.toInt())).build()
     }
 
     @GetMapping("/login-logs")
@@ -795,6 +801,33 @@ class ParkingApiController(
             owner.plateCount = plates.count { it.ownerId == owner.id }
         }
         if (owners.isNotEmpty()) ownerRepository.saveAll(owners)
+    }
+
+    /** 车辆进出记录列表的数据库筛选条件；未传入的条件不参与查询。 */
+    private fun vehicleRecordSpec(
+        keyword: String?,
+        inAndOut: AccessRecord.InAndOut?,
+        gate: String?,
+        passType: String?,
+        startDate: LocalDate?,
+        endDate: LocalDate?,
+    ): Specification<AccessRecord> = Specification { root, _, cb ->
+        val predicates = mutableListOf<Predicate>()
+        keyword?.let {
+            val pattern = "%${it.lowercase()}%"
+            predicates.add(
+                cb.or(
+                    cb.like(cb.lower(root.get("carNumber")), pattern),
+                    cb.like(cb.lower(root.get("carOwnerName")), pattern),
+                ),
+            )
+        }
+        inAndOut?.let { predicates.add(cb.equal(root.get<AccessRecord.InAndOut>("inAndOut"), it)) }
+        gate?.let { predicates.add(cb.equal(root.get<String>("gateName"), it)) }
+        passType?.let { predicates.add(cb.equal(root.get<String>("passType"), it)) }
+        startDate?.let { predicates.add(cb.greaterThanOrEqualTo(root.get("inAndOutTime"), it.atStartOfDay())) }
+        endDate?.let { predicates.add(cb.lessThan(root.get("inAndOutTime"), it.plusDays(1).atStartOfDay())) }
+        cb.and(*predicates.toTypedArray())
     }
 
     private fun requireImageUpload(file: MultipartFile) {

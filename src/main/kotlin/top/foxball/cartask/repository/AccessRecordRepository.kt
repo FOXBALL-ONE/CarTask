@@ -1,12 +1,13 @@
 package top.foxball.cartask.repository
 
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
 import top.foxball.cartask.entity.AccessRecord
 import java.time.LocalDateTime
 
-interface AccessRecordRepository : JpaRepository<AccessRecord, Long> {
+interface AccessRecordRepository : JpaRepository<AccessRecord, Long>, JpaSpecificationExecutor<AccessRecord> {
     fun findTopByOrderByInAndOutTimeDescIdDesc(): AccessRecord?
 
     fun findBySourceRecordId(sourceRecordId: String): AccessRecord?
@@ -44,4 +45,5 @@ interface AccessRecordRepository : JpaRepository<AccessRecord, Long> {
         @Param("inAndOut") inAndOut: AccessRecord.InAndOut,
         @Param("inAndOutTime") inAndOutTime: LocalDateTime,
     ): AccessRecord?
+
 }

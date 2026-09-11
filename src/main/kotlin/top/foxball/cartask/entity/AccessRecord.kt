@@ -138,4 +138,16 @@ class AccessRecord {
         FAILED,
         NOT_AVAILABLE,
     }
+
+    companion object {
+        /** 科拓车辆类型数字编码转展示名称：0-临时车、1-月卡车、2-储值车、3-免费车，其余按原文保留。 */
+        fun displayVehicleTypeName(raw: String?): String? = when (raw) {
+            null -> null
+            "0" -> "临时车"
+            "1" -> "月卡车"
+            "2" -> "储值车"
+            "3" -> "免费车"
+            else -> raw
+        }
+    }
 }
