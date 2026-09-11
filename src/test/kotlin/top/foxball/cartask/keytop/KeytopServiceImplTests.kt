@@ -125,4 +125,35 @@ class KeytopServiceImplTests {
             server.stop(0)
         }
     }
+
+    @Test
+    fun `requests parking areas with documented path and service code`() {
+        val requestBody = AtomicReference<String>()
+        val server = HttpServer.create(InetSocketAddress(0), 0)
+        server.createContext("/unite-api/api/wec/GetParkingPlaceArea") { exchange ->
+            requestBody.set(exchange.requestBody.bufferedReader().use { it.readText() })
+            val response =
+                """{"resCode":"0","resMsg":"success","data":"{\"areaInfo\":[{\"areaCode\":1,\"areaName\":\"地面区\"}]}"}"""
+                    .toByteArray()
+            exchange.responseHeaders.add("Content-Type", "application/json")
+            exchange.sendResponseHeaders(200, response.size.toLong())
+            exchange.responseBody.use { it.write(response) }
+        }
+        server.start()
+
+        try {
+            val objectMapper = ObjectMapper()
+            val service = service("http://127.0.0.1:${server.address.port}/unite-api")
+
+            val response = service.getParkingPlaceArea()
+
+            assertEquals(0, response.code)
+            assertEquals("success", response.message)
+            val json = objectMapper.readTree(assertNotNull(requestBody.get()))
+            assertEquals("getParkingPlaceArea", json.get("serviceCode").asString())
+            assertEquals(6, json.size())
+        } finally {
+            server.stop(0)
+        }
+    }
 }

@@ -26,7 +26,11 @@ class JsonLogLayout : LayoutBase<ILoggingEvent>() {
         fields["service"] = service
         fields["instance"] = instance
         fields["logger"] = event.loggerName
-        fields["message"] = LogSanitizer.sanitize(event.formattedMessage).truncate(maxMessageLength)
+        fields["message"] = if (event.markerList?.any { it.name == "KEYTOP_RAW_PAYLOAD" } == true) {
+            event.formattedMessage
+        } else {
+            LogSanitizer.sanitize(event.formattedMessage).truncate(maxMessageLength)
+        }
         val mdc = event.mdcPropertyMap
         listOf("request_id", "trace_id", "actor_type", "actor_id", "actor_role", "source_ip", "source_system", "operation", "target_type", "target_id", "duration_ms", "error_code", "http_method", "http_path", "http_status").forEach { key ->
             mdc[key]?.takeIf(String::isNotBlank)?.let { fields[key] = if (key == "duration_ms" || key == "http_status") it.toLongOrNull() ?: it else it }

@@ -1,7 +1,8 @@
 package top.foxball.cartask.keytop
 
+import org.slf4j.LoggerFactory
+import org.slf4j.MarkerFactory
 import org.springframework.http.MediaType
-import org.springframework.http.HttpStatusCode
 import org.springframework.http.client.SimpleClientHttpRequestFactory
 import org.springframework.stereotype.Service
 import org.springframework.web.client.RestClient
@@ -26,6 +27,8 @@ class KeytopServiceImpl(
         .baseUrl(properties.baseUrl.trimEnd('/'))
         .requestFactory(requestFactory)
         .build()
+
+    private val logger = LoggerFactory.getLogger(KeytopServiceImpl::class.java)
 
     override fun getCarCardList(pageIndex: Int, pageSize: Int): KeytopResponse {
         requirePage(pageIndex, pageSize)
@@ -321,17 +324,43 @@ class KeytopServiceImpl(
         }
         request["key"] = KeytopSignature.paramsSign(request, properties.appSecret)
 
+        val requestBody = objectMapper.writeValueAsString(request)
+        val requestUrl = "${properties.baseUrl.trimEnd('/')}$path"
+        val startedAt = System.nanoTime()
+        logger.info(
+            RAW_PAYLOAD_MARKER,
+            "Keytop HTTP 请求原文: method=POST, url={}, service_code={}, req_id={}, version={}, body={}",
+            requestUrl,
+            serviceCode,
+            request["reqId"],
+            properties.version,
+            requestBody,
+        )
+
         val body = try {
             restClient.post()
                 .uri(path)
                 .contentType(MediaType.APPLICATION_JSON)
                 .header("version", properties.version)
-                .body(request)
-                .retrieve()
-                .onStatus(HttpStatusCode::isError) { _, response ->
-                    throw IllegalStateException("Keytop HTTP request failed with status ${response.statusCode}")
+                .body(requestBody)
+                .exchange { _, response ->
+                    val responseBody = response.bodyTo(String::class.java)
+                    val durationMs = (System.nanoTime() - startedAt) / 1_000_000
+                    logger.info(
+                        RAW_PAYLOAD_MARKER,
+                        "Keytop HTTP 响应原文: url={}, service_code={}, req_id={}, status={}, duration_ms={}, body={}",
+                        requestUrl,
+                        serviceCode,
+                        request["reqId"],
+                        response.statusCode.value(),
+                        durationMs,
+                        responseBody,
+                    )
+                    if (response.statusCode.isError) {
+                        throw IllegalStateException("Keytop HTTP request failed with status ${response.statusCode}")
+                    }
+                    responseBody
                 }
-                .body(String::class.java)
         } catch (exception: IllegalStateException) {
             throw exception
         } catch (exception: RuntimeException) {
@@ -357,5 +386,6 @@ class KeytopServiceImpl(
 
     private companion object {
         val PROTOCOL_TIME: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+        val RAW_PAYLOAD_MARKER = MarkerFactory.getMarker("KEYTOP_RAW_PAYLOAD")
     }
 }
