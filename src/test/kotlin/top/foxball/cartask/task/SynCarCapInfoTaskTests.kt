@@ -1,8 +1,10 @@
 package top.foxball.cartask.task
 
 import org.mockito.kotlin.any
+import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
+import org.mockito.kotlin.isNull
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.times
@@ -15,20 +17,28 @@ import top.foxball.cartask.keytop.KeytopProperties
 import top.foxball.cartask.keytop.KeytopResponse
 import top.foxball.cartask.keytop.KeytopService
 import top.foxball.cartask.repository.AccessRecordRepository
+import top.foxball.cartask.repository.SyncCheckpointRepository
+import top.foxball.cartask.entity.SyncCheckpoint
+import top.foxball.cartask.service.FileService
+import java.time.Duration
 import java.time.LocalDateTime
+import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
 
 class SynCarCapInfoTaskTests {
     private val keytopService = mock<KeytopService>()
     private val repository = mock<AccessRecordRepository>()
+    private val fileService = mock<FileService>()
+    private val syncCheckpointRepository = mock<SyncCheckpointRepository>()
     private val objectMapper = ObjectMapper()
     private val task = SynCarCapInfoTask(
         keytopService,
         repository,
         objectMapper,
         KeytopProperties(carCapInfoPageSize = 2),
+        fileService,
+        syncCheckpointRepository,
     )
 
     @Test
@@ -42,28 +52,50 @@ class SynCarCapInfoTaskTests {
     }
 
     @Test
-    fun `首次同步分页解析并写入车辆进出记录`() {
+    fun `预检首次同步时报告近三十天内待同步记录且不写入检查点`() {
+        whenever(syncCheckpointRepository.findFirstBySyncKey("keytop.car_cap_info")).thenReturn(null)
+        whenever(keytopService.getCarInoutInfo(eq(1), eq(1), isNull(), anyOrNull(), anyOrNull())).thenReturn(
+            KeytopResponse(0, "success", objectMapper.readTree("""{"totalCount":"42","detailList":[]}""")),
+        )
+
+        val result = task.previewSynchronization()
+
+        assertEquals(true, result.initialSync)
+        assertEquals(42, result.pendingCount)
+        assertEquals(Duration.ofDays(30), Duration.between(result.startTime, result.endTime))
+        assertEquals(null, result.checkpointTime)
+        verify(syncCheckpointRepository, never()).save(any())
+        verify(repository, never()).save(any())
+    }
+
+    @Test
+    fun `无同步快照时同步近三十天并写入当前时刻快照`() {
+        whenever(syncCheckpointRepository.findBySyncKey("keytop.car_cap_info")).thenReturn(null)
         whenever(repository.findTopByOrderByInAndOutTimeDescIdDesc()).thenReturn(null)
         whenever(
             keytopService.getCarInoutInfo(
-                pageIndex = 1,
-                pageSize = 2,
-                startTime = null,
+                pageIndex = eq(1),
+                pageSize = eq(2),
+                plateNo = isNull(),
+                startTime = anyOrNull(),
+                endTime = anyOrNull(),
             ),
         ).thenReturn(
             KeytopResponse(
                 0,
                 "success",
                 objectMapper.readTree(
-                    """{"totalCount":"3","detailList":[{"plateNo":"沪A12345","capFlag":1,"capTime":"2026-08-20 10:00:00","cardNo":"CARD-1","passType":1,"operName":"门岗","carOwnerName":"张三"},{"plateNo":"沪B12345","capFlag":2,"capTime":"2026-08-20T10:01:00","passRemark":"正常"}]}""",
+                    """{"totalCount":"3","detailList":[{"plateNo":"沪A12345","capFlag":0,"capTime":"2026-08-20 10:00:00","cardNo":"CARD-1","passType":1,"operName":"门岗","carOwnerName":"张三"},{"plateNo":"沪B12345","capFlag":1,"capTime":"2026-08-20T10:01:00","passRemark":"正常"}]}""",
                 ),
             ),
         )
         whenever(
             keytopService.getCarInoutInfo(
-                pageIndex = 2,
-                pageSize = 2,
-                startTime = null,
+                pageIndex = eq(2),
+                pageSize = eq(2),
+                plateNo = isNull(),
+                startTime = anyOrNull(),
+                endTime = anyOrNull(),
             ),
         ).thenReturn(
             KeytopResponse(
@@ -79,8 +111,11 @@ class SynCarCapInfoTaskTests {
 
         task.synCarCapInfoList()
 
-        verify(keytopService).getCarInoutInfo(1, 2, null, null, null)
-        verify(keytopService).getCarInoutInfo(2, 2, null, null, null)
+        val startTimeCaptor = argumentCaptor<LocalDateTime>()
+        val endTimeCaptor = argumentCaptor<LocalDateTime>()
+        verify(keytopService).getCarInoutInfo(eq(1), eq(2), isNull(), startTimeCaptor.capture(), endTimeCaptor.capture())
+        verify(keytopService).getCarInoutInfo(eq(2), eq(2), isNull(), anyOrNull(), eq(endTimeCaptor.firstValue))
+        assertEquals(Duration.ofDays(30), Duration.between(startTimeCaptor.firstValue, endTimeCaptor.firstValue))
         verify(repository, times(3)).save(captor.capture())
         val records = captor.allValues
         assertEquals(AccessRecord.InAndOut.IN, records[0].inAndOut)
@@ -90,10 +125,42 @@ class SynCarCapInfoTaskTests {
         assertEquals("门岗", records[0].operatorName)
         assertEquals(AccessRecord.ReleaseChannel.AUTOMATIC, records[0].releaseChannel)
         assertEquals(LocalDateTime.of(2026, 8, 20, 10, 1), records[1].inAndOutTime)
+        val checkpointCaptor = argumentCaptor<SyncCheckpoint>()
+        verify(syncCheckpointRepository, times(2)).save(checkpointCaptor.capture())
+        assertEquals(endTimeCaptor.firstValue, checkpointCaptor.lastValue.cursorTime)
     }
 
     @Test
-    fun `以本地最新时间增量同步并按复合键更新`() {
+    fun `同步 imgInfo 图片到本地并保存本地下载地址`() {
+        val sourceUrl = "https://image-zos.keytop.cn/591007282/capture.jpg"
+        val localUrl = "https://files.example.com/api/files/${UUID.randomUUID()}/download"
+        whenever(repository.findTopByOrderByInAndOutTimeDescIdDesc()).thenReturn(null)
+        whenever(syncCheckpointRepository.findBySyncKey("keytop.car_cap_info")).thenReturn(null)
+        whenever(keytopService.getCarInoutInfo(eq(1), eq(2), isNull(), anyOrNull(), anyOrNull())).thenReturn(
+            KeytopResponse(
+                0,
+                "success",
+                objectMapper.readTree(
+                    """{"detailList":[{"plateNo":"沪A12345","capFlag":1,"capTime":"2026-08-20 10:00:00","imgInfo":"$sourceUrl"}],"totalCount":"1"}""",
+                ),
+            ),
+        )
+        whenever(repository.findByIdentity(any(), any(), any())).thenReturn(null)
+        whenever(fileService.importRemote(sourceUrl)).thenReturn(
+            FileService.FileData(UUID.randomUUID(), "capture.jpg", "image/jpeg", 3, localUrl, LocalDateTime.now()),
+        )
+        val captor = argumentCaptor<AccessRecord>()
+
+        task.synCarCapInfoList()
+
+        verify(fileService).importRemote(sourceUrl)
+        verify(repository).save(captor.capture())
+        assertEquals(localUrl, captor.firstValue.photoUrl)
+        assertEquals(AccessRecord.PhotoSyncStatus.LOCAL, captor.firstValue.photoSyncStatus)
+    }
+
+    @Test
+    fun `缺少快照时忽略本地最新记录并按近三十天范围同步`() {
         val latest = AccessRecord().apply {
             id = 9
             carNumber = "沪A12345"
@@ -107,12 +174,9 @@ class SynCarCapInfoTaskTests {
             inAndOutTime = LocalDateTime.of(2026, 8, 20, 9, 30)
         }
         whenever(repository.findTopByOrderByInAndOutTimeDescIdDesc()).thenReturn(latest)
+        whenever(syncCheckpointRepository.findBySyncKey("keytop.car_cap_info")).thenReturn(null)
         whenever(
-            keytopService.getCarInoutInfo(
-                pageIndex = 1,
-                pageSize = 2,
-                startTime = latest.inAndOutTime.minusMinutes(5),
-            ),
+            keytopService.getCarInoutInfo(eq(1), eq(2), isNull(), anyOrNull(), anyOrNull()),
         ).thenReturn(
             KeytopResponse(
                 0,
@@ -129,7 +193,10 @@ class SynCarCapInfoTaskTests {
 
         task.synCarCapInfoList()
 
-        verify(keytopService).getCarInoutInfo(1, 2, null, latest.inAndOutTime.minusMinutes(5), null)
+        val startTimeCaptor = argumentCaptor<LocalDateTime>()
+        val endTimeCaptor = argumentCaptor<LocalDateTime>()
+        verify(keytopService).getCarInoutInfo(eq(1), eq(2), isNull(), startTimeCaptor.capture(), endTimeCaptor.capture())
+        assertEquals(Duration.ofDays(30), Duration.between(startTimeCaptor.firstValue, endTimeCaptor.firstValue))
         verify(repository).save(existing)
         assertEquals("已更新", existing.releaseInstructions)
     }
@@ -137,11 +204,212 @@ class SynCarCapInfoTaskTests {
     @Test
     fun `平台失败时不写入本地`() {
         whenever(repository.findTopByOrderByInAndOutTimeDescIdDesc()).thenReturn(null)
-        whenever(keytopService.getCarInoutInfo(pageIndex = 1, pageSize = 2, startTime = null))
+        whenever(syncCheckpointRepository.findBySyncKey("keytop.car_cap_info")).thenReturn(null)
+        whenever(keytopService.getCarInoutInfo(eq(1), eq(2), isNull(), anyOrNull(), anyOrNull()))
             .thenReturn(KeytopResponse(1, "failed", null))
 
         task.synCarCapInfoList()
 
         verify(repository, never()).save(any())
+    }
+
+    @Test
+    fun `完整批次成功后将检查点推进到查询截止时间`() {
+        val checkpoint = SyncCheckpoint().apply {
+            id = 1
+            syncKey = "keytop.car_cap_info"
+            cursorTime = LocalDateTime.of(2026, 8, 20, 9, 0)
+        }
+        whenever(syncCheckpointRepository.findBySyncKey("keytop.car_cap_info")).thenReturn(checkpoint)
+        whenever(repository.findTopByOrderByInAndOutTimeDescIdDesc()).thenReturn(null)
+        whenever(
+            keytopService.getCarInoutInfo(eq(1), eq(2), isNull(), anyOrNull(), anyOrNull()),
+        ).thenReturn(
+            KeytopResponse(
+                0,
+                "success",
+                objectMapper.readTree("""{"detailList":[{"trafficId":"T-9","plateNo":"沪A99999","capFlag":1,"capTime":"2026-08-20 10:09:00"}],"totalCount":"1"}"""),
+            ),
+        )
+        whenever(repository.findBySourceRecordId("v2|T-9|1|2026-08-20T10:09:00||")).thenReturn(null)
+        whenever(repository.findByIdentity(any(), any(), any())).thenReturn(null)
+
+        task.synCarCapInfoList()
+
+        val endTimeCaptor = argumentCaptor<LocalDateTime>()
+        verify(keytopService).getCarInoutInfo(eq(1), eq(2), isNull(), eq(LocalDateTime.of(2026, 8, 20, 9, 0)), endTimeCaptor.capture())
+        assertEquals(endTimeCaptor.firstValue, checkpoint.cursorTime)
+        assertEquals(null, checkpoint.cursorExternalId)
+        assertEquals(SyncCheckpoint.Status.SUCCESS, checkpoint.status)
+    }
+
+    @Test
+    fun `同步失败不推进已有检查点`() {
+        val cursorTime = LocalDateTime.of(2026, 8, 20, 10, 0)
+        val checkpoint = SyncCheckpoint().apply {
+            id = 1
+            syncKey = "keytop.car_cap_info"
+            this.cursorTime = cursorTime
+            cursorExternalId = "T-8"
+            status = SyncCheckpoint.Status.SUCCESS
+        }
+        whenever(syncCheckpointRepository.findBySyncKey("keytop.car_cap_info")).thenReturn(checkpoint)
+        whenever(keytopService.getCarInoutInfo(eq(1), eq(2), isNull(), eq(cursorTime), anyOrNull()))
+            .thenReturn(KeytopResponse(1, "failed", null))
+
+        task.synCarCapInfoList()
+
+        assertEquals(cursorTime, checkpoint.cursorTime)
+        assertEquals("T-8", checkpoint.cursorExternalId)
+        assertEquals(SyncCheckpoint.Status.FAILED, checkpoint.status)
+    }
+
+    @Test
+    fun `相同远端流水在同一批次只保存一次`() {
+        val checkpoint = SyncCheckpoint().apply {
+            id = 1
+            syncKey = "keytop.car_cap_info"
+            cursorTime = LocalDateTime.of(2026, 8, 20, 9, 0)
+        }
+        whenever(syncCheckpointRepository.findBySyncKey("keytop.car_cap_info")).thenReturn(checkpoint)
+        whenever(repository.findTopByOrderByInAndOutTimeDescIdDesc()).thenReturn(null)
+        whenever(keytopService.getCarInoutInfo(eq(1), eq(2), isNull(), anyOrNull(), anyOrNull())).thenReturn(
+            KeytopResponse(
+                0,
+                "success",
+                objectMapper.readTree(
+                    """{"totalCount":"2","detailList":[{"trafficId":"T-1","plateNo":"沪A12345","capFlag":0,"capTime":"2026-08-20 10:00:00"},{"trafficId":"T-1","plateNo":"沪A12345","capFlag":0,"capTime":"2026-08-20 10:00:00"}]}""",
+                ),
+            ),
+        )
+        whenever(repository.findBySourceRecordId("v2|T-1|0|2026-08-20T10:00:00||")).thenReturn(null)
+        whenever(repository.findByIdentity(any(), any(), any())).thenReturn(null)
+
+        task.synCarCapInfoList()
+
+        verify(repository, times(1)).save(any<AccessRecord>())
+        val endTimeCaptor = argumentCaptor<LocalDateTime>()
+        verify(keytopService).getCarInoutInfo(eq(1), eq(2), isNull(), anyOrNull(), endTimeCaptor.capture())
+        assertEquals(endTimeCaptor.firstValue, checkpoint.cursorTime)
+        assertEquals(null, checkpoint.cursorExternalId)
+    }
+
+    @Test
+    fun `相同 trafficId 的不同抓拍分别保存`() {
+        val checkpoint = SyncCheckpoint().apply {
+            id = 1
+            syncKey = "keytop.car_cap_info"
+            cursorTime = LocalDateTime.of(2026, 8, 20, 9, 0)
+        }
+        whenever(syncCheckpointRepository.findBySyncKey("keytop.car_cap_info")).thenReturn(checkpoint)
+        whenever(keytopService.getCarInoutInfo(eq(1), eq(2), isNull(), anyOrNull(), anyOrNull())).thenReturn(
+            KeytopResponse(
+                0,
+                "success",
+                objectMapper.readTree(
+                    """{"totalCount":"2","detailList":[{"trafficId":"T-1","plateNo":"沪A12345","capFlag":0,"capTime":"2026-08-20 10:00:00","carSerial":"100","nodeId":"1"},{"trafficId":"T-1","plateNo":"沪A12345","capFlag":1,"capTime":"2026-08-20 11:00:00","carSerial":"101","nodeId":"2"}]}""",
+                ),
+            ),
+        )
+        whenever(repository.findBySourceRecordId(any())).thenReturn(null)
+        whenever(repository.findByIdentity(any(), any(), any())).thenReturn(null)
+        val records = argumentCaptor<AccessRecord>()
+
+        task.synCarCapInfoList()
+
+        verify(repository, times(2)).save(records.capture())
+        assertEquals("v2|T-1|0|2026-08-20T10:00:00|100|1", records.firstValue.sourceRecordId)
+        assertEquals("v2|T-1|1|2026-08-20T11:00:00|101|2", records.secondValue.sourceRecordId)
+    }
+
+    @Test
+    fun `旧 trafficId 键通过本地身份匹配升级`() {
+        val time = LocalDateTime.of(2026, 8, 20, 10, 0)
+        val existing = AccessRecord().apply {
+            id = 1
+            sourceRecordId = "T-1"
+            carNumber = "沪A12345"
+            inAndOut = AccessRecord.InAndOut.IN
+            inAndOutTime = time
+        }
+        val checkpoint = SyncCheckpoint().apply {
+            id = 1
+            syncKey = "keytop.car_cap_info"
+            cursorTime = LocalDateTime.of(2026, 8, 20, 9, 0)
+        }
+        whenever(syncCheckpointRepository.findBySyncKey("keytop.car_cap_info")).thenReturn(checkpoint)
+        whenever(keytopService.getCarInoutInfo(eq(1), eq(2), isNull(), anyOrNull(), anyOrNull())).thenReturn(
+            KeytopResponse(
+                0,
+                "success",
+                objectMapper.readTree(
+                    """{"totalCount":"1","detailList":[{"trafficId":"T-1","plateNo":"沪A12345","capFlag":0,"capTime":"2026-08-20 10:00:00","carSerial":"100","nodeId":"1"}]}""",
+                ),
+            ),
+        )
+        whenever(repository.findBySourceRecordId("v2|T-1|0|2026-08-20T10:00:00|100|1")).thenReturn(null)
+        whenever(repository.findByIdentity("沪A12345", AccessRecord.InAndOut.IN, time)).thenReturn(existing)
+
+        task.synCarCapInfoList()
+
+        verify(repository).save(existing)
+        assertEquals("v2|T-1|0|2026-08-20T10:00:00|100|1", existing.sourceRecordId)
+    }
+
+    @Test
+    fun `后续分页失败时保留旧检查点游标`() {
+        val cursorTime = LocalDateTime.of(2026, 8, 20, 9, 0)
+        val checkpoint = SyncCheckpoint().apply {
+            id = 1
+            syncKey = "keytop.car_cap_info"
+            this.cursorTime = cursorTime
+            cursorExternalId = "T-0"
+        }
+        whenever(syncCheckpointRepository.findBySyncKey("keytop.car_cap_info")).thenReturn(checkpoint)
+        whenever(keytopService.getCarInoutInfo(eq(1), eq(2), isNull(), eq(cursorTime), anyOrNull())).thenReturn(
+            KeytopResponse(
+                0,
+                "success",
+                objectMapper.readTree(
+                    """{"totalCount":"3","detailList":[{"trafficId":"T-1","plateNo":"沪A12345","capFlag":0,"capTime":"2026-08-20 10:00:00"},{"trafficId":"T-2","plateNo":"沪A12346","capFlag":1,"capTime":"2026-08-20 10:01:00"}]}""",
+                ),
+            ),
+        )
+        whenever(keytopService.getCarInoutInfo(eq(2), eq(2), isNull(), eq(cursorTime), anyOrNull()))
+            .thenReturn(KeytopResponse(1, "failed", null))
+        whenever(repository.findBySourceRecordId(any())).thenReturn(null)
+        whenever(repository.findByIdentity(any(), any(), any())).thenReturn(null)
+
+        task.synCarCapInfoList()
+
+        assertEquals(cursorTime, checkpoint.cursorTime)
+        assertEquals("T-0", checkpoint.cursorExternalId)
+        assertEquals(SyncCheckpoint.Status.FAILED, checkpoint.status)
+    }
+
+    @Test
+    fun `下次同步重试失败的图片`() {
+        val failed = AccessRecord().apply {
+            id = 1
+            sourcePhotoUrl = "https://image-zos.keytop.cn/591007282/capture.jpg"
+            photoUrl = sourcePhotoUrl
+            photoSyncStatus = AccessRecord.PhotoSyncStatus.FAILED
+        }
+        val checkpoint = SyncCheckpoint().apply { id = 1; syncKey = "keytop.car_cap_info" }
+        val localUrl = "https://files.example.com/api/files/${UUID.randomUUID()}/download"
+        whenever(syncCheckpointRepository.findBySyncKey("keytop.car_cap_info")).thenReturn(checkpoint)
+        whenever(repository.findTopByOrderByInAndOutTimeDescIdDesc()).thenReturn(null)
+        whenever(repository.findTop100ByPhotoSyncStatusOrderByIdAsc(AccessRecord.PhotoSyncStatus.FAILED)).thenReturn(listOf(failed))
+        whenever(fileService.importRemote(failed.sourcePhotoUrl!!)).thenReturn(
+            FileService.FileData(UUID.randomUUID(), "capture.jpg", "image/jpeg", 3, localUrl, LocalDateTime.now()),
+        )
+        whenever(keytopService.getCarInoutInfo(eq(1), eq(2), isNull(), anyOrNull(), anyOrNull()))
+            .thenReturn(KeytopResponse(0, "success", objectMapper.readTree("""{"totalCount":"0","detailList":[]}""")))
+
+        task.synCarCapInfoList()
+
+        assertEquals(localUrl, failed.photoUrl)
+        assertEquals(AccessRecord.PhotoSyncStatus.LOCAL, failed.photoSyncStatus)
+        assertEquals(null, failed.photoSyncError)
     }
 }

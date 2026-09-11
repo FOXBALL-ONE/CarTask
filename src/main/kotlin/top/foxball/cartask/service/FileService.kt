@@ -26,6 +26,9 @@ interface FileService {
     /** 上传文件并返回其元数据与下载地址。 */
     fun upload(file: MultipartFile): FileData
 
+    /** 下载远程资源并写入本地文件存储，返回本地下载地址。 */
+    fun importRemote(url: String): FileData
+
     /** 按文件 ID 查询元数据。 */
     fun get(id: UUID): FileData
 

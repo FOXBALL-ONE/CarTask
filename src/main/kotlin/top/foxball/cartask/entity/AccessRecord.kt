@@ -12,6 +12,7 @@ import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
+import jakarta.persistence.UniqueConstraint
 import java.time.LocalDateTime
 import java.math.BigDecimal
 import top.foxball.cartask.entity.type.CarType
@@ -19,7 +20,12 @@ import top.foxball.cartask.entity.type.CarType
 /** 车辆进出门禁的流水记录。 */
 @Entity
 @EntityListeners(AuditingEntityListener::class)
-@Table(name = "access_record")
+@Table(
+    name = "access_record",
+    uniqueConstraints = [
+        UniqueConstraint(name = "uk_access_record_source_record_id", columnNames = ["source_record_id"]),
+    ],
+)
 class AccessRecord {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -28,6 +34,10 @@ class AccessRecord {
     /** 车辆号牌；无牌车辆可为空。 */
     @Column(name = "car_number", length = 64)
     var carNumber: String? = null
+
+    /** 科拓抓拍流水的稳定复合标识；由 trafficId、抓拍方向、时间、通道流水等字段组成。 */
+    @Column(name = "source_record_id", length = 256)
+    var sourceRecordId: String? = null
 
     /** 车辆所属部门名称；由同步接口直接保存快照，避免部门变更影响历史记录展示。 */
     @Column(name = "department_name", length = 128)
@@ -84,6 +94,19 @@ class AccessRecord {
     @Column(name = "photo_url", length = 1024)
     var photoUrl: String? = null
 
+    /** 科拓返回的原始抓拍图片地址，用于本地下载失败后的补偿。 */
+    @Column(name = "source_photo_url", length = 1024)
+    var sourcePhotoUrl: String? = null
+
+    /** 抓拍图片落地到本地文件存储的状态。 */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "photo_sync_status", length = 16)
+    var photoSyncStatus: PhotoSyncStatus? = null
+
+    /** 最近一次图片下载失败原因；成功后清空。 */
+    @Column(name = "photo_sync_error", length = 2048)
+    var photoSyncError: String? = null
+
     /** 通行收费金额。 */
     @Column(name = "fee_amount", nullable = false, precision = 18, scale = 2)
     var feeAmount: BigDecimal = BigDecimal.ZERO
@@ -108,5 +131,11 @@ class AccessRecord {
         MANUAL,
         REMOTE,
         UNKNOWN,
+    }
+
+    enum class PhotoSyncStatus {
+        LOCAL,
+        FAILED,
+        NOT_AVAILABLE,
     }
 }

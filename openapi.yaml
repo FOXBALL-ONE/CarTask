@@ -1,0 +1,1048 @@
+openapi: 3.0.3
+info:
+  title: 科拓开放平台 API
+  description: |
+    根据 `KeytopApiClient` PHP SDK 提取的 OpenAPI 定义。
+
+    所有接口均使用 JSON POST 请求。请求体包含平台公共字段和业务字段，`key` 为按签名规则计算的 32 位大写 MD5。
+    `GetCarInoutInfo`、`GetParkingPlaceArea`、`GetDictList` 及黑名单查询接口在源代码中曾标注为推测接口；本版本已使用配置车场的真实只读响应补充字段。
+  version: 1.0.0
+  contact:
+    name: ShopMall
+  license:
+    name: Keytop platform terms
+    url: https://kp-open.keytop.cn
+servers:
+  - url: https://kp-open.keytop.cn/unite-api
+    description: 生产环境
+  - url: http://tsktapps.keytop.cn/unite-api
+    description: 测试环境
+security: []
+tags:
+  - name: 月卡管理
+    description: 月卡的查询、维护、缴费和退款接口。
+  - name: 用户卡查询
+    description: 按车牌查询用户卡信息。
+  - name: 车辆进出与基础数据
+    description: 车辆进出记录、车位区域和字典接口。
+  - name: 黑名单管理
+    description: 车辆黑名单的查询和维护接口（源代码标注为推测）。
+paths:
+  /api/wec/GetCarCardList:
+    post:
+      tags: [月卡管理]
+      summary: 获取月卡列表
+      operationId: getCarCardList
+      description: 分页获取月卡列表。
+      parameters:
+        - $ref: '#/components/parameters/VersionHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GetCarCardListRequest'
+            example:
+              appId: 12250
+              parkId: '591007282'
+              serviceCode: getCarCardList
+              ts: 1718000000000
+              reqId: 550e8400-e29b-41d4-a716-446655440000
+              pageIndex: 1
+              pageSize: 100
+              key: 4FAFDB43EBB3DAFACD2ABD1A1E7D192C
+      responses:
+        '200':
+          $ref: '#/components/responses/CarCardListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/wec/AddCarCardNo:
+    post:
+      tags: [月卡管理]
+      summary: 新增月卡
+      operationId: addCarCard
+      description: |
+        新增月卡。`cardInfo`、`carLotList`、`plateNoInfo` 在 HTTP JSON 中是 JSON 字符串，而不是嵌套对象。
+        SDK 固定发送 `userId=1`，操作人未提供时使用 `system`。
+      parameters:
+        - $ref: '#/components/parameters/VersionHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddCarCardRequest'
+            example:
+              appId: 12250
+              parkId: '591007282'
+              serviceCode: addCarCardNo
+              ts: 1718000000000
+              reqId: 550e8400-e29b-41d4-a716-446655440000
+              userId: 1
+              userName: system
+              cardInfo: '{"cardName":"张三月卡","useName":"张三","tel":"13800138000","roomId":"R001","remak":"备注","contact":"李四","assist":"王五"}'
+              carLotList: '[{"lotName":"A区车位","carType":1,"sequence":1,"areaName":"A区","areaId":[1,2,3],"lotCount":1}]'
+              plateNoInfo: '[{"plateNo":"闽A12345","etcNo":"ETC001","remark":"测试"}]'
+              key: '00000000000000000000000000000000'
+      responses:
+        '200': { $ref: '#/components/responses/KeytopResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /api/wec/GetCarCardInfo:
+    post:
+      tags: [月卡管理]
+      summary: 获取月卡详情
+      operationId: getCarCardInfo
+      description: 通过 `cardId` 或 `plateNo` 查询月卡详情，二者至少提供一个；两种查询共用同一路径和业务码。
+      parameters:
+        - $ref: '#/components/parameters/VersionHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GetCarCardInfoRequest'
+            examples:
+              byId:
+                value:
+                  appId: 12250
+                  parkId: '591007282'
+                  serviceCode: getCarCardInfo
+                  ts: 1718000000000
+                  reqId: 550e8400-e29b-41d4-a716-446655440000
+                  cardId: 12345
+                  key: '00000000000000000000000000000000'
+              byPlate:
+                value:
+                  appId: 12250
+                  parkId: '591007282'
+                  serviceCode: getCarCardInfo
+                  ts: 1718000000000
+                  reqId: 550e8400-e29b-41d4-a716-446655440000
+                  plateNo: 闽A12345
+                  key: '00000000000000000000000000000000'
+      responses:
+        '200': { $ref: '#/components/responses/CarCardInfoResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /api/wec/ModifyCarCardNo:
+    post:
+      tags: [月卡管理]
+      summary: 修改月卡
+      operationId: modifyCarCard
+      description: |
+        修改月卡。三个复合字段均为 JSON 字符串；`cardInfo` 包含 `cardId`，车位项包含 `id`，车牌项包含 `id` 和 `plateState`。
+        SDK 固定发送 `userId=1`，未提供操作人时使用 `system`。
+      parameters:
+        - $ref: '#/components/parameters/VersionHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModifyCarCardRequest'
+            example:
+              appId: 12250
+              parkId: '591007282'
+              serviceCode: modifyCarCardNo
+              ts: 1718000000000
+              reqId: 550e8400-e29b-41d4-a716-446655440000
+              userId: 1
+              userName: system
+              cardInfo: '{"cardId":12345,"cardName":"张三月卡","useName":"张三","tel":"13800138000","roomId":"R001","remak":"备注","contact":"李四","assist":"王五"}'
+              carLotList: '[{"id":1,"lotName":"A区车位","carType":1,"sequence":1,"areaName":"A区","areaId":[1,2,3],"lotCount":1}]'
+              plateNoInfo: '[{"id":1,"plateNo":"闽A12345","etcNo":"ETC001","remark":"测试","plateState":1}]'
+              key: '00000000000000000000000000000000'
+      responses:
+        '200': { $ref: '#/components/responses/KeytopResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /api/wec/DelCarCardInfo:
+    post:
+      tags: [月卡管理]
+      summary: 删除月卡
+      operationId: delCarCard
+      parameters:
+        - $ref: '#/components/parameters/VersionHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DelCarCardRequest'
+            example:
+              appId: 12250
+              parkId: '591007282'
+              serviceCode: delCarCardInfo
+              ts: 1718000000000
+              reqId: 550e8400-e29b-41d4-a716-446655440000
+              cardId: 12345
+              key: '00000000000000000000000000000000'
+      responses:
+        '200': { $ref: '#/components/responses/KeytopResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /api/wec/PayCarCardFee:
+    post:
+      tags: [月卡管理]
+      summary: 月卡缴费或充值
+      operationId: carTopUp
+      description: |
+        月卡缴费/充值。SDK 固定发送 `payChannel=1`、`chargeMethod=1`、`chargeNumber=1`、`amount=0`、`freeNumber=0`。
+        时间字段格式为 `yyyy-MM-dd HH:mm:ss`。
+      parameters:
+        - $ref: '#/components/parameters/VersionHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PayCarCardFeeRequest'
+            example:
+              appId: 12250
+              parkId: '591007282'
+              serviceCode: payCarCardFee
+              ts: 1718000000000
+              reqId: 550e8400-e29b-41d4-a716-446655440000
+              userId: 1
+              userName: system
+              cardId: 12345
+              orderNo: 550e8400-e29b-41d4-a716-446655440000
+              carType: 1
+              payChannel: 1
+              chargeMethod: 1
+              chargeNumber: 1
+              amount: 0
+              freeNumber: 0
+              validFrom: '2024-04-01 00:00:00'
+              validTo: '2024-05-01 00:00:00'
+              createTime: '2024-04-01 00:00:00'
+              key: '00000000000000000000000000000000'
+      responses:
+        '200': { $ref: '#/components/responses/KeytopResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /api/wec/RefundCarCardFee:
+    post:
+      tags: [月卡管理]
+      summary: 月卡退款
+      operationId: carRefund
+      description: |
+        通过缩短有效期退款。SDK 计算 `refundNumber = differentDays(validFrom, validTo) + 1`，并固定发送 `payChannel=1`、`refundMethod=2`、`amount=0`、`freeNumber=0`、`remark=有效期缩短`。
+        时间字段格式为 `yyyy-MM-dd HH:mm:ss`。
+      parameters:
+        - $ref: '#/components/parameters/VersionHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefundCarCardFeeRequest'
+            example:
+              appId: 12250
+              parkId: '591007282'
+              serviceCode: refundCarCardFee
+              ts: 1718000000000
+              reqId: 550e8400-e29b-41d4-a716-446655440000
+              userId: 1
+              userName: system
+              cardId: 12345
+              orderNo: 550e8400-e29b-41d4-a716-446655440000
+              carType: 1
+              payChannel: 1
+              refundMethod: 2
+              refundNumber: 15
+              amount: 0
+              freeNumber: 0
+              validFrom: '2024-04-01 00:00:00'
+              validTo: '2024-04-15 00:00:00'
+              createTime: '2024-04-01 00:00:00'
+              remark: 有效期缩短
+              key: '00000000000000000000000000000000'
+      responses:
+        '200': { $ref: '#/components/responses/KeytopResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /api/carCard/GetCardInfoByUser:
+    post:
+      tags: [用户卡查询]
+      summary: 按车牌查询用户卡信息
+      operationId: getCardInfoByUser
+      parameters:
+        - $ref: '#/components/parameters/VersionHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GetCardInfoByUserRequest'
+            example:
+              appId: 12250
+              parkId: '591007282'
+              serviceCode: getCardInfoByUser
+              ts: 1718000000000
+              reqId: 550e8400-e29b-41d4-a716-446655440000
+              plateNo: 闽A12345
+              key: '00000000000000000000000000000000'
+      responses:
+        '200': { $ref: '#/components/responses/CardInfoByUserResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /api/wec/GetCarInoutInfo:
+    post:
+      tags: [车辆进出与基础数据]
+      summary: 获取车辆进出记录
+      operationId: getCarInoutInfo
+      description: 已根据配置车场的真实只读响应补充结构。`plateNo`、`startTime`、`endTime` 可选，时间格式为 `yyyy-MM-dd HH:mm:ss`；解码后的 `detailList` 记录通过 `imgInfo` 返回抓拍图片 URL。
+      parameters:
+        - $ref: '#/components/parameters/VersionHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GetCarInoutInfoRequest'
+            example:
+              appId: 12250
+              parkId: '591007282'
+              serviceCode: getCarInoutInfo
+              ts: 1718000000000
+              reqId: 550e8400-e29b-41d4-a716-446655440000
+              pageIndex: 1
+              pageSize: 1000
+              plateNo: 闽A12345
+              startTime: '2024-04-01 00:00:00'
+              endTime: '2024-04-30 23:59:59'
+              key: '00000000000000000000000000000000'
+      responses:
+        '200': { $ref: '#/components/responses/CarInoutResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /api/wec/GetParkingPlaceArea:
+    post:
+      tags: [车辆进出与基础数据]
+      summary: 获取车位区域
+      operationId: getParkingPlaceArea
+      description: 已根据配置车场的真实只读响应补充结构。除公共请求字段外不需要业务参数。
+      parameters:
+        - $ref: '#/components/parameters/VersionHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GetParkingPlaceAreaRequest'
+            example:
+              appId: 12250
+              parkId: '591007282'
+              serviceCode: getParkingPlaceArea
+              ts: 1718000000000
+              reqId: 550e8400-e29b-41d4-a716-446655440000
+              key: '00000000000000000000000000000000'
+      responses:
+        '200': { $ref: '#/components/responses/ParkingPlaceAreaResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /api/wec/GetDictList:
+    post:
+      tags: [车辆进出与基础数据]
+      summary: 获取字典列表
+      operationId: getDictDataList
+      description: 已根据配置车场的真实只读响应补充结构。注意 `serviceCode` 按源代码为首字母大写的 `GetDictDataList`。
+      parameters:
+        - $ref: '#/components/parameters/VersionHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GetDictDataListRequest'
+            example:
+              appId: 12250
+              parkId: '591007282'
+              serviceCode: GetDictDataList
+              ts: 1718000000000
+              reqId: 550e8400-e29b-41d4-a716-446655440000
+              dictType: car_type
+              key: '00000000000000000000000000000000'
+      responses:
+        '200': { $ref: '#/components/responses/DictListResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /api/blacklist/QueryCarBlackInfo:
+    post:
+      tags: [黑名单管理]
+      summary: 查询车辆黑名单
+      operationId: queryCarBlackInfo
+      description: 已执行只读查询；本次真实响应为 `totalCount=0`、`carBlackList=[]`，黑名单条目字段尚未由实际数据确认。`plateNo` 可选。
+      parameters:
+        - $ref: '#/components/parameters/VersionHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QueryCarBlackInfoRequest'
+            example:
+              appId: 12250
+              parkId: '591007282'
+              serviceCode: queryCarBlackInfo
+              ts: 1718000000000
+              reqId: 550e8400-e29b-41d4-a716-446655440000
+              pageIndex: 1
+              pageSize: 100
+              plateNo: 闽A12345
+              key: '00000000000000000000000000000000'
+      responses:
+        '200': { $ref: '#/components/responses/CarBlackInfoResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /api/blacklist/AddCarBlackInfo:
+    post:
+      tags: [黑名单管理]
+      summary: 新增车辆黑名单
+      operationId: addCarBlackInfo
+      description: 推测接口。
+      parameters:
+        - $ref: '#/components/parameters/VersionHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddCarBlackInfoRequest'
+            example:
+              appId: 12250
+              parkId: '591007282'
+              serviceCode: addCarBlackInfo
+              ts: 1718000000000
+              reqId: 550e8400-e29b-41d4-a716-446655440000
+              plateNo: 闽A12345
+              reason: 违规
+              remark: 备注
+              key: '00000000000000000000000000000000'
+      responses:
+        '200': { $ref: '#/components/responses/KeytopResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /api/blacklist/ModifyCarBlackInfo:
+    post:
+      tags: [黑名单管理]
+      summary: 修改车辆黑名单
+      operationId: modifyCarBlackInfo
+      description: 推测接口。
+      parameters:
+        - $ref: '#/components/parameters/VersionHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModifyCarBlackInfoRequest'
+            example:
+              appId: 12250
+              parkId: '591007282'
+              serviceCode: modifyCarBlackInfo
+              ts: 1718000000000
+              reqId: 550e8400-e29b-41d4-a716-446655440000
+              id: 1
+              plateNo: 闽A12345
+              reason: 违规
+              remark: 备注
+              key: '00000000000000000000000000000000'
+      responses:
+        '200': { $ref: '#/components/responses/KeytopResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /api/blacklist/DelCarBlackInfo:
+    post:
+      tags: [黑名单管理]
+      summary: 删除车辆黑名单
+      operationId: delCarBlackInfo
+      description: 推测接口。`id` 和 `plateNo` 均可选，但调用时至少应提供一个。
+      parameters:
+        - $ref: '#/components/parameters/VersionHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DelCarBlackInfoRequest'
+            example:
+              appId: 12250
+              parkId: '591007282'
+              serviceCode: delCarBlackInfo
+              ts: 1718000000000
+              reqId: 550e8400-e29b-41d4-a716-446655440000
+              id: 1
+              plateNo: 闽A12345
+              key: '00000000000000000000000000000000'
+      responses:
+        '200': { $ref: '#/components/responses/KeytopResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+components:
+  parameters:
+    VersionHeader:
+      name: version
+      in: header
+      required: true
+      description: API 协议版本。
+      schema:
+        type: string
+        enum: ['1.0.0']
+        default: '1.0.0'
+  responses:
+    KeytopResponse:
+      description: 科拓平台 JSON 响应。线上查询响应使用 `resCode`、`resMsg`，且 `data` 为 JSON 字符串。
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/KeytopResponse'
+          example:
+            resCode: '0'
+            resMsg: 成功
+            data: '{}'
+    CarCardListResponse:
+      description: 获取月卡列表的实际响应；`data` 可按 CarCardListData 解码。
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/CarCardListResponseBody'
+          example:
+            resCode: '0'
+            resMsg: 成功
+            data: '{"pageIndex":"1","carCardList":[],"pageSize":10,"totalCount":0}'
+    CarCardInfoResponse:
+      description: 获取月卡详情的实际响应；`data` 可按 CarCardData 解码。
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/CarCardInfoResponseBody'
+          example:
+            resCode: '0'
+            resMsg: 成功
+            data: '{"cardName":"示例月卡","cardId":740,"plateNoInfo":"[]","carLotList":"[]"}'
+    CardInfoByUserResponse:
+      description: 按车牌查询用户卡的实际响应；`data` 可按 CardInfoByUserData 解码。
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/CardInfoByUserResponseBody'
+          example:
+            resCode: '0'
+            resMsg: 成功
+            data: '{"carNo":"闽A12345","cardId":"740","name":"示例用户","carLotList":[]}'
+    CarInoutResponse:
+      description: 获取车辆进出记录的实际响应；`data` 可按 CarInoutData 解码，记录图片 URL 位于 `imgInfo`。
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/CarInoutResponseBody'
+          example:
+            resCode: '0'
+            resMsg: 成功
+            data: '{"pageIndex":"1","detailList":[{"plateNo":"闽A12345","capFlag":"1","capTime":"2026-09-10 00:18:26","imgName":"capture.jpg","imgType":2,"imgInfo":"https://image-zos.keytop.cn/example/capture.jpg","capPlace":"出口","carType":1,"carColor":"黑","carStyle":"0","carBrand":"示例","cardNo":"","passType":0,"passRemark":"","trafficId":"traffic-id","nodeId":"1","carSerial":"000001","carOwnerName":"","operator":"0","operName":"","serialType":"0"}],"pageSize":"10","totalCount":"1"}'
+    ParkingPlaceAreaResponse:
+      description: 获取车位区域的实际响应；`data` 可按 ParkingPlaceAreaData 解码。
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ParkingPlaceAreaResponseBody'
+          example:
+            resCode: '0'
+            resMsg: 成功
+            data: '{"areaInfo":[{"areaCode":1,"areaName":"1号车场","placeCount":41}],"parkArea":"4","totalPlaceCount":41}'
+    DictListResponse:
+      description: 获取字典列表的实际响应；`data` 可按 DictItem 数组解码。
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/DictListResponseBody'
+          example:
+            resCode: '0'
+            resMsg: 成功
+            data: '[{"id":5,"dictType":"CARD_TYPE","dictName":"车牌类型","dictKey":"临时车","dictValue":"0","dictSort":0,"isDefault":0,"dictDesc":"车牌类型:临时车","dictStatus":1,"createTime":1569402689000,"updateTime":1569402689000,"lotCode":"591007282","changeable":false,"extendMark":0}]'
+    CarBlackInfoResponse:
+      description: 查询车辆黑名单的实际响应；本次查询返回空的 `carBlackList`，条目结构尚未由真实数据确认。
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/CarBlackInfoResponseBody'
+          example:
+            resCode: '0'
+            resMsg: 成功
+            data: '{"pageIndex":1,"pageSize":10,"totalCount":0,"carBlackList":[]}'
+    BadRequest:
+      description: 请求参数或签名无效。
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/KeytopResponse'
+    ServerError:
+      description: 平台服务或网关错误。
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/KeytopResponse'
+  schemas:
+    BaseRequest:
+      type: object
+      required: [appId, parkId, serviceCode, ts, reqId, key]
+      properties:
+        appId:
+          type: integer
+          format: int32
+          description: 应用 ID。参与请求但不参与签名。
+          example: 12250
+        parkId:
+          type: string
+          description: 车场编号。
+          example: '591007282'
+        serviceCode:
+          type: string
+          description: 业务码。
+        ts:
+          type: integer
+          format: int64
+          description: 毫秒级 Unix 时间戳。
+          example: 1718000000000
+        reqId:
+          type: string
+          format: uuid
+          description: UUID v4 请求 ID。
+        key:
+          type: string
+          pattern: '^[A-F0-9]{32}$'
+          description: 按 `paramsSign` 规则生成的大写 MD5 签名。
+    KeytopResponse:
+      type: object
+      description: 平台响应。错误响应字段可能因接口而异。
+      properties:
+        code:
+          type: integer
+          description: 业务状态码；常见成功值为 0。
+        resCode:
+          type: string
+          description: 部分接口使用的状态码字段。
+        message:
+          type: string
+        resMsg:
+          type: string
+        data:
+          type: string
+          description: 科拓线上报文中的 JSON 字符串；需要二次 JSON 解码。
+        raw:
+          type: string
+          description: 当响应不是合法 JSON 时，SDK 返回的原始响应文本。
+        httpCode:
+          type: integer
+          description: 当响应不是合法 JSON 时，SDK 返回的 HTTP 状态码。
+      additionalProperties: true
+    CarCardListResponseBody:
+      type: object
+      required: [resCode, resMsg, data]
+      properties:
+        resCode: { type: string, example: '0' }
+        resMsg: { type: string, example: 成功 }
+        data:
+          type: string
+          description: JSON 字符串，解码后为 CarCardListData。
+          x-decoded-schema: { $ref: '#/components/schemas/CarCardListData' }
+      additionalProperties: true
+    CarCardInfoResponseBody:
+      type: object
+      required: [resCode, resMsg, data]
+      properties:
+        resCode: { type: string, example: '0' }
+        resMsg: { type: string, example: 成功 }
+        data:
+          type: string
+          description: JSON 字符串，解码后为 CarCardData。
+          x-decoded-schema: { $ref: '#/components/schemas/CarCardData' }
+      additionalProperties: true
+    CardInfoByUserResponseBody:
+      type: object
+      required: [resCode, resMsg, data]
+      properties:
+        resCode: { type: string, example: '0' }
+        resMsg: { type: string, example: 成功 }
+        data:
+          type: string
+          description: JSON 字符串，解码后为 CardInfoByUserData。
+          x-decoded-schema: { $ref: '#/components/schemas/CardInfoByUserData' }
+      additionalProperties: true
+    CarInoutResponseBody:
+      type: object
+      required: [resCode, resMsg, data]
+      properties:
+        resCode: { type: string, example: '0' }
+        resMsg: { type: string, example: 成功 }
+        data:
+          type: string
+          description: JSON 字符串，解码后为 CarInoutData；记录图片 URL 位于 imgInfo。
+          x-decoded-schema: { $ref: '#/components/schemas/CarInoutData' }
+      additionalProperties: true
+    ParkingPlaceAreaResponseBody:
+      type: object
+      required: [resCode, resMsg, data]
+      properties:
+        resCode: { type: string, example: '0' }
+        resMsg: { type: string, example: 成功 }
+        data:
+          type: string
+          description: JSON 字符串，解码后为 ParkingPlaceAreaData。
+          x-decoded-schema: { $ref: '#/components/schemas/ParkingPlaceAreaData' }
+      additionalProperties: true
+    DictListResponseBody:
+      type: object
+      required: [resCode, resMsg, data]
+      properties:
+        resCode: { type: string, example: '0' }
+        resMsg: { type: string, example: 成功 }
+        data:
+          type: string
+          description: JSON 数组字符串，解码后为 DictItem 数组。
+          x-decoded-schema: { type: array, items: { $ref: '#/components/schemas/DictItem' } }
+      additionalProperties: true
+    CarBlackInfoResponseBody:
+      type: object
+      required: [resCode, resMsg, data]
+      properties:
+        resCode: { type: string, example: '0' }
+        resMsg: { type: string, example: 成功 }
+        data:
+          type: string
+          description: JSON 字符串，解码后为 CarBlackInfoData。
+          x-decoded-schema: { $ref: '#/components/schemas/CarBlackInfoData' }
+      additionalProperties: true
+    CarCardListData:
+      type: object
+      required: [pageIndex, carCardList, pageSize, totalCount]
+      properties:
+        pageIndex: { oneOf: [{ type: integer }, { type: string }] }
+        carCardList:
+          type: array
+          items: { $ref: '#/components/schemas/CarCardData' }
+        pageSize: { oneOf: [{ type: integer }, { type: string }] }
+        totalCount: { oneOf: [{ type: integer }, { type: string }] }
+    CarCardData:
+      type: object
+      description: 月卡列表或详情中的月卡对象。`plateNoInfo` 和 `carLotList` 在线上返回中仍是 JSON 字符串。
+      properties:
+        cardName: { type: string }
+        updateUser: { type: string }
+        plateNoInfo: { type: string, description: JSON 数组字符串，元素包含 etcNo、plateNo、id、plateState、remark 等字段。 }
+        userName: { type: string }
+        validCount: { type: string }
+        fullCarNoStr: { type: string }
+        merchantId: { type: string }
+        cardId: { type: integer }
+        imageUrl: { type: string, description: 月卡图片地址；实测样本为空字符串。 }
+        lotCount: { type: integer }
+        useName: { type: string }
+        tel: { type: string }
+        cardState: { type: integer }
+        state: { type: integer }
+        email: { type: string }
+        carLotList: { type: string, description: JSON 数组字符串，元素包含 carType、areaId、areaName、validValue、cardId、lotCount、propertyLot、id、beginTime、endTime、carTypeName 等字段。 }
+        lastUpdateTime: { type: string, description: yyyy-MM-dd HH:mm:ss 时间文本。 }
+        roomId: { type: string }
+        remak: { type: string, description: 平台原字段名。 }
+        contact: { type: string }
+        assist: { type: string }
+        effectiveTime: { type: string, description: 月卡生效日期，实测部分记录存在。 }
+      additionalProperties: true
+    CardInfoByUserData:
+      type: object
+      required: [carLotList, carNo, cardId, cardNo, name, setMenu, tel]
+      properties:
+        carLotList:
+          type: array
+          items: { $ref: '#/components/schemas/CardUserLot' }
+        carNo: { type: string }
+        cardId: { type: string }
+        cardNo: { type: string }
+        name: { type: string }
+        setMenu: { type: string }
+        tel: { type: string }
+    CardUserLot:
+      type: object
+      properties:
+        areaName: { type: string }
+        carLotIds: { type: integer }
+        cardType: { type: integer }
+        cardTypeName: { type: string }
+        endTime: { type: string, format: date }
+        lotCount: { type: integer }
+        packageModel: { type: integer }
+        startTime: { type: string, format: date }
+        validLabel: { type: string }
+        validValue: { type: integer }
+    CarInoutData:
+      type: object
+      required: [pageIndex, detailList, pageSize, totalCount]
+      properties:
+        pageIndex: { oneOf: [{ type: integer }, { type: string }] }
+        detailList:
+          type: array
+          items: { $ref: '#/components/schemas/CarInoutRecord' }
+        pageSize: { oneOf: [{ type: integer }, { type: string }] }
+        totalCount: { oneOf: [{ type: integer }, { type: string }] }
+    CarInoutRecord:
+      type: object
+      required: [plateNo, capFlag, capTime, imgName, imgType, imgInfo, capPlace]
+      properties:
+        plateNo: { type: string }
+        capFlag: { type: string, enum: ['0', '1'], description: 进出标记；实际响应确认 0 为进场、1 为出场。 }
+        capTime: { type: string, description: yyyy-MM-dd HH:mm:ss 抓拍时间。 }
+        imgName: { type: string, description: 抓拍图片文件名。 }
+        imgType: { type: integer, description: 图片类型，实测为 2。 }
+        imgInfo: { type: string, format: uri, description: 抓拍图片 URL。 }
+        capPlace: { type: string, description: 抓拍地点或通道名称。 }
+        carType: { type: integer }
+        carColor: { type: string }
+        carStyle: { type: string }
+        carBrand: { type: string }
+        cardNo: { type: string }
+        passType: { type: integer }
+        passRemark: { type: string }
+        trafficId: { type: string }
+        nodeId: { type: string }
+        carSerial: { type: string }
+        carOwnerName: { type: string }
+        operator: { type: string }
+        operName: { type: string }
+        serialType: { type: string }
+      additionalProperties: true
+    ParkingPlaceAreaData:
+      type: object
+      required: [areaInfo, parkArea, totalPlaceCount]
+      properties:
+        areaInfo:
+          type: array
+          items:
+            type: object
+            required: [areaCode, areaName, placeCount]
+            properties:
+              areaCode: { type: integer }
+              areaName: { type: string }
+              placeCount: { type: integer }
+        parkArea: { type: string }
+        totalPlaceCount: { type: integer }
+    DictItem:
+      type: object
+      required: [id, dictType, dictName, dictKey, dictValue, dictSort, isDefault, dictDesc, dictStatus, createTime, lotCode, changeable, extendMark]
+      properties:
+        id: { type: integer }
+        dictType: { type: string }
+        dictName: { type: string }
+        dictKey: { type: string }
+        dictValue: { type: string }
+        dictSort: { type: integer }
+        isDefault: { type: integer }
+        dictDesc: { type: string }
+        dictStatus: { type: integer }
+        createTime: { type: integer, format: int64, description: Unix 毫秒时间戳。 }
+        updateTime: { type: integer, format: int64 }
+        remark: { type: string }
+        lotCode: { type: string }
+        changeable: { type: boolean }
+        extendMark: { type: integer }
+      additionalProperties: true
+    CarBlackInfoData:
+      type: object
+      required: [pageIndex, pageSize, totalCount, carBlackList]
+      properties:
+        pageIndex: { type: integer }
+        pageSize: { type: integer }
+        totalCount: { type: integer }
+        carBlackList:
+          type: array
+          description: 本次真实查询为空，黑名单条目字段尚未确认。
+          items:
+            type: object
+            additionalProperties: true
+    GetCarCardListRequest:
+      allOf:
+        - $ref: '#/components/schemas/BaseRequest'
+        - type: object
+          required: [pageIndex, pageSize]
+          properties:
+            serviceCode: { type: string, enum: [getCarCardList] }
+            pageIndex: { type: integer, minimum: 1, default: 1 }
+            pageSize: { type: integer, minimum: 1, default: 100 }
+    AddCarCardRequest:
+      allOf:
+        - $ref: '#/components/schemas/BaseRequest'
+        - type: object
+          required: [userId, userName, cardInfo, carLotList, plateNoInfo]
+          properties:
+            serviceCode: { type: string, enum: [addCarCardNo] }
+            userId: { type: integer, description: SDK 固定为 1。 }
+            userName: { type: string }
+            cardInfo: { type: string, description: JSON 字符串，包含 cardName、useName、tel、roomId、remak、contact、assist 字段。 }
+            carLotList: { type: string, description: JSON 数组字符串，元素包含 lotName、carType、sequence、areaName、areaId、lotCount 字段。 }
+            plateNoInfo: { type: string, description: JSON 数组字符串，元素包含 plateNo、etcNo、remark 字段。 }
+    GetCarCardInfoRequest:
+      allOf:
+        - $ref: '#/components/schemas/BaseRequest'
+        - type: object
+          properties:
+            serviceCode: { type: string, enum: [getCarCardInfo] }
+            cardId: { type: integer, minimum: 1 }
+            plateNo: { type: string, minLength: 1 }
+          oneOf:
+            - required: [cardId]
+            - required: [plateNo]
+    ModifyCarCardRequest:
+      allOf:
+        - $ref: '#/components/schemas/BaseRequest'
+        - type: object
+          required: [userId, userName, cardInfo, carLotList, plateNoInfo]
+          properties:
+            serviceCode: { type: string, enum: [modifyCarCardNo] }
+            userId: { type: integer, description: SDK 固定为 1。 }
+            userName: { type: string }
+            cardInfo: { type: string, description: JSON 字符串，包含 cardId、cardName、useName、tel、roomId、remak、contact、assist 字段。 }
+            carLotList: { type: string, description: JSON 数组字符串，元素包含 id、lotName、carType、sequence、areaName、areaId、lotCount 字段。 }
+            plateNoInfo: { type: string, description: JSON 数组字符串，元素包含 id、plateNo、etcNo、remark、plateState 字段。 }
+    DelCarCardRequest:
+      allOf:
+        - $ref: '#/components/schemas/BaseRequest'
+        - type: object
+          required: [cardId]
+          properties:
+            serviceCode: { type: string, enum: [delCarCardInfo] }
+            cardId: { type: integer, minimum: 1 }
+    PayCarCardFeeRequest:
+      allOf:
+        - $ref: '#/components/schemas/BaseRequest'
+        - type: object
+          required: [userId, userName, cardId, orderNo, carType, payChannel, chargeMethod, chargeNumber, amount, freeNumber, validFrom, validTo, createTime]
+          properties:
+            serviceCode: { type: string, enum: [payCarCardFee] }
+            userId: { type: integer, description: SDK 固定为 1。 }
+            userName: { type: string }
+            cardId: { type: integer, minimum: 1 }
+            orderNo: { type: string, format: uuid }
+            carType: { type: integer }
+            payChannel: { type: integer, enum: [1], description: SDK 固定为 1。 }
+            chargeMethod: { type: integer, enum: [1], description: SDK 固定为 1。 }
+            chargeNumber: { type: integer, enum: [1], description: SDK 固定为 1。 }
+            amount: { type: number, enum: [0], description: SDK 固定为 0。 }
+            freeNumber: { type: integer, enum: [0], description: SDK 固定为 0。 }
+            validFrom: { type: string, pattern: '^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$' }
+            validTo: { type: string, pattern: '^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$' }
+            createTime: { type: string, pattern: '^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$' }
+    RefundCarCardFeeRequest:
+      allOf:
+        - $ref: '#/components/schemas/BaseRequest'
+        - type: object
+          required: [userId, userName, cardId, orderNo, carType, payChannel, refundMethod, refundNumber, amount, freeNumber, validFrom, validTo, createTime, remark]
+          properties:
+            serviceCode: { type: string, enum: [refundCarCardFee] }
+            userId: { type: integer, description: SDK 固定为 1。 }
+            userName: { type: string }
+            cardId: { type: integer, minimum: 1 }
+            orderNo: { type: string, format: uuid }
+            carType: { type: integer }
+            payChannel: { type: integer, enum: [1], description: SDK 固定为 1。 }
+            refundMethod: { type: integer, enum: [2], description: SDK 固定为 2。 }
+            refundNumber: { type: integer, minimum: 1, description: validFrom 与 validTo 的日期差加 1。 }
+            amount: { type: number, enum: [0], description: SDK 固定为 0。 }
+            freeNumber: { type: integer, enum: [0], description: SDK 固定为 0。 }
+            validFrom: { type: string, pattern: '^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$' }
+            validTo: { type: string, pattern: '^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$' }
+            createTime: { type: string, pattern: '^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$' }
+            remark: { type: string, enum: [有效期缩短] }
+    GetCardInfoByUserRequest:
+      allOf:
+        - $ref: '#/components/schemas/BaseRequest'
+        - type: object
+          required: [plateNo]
+          properties:
+            serviceCode: { type: string, enum: [getCardInfoByUser] }
+            plateNo: { type: string, minLength: 1 }
+    GetCarInoutInfoRequest:
+      allOf:
+        - $ref: '#/components/schemas/BaseRequest'
+        - type: object
+          required: [pageIndex, pageSize]
+          properties:
+            serviceCode: { type: string, enum: [getCarInoutInfo] }
+            plateNo: { type: string }
+            startTime: { type: string, pattern: '^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$' }
+            endTime: { type: string, pattern: '^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$' }
+            pageIndex: { type: integer, minimum: 1, default: 1 }
+            pageSize: { type: integer, minimum: 1, default: 1000 }
+    GetParkingPlaceAreaRequest:
+      allOf:
+        - $ref: '#/components/schemas/BaseRequest'
+        - type: object
+          properties:
+            serviceCode: { type: string, enum: [getParkingPlaceArea] }
+    GetDictDataListRequest:
+      allOf:
+        - $ref: '#/components/schemas/BaseRequest'
+        - type: object
+          properties:
+            serviceCode: { type: string, enum: [GetDictDataList] }
+            dictType: { type: string }
+    QueryCarBlackInfoRequest:
+      allOf:
+        - $ref: '#/components/schemas/BaseRequest'
+        - type: object
+          required: [pageIndex, pageSize]
+          properties:
+            serviceCode: { type: string, enum: [queryCarBlackInfo] }
+            plateNo: { type: string }
+            pageIndex: { type: integer, minimum: 1, default: 1 }
+            pageSize: { type: integer, minimum: 1, default: 100 }
+    AddCarBlackInfoRequest:
+      allOf:
+        - $ref: '#/components/schemas/BaseRequest'
+        - type: object
+          required: [plateNo, reason]
+          properties:
+            serviceCode: { type: string, enum: [addCarBlackInfo] }
+            plateNo: { type: string, minLength: 1 }
+            reason: { type: string, minLength: 1 }
+            remark: { type: string, default: '' }
+    ModifyCarBlackInfoRequest:
+      allOf:
+        - $ref: '#/components/schemas/BaseRequest'
+        - type: object
+          required: [id, plateNo, reason]
+          properties:
+            serviceCode: { type: string, enum: [modifyCarBlackInfo] }
+            id: { type: integer, minimum: 1 }
+            plateNo: { type: string, minLength: 1 }
+            reason: { type: string, minLength: 1 }
+            remark: { type: string, default: '' }
+    DelCarBlackInfoRequest:
+      allOf:
+        - $ref: '#/components/schemas/BaseRequest'
+        - type: object
+          properties:
+            serviceCode: { type: string, enum: [delCarBlackInfo] }
+            id: { type: integer, minimum: 1 }
+            plateNo: { type: string }
+          description: 至少提供 `id` 或 `plateNo` 之一。

@@ -21,6 +21,10 @@ import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 import java.nio.file.StandardOpenOption
 import java.security.MessageDigest
+import java.net.URI
+import java.net.http.HttpClient
+import java.net.http.HttpRequest
+import java.net.http.HttpResponse
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -35,6 +39,11 @@ class FileServiceImpl(
     private val transactionOperations: TransactionOperations,
     private val auditService: AuditService? = null,
 ) : FileService {
+    private val remoteHttpClient = HttpClient.newBuilder()
+        .connectTimeout(java.time.Duration.ofSeconds(10))
+        .followRedirects(HttpClient.Redirect.NORMAL)
+        .build()
+
     /** 先写入磁盘，再持久化元数据；持久化失败时清理物理文件。 */
     override fun upload(file: MultipartFile): FileService.FileData {
         require(!file.isEmpty) { "文件不能为空" }
@@ -56,6 +65,65 @@ class FileServiceImpl(
         } catch (ex: Exception) {
             deleteQuietly(storedUpload.path)
             throw ex
+        }
+    }
+
+    override fun importRemote(url: String): FileService.FileData {
+        val uri = try {
+            URI.create(url.trim())
+        } catch (_: IllegalArgumentException) {
+            throw IllegalArgumentException("远程图片地址不合法")
+        }
+        require(uri.scheme == "http" || uri.scheme == "https") { "远程图片地址必须使用 HTTP(S)" }
+        val response = try {
+            remoteHttpClient.send(
+                HttpRequest.newBuilder(uri)
+                    .timeout(java.time.Duration.ofSeconds(30))
+                    .header("Accept", "image/*")
+                    .GET()
+                    .build(),
+                HttpResponse.BodyHandlers.ofByteArray(),
+            )
+        } catch (exception: Exception) {
+            throw IllegalStateException("下载远程图片失败", exception)
+        }
+        require(response.statusCode() in 200..299) { "下载远程图片失败：HTTP ${response.statusCode()}" }
+        val body = response.body()
+        require(body.isNotEmpty()) { "远程图片内容为空" }
+        require(body.size <= MAX_REMOTE_IMAGE_BYTES) { "远程图片超过大小限制" }
+        val contentType = response.headers().firstValue("Content-Type")
+            .orElse(null)
+            ?.substringBefore(';')
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() }
+        require(contentType == null || contentType.startsWith("image/", ignoreCase = true)) {
+            "远程资源不是图片"
+        }
+        val filename = URI(uri.toString()).path.substringAfterLast('/').takeIf { it.isNotBlank() } ?: "capture.jpg"
+        val storedUpload = body.inputStream().use { input ->
+            storeContent(
+                input = input,
+                safeFilename = safeFilename(filename),
+                contentType = contentType,
+            )
+        }
+        return try {
+            val saved = transactionOperations.execute {
+                val persisted = fileRepository.saveAndFlush(storedUpload.metadata)
+                auditService?.record(
+                    AuditCommand(
+                        AuditAction.FILE_UPLOADED,
+                        "stored_file",
+                        persisted.id.toString(),
+                        targetSummary = mapOf("original_filename" to persisted.originalFilename, "size_bytes" to persisted.sizeBytes, "content_type" to persisted.contentType, "source_url" to url),
+                    ),
+                )
+                persisted
+            }
+            fileData(saved)
+        } catch (exception: Exception) {
+            deleteQuietly(storedUpload.path)
+            throw exception
         }
     }
 
@@ -88,61 +156,59 @@ class FileServiceImpl(
     /** 将上传流写入日期目录，并在写入过程中计算摘要和大小。 */
     private fun storeUpload(file: MultipartFile): StoredUpload {
         val safeFilename = safeFilename(file.originalFilename)
+        return file.inputStream.use { input ->
+            storeContent(input, safeFilename, file.contentType)
+        }
+    }
+
+    private fun storeContent(input: java.io.InputStream, safeFilename: SafeFilename, contentType: String?): StoredUpload {
         val date = LocalDate.now()
         val datePath = date.format(DATE_PATH_FORMATTER)
         val directory = properties.rootPath.resolve(datePath)
         Files.createDirectories(directory)
 
-        repeat(MAX_STORAGE_NAME_ATTEMPTS) {
-            val id = UUID.randomUUID()
-            val storedFilename = "$id${safeFilename.extension}"
-            val target = directory.resolve(storedFilename)
-            val temporary = directory.resolve(".$id.uploading")
-            var temporaryCreated = false
-            var moved = false
-            try {
-                val digest = MessageDigest.getInstance("SHA-256")
-                var sizeBytes = 0L
-                file.inputStream.use { input ->
-                    Files.newOutputStream(temporary, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE).use { output ->
-                        temporaryCreated = true
-                        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-                        while (true) {
-                            val count = input.read(buffer)
-                            if (count < 0) break
-                            output.write(buffer, 0, count)
-                            digest.update(buffer, 0, count)
-                            sizeBytes += count
-                        }
-                    }
+        val id = UUID.randomUUID()
+        val storedFilename = "$id${safeFilename.extension}"
+        val target = directory.resolve(storedFilename)
+        val temporary = directory.resolve(".$id.uploading")
+        var temporaryCreated = false
+        var moved = false
+        try {
+            val digest = MessageDigest.getInstance("SHA-256")
+            var sizeBytes = 0L
+            Files.newOutputStream(temporary, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE).use { output ->
+                temporaryCreated = true
+                val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                while (true) {
+                    val count = input.read(buffer)
+                    if (count < 0) break
+                    output.write(buffer, 0, count)
+                    digest.update(buffer, 0, count)
+                    sizeBytes += count
                 }
-                try {
-                    Files.move(temporary, target, StandardCopyOption.ATOMIC_MOVE)
-                } catch (_: AtomicMoveNotSupportedException) {
-                    Files.move(temporary, target)
-                }
-                moved = true
-                val metadata = StoredFile().apply {
-                    this.id = id
-                    originalFilename = safeFilename.value
-                    this.storedFilename = storedFilename
-                    relativePath = "$datePath/$storedFilename"
-                    contentType = file.contentType?.trim()?.takeIf { it.isNotEmpty() }?.take(255)
-                    this.sizeBytes = sizeBytes
-                    sha256 = HexFormat.of().formatHex(digest.digest())
-                    createdAt = LocalDateTime.now()
-                }
-                return StoredUpload(metadata, target)
-            } catch (_: java.nio.file.FileAlreadyExistsException) {
-                if (temporaryCreated) deleteQuietly(temporary)
-                if (moved) deleteQuietly(target)
-            } catch (ex: Exception) {
-                if (temporaryCreated) deleteQuietly(temporary)
-                if (moved) deleteQuietly(target)
-                throw ex
             }
+            try {
+                Files.move(temporary, target, StandardCopyOption.ATOMIC_MOVE)
+            } catch (_: AtomicMoveNotSupportedException) {
+                Files.move(temporary, target)
+            }
+            moved = true
+            val metadata = StoredFile().apply {
+                this.id = id
+                originalFilename = safeFilename.value
+                this.storedFilename = storedFilename
+                relativePath = "$datePath/$storedFilename"
+                this.contentType = contentType?.trim()?.takeIf { it.isNotEmpty() }?.take(255)
+                this.sizeBytes = sizeBytes
+                sha256 = HexFormat.of().formatHex(digest.digest())
+                createdAt = LocalDateTime.now()
+            }
+            return StoredUpload(metadata, target)
+        } catch (ex: Exception) {
+            if (temporaryCreated) deleteQuietly(temporary)
+            if (moved) deleteQuietly(target)
+            throw ex
         }
-        throw IllegalStateException("Unable to allocate a unique file name.")
     }
 
     /** 根据元数据构造包含绝对下载地址的文件数据。 */
@@ -214,6 +280,6 @@ class FileServiceImpl(
         val DATE_PATH_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy/MM/dd")
         val EXTENSION_PATTERN = Regex("[A-Za-z0-9]{1,20}")
         const val MAX_ORIGINAL_FILENAME_LENGTH = 255
-        const val MAX_STORAGE_NAME_ATTEMPTS = 5
+        const val MAX_REMOTE_IMAGE_BYTES = 10 * 1024 * 1024
     }
 }

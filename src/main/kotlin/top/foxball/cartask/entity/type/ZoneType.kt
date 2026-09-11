@@ -35,6 +35,10 @@ class ZoneType {
     /** 显示顺序，数值越小越靠前。 */
     @Column(name = "sort_order", nullable = false)
     var orderNumber: Int = 0
+
+    /** 科拓平台返回的区域车位数量。 */
+    @Column(name = "place_count")
+    var placeCount: Int = 0
     
     /** 创建时间。 */
     @Column(nullable = false, updatable = false)

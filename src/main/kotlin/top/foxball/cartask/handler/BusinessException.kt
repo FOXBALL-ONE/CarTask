@@ -42,6 +42,14 @@ class ParamErrorException(
     message: String = "参数错误"
 ) : BusinessException(HttpStatus.BAD_REQUEST, message)
 
+class ParkingAreaSyncInProgressException(
+    message: String = "停车区域同步正在执行，请稍后重试",
+) : BusinessException(HttpStatus.CONFLICT, message)
+
+class VehicleAccessRecordSyncInProgressException(
+    message: String = "车辆进出记录同步正在执行，请稍后重试",
+) : BusinessException(HttpStatus.CONFLICT, message)
+
 class HomeRecommendationVersionConflictException(
     val actualVersion: Long,
     message: String = "首页推荐方案已被其他操作更新，请刷新后重试",

@@ -17,6 +17,8 @@ import top.foxball.cartask.repository.StoredFileRepository
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
+import java.net.InetSocketAddress
+import com.sun.net.httpserver.HttpServer
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Optional
@@ -72,6 +74,34 @@ class FileServiceImplTests {
 
         Files.walk(root).use { paths ->
             assertFalse(paths.anyMatch { path -> path.fileName.toString().endsWith(".pdf") || path.fileName.toString().endsWith(".uploading") })
+        }
+    }
+
+    @Test
+    fun `imports a remote image into local storage`() {
+        val root = createTempDirectory("file-service-remote-")
+        val repository = mock(StoredFileRepository::class.java)
+        `when`(repository.saveAndFlush(any(StoredFile::class.java))).thenAnswer { invocation ->
+            invocation.getArgument<StoredFile>(0)
+        }
+        val server = HttpServer.create(InetSocketAddress(0), 0)
+        server.createContext("/capture.jpg") { exchange ->
+            val payload = "jpeg-content".toByteArray(StandardCharsets.UTF_8)
+            exchange.responseHeaders.add("Content-Type", "image/jpeg")
+            exchange.sendResponseHeaders(200, payload.size.toLong())
+            exchange.responseBody.use { it.write(payload) }
+        }
+        server.start()
+        try {
+            val service = service(root, repository)
+            val data = service.importRemote("http://127.0.0.1:${server.address.port}/capture.jpg")
+
+            assertEquals("capture.jpg", data.originalFilename)
+            assertEquals("jpeg-content".toByteArray().size.toLong(), data.sizeBytes)
+            org.mockito.Mockito.verify(repository).saveAndFlush(any(StoredFile::class.java))
+            assertTrue(Files.walk(root).use { paths -> paths.anyMatch { it.fileName.toString() == "${data.id}.jpg" } })
+        } finally {
+            server.stop(0)
         }
     }
 

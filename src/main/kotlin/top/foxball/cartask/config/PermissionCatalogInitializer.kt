@@ -34,14 +34,15 @@ class PermissionCatalogInitializer(
         if (missing.isNotEmpty()) permissionRepository.saveAll(missing)
         val allPermissions = permissionRepository.findAll().associateBy { it.code }
         val superAdmin = roleRepository.findByNameIgnoreCase("SUPER_ADMIN")
-        if (superAdmin != null && superAdmin.permissions.isEmpty()) {
-            superAdmin.permissions = allPermissions.values.toMutableSet()
-            roleRepository.save(superAdmin)
+        if (superAdmin != null) {
+            val permissionCount = superAdmin.permissions.size
+            superAdmin.permissions.addAll(allPermissions.values)
+            if (superAdmin.permissions.size != permissionCount) roleRepository.save(superAdmin)
         }
         val admin = roleRepository.findByNameIgnoreCase("ADMIN")
         if (admin != null && admin.permissions.isEmpty()) {
             admin.permissions = allPermissions.values
-                .filterNot { it.code in setOf("role:manage", "permission:manage", "user:role-assign", "audit:delete") }
+                .filterNot { it.code in setOf("role:manage", "permission:manage", "user:role-assign", "audit:delete", "system:monitor:read") }
                 .toMutableSet()
             roleRepository.save(admin)
         }

@@ -9,6 +9,14 @@ import java.time.LocalDateTime
 interface AccessRecordRepository : JpaRepository<AccessRecord, Long> {
     fun findTopByOrderByInAndOutTimeDescIdDesc(): AccessRecord?
 
+    fun findBySourceRecordId(sourceRecordId: String): AccessRecord?
+
+    fun findTop100ByPhotoSyncStatusOrderByIdAsc(
+        photoSyncStatus: AccessRecord.PhotoSyncStatus,
+    ): List<AccessRecord>
+
+    fun countByPhotoSyncStatus(photoSyncStatus: AccessRecord.PhotoSyncStatus): Long
+
     @Query(
         """
         select record from AccessRecord record

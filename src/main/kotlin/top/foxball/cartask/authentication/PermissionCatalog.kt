@@ -6,6 +6,7 @@ object PermissionCatalog {
 
     val definitions = listOf(
         Definition("dashboard:read", "查看仪表盘"),
+        Definition("system:monitor:read", "查看系统监控"),
         Definition("user:read", "查看用户"),
         Definition("user:create", "新增用户"),
         Definition("user:update", "编辑用户"),
@@ -33,6 +34,10 @@ object PermissionCatalog {
         Definition("person-record:export", "导出人员进出记录"),
         Definition("vehicle-record:read", "查看车辆进出记录"),
         Definition("vehicle-record:export", "导出车辆进出记录"),
+        Definition("vehicle-record:sync", "同步车辆进出记录"),
+        Definition("violation:read", "查看违规管理"),
+        Definition("violation:manage", "管理违规记录与规则"),
+        Definition("violation:export", "导出违规记录"),
         Definition("audit:read", "查看审计日志"),
         Definition("audit:export", "导出审计日志"),
         Definition("audit:verify", "校验审计日志"),
@@ -51,6 +56,7 @@ object PermissionCatalog {
         Definition("vehicle:delete", "删除车辆"),
         Definition("dictionary:read", "查看字典"),
         Definition("dictionary:manage", "管理字典"),
+        Definition("dictionary:sync", "同步停车区域字典"),
         Definition("file:read", "读取文件"),
         Definition("file:upload", "上传文件"),
     )
