@@ -150,7 +150,7 @@
               <h2>车辆业主账号</h2>
               <span class="state-badge" aria-live="polite">{{ accountStateLabel }}</span>
             </div>
-            <p>以近 30 天有进出记录的车牌为依据（自动去重），关联车辆主档业主信息，为尚未注册的业主自动创建平台登录账号。</p>
+            <p>以近 30 天有进出记录的车牌为依据（自动去重），经车牌档案关联车主信息，为尚未注册的业主自动创建平台登录账号。</p>
           </div>
         </header>
 
@@ -258,7 +258,7 @@
     </section>
     <section class="sync-note sync-note--accounts">
       <span class="material-icons-outlined">key</span>
-      <div><strong>账号规则</strong><p>仅处理近 30 天有进出记录的车牌，车牌在数据库层面去重后关联车辆主档。业主手机号即登录名，初始密码统一发放，请提醒业主及时修改。缺少主档、手机号或姓名的记录不会处理，补全资料后可再次执行。</p></div>
+      <div><strong>账号规则</strong><p>仅处理近 30 天有进出记录的车牌，车牌去除间隔符后匹配有效车牌档案并关联在营车主。业主手机号即登录名，初始密码统一发放，请提醒业主及时修改。缺少车牌档案、车主已停用或手机号为空的记录不会处理，补全资料后可再次执行。</p></div>
     </section>
   </section>
 </template>

@@ -5,11 +5,13 @@ import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
 import top.foxball.cartask.audit.AuditRequestContext
-import top.foxball.cartask.entity.CarMasterInfo
+import top.foxball.cartask.entity.ParkingOwner
+import top.foxball.cartask.entity.ParkingPlate
 import top.foxball.cartask.entity.SyncTaskRun
 import top.foxball.cartask.handler.AccountGenerateInProgressException
 import top.foxball.cartask.repository.AccessRecordRepository
-import top.foxball.cartask.service.CarMasterInfoService
+import top.foxball.cartask.repository.ParkingOwnerRepository
+import top.foxball.cartask.repository.ParkingPlateRepository
 import top.foxball.cartask.service.SyncTaskHistoryService
 import top.foxball.cartask.service.SyncTaskRunCommand
 import top.foxball.cartask.service.UserService
@@ -25,12 +27,14 @@ data class AccountGenerateResult(
 
 /**
  * 为车辆业主补建平台登录账号：以近 [ACTIVE_WINDOW_DAYS] 天内有进出记录的车牌为数据源
- * （数据库层面按车牌去重），关联车辆主档业主信息后创建账号，已有账号自动跳过。
+ * （数据库层面按车牌去重），经车牌档案（ParkingPlate）关联车主档案（ParkingOwner），
+ * 以车主手机号作为登录名创建账号，已有账号自动跳过。
  */
 @Component
 class SynAccountGenerateTask(
     private val userService: UserService,
-    private val carMasterInfoService: CarMasterInfoService,
+    private val parkingPlateRepository: ParkingPlateRepository,
+    private val parkingOwnerRepository: ParkingOwnerRepository,
     private val accessRecordRepository: AccessRecordRepository,
     private val syncTaskHistoryService: SyncTaskHistoryService,
 ) {
@@ -80,39 +84,50 @@ class SynAccountGenerateTask(
 
         val activePlates = accessRecordRepository
             .findDistinctCarNumbersSince(startedAt.minusDays(ACTIVE_WINDOW_DAYS))
-            .mapNotNull { it.trim().takeIf(String::isNotEmpty) }
+            .mapNotNull(::normalizePlate)
             .toSet()
         if (activePlates.isEmpty()) {
             logger.info("近 {} 天没有车辆进出记录，本次不生成账号", ACTIVE_WINDOW_DAYS)
             return AccountGenerateResult(0, 0, 0, LocalDateTime.now())
         }
 
-        val masterByPlate = buildMasterByPlate(carMasterInfoService.getAllList(), activePlates)
-        val phones = masterByPlate.values
-            .mapNotNull { it.carMasterPhone?.trim()?.takeIf(String::isNotEmpty) }
-            .toSet()
-        val existingUsernames = userService.findExistingUsernames(phones)
+        val plateByKey = parkingPlateRepository.findAll()
+            .asSequence()
+            .filter { it.status == STATUS_ENABLED }
+            .mapNotNull { plate -> normalizePlate(plate.plate)?.let { it to plate } }
+            .toMap()
+        val ownerById = parkingOwnerRepository
+            .findAllById(plateByKey.values.map { it.ownerId }.toSet())
+            .filter { it.status == STATUS_ENABLED }
+            .associateBy { requireNotNull(it.id) }
+        val existingUsernames = userService.findExistingUsernames(
+            ownerById.values.mapNotNull { it.phone.trim().takeIf(String::isNotEmpty) }.toSet(),
+        )
 
         activePlates.forEach { plate ->
-            val carMasterInfo = masterByPlate[plate] ?: run {
+            val parkingPlate = plateByKey[plate] ?: run {
                 skippedCount++
-                logger.warn("跳过没有车辆主档的活跃车牌：{}", plate)
+                logger.warn("跳过没有有效车牌档案的活跃车牌：{}", plate)
                 return@forEach
             }
-            val phone = carMasterInfo.carMasterPhone?.trim()
-            if (phone.isNullOrEmpty()) {
+            val owner = ownerById[parkingPlate.ownerId] ?: run {
                 skippedCount++
-                logger.warn("跳过无手机号的车辆业主，车辆主档 ID: {}", carMasterInfo.id)
+                logger.warn("跳过已停用或缺失车主档案的车牌：{}，车主 ID: {}", plate, parkingPlate.ownerId)
+                return@forEach
+            }
+            val phone = owner.phone.trim().takeIf(String::isNotEmpty) ?: run {
+                skippedCount++
+                logger.warn("跳过无手机号的车主：{}，车主 ID: {}", owner.name, owner.id)
                 return@forEach
             }
             if (!processedPhones.add(phone)) {
                 skippedCount++
                 return@forEach
             }
-            val nickName = carMasterInfo.carMasterName.trim()
+            val nickName = owner.name.trim()
             if (nickName.isEmpty()) {
                 skippedCount++
-                logger.warn("跳过无姓名的车辆业主，车辆主档 ID: {}", carMasterInfo.id)
+                logger.warn("跳过无姓名的车主，车主 ID: {}", owner.id)
                 return@forEach
             }
             if (phone in existingUsernames) {
@@ -133,7 +148,7 @@ class SynAccountGenerateTask(
                 createdCount++
             } catch (exception: RuntimeException) {
                 failedCount++
-                logger.error("为车辆业主创建平台账号失败，车辆主档 ID: {}, 手机号: {}", carMasterInfo.id, phone, exception)
+                logger.error("为车辆业主创建平台账号失败，车主 ID: {}, 手机号: {}", owner.id, phone, exception)
             }
         }
 
@@ -141,22 +156,15 @@ class SynAccountGenerateTask(
         return AccountGenerateResult(createdCount, skippedCount, failedCount, LocalDateTime.now())
     }
 
-    /** 按通行卡车牌建立车牌到车辆主档的映射；同一车牌被多个主档认领时保留第一个。 */
-    private fun buildMasterByPlate(
-        carMasterInfos: List<CarMasterInfo>,
-        activePlates: Set<String>,
-    ): Map<String, CarMasterInfo> {
-        val masterByPlate = linkedMapOf<String, CarMasterInfo>()
-        carMasterInfos.forEach { carMasterInfo ->
-            carMasterInfo.cards.forEach { card ->
-                val plate = card.carNumber?.trim()?.takeIf(String::isNotEmpty) ?: return@forEach
-                if (plate in activePlates && plate !in masterByPlate) {
-                    masterByPlate[plate] = carMasterInfo
-                }
-            }
-        }
-        return masterByPlate
-    }
+    /**
+     * 车牌归一化：进出记录的车牌来自科拓，车牌档案由人工或导入维护，两边可能存在
+     * 间隔符（·）和空格差异，匹配前统一去除并转大写。
+     */
+    private fun normalizePlate(value: String?): String? = value
+        ?.replace(SEPARATOR_PATTERN, "")
+        ?.trim()
+        ?.uppercase()
+        ?.takeIf(String::isNotEmpty)
 
     private fun recordHistory(
         trigger: SyncTaskRun.Trigger,
@@ -190,9 +198,11 @@ class SynAccountGenerateTask(
         const val TASK_NAME = "车辆业主账号生成"
         const val DEPARTMENT_ID = 229L
         const val INITIAL_PASSWORD = "Fqjg20221022"
+        const val STATUS_ENABLED = 1
 
         /** 账号生成数据源的进出记录回溯天数。 */
         const val ACTIVE_WINDOW_DAYS = 30L
+        val SEPARATOR_PATTERN = Regex("[\\s·.。]")
         val logger = LoggerFactory.getLogger(SynAccountGenerateTask::class.java)
         val executionLock = ReentrantLock()
     }
