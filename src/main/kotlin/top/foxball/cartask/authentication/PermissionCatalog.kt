@@ -4,9 +4,12 @@ package top.foxball.cartask.authentication
 object PermissionCatalog {
     data class Definition(val code: String, val name: String)
 
+    const val SYSTEM_MONITOR_READ = "system-monitor:read"
+    const val LEGACY_SYSTEM_MONITOR_READ = "system:monitor:read"
+
     val definitions = listOf(
         Definition("dashboard:read", "查看仪表盘"),
-        Definition("system:monitor:read", "查看系统监控"),
+        Definition(SYSTEM_MONITOR_READ, "查看系统监控"),
         Definition("user:read", "查看用户"),
         Definition("user:create", "新增用户"),
         Definition("user:update", "编辑用户"),

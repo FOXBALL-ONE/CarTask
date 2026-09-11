@@ -15,44 +15,46 @@
       <section v-for="group in navigation" :key="group.title" class="nav__group">
         <h2 class="nav__group-title">{{ group.title }}</h2>
         <template v-for="item in group.items" :key="item.label">
-          <button
-              v-if="item.children"
-              :aria-expanded="expandedGroups.includes(item.label)"
-              :class="{ open: expandedGroups.includes(item.label) }"
-              :title="collapsed ? item.label : undefined"
-              class="nav__item nav__parent"
-              type="button"
-              @click="toggleGroup(item.label)"
-          >
-            <span class="material-icons-outlined nav__icon">{{ item.icon }}</span>
-            <span class="nav__label">{{ item.label }}</span>
-            <span class="material-icons-outlined nav__chevron">chevron_right</span>
-          </button>
-          <div v-if="item.children" :class="{ open: expandedGroups.includes(item.label) }" class="nav__sub">
+          <template v-if="itemVisible(item)">
             <button
-                v-for="child in item.children"
-                :key="child.page"
-                :class="{ active: activePage === child.page }"
-                :title="collapsed ? child.label : undefined"
+                v-if="item.children"
+                :aria-expanded="expandedGroups.includes(item.label)"
+                :class="{ open: expandedGroups.includes(item.label) }"
+                :title="collapsed ? item.label : undefined"
+                class="nav__item nav__parent"
+                type="button"
+                @click="toggleGroup(item.label)"
+            >
+              <span class="material-icons-outlined nav__icon">{{ item.icon }}</span>
+              <span class="nav__label">{{ item.label }}</span>
+              <span class="material-icons-outlined nav__chevron">chevron_right</span>
+            </button>
+            <div v-if="item.children" :class="{ open: expandedGroups.includes(item.label) }" class="nav__sub">
+              <button
+                  v-for="child in item.children"
+                  :key="child.page"
+                  :class="{ active: activePage === child.page }"
+                  :title="collapsed ? child.label : undefined"
+                  class="nav__item"
+                  type="button"
+                  @click="selectPage(child.route)"
+              >
+                <span class="material-icons-outlined nav__icon">{{ child.icon }}</span>
+                <span class="nav__label">{{ child.label }}</span>
+              </button>
+            </div>
+            <button
+                v-else
+                :class="{ active: activePage === item.page }"
+                :title="collapsed ? item.label : undefined"
                 class="nav__item"
                 type="button"
-                @click="selectPage(child.route)"
+                @click="selectPage(item.route)"
             >
-              <span class="material-icons-outlined nav__icon">{{ child.icon }}</span>
-              <span class="nav__label">{{ child.label }}</span>
+              <span class="material-icons-outlined nav__icon">{{ item.icon }}</span>
+              <span class="nav__label">{{ item.label }}</span>
             </button>
-          </div>
-          <button
-              v-else
-              :class="{ active: activePage === item.page }"
-              :title="collapsed ? item.label : undefined"
-              class="nav__item"
-              type="button"
-              @click="selectPage(item.route)"
-          >
-            <span class="material-icons-outlined nav__icon">{{ item.icon }}</span>
-            <span class="nav__label">{{ item.label }}</span>
-          </button>
+          </template>
         </template>
       </section>
     </nav>
@@ -89,6 +91,7 @@ interface NavigationItem {
   icon: string;
   page?: string;
   route?: string;
+  permission?: string;
   children?: NavigationItem[];
 }
 
@@ -153,11 +156,24 @@ const navigation: { title: string; items: NavigationItem[] }[] = [
       ],
     }],
   },
-  {title: "系统", items: [{label: "日志管理", icon: "receipt_long", page: "logs", route: "/logs"}]},
+  {
+    title: "系统",
+    items: [
+      {
+        label: "系统监控",
+        icon: "monitor_heart",
+        page: "system-monitor",
+        route: "/system-monitor",
+        permission: "system-monitor:read"
+      },
+      {label: "日志管理", icon: "receipt_long", page: "logs", route: "/logs"},
+    ],
+  },
 ];
 
 const expandedGroups = ref<string[]>([]);
 const settingsOpen = ref(false);
+const authStore = useAuthStore();
 const logoMark = computed(() => props.systemName.trim().charAt(0).toUpperCase() || "A");
 
 watch(() => props.activePage, (page) => {
@@ -178,6 +194,10 @@ function toggleGroup(label: string) {
   expandedGroups.value = expandedGroups.value.includes(label)
       ? expandedGroups.value.filter((group) => group !== label)
       : [...expandedGroups.value, label];
+}
+
+function itemVisible(item: NavigationItem) {
+  return !item.permission || authStore.user?.permissions?.includes(item.permission) === true;
 }
 
 async function selectPage(route?: string) {

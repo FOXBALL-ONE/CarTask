@@ -26,6 +26,7 @@ interface AuthService {
         val userId: Long,
         val username: kotlin.String,
         val role: kotlin.String,
+        val permissions: Set<kotlin.String>,
     )
     
     fun login(command: LoginCommand): LoginData
@@ -40,6 +41,7 @@ class AuthServiceImpl(
     private val sessionRepository: RedisTokenSessionRepository,
     private val captchaService: CaptchaService,
     private val loginAttemptLimiter: LoginAttemptLimiter,
+    private val rolePermissionService: RolePermissionService,
     private val auditService: AuditService? = null,
 ) : AuthService {
     override fun login(command: AuthService.LoginCommand): AuthService.LoginData {
@@ -76,6 +78,7 @@ class AuthServiceImpl(
             throw ex
         }
         loginAttemptLimiter.clear(command.username)
+        val permissions = rolePermissionService.permissionsFor(role)
         val userId = user.id ?: throw IllegalStateException("用户 ID 缺失")
         val version = sessionRepository.currentTokenVersion(userId)
         val issued = jwtTokenService.issue(userId, user.username, role, version)
@@ -105,7 +108,7 @@ class AuthServiceImpl(
                 ),
             )
         }
-        return AuthService.LoginData(issued.accessToken, issued.expiresAt, userId, user.username, role)
+        return AuthService.LoginData(issued.accessToken, issued.expiresAt, userId, user.username, role, permissions)
     }
     
     override fun logout(tokenId: kotlin.String) {

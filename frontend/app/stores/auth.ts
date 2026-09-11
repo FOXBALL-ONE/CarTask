@@ -5,6 +5,7 @@ export interface AuthUser {
     user_id: number;
     username: string;
     role: string;
+    permissions: string[];
 }
 
 export interface LoginResponse {
@@ -112,6 +113,7 @@ export const useAuthStore = defineStore("auth", () => {
 
         const stored = sessionStorage.getItem("loginUser");
         if (!stored) {
+            void refreshSession().catch(() => undefined);
             return;
         }
 
@@ -124,6 +126,23 @@ export const useAuthStore = defineStore("auth", () => {
         } catch {
             sessionStorage.removeItem("loginUser");
         }
+        void refreshSession().catch(() => undefined);
+    }
+
+    async function refreshSession() {
+        if (!token.value) {
+            return null;
+        }
+
+        const currentUser = await http.get<AuthUser>("/auth/session");
+        user.value = currentUser;
+        if (import.meta.client) {
+            sessionStorage.setItem("loginUser", JSON.stringify({
+                expires_at: expiresAt.value,
+                user: currentUser,
+            }));
+        }
+        return currentUser;
     }
 
     async function logout() {
@@ -164,6 +183,7 @@ export const useAuthStore = defineStore("auth", () => {
         refreshCaptcha,
         login,
         restoreSession,
+        refreshSession,
         logout,
         clearError,
         setError,

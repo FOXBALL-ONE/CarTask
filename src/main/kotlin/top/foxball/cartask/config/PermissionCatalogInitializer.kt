@@ -21,7 +21,29 @@ class PermissionCatalogInitializer(
     @EventListener(classes = [ApplicationReadyEvent::class])
     @Transactional
     fun write() {
-        val existingCodes = permissionRepository.findAll().map { it.code }.toSet()
+        val existingPermissions = permissionRepository.findAll().toMutableList()
+        val legacyMonitorPermission = existingPermissions.singleOrNull { permission ->
+            permission.code.equals(PermissionCatalog.LEGACY_SYSTEM_MONITOR_READ, ignoreCase = true)
+        }
+        if (legacyMonitorPermission != null) {
+            val monitorPermission = existingPermissions.singleOrNull { permission ->
+                permission.code == PermissionCatalog.SYSTEM_MONITOR_READ
+            }
+            if (monitorPermission == null) {
+                legacyMonitorPermission.code = PermissionCatalog.SYSTEM_MONITOR_READ
+                permissionRepository.save(legacyMonitorPermission)
+            } else {
+                roleRepository.findAll().forEach { role ->
+                    if (role.permissions.remove(legacyMonitorPermission)) {
+                        role.permissions.add(monitorPermission)
+                        roleRepository.save(role)
+                    }
+                }
+                permissionRepository.delete(legacyMonitorPermission)
+                existingPermissions.remove(legacyMonitorPermission)
+            }
+        }
+        val existingCodes = existingPermissions.map { it.code }.toSet()
         val missing = PermissionCatalog.definitions
             .filterNot { it.code in existingCodes }
             .map { definition ->
@@ -42,9 +64,13 @@ class PermissionCatalogInitializer(
         val admin = roleRepository.findByNameIgnoreCase("ADMIN")
         if (admin != null && admin.permissions.isEmpty()) {
             admin.permissions = allPermissions.values
-                .filterNot { it.code in setOf("role:manage", "permission:manage", "user:role-assign", "audit:delete", "system:monitor:read") }
+                .filterNot { it.code in setOf("role:manage", "permission:manage", "user:role-assign", "audit:delete") }
                 .toMutableSet()
             roleRepository.save(admin)
+        }
+        if (admin != null) {
+            val monitorPermission = allPermissions[PermissionCatalog.SYSTEM_MONITOR_READ]
+            if (monitorPermission != null && admin.permissions.add(monitorPermission)) roleRepository.save(admin)
         }
         val user = roleRepository.findByNameIgnoreCase("USER")
         if (user != null && user.permissions.isEmpty()) {

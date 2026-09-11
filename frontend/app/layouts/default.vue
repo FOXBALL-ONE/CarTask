@@ -79,7 +79,7 @@ const userRole = computed(() => authStore.user?.role || "admin");
 const pageLabels: Record<string, string> = {
   dashboard: "仪表盘", users: "用户管理", roles: "角色管理", depts: "部门管理", posts: "岗位管理",
   owners: "车主信息", spots: "车位信息", plates: "车牌信息", devices: "设备管理", "gate-persons": "人员信息",
-  "person-records": "人员进出", "vehicle-records": "车辆进出", logs: "日志管理", profile: "个人中心", password: "修改密码",
+  "person-records": "人员进出", "vehicle-records": "车辆进出", "system-monitor": "系统监控", logs: "日志管理", profile: "个人中心", password: "修改密码",
 };
 const routePages: Record<string, string> = {
   "/": "dashboard",
@@ -94,6 +94,7 @@ const routePages: Record<string, string> = {
   "/plates": "plates",
   "/person-records": "person-records",
   "/vehicle-records": "vehicle-records",
+  "/system-monitor": "system-monitor",
   "/logs": "logs",
 };
 const pagePaths: Record<string, string> = {
@@ -109,6 +110,7 @@ const pagePaths: Record<string, string> = {
   plates: "/plates",
   "person-records": "/person-records",
   "vehicle-records": "/vehicle-records",
+  "system-monitor": "/system-monitor",
   logs: "/logs",
 };
 const isLoginPage = computed(() => route.path === "/login");

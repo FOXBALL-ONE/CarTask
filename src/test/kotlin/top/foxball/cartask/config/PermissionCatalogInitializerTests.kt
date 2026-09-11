@@ -1,6 +1,7 @@
 package top.foxball.cartask.config
 
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
@@ -29,5 +30,39 @@ class PermissionCatalogInitializerTests {
         verify(permissionRepository).saveAll(permissions.capture())
         assertEquals(PermissionCatalog.definitions.size - 1, permissions.firstValue.size)
         verify(roleRepository, never()).save(any())
+    }
+
+    @Test
+    fun `为已有管理员角色补齐系统监控权限`() {
+        val dashboard = Permission().apply { code = "dashboard:read"; name = "查看仪表盘" }
+        val monitor = Permission().apply { code = PermissionCatalog.SYSTEM_MONITOR_READ; name = "查看系统监控" }
+        val admin = top.foxball.cartask.entity.Role().apply {
+            name = "ADMIN"
+            permissions = linkedSetOf(dashboard)
+        }
+        val allPermissions = listOf(dashboard, monitor)
+        whenever(permissionRepository.findAll()).thenReturn(allPermissions, allPermissions)
+        whenever(roleRepository.findByNameIgnoreCase("ADMIN")).thenReturn(admin)
+
+        PermissionCatalogInitializer(permissionRepository, roleRepository).write()
+
+        assertTrue(admin.permissions.any { it.code == PermissionCatalog.SYSTEM_MONITOR_READ })
+        verify(roleRepository).save(admin)
+    }
+
+    @Test
+    fun `启动时修正旧版系统监控权限编码`() {
+        val legacyMonitor = Permission().apply {
+            code = PermissionCatalog.LEGACY_SYSTEM_MONITOR_READ
+            name = "查看系统监控"
+        }
+        whenever(permissionRepository.findAll()).thenReturn(listOf(legacyMonitor), listOf(legacyMonitor), listOf(legacyMonitor))
+        whenever(permissionRepository.save(legacyMonitor)).thenReturn(legacyMonitor)
+        whenever(roleRepository.findAll()).thenReturn(emptyList())
+
+        PermissionCatalogInitializer(permissionRepository, roleRepository).write()
+
+        assertEquals(PermissionCatalog.SYSTEM_MONITOR_READ, legacyMonitor.code)
+        verify(permissionRepository).save(legacyMonitor)
     }
 }

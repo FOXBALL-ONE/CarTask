@@ -40,6 +40,7 @@ class AuthController(
             @param:JsonProperty("user_id") val userId: Long,
             val username: kotlin.String,
             val role: kotlin.String,
+            val permissions: List<kotlin.String>,
         )
         
         data class Response(
@@ -49,11 +50,27 @@ class AuthController(
         )
         
         val result = authService.login(command)
-        val rs = Response(result.accessToken, result.expiresAt, UserData(result.userId, result.username, result.role))
+        val rs = Response(result.accessToken, result.expiresAt, UserData(result.userId, result.username, result.role, result.permissions.sorted()))
         return responseBuilder.ok()
             .header(HttpHeaders.AUTHORIZATION, "Bearer ${result.accessToken}")
             .header(HttpHeaders.CACHE_CONTROL, "no-store")
             .header("Pragma", "no-cache")
+            .data(rs)
+            .build()
+    }
+
+    @GetMapping("/session")
+    fun session(@AuthenticationPrincipal principal: CurrentUserPrincipal): ResponseEntity<Response> {
+        data class Response(
+            @param:JsonProperty("user_id") val userId: Long,
+            val username: kotlin.String,
+            val role: kotlin.String,
+            val permissions: List<kotlin.String>,
+        )
+
+        val rs = Response(principal.userId, principal.username, principal.role, principal.permissions.sorted())
+        return responseBuilder.ok()
+            .header(HttpHeaders.CACHE_CONTROL, "no-store")
             .data(rs)
             .build()
     }
