@@ -71,11 +71,19 @@ class PermissionCatalogInitializer(
         if (admin != null) {
             val monitorPermission = allPermissions[PermissionCatalog.SYSTEM_MONITOR_READ]
             if (monitorPermission != null && admin.permissions.add(monitorPermission)) roleRepository.save(admin)
+            // 新增的同步权限需要补授给已有权限配置的 ADMIN 角色，避免存量环境看不到新功能。
+            val ensured = allPermissions.filterKeys { it in ADMIN_ENSURED_PERMISSION_CODES }.values
+            if (ensured.any { admin.permissions.add(it) }) roleRepository.save(admin)
         }
         val user = roleRepository.findByNameIgnoreCase("USER")
         if (user != null && user.permissions.isEmpty()) {
             user.permissions = listOfNotNull(allPermissions["dashboard:read"]).toMutableSet()
             roleRepository.save(user)
         }
+    }
+
+    private companion object {
+        /** 后补进入权限字典的能力，即使 ADMIN 角色已有权限配置也必须补授。 */
+        val ADMIN_ENSURED_PERMISSION_CODES = setOf("account:sync", "sync-history:read")
     }
 }

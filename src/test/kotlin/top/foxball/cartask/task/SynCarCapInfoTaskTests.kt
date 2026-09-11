@@ -19,7 +19,10 @@ import top.foxball.cartask.keytop.KeytopService
 import top.foxball.cartask.repository.AccessRecordRepository
 import top.foxball.cartask.repository.SyncCheckpointRepository
 import top.foxball.cartask.entity.SyncCheckpoint
+import top.foxball.cartask.entity.SyncTaskRun
 import top.foxball.cartask.service.FileService
+import top.foxball.cartask.service.SyncTaskHistoryService
+import top.foxball.cartask.service.SyncTaskRunCommand
 import java.time.Duration
 import java.time.LocalDateTime
 import java.util.UUID
@@ -31,6 +34,7 @@ class SynCarCapInfoTaskTests {
     private val repository = mock<AccessRecordRepository>()
     private val fileService = mock<FileService>()
     private val syncCheckpointRepository = mock<SyncCheckpointRepository>()
+    private val historyService = mock<SyncTaskHistoryService>()
     private val objectMapper = ObjectMapper()
     private val task = SynCarCapInfoTask(
         keytopService,
@@ -39,6 +43,7 @@ class SynCarCapInfoTaskTests {
         KeytopProperties(carCapInfoPageSize = 2),
         fileService,
         syncCheckpointRepository,
+        historyService,
     )
 
     @Test
@@ -52,7 +57,7 @@ class SynCarCapInfoTaskTests {
     }
 
     @Test
-    fun `预检首次同步时报告近三十天内待同步记录且不写入检查点`() {
+    fun `预检首次同步时报告近一天内待同步记录且不写入检查点`() {
         whenever(syncCheckpointRepository.findFirstBySyncKey("keytop.car_cap_info")).thenReturn(null)
         whenever(keytopService.getCarInoutInfo(eq(1), eq(1), isNull(), anyOrNull(), anyOrNull())).thenReturn(
             KeytopResponse(0, "success", objectMapper.readTree("""{"totalCount":"42","detailList":[]}""")),
@@ -62,14 +67,14 @@ class SynCarCapInfoTaskTests {
 
         assertEquals(true, result.initialSync)
         assertEquals(42, result.pendingCount)
-        assertEquals(Duration.ofDays(30), Duration.between(result.startTime, result.endTime))
+        assertEquals(Duration.ofDays(1), Duration.between(result.startTime, result.endTime))
         assertEquals(null, result.checkpointTime)
         verify(syncCheckpointRepository, never()).save(any())
         verify(repository, never()).save(any())
     }
 
     @Test
-    fun `无同步快照时同步近三十天并写入当前时刻快照`() {
+    fun `无同步快照时同步近一天并写入当前时刻快照`() {
         whenever(syncCheckpointRepository.findBySyncKey("keytop.car_cap_info")).thenReturn(null)
         whenever(repository.findTopByOrderByInAndOutTimeDescIdDesc()).thenReturn(null)
         whenever(
@@ -115,7 +120,7 @@ class SynCarCapInfoTaskTests {
         val endTimeCaptor = argumentCaptor<LocalDateTime>()
         verify(keytopService).getCarInoutInfo(eq(1), eq(2), isNull(), startTimeCaptor.capture(), endTimeCaptor.capture())
         verify(keytopService).getCarInoutInfo(eq(2), eq(2), isNull(), anyOrNull(), eq(endTimeCaptor.firstValue))
-        assertEquals(Duration.ofDays(30), Duration.between(startTimeCaptor.firstValue, endTimeCaptor.firstValue))
+        assertEquals(Duration.ofDays(1), Duration.between(startTimeCaptor.firstValue, endTimeCaptor.firstValue))
         verify(repository, times(3)).save(captor.capture())
         val records = captor.allValues
         assertEquals(AccessRecord.InAndOut.IN, records[0].inAndOut)
@@ -160,7 +165,7 @@ class SynCarCapInfoTaskTests {
     }
 
     @Test
-    fun `缺少快照时忽略本地最新记录并按近三十天范围同步`() {
+    fun `缺少快照时忽略本地最新记录并按近一天范围同步`() {
         val latest = AccessRecord().apply {
             id = 9
             carNumber = "沪A12345"
@@ -196,7 +201,7 @@ class SynCarCapInfoTaskTests {
         val startTimeCaptor = argumentCaptor<LocalDateTime>()
         val endTimeCaptor = argumentCaptor<LocalDateTime>()
         verify(keytopService).getCarInoutInfo(eq(1), eq(2), isNull(), startTimeCaptor.capture(), endTimeCaptor.capture())
-        assertEquals(Duration.ofDays(30), Duration.between(startTimeCaptor.firstValue, endTimeCaptor.firstValue))
+        assertEquals(Duration.ofDays(1), Duration.between(startTimeCaptor.firstValue, endTimeCaptor.firstValue))
         verify(repository).save(existing)
         assertEquals("已更新", existing.releaseInstructions)
     }
@@ -411,5 +416,47 @@ class SynCarCapInfoTaskTests {
         assertEquals(localUrl, failed.photoUrl)
         assertEquals(AccessRecord.PhotoSyncStatus.LOCAL, failed.photoSyncStatus)
         assertEquals(null, failed.photoSyncError)
+    }
+
+    @Test
+    fun `定时同步成功后记录定时执行历史`() {
+        val checkpoint = SyncCheckpoint().apply { id = 1; syncKey = "keytop.car_cap_info" }
+        whenever(syncCheckpointRepository.findBySyncKey("keytop.car_cap_info")).thenReturn(checkpoint)
+        whenever(repository.findTopByOrderByInAndOutTimeDescIdDesc()).thenReturn(null)
+        whenever(keytopService.getCarInoutInfo(eq(1), eq(2), isNull(), anyOrNull(), anyOrNull())).thenReturn(
+            KeytopResponse(
+                0,
+                "success",
+                objectMapper.readTree("""{"totalCount":"1","detailList":[{"plateNo":"沪A12345","capFlag":0,"capTime":"2026-08-20 10:00:00"}]}"""),
+            ),
+        )
+        whenever(repository.findBySourceRecordId(any())).thenReturn(null)
+        whenever(repository.findByIdentity(any(), any(), any())).thenReturn(null)
+        val command = argumentCaptor<SyncTaskRunCommand>()
+
+        task.synCarCapInfoList()
+
+        verify(historyService).record(command.capture())
+        assertEquals("car_cap_info.sync", command.firstValue.taskKey)
+        assertEquals("车辆进出记录同步", command.firstValue.taskName)
+        assertEquals(SyncTaskRun.Trigger.SCHEDULED, command.firstValue.trigger)
+        assertEquals(SyncTaskRun.Status.SUCCESS, command.firstValue.status)
+        assertEquals(1, command.firstValue.processedCount)
+    }
+
+    @Test
+    fun `手动同步失败时记录失败执行历史并抛出异常`() {
+        val checkpoint = SyncCheckpoint().apply { id = 1; syncKey = "keytop.car_cap_info" }
+        whenever(syncCheckpointRepository.findBySyncKey("keytop.car_cap_info")).thenReturn(checkpoint)
+        whenever(keytopService.getCarInoutInfo(eq(1), eq(2), isNull(), anyOrNull(), anyOrNull()))
+            .thenReturn(KeytopResponse(1, "failed", null))
+        val command = argumentCaptor<SyncTaskRunCommand>()
+
+        val exception = runCatching { task.synchronize() }.exceptionOrNull()
+
+        assertEquals(true, exception is IllegalArgumentException)
+        verify(historyService).record(command.capture())
+        assertEquals(SyncTaskRun.Trigger.MANUAL, command.firstValue.trigger)
+        assertEquals(SyncTaskRun.Status.FAILED, command.firstValue.status)
     }
 }

@@ -10,6 +10,17 @@ import java.time.LocalDateTime
 interface AccessRecordRepository : JpaRepository<AccessRecord, Long>, JpaSpecificationExecutor<AccessRecord> {
     fun findTopByOrderByInAndOutTimeDescIdDesc(): AccessRecord?
 
+    /** 查询指定时间之后有进出记录的去重车牌号。 */
+    @Query(
+        """
+        select distinct record.carNumber from AccessRecord record
+        where record.inAndOutTime >= :startTime
+          and record.carNumber is not null
+          and record.carNumber <> ''
+        """,
+    )
+    fun findDistinctCarNumbersSince(@Param("startTime") startTime: LocalDateTime): List<String>
+
     fun findBySourceRecordId(sourceRecordId: String): AccessRecord?
 
     fun findTop100ByPhotoSyncStatusOrderByIdAsc(

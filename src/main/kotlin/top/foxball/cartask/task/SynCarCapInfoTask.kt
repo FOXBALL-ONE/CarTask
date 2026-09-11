@@ -9,12 +9,15 @@ import tools.jackson.databind.ObjectMapper
 import top.foxball.cartask.audit.AuditRequestContext
 import top.foxball.cartask.entity.AccessRecord
 import top.foxball.cartask.entity.SyncCheckpoint
+import top.foxball.cartask.entity.SyncTaskRun
 import top.foxball.cartask.handler.VehicleAccessRecordSyncInProgressException
 import top.foxball.cartask.keytop.KeytopProperties
 import top.foxball.cartask.keytop.KeytopService
 import top.foxball.cartask.repository.AccessRecordRepository
 import top.foxball.cartask.repository.SyncCheckpointRepository
 import top.foxball.cartask.service.FileService
+import top.foxball.cartask.service.SyncTaskHistoryService
+import top.foxball.cartask.service.SyncTaskRunCommand
 import java.math.BigDecimal
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -48,13 +51,14 @@ class SynCarCapInfoTask(
     private val keytopProperties: KeytopProperties,
     private val fileService: FileService,
     private val syncCheckpointRepository: SyncCheckpointRepository,
+    private val syncTaskHistoryService: SyncTaskHistoryService,
 ) {
     @Scheduled(cron = "\${keytop.car-cap-info-sync-cron:0 */5 * * * *}", zone = "Asia/Shanghai")
     @Transactional(noRollbackFor = [RuntimeException::class])
     fun synCarCapInfoList() {
         AuditRequestContext.withRun {
             try {
-                synchronizeInternal()
+                execute(SyncTaskRun.Trigger.SCHEDULED)
             } catch (exception: VehicleAccessRecordSyncInProgressException) {
                 logger.warn("车辆进出记录同步仍在执行，本次定时任务跳过")
             } catch (exception: RuntimeException) {
@@ -62,10 +66,25 @@ class SynCarCapInfoTask(
             }
         }
     }
-    
+
     /** 手动执行一次基于上次成功检查点的车辆进出记录增量同步。 */
     @Transactional(noRollbackFor = [RuntimeException::class])
-    fun synchronize(): CarCapInfoSyncResult = synchronizeInternal()
+    fun synchronize(): CarCapInfoSyncResult = execute(SyncTaskRun.Trigger.MANUAL)
+
+    /** 执行一次同步并记录执行历史；同步正在执行时直接抛出，不记入历史。 */
+    private fun execute(trigger: SyncTaskRun.Trigger): CarCapInfoSyncResult {
+        val startedAt = LocalDateTime.now()
+        try {
+            val result = synchronizeInternal()
+            recordHistory(trigger, SyncTaskRun.Status.SUCCESS, startedAt, result, null)
+            return result
+        } catch (exception: VehicleAccessRecordSyncInProgressException) {
+            throw exception
+        } catch (exception: RuntimeException) {
+            recordHistory(trigger, SyncTaskRun.Status.FAILED, startedAt, null, exception)
+            throw exception
+        }
+    }
     
     /** 只读取待同步总数和时间范围，供手动同步确认前展示。 */
     @Transactional(readOnly = true)
@@ -189,6 +208,38 @@ class SynCarCapInfoTask(
         }
     }
     
+    private fun recordHistory(
+        trigger: SyncTaskRun.Trigger,
+        status: SyncTaskRun.Status,
+        startedAt: LocalDateTime,
+        result: CarCapInfoSyncResult?,
+        exception: RuntimeException?,
+    ) {
+        try {
+            syncTaskHistoryService.record(
+                SyncTaskRunCommand(
+                    taskKey = TASK_KEY,
+                    taskName = TASK_NAME,
+                    trigger = trigger,
+                    status = status,
+                    startedAt = startedAt,
+                    finishedAt = LocalDateTime.now(),
+                    dataStartTime = result?.startTime,
+                    dataEndTime = result?.cursorTime,
+                    processedCount = result?.processedCount,
+                    localPhotoCount = result?.localPhotoCount,
+                    failedPhotoCount = result?.failedPhotoCount,
+                    summary = result?.let {
+                        "处理 ${it.processedCount} 条，图片落地 ${it.localPhotoCount} 张，待重试 ${it.failedPhotoCount} 张"
+                    },
+                    error = exception?.message?.take(2048) ?: exception?.javaClass?.simpleName,
+                ),
+            )
+        } catch (historyException: RuntimeException) {
+            logger.warn("写入车辆进出记录同步执行历史失败", historyException)
+        }
+    }
+
     private fun processRecords(
         records: List<JsonNode>,
         seen: MutableMap<String, AccessRecord>,
@@ -488,6 +539,8 @@ class SynCarCapInfoTask(
         val executionLock = ReentrantLock()
         val PLATFORM_TIME: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
         const val SYNC_KEY = "keytop.car_cap_info"
+        const val TASK_KEY = "car_cap_info.sync"
+        const val TASK_NAME = "车辆进出记录同步"
         const val INITIAL_SYNC_DAYS = 1L
     }
 }

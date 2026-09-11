@@ -50,6 +50,10 @@ class VehicleAccessRecordSyncInProgressException(
     message: String = "车辆进出记录同步正在执行，请稍后重试",
 ) : BusinessException(HttpStatus.CONFLICT, message)
 
+class AccountGenerateInProgressException(
+    message: String = "车辆业主账号生成正在执行，请稍后重试",
+) : BusinessException(HttpStatus.CONFLICT, message)
+
 class HomeRecommendationVersionConflictException(
     val actualVersion: Long,
     message: String = "首页推荐方案已被其他操作更新，请刷新后重试",

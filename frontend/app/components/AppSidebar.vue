@@ -164,6 +164,13 @@ const navigation: { title: string; items: NavigationItem[] }[] = [
     items: [
       {label: "数据同步", icon: "sync_alt", page: "synchronizations", route: "/synchronizations"},
       {
+        label: "同步历史",
+        icon: "history",
+        page: "sync-history",
+        route: "/sync-history",
+        permission: "sync-history:read"
+      },
+      {
         label: "系统监控",
         icon: "monitor_heart",
         page: "system-monitor",

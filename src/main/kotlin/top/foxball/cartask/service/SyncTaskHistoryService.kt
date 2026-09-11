@@ -1,5 +1,6 @@
 package top.foxball.cartask.service
 
+import org.springframework.data.domain.PageRequest
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Propagation
@@ -28,12 +29,33 @@ data class SyncTaskRunCommand(
     val error: String? = null,
 )
 
+/** 同步执行历史的分页查询结果。 */
+data class SyncTaskRunPage(
+    val runs: List<SyncTaskRun>,
+    val page: Int,
+    val pageSize: Int,
+    val total: Long,
+)
+
 /** 写入同步执行历史，并按任务标识保留配置数量的最近记录。 */
 @Service
 class SyncTaskHistoryService(
     private val repository: SyncTaskRunRepository,
     private val properties: SyncProperties,
 ) {
+    /** 按开始时间倒序分页查询执行历史，可按任务标识过滤。 */
+    @Transactional(readOnly = true)
+    fun list(page: Int, pageSize: Int, taskKey: String? = null): SyncTaskRunPage {
+        val pageable = PageRequest.of((page - 1).coerceAtLeast(0), pageSize.coerceIn(1, 100))
+        val trimmedKey = taskKey?.trim()?.takeIf(String::isNotEmpty)
+        val result = if (trimmedKey == null) {
+            repository.findByOrderByStartedAtDescIdDesc(pageable)
+        } else {
+            repository.findByTaskKeyOrderByStartedAtDescIdDesc(trimmedKey, pageable)
+        }
+        return SyncTaskRunPage(result.content, page, pageSize, result.totalElements)
+    }
+
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     fun record(command: SyncTaskRunCommand): SyncTaskRun {
         val taskKey = command.taskKey.trim().take(128)

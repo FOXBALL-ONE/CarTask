@@ -60,6 +60,8 @@ object PermissionCatalog {
         Definition("dictionary:read", "查看字典"),
         Definition("dictionary:manage", "管理字典"),
         Definition("dictionary:sync", "同步停车区域字典"),
+        Definition("account:sync", "生成车辆业主账号"),
+        Definition("sync-history:read", "查看同步执行历史"),
         Definition("file:read", "读取文件"),
         Definition("file:upload", "上传文件"),
     )

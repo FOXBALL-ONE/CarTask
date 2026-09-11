@@ -6,18 +6,23 @@ import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
-import top.foxball.cartask.service.ParkingAreaSyncService
+import top.foxball.cartask.service.SyncTaskHistoryService
 import top.foxball.cartask.shared.Response
 import top.foxball.cartask.shared.ResponseBuilder
+import top.foxball.cartask.task.SynAccountGenerateTask
+import top.foxball.cartask.task.SynAreaInfoTask
 import top.foxball.cartask.task.SynCarCapInfoTask
 import java.time.LocalDateTime
 
 @RestController
 @RequestMapping("/api/synchronizations")
 class SynchronizationController(
-    private val parkingAreaSyncService: ParkingAreaSyncService,
+    private val synAreaInfoTask: SynAreaInfoTask,
     private val synCarCapInfoTask: SynCarCapInfoTask,
+    private val synAccountGenerateTask: SynAccountGenerateTask,
+    private val syncTaskHistoryService: SyncTaskHistoryService,
     private val responseBuilder: ResponseBuilder,
 ) {
     /** 从科拓拉取一次停车区域，并将结果幂等写入本地区域字典。 */
@@ -32,7 +37,7 @@ class SynchronizationController(
             @param:JsonProperty("executed_at") val executedAt: LocalDateTime,
         )
 
-        val result = parkingAreaSyncService.synchronize()
+        val result = synAreaInfoTask.synchronize()
         val rs = Response(
             receivedCount = result.receivedCount,
             createdCount = result.createdCount,
@@ -99,5 +104,89 @@ class SynchronizationController(
             .message("车辆进出记录同步完成")
             .data(rs)
             .build()
+    }
+
+    /** 根据车辆主档为业主补建平台登录账号，已有账号的业主自动跳过。 */
+    @PostMapping("/accounts")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('account:sync')")
+    fun synchronizeAccounts(): ResponseEntity<Response> {
+        data class Response(
+            @param:JsonProperty("created_count") val createdCount: Int,
+            @param:JsonProperty("skipped_count") val skippedCount: Int,
+            @param:JsonProperty("failed_count") val failedCount: Int,
+            @param:JsonProperty("executed_at") val executedAt: LocalDateTime,
+        )
+
+        val result = synAccountGenerateTask.generate()
+        val rs = Response(
+            createdCount = result.createdCount,
+            skippedCount = result.skippedCount,
+            failedCount = result.failedCount,
+            executedAt = LocalDateTime.now(),
+        )
+        return responseBuilder.ok()
+            .message("车辆业主账号生成完成")
+            .data(rs)
+            .build()
+    }
+
+    /** 分页查询数据同步任务的执行历史，可按任务标识过滤。 */
+    @GetMapping("/history")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('sync-history:read')")
+    fun syncHistory(
+        @RequestParam(defaultValue = "1") page: Int,
+        @RequestParam(name = "page_size", defaultValue = "20") pageSize: Int,
+        @RequestParam(name = "task_key", required = false) taskKey: String?,
+    ): ResponseEntity<Response> {
+        data class RunData(
+            val id: Long,
+            @param:JsonProperty("task_key") val taskKey: String,
+            @param:JsonProperty("task_name") val taskName: String,
+            val trigger: String,
+            val status: String,
+            @param:JsonProperty("source_system") val sourceSystem: String,
+            @param:JsonProperty("actor_username") val actorUsername: String,
+            @param:JsonProperty("started_at") val startedAt: LocalDateTime,
+            @param:JsonProperty("finished_at") val finishedAt: LocalDateTime,
+            @param:JsonProperty("duration_ms") val durationMs: Long,
+            @param:JsonProperty("processed_count") val processedCount: Int?,
+            @param:JsonProperty("local_photo_count") val localPhotoCount: Int?,
+            @param:JsonProperty("failed_photo_count") val failedPhotoCount: Int?,
+            val summary: String?,
+            val error: String?,
+        )
+        data class Response(
+            val runs: List<RunData>,
+            val page: Int,
+            @param:JsonProperty("page_size") val pageSize: Int,
+            val total: Long,
+        )
+
+        val result = syncTaskHistoryService.list(page, pageSize, taskKey)
+        val rs = Response(
+            result.runs.map { run ->
+                RunData(
+                    requireNotNull(run.id),
+                    run.taskKey,
+                    run.taskName,
+                    run.trigger.name,
+                    run.status.name,
+                    run.sourceSystem,
+                    run.actorUsername,
+                    run.startedAt,
+                    run.finishedAt,
+                    run.durationMs,
+                    run.processedCount,
+                    run.localPhotoCount,
+                    run.failedPhotoCount,
+                    run.summary,
+                    run.error,
+                )
+            },
+            result.page,
+            result.pageSize,
+            result.total,
+        )
+        return responseBuilder.ok().data(rs).build()
     }
 }
