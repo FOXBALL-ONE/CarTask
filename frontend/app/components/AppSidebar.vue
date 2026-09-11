@@ -122,6 +122,7 @@ const navigation: { title: string; items: NavigationItem[] }[] = [
       {label: "角色管理", icon: "verified_user", page: "roles", route: "/roles"},
       {label: "部门管理", icon: "account_tree", page: "depts", route: "/departments"},
       {label: "岗位管理", icon: "badge", page: "posts", route: "/positions"},
+      {label: "数据导入导出", icon: "swap_vert", page: "data-transfer", route: "/data-transfer"},
     ],
   },
   {
@@ -133,6 +134,7 @@ const navigation: { title: string; items: NavigationItem[] }[] = [
         {label: "车主信息", icon: "person", page: "owners", route: "/owners"},
         {label: "车位信息", icon: "local_parking", page: "spots", route: "/spots"},
         {label: "车牌信息", icon: "pin_drop", page: "plates", route: "/plates"},
+        {label: "停车区域", icon: "map", page: "zones", route: "/zones"},
       ],
     }],
   },
@@ -156,9 +158,11 @@ const navigation: { title: string; items: NavigationItem[] }[] = [
       ],
     }],
   },
+  {title: "秩序管理", items: [{label: "违规管理", icon: "gavel", page: "violations", route: "/violations"}]},
   {
     title: "系统",
     items: [
+      {label: "数据同步", icon: "sync_alt", page: "synchronizations", route: "/synchronizations"},
       {
         label: "系统监控",
         icon: "monitor_heart",

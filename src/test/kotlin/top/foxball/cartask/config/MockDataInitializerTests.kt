@@ -14,12 +14,21 @@ import top.foxball.cartask.repository.CarMasterInfoRepository
 import top.foxball.cartask.repository.CarTypeRepository
 import top.foxball.cartask.repository.DepartmentRepository
 import top.foxball.cartask.repository.DeviceRepository
+import top.foxball.cartask.repository.GateDeleteRequestRepository
+import top.foxball.cartask.repository.GatePersonRepository
 import top.foxball.cartask.repository.LicensePlateTypeRepository
+import top.foxball.cartask.repository.ParkingOwnerRepository
+import top.foxball.cartask.repository.ParkingPlateRepository
+import top.foxball.cartask.repository.ParkingSpotRepository
+import top.foxball.cartask.repository.PersonAccessRecordRepository
 import top.foxball.cartask.repository.PositionRepository
 import top.foxball.cartask.repository.RoleRepository
 import top.foxball.cartask.repository.ReleaseTypeRepository
 import top.foxball.cartask.repository.RestrictionTypeRepository
 import top.foxball.cartask.repository.UserRepository
+import top.foxball.cartask.repository.ViolationRecordRepository
+import top.foxball.cartask.repository.ViolationSubjectRepository
+import top.foxball.cartask.repository.ViolationTypeRepository
 import top.foxball.cartask.repository.ZoneTypeRepository
 
 class MockDataInitializerTests {
@@ -38,6 +47,15 @@ class MockDataInitializerTests {
     private val carMasterInfoRepository = mock<CarMasterInfoRepository>()
     private val accessControlRepository = mock<AccessControlRepository>()
     private val accessRecordRepository = mock<AccessRecordRepository>()
+    private val parkingOwnerRepository = mock<ParkingOwnerRepository>()
+    private val parkingSpotRepository = mock<ParkingSpotRepository>()
+    private val parkingPlateRepository = mock<ParkingPlateRepository>()
+    private val gatePersonRepository = mock<GatePersonRepository>()
+    private val gateDeleteRequestRepository = mock<GateDeleteRequestRepository>()
+    private val personAccessRecordRepository = mock<PersonAccessRecordRepository>()
+    private val violationTypeRepository = mock<ViolationTypeRepository>()
+    private val violationSubjectRepository = mock<ViolationSubjectRepository>()
+    private val violationRecordRepository = mock<ViolationRecordRepository>()
 
     private val initializer = MockDataInitializer(
         MockDataProperties(enabled = false),
@@ -56,6 +74,15 @@ class MockDataInitializerTests {
         carMasterInfoRepository,
         accessControlRepository,
         accessRecordRepository,
+        parkingOwnerRepository,
+        parkingSpotRepository,
+        parkingPlateRepository,
+        gatePersonRepository,
+        gateDeleteRequestRepository,
+        personAccessRecordRepository,
+        violationTypeRepository,
+        violationSubjectRepository,
+        violationRecordRepository,
     )
 
     @Test
@@ -98,6 +125,15 @@ class MockDataInitializerTests {
             carMasterInfoRepository,
             accessControlRepository,
             accessRecordRepository,
+            parkingOwnerRepository,
+            parkingSpotRepository,
+            parkingPlateRepository,
+            gatePersonRepository,
+            gateDeleteRequestRepository,
+            personAccessRecordRepository,
+            violationTypeRepository,
+            violationSubjectRepository,
+            violationRecordRepository,
         )
     }
 }
