@@ -5,7 +5,7 @@
         <h1 class="page__title">岗位管理</h1>
         <p class="page__desc">维护组织岗位信息</p>
       </div>
-      <button class="button button--primary" type="button" @click="openCreate">
+      <button v-if="can('position:manage')" class="button button--primary" type="button" @click="openCreate">
         <span class="material-icons-outlined">add</span>新增岗位
       </button>
     </header>
@@ -42,8 +42,8 @@
               <td><span class="status-tag" :class="position.status === 1 ? 'status-tag--normal' : 'status-tag--disabled'">{{ position.status === 1 ? "正常" : "停用" }}</span></td>
               <td class="remark">{{ position.remark || "-" }}</td>
               <td class="actions-cell">
-                <button class="row-action" type="button" title="编辑" @click="openEdit(position)"><span class="material-icons-outlined">edit</span></button>
-                <button class="row-action row-action--danger" type="button" title="删除" @click="removePosition(position)"><span class="material-icons-outlined">delete</span></button>
+                <button v-if="can('position:manage')" class="row-action" type="button" title="编辑" @click="openEdit(position)"><span class="material-icons-outlined">edit</span></button>
+                <button v-if="can('position:manage')" class="row-action row-action--danger" type="button" title="删除" @click="removePosition(position)"><span class="material-icons-outlined">delete</span></button>
               </td>
             </tr>
             <tr v-if="pagedPositions.length === 0"><td class="empty" colspan="7">暂无数据</td></tr>
@@ -103,6 +103,7 @@ interface PositionApi {
 interface PositionPage { content?: PositionApi[]; items?: PositionApi[] }
 
 const http = useHttp();
+const { can } = usePermission();
 const keyword = ref("");
 const status = ref("");
 const page = ref(1);

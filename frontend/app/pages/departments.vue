@@ -9,7 +9,7 @@
         <button class="button button--ghost button--sm" type="button" @click="toggleAll">
           <span class="material-icons-outlined">unfold_more</span>展开/折叠
         </button>
-        <button class="button button--primary button--sm" type="button" @click="openCreate">
+        <button v-if="canManageDepartment" class="button button--primary button--sm" type="button" @click="openCreate">
           <span class="material-icons-outlined">add</span>新增部门
         </button>
       </div>
@@ -105,8 +105,8 @@ const DepartmentNode = defineComponent({
         h("span", { class: "tag tag--gray" }, props.department.code),
         h("span", { class: "tree-meta" }, `负责人：${props.department.leader || "-"} · ${props.department.phone || "-"}`),
         h("span", { class: ["tag", props.department.status === 1 ? "tag--green" : "tag--red"] }, props.department.status === 1 ? "正常" : "停用"),
-        h("button", { class: "row-act", type: "button", title: "编辑", onClick: (event: Event) => { event.stopPropagation(); emit("edit", props.department.id); } }, [h("span", { class: "material-icons-outlined" }, "edit")]),
-        h("button", { class: "row-act row-act--danger", type: "button", title: "删除", onClick: (event: Event) => { event.stopPropagation(); emit("remove", props.department.id); } }, [h("span", { class: "material-icons-outlined" }, "delete")]),
+        canManageDepartment.value ? h("button", { class: "row-act", type: "button", title: "编辑", onClick: (event: Event) => { event.stopPropagation(); emit("edit", props.department.id); } }, [h("span", { class: "material-icons-outlined" }, "edit")]) : null,
+        canManageDepartment.value ? h("button", { class: "row-act row-act--danger", type: "button", title: "删除", onClick: (event: Event) => { event.stopPropagation(); emit("remove", props.department.id); } }, [h("span", { class: "material-icons-outlined" }, "delete")]) : null,
       ]),
       hasChildren.value && props.open.has(props.department.id)
         ? h("ul", { class: "tree tree-children open" }, children.value.map((child) => h(DepartmentNode, { department: child, departments: props.departments, level: props.level + 1, open: props.open, onToggle: (id: number) => emit("toggle", id), onEdit: (id: number) => emit("edit", id), onRemove: (id: number) => emit("remove", id) })))
@@ -116,6 +116,9 @@ const DepartmentNode = defineComponent({
 });
 
 const http = useHttp();
+const { can } = usePermission();
+// 行内操作在渲染函数里生成，用 computed 让它在权限变化时同样生效。
+const canManageDepartment = computed(() => can("department:manage"));
 const departments = ref<Department[]>([]);
 const openDepartments = ref<Set<number>>(new Set());
 const loading = ref(true);

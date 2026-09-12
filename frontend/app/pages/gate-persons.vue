@@ -9,9 +9,9 @@
         <template v-if="activeTab === 'all'">
           <button class="btn btn--ghost btn--sm" type="button" @click="openImport"><span class="material-icons-outlined">upload</span>导入</button>
           <button class="btn btn--ghost btn--sm" type="button" @click="exportPersons"><span class="material-icons-outlined">download</span>导出</button>
-          <button class="btn btn--primary btn--sm" type="button" @click="openCreate"><span class="material-icons-outlined">add</span>新增人员</button>
+          <button v-if="can('gate-person:manage')" class="btn btn--primary btn--sm" type="button" @click="openCreate"><span class="material-icons-outlined">add</span>新增人员</button>
         </template>
-        <button v-else-if="activeTab === 'pending'" class="btn btn--ghost btn--sm" type="button" @click="approveAll"><span class="material-icons-outlined">done_all</span>批量通过</button>
+        <button v-else-if="activeTab === 'pending' && can('gate-person:manage')" class="btn btn--ghost btn--sm" type="button" @click="approveAll"><span class="material-icons-outlined">done_all</span>批量通过</button>
       </div>
     </header>
 
@@ -51,8 +51,8 @@
                 <td v-if="activeTab === 'all'"><span class="tag" :class="person.syncStatus === '已同步' ? 'tag--green' : 'tag--orange'">{{ person.syncStatus }}</span></td>
                 <td class="right actions-cell">
                   <button class="row-act" type="button" title="查看" @click="openDetail(person)"><span class="material-icons-outlined">visibility</span></button>
-                  <template v-if="activeTab === 'all'"><button class="row-act" type="button" title="编辑" @click="openEdit(person)"><span class="material-icons-outlined">edit</span></button><button class="row-act row-act--danger" type="button" title="申请删除" @click="requestDelete(person)"><span class="material-icons-outlined">delete</span></button></template>
-                  <template v-else><button class="btn btn--primary btn--sm" type="button" @click="approvePerson(person)"><span class="material-icons-outlined">check</span>通过</button><button class="btn btn--soft btn--sm" type="button" @click="rejectPerson(person)"><span class="material-icons-outlined">close</span>拒绝</button></template>
+                  <template v-if="activeTab === 'all'"><button v-if="can('gate-person:manage')" class="row-act" type="button" title="编辑" @click="openEdit(person)"><span class="material-icons-outlined">edit</span></button><button class="row-act row-act--danger" type="button" title="申请删除" @click="requestDelete(person)"><span class="material-icons-outlined">delete</span></button></template>
+                  <template v-else><button v-if="can('gate-person:manage')" class="btn btn--primary btn--sm" type="button" @click="approvePerson(person)"><span class="material-icons-outlined">check</span>通过</button><button v-if="can('gate-person:manage')" class="btn btn--soft btn--sm" type="button" @click="rejectPerson(person)"><span class="material-icons-outlined">close</span>拒绝</button></template>
                 </td>
               </tr>
             </template>
@@ -60,7 +60,7 @@
               <td><img class="record-face zoomable" :src="request.face || fallbackFace" alt="人脸" @error="useFallbackFace"></td>
               <td>{{ request.code }}</td><td>{{ request.dept }}</td><td>{{ request.name }}</td><td>{{ request.phone }}</td><td>{{ request.idCard }}</td><td>{{ request.reason }}</td><td>{{ request.applyTime }}</td>
               <td><span class="tag" :class="deleteClass(request.status)">{{ request.status }}</span></td>
-              <td class="right actions-cell"><button class="row-act" type="button" title="查看" @click="openDeleteDetail(request)"><span class="material-icons-outlined">visibility</span></button><template v-if="request.status === '待处理'"><button class="btn btn--primary btn--sm" type="button" @click="approveDelete(request)"><span class="material-icons-outlined">check</span>同意</button><button class="btn btn--soft btn--sm" type="button" @click="rejectDelete(request)"><span class="material-icons-outlined">close</span>拒绝</button></template></td>
+              <td class="right actions-cell"><button class="row-act" type="button" title="查看" @click="openDeleteDetail(request)"><span class="material-icons-outlined">visibility</span></button><template v-if="request.status === '待处理'"><button v-if="can('gate-person:manage')" class="btn btn--primary btn--sm" type="button" @click="approveDelete(request)"><span class="material-icons-outlined">check</span>同意</button><button v-if="can('gate-person:manage')" class="btn btn--soft btn--sm" type="button" @click="rejectDelete(request)"><span class="material-icons-outlined">close</span>拒绝</button></template></td>
             </tr>
             <tr v-if="totalRows === 0"><td class="empty-row" :colspan="activeTab === 'all' ? 10 : 9">{{ activeTab === 'pending' ? '暂无待审核人员' : activeTab === 'delete' ? '暂无删除申请' : '暂无记录' }}</td></tr>
           </tbody>
@@ -84,6 +84,7 @@ interface Person { id: number; code: string; dept: string; name: string; phone: 
 interface DeleteRequest extends Person { reason: string; applyTime: string; status: string }
 
 const http = useHttp();
+const { can } = usePermission();
 const fallbackFace = "/favicon.ico";
 const activeTab = ref<"all" | "pending" | "delete">("all");
 const persons = ref<Person[]>([]);
@@ -182,6 +183,8 @@ function openImport() { selectedImport.value = null; formError.value = ""; impor
 async function importCsv() { if (!selectedImport.value) { formError.value = "请选择 CSV 文件"; return; } formError.value = "导入接口需要逐条上传人脸照片，请使用新增人员完成导入"; }
 function exportPersons() { const rows = [["编号", "单位", "用户名", "手机号", "身份证", "入库时间", "审批状态", "同步状态"], ...persons.value.map((person) => [person.code, person.dept, person.name, person.phone, person.idCard, person.createTime, person.approveStatus, person.syncStatus])]; const csv = rows.map((row) => row.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(",")).join("\r\n"); const link = document.createElement("a"); link.href = URL.createObjectURL(new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" })); link.download = "门禁人员信息.csv"; link.click(); URL.revokeObjectURL(link.href); }
 onMounted(loadData);
+// 切换工作部门后必须重载：列表数据是命令式加载进本地 ref 的，不会自动响应会话变化。
+useScopeRefresh(loadData);
 </script>
 
 <style scoped>

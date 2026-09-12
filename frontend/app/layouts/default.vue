@@ -44,6 +44,14 @@
           <button class="icon-btn" type="button" title="全屏" @click="toggleFullscreen">
             <span class="material-icons-outlined">fullscreen</span>
           </button>
+          <label v-if="showDepartmentSwitcher" class="dept-switch" :title="`当前工作部门：${authStore.user?.working_department_name || '全部部门'}`">
+            <span class="material-icons-outlined">apartment</span>
+            <select :value="currentDepartmentValue" aria-label="当前工作部门" @change="changeWorkingDepartment">
+              <option v-if="canSelectAllDepartments" value="">全部部门</option>
+              <option v-for="option in departmentOptions" :key="option.id" :value="String(option.id)">{{ option.name }}</option>
+            </select>
+          </label>
+          <span v-if="departmentError" class="dept-switch__error" role="alert">{{ departmentError }}</span>
           <div class="user-chip">
             <button class="user-chip__button" type="button" :aria-expanded="userMenuOpen" @click="userMenuOpen = !userMenuOpen">
               <span class="avatar">
@@ -79,6 +87,35 @@ const systemName = ref("Admin Pro");
 const userName = computed(() => authStore.user?.username || "超级管理员");
 const userRole = computed(() => authStore.user?.role || "admin");
 const userAvatar = computed(() => authStore.avatar);
+const departmentError = ref("");
+const departmentOptions = computed(() => authStore.user?.working_department_options ?? []);
+/** 只有默认不限部门的角色（平台管理与超级管理员）才能选「全部部门」。 */
+const canSelectAllDepartments = computed(() => authStore.user?.scope === "ALL");
+/**
+ * 工作部门切换器只在存在部门维度时显示。
+ * 待改密时必须隐藏：服务端把 /api/auth/working-department 也拦在改密之前（403），
+ * 显示一个必然报错的控件只会让人困惑。
+ */
+const showDepartmentSwitcher = computed(
+    () => !authStore.mustChangePassword
+        && departmentOptions.value.length > 0
+        && (authStore.user?.scope === "DEPARTMENT" || authStore.user?.scope === "ALL"),
+);
+const currentDepartmentValue = computed(() => (authStore.user?.working_department_id == null ? "" : String(authStore.user.working_department_id)));
+
+async function changeWorkingDepartment(event: Event) {
+    const select = event.target as HTMLSelectElement;
+    const raw = select.value;
+    departmentError.value = "";
+    try {
+        await authStore.switchWorkingDepartment(raw ? Number(raw) : null);
+    } catch (error) {
+        // 失败时把控件退回原值，否则界面显示的部门和后端实际生效的部门会不一致。
+        select.value = currentDepartmentValue.value;
+        departmentError.value = (error as { statusMessage?: string }).statusMessage || "工作部门切换失败";
+    }
+}
+
 
 const pageLabels: Record<string, string> = {
   dashboard: "仪表盘", users: "用户管理", "online-users": "在线用户", roles: "角色管理", depts: "部门管理", posts: "岗位管理", "data-transfer": "数据导入导出",
@@ -245,6 +282,10 @@ watch(
 .search-box { align-items: center; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; display: flex; gap: 6px; height: 32px; padding: 0 10px; width: 200px; }
 .search-box .material-icons-outlined { color: var(--text-mute); font-size: 16px; }
 .search-box input { background: transparent; border: 0; color: var(--text); font: inherit; min-width: 0; outline: none; width: 100%; }
+.dept-switch { align-items: center; background: var(--card); border: 1px solid var(--border-strong); border-radius: 999px; color: var(--text-sub); display: inline-flex; gap: 6px; height: 32px; margin-left: 4px; padding: 0 10px; }
+.dept-switch .material-icons-outlined { font-size: 16px; }
+.dept-switch select { background: transparent; border: 0; color: var(--text); font: inherit; font-size: 12px; max-width: 150px; outline: none; }
+.dept-switch__error { color: var(--red); font-size: 11px; max-width: 180px; }
 .user-chip { margin-left: 4px; position: relative; }
 .user-chip__button { align-items: center; background: transparent; border: 0; border-radius: 20px; color: var(--text-sub); cursor: pointer; display: flex; gap: 8px; padding: 3px 8px 3px 3px; }
 .user-chip__button:hover { background: var(--bg); }

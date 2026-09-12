@@ -5,7 +5,7 @@
         <h1 class="page__title">角色管理</h1>
         <p class="page__desc">角色及二维权限矩阵配置</p>
       </div>
-      <button class="button button--primary button--sm" type="button" @click="openCreate"><span class="material-icons-outlined">add</span>新增角色</button>
+      <button v-if="can('role:manage')" class="button button--primary button--sm" type="button" @click="openCreate"><span class="material-icons-outlined">add</span>新增角色</button>
     </header>
 
     <section class="card">
@@ -18,7 +18,7 @@
             <tr v-for="role in visibleRoles" :key="role.id">
               <td>{{ String(role.id).padStart(4, "0") }}</td><td><strong class="role-name">{{ role.name }}</strong></td><td><span class="tag tag--gray">{{ role.code }}</span></td><td>{{ dataScope(role) }}</td><td>{{ userCount(role.id) }}</td>
               <td><span class="tag" :class="role.status === 1 ? 'tag--green' : 'tag--red'">{{ role.status === 1 ? "正常" : "停用" }}</span></td>
-              <td class="actions-cell"><button class="row-action" type="button" title="编辑" @click="openEdit(role)"><span class="material-icons-outlined">edit</span></button><button class="row-action row-action--danger" type="button" title="删除" @click="removeRole(role)"><span class="material-icons-outlined">delete</span></button></td>
+              <td class="actions-cell"><button v-if="can('role:manage')" class="row-action" type="button" title="编辑" @click="openEdit(role)"><span class="material-icons-outlined">edit</span></button><button v-if="can('role:manage')" class="row-action row-action--danger" type="button" title="删除" @click="removeRole(role)"><span class="material-icons-outlined">delete</span></button></td>
             </tr>
             <tr v-if="visibleRoles.length === 0"><td class="empty" colspan="7">暂无数据</td></tr>
           </tbody>
@@ -31,7 +31,7 @@
       <form class="modal modal--lg" @submit.prevent="saveRole">
         <header class="modal__head"><h2 class="modal__title">{{ editingId ? "编辑角色" : "新增角色" }}</h2><button type="button" class="icon-button" title="关闭" @click="editorVisible = false"><span class="material-icons-outlined">close</span></button></header>
         <div class="modal__body">
-          <div class="form-grid"><label class="field"><span class="field__label">角色名称<em>*</em></span><input v-model.trim="form.name" class="input" required></label><label class="field"><span class="field__label">权限标识<em>*</em></span><input v-model.trim="form.code" class="input" required placeholder="如：admin"></label><label class="field"><span class="field__label">数据范围</span><select v-model="form.dataScope" class="select"><option v-for="scope in scopes" :key="scope" :value="scope">{{ scope }}</option></select></label><label class="field"><span class="field__label">状态</span><select v-model.number="form.status" class="select"><option :value="1">正常</option><option :value="0">停用</option></select></label><label class="field full"><span class="field__label">备注</span><textarea v-model="form.remark" class="textarea" /></label></div>
+          <div class="form-grid"><label class="field"><span class="field__label">角色名称<em>*</em></span><input v-model.trim="form.name" class="input" required></label><label class="field"><span class="field__label">权限标识<em>*</em></span><input v-model.trim="form.code" class="input" required placeholder="如：admin"></label><label class="field"><span class="field__label">状态</span><select v-model.number="form.status" class="select"><option :value="1">正常</option><option :value="0">停用</option></select></label><label class="field full"><span class="field__label">备注</span><textarea v-model="form.remark" class="textarea" /></label></div>
           <section class="perm-section">
             <div class="perm-section__head"><div class="perm-section__title">菜单权限</div><div class="perm-section__actions"><button class="button button--ghost button--sm" type="button" @click="setAllExpanded(true)">展开全部</button><button class="button button--ghost button--sm" type="button" @click="setAllExpanded(false)">折叠全部</button><button class="button button--soft button--sm" type="button" @click="setAllChecked(true)">全选</button><button class="button button--ghost button--sm" type="button" @click="setAllChecked(false)">清空</button></div></div>
             <div class="perm-tree">
@@ -50,7 +50,7 @@
 </template>
 
 <script setup lang="ts">
-interface Role { id: number; name: string; code: string; sort?: number; status: number; remark?: string | null; dataScope?: string; users?: number; permission_codes?: string[] }
+interface Role { id: number; name: string; code: string; sort?: number; status: number; remark?: string | null; users?: number; permission_codes?: string[] }
 interface User { roleIds?: number[] }
 interface UserList { items: User[] }
 interface RoleList { items: Role[]; total: number }
@@ -66,13 +66,29 @@ const permissions: PermissionGroup[] = [
   { key: "records", name: "进出记录", children: [{ key: "person-records", name: "人员进出", ops: [{ label: "查看", code: "person-record:read" }, { label: "导出", code: "person-record:export" }] }, { key: "vehicle-records", name: "车辆进出", ops: [{ label: "查看", code: "vehicle-record:read" }, { label: "导出", code: "vehicle-record:export" }] }] },
   { key: "logs", name: "系统日志", children: [{ key: "logs", name: "日志管理", ops: [{ label: "查看", code: "audit:read" }, { label: "导出", code: "audit:export" }, { label: "校验", code: "audit:verify" }, { label: "清空", code: "audit:delete" }] }] },
 ];
-const scopes = ["全部", "本部门", "本部门及以下", "仅本人"];
 const http = useHttp();
+const { can } = usePermission();
 const roles = ref<Role[]>([]); const roleTotal = ref(0); const users = ref<User[]>([]); const loading = ref(true); const errorMessage = ref(""); const page = ref(1); const pageSize = 8; const editorVisible = ref(false); const editingId = ref<number | null>(null); const saving = ref(false); const formError = ref("");
-const form = reactive({ name: "", code: "", dataScope: "仅本人", status: 1, remark: "" });
+const form = reactive({ name: "", code: "", status: 1, remark: "" });
 const expandedGroups = ref(new Set<string>([permissions[0].key])); const expandedSubs = ref(new Set<string>(permissions[0].children.map((item) => item.key))); const selectedPermissions = reactive<Record<string, string[]>>({});
 const totalPages = computed(() => Math.max(1, Math.ceil(roleTotal.value / pageSize))); const visibleRoles = computed(() => roles.value); const pageNumbers = computed(() => Array.from({ length: totalPages.value }, (_, index) => index + 1).slice(Math.max(0, page.value - 3), page.value + 2));
-function dataScope(role: Role) { return role.dataScope || (role.code.toLowerCase().includes("admin") ? "全部" : role.code.toLowerCase().includes("manager") ? "本部门" : "仅本人"); }
+/**
+ * 数据范围由角色编码决定，不是角色上可配置的字段。
+ *
+ * 部门范围是按「人」分配的（见用户管理里的部门管理范围），放到角色上会有两个真值来源，
+ * 而且改角色会撤销该角色全部持有者的会话。所以这一列是推导出来的只读说明。
+ */
+function dataScope(role: Role) {
+    switch (role.code.toUpperCase()) {
+        case "SUPER_ADMIN":
+        case "ADMIN":
+            return "全部（可切换工作部门）";
+        case "DEPT_ADMIN":
+            return "指定部门（按用户分配）";
+        default:
+            return "仅本人";
+    }
+}
 function userCount(id: number) { const declared = roles.value.find((role) => role.id === id)?.users; return declared ?? (users.value.filter((user) => user.roleIds?.includes(id)).length || "-"); }
 function checkedCount(sub: PermissionSub) { return selectedPermissions[sub.key]?.length || 0; } function subFullyChecked(sub: PermissionSub) { return checkedCount(sub) === sub.ops.length; } function groupTotalCount(group: PermissionGroup) { return group.children.reduce((total, sub) => total + sub.ops.length, 0); } function groupCheckedCount(group: PermissionGroup) { return group.children.reduce((total, sub) => total + checkedCount(sub), 0); } function groupFullyChecked(group: PermissionGroup) { return groupCheckedCount(group) === groupTotalCount(group); }
 function setSubChecked(sub: PermissionSub, checked: boolean) { selectedPermissions[sub.key] = checked ? sub.ops.map((operation) => operation.code) : []; } function setGroupChecked(group: PermissionGroup, checked: boolean) { group.children.forEach((sub) => setSubChecked(sub, checked)); } function setAllChecked(checked: boolean) { permissions.forEach((group) => setGroupChecked(group, checked)); }
@@ -81,8 +97,8 @@ function clearPermissions() { permissions.forEach((group) => group.children.forE
 function selectedPermissionCodes() { return [...new Set(Object.values(selectedPermissions).flat())]; }
 async function loadRoles() { loading.value = true; errorMessage.value = ""; try { const result = await http.get<RoleList>("/roles", { page: page.value, pageSize }); roles.value = result.items || []; roleTotal.value = result.total || 0; if (page.value > totalPages.value) page.value = totalPages.value; try { users.value = (await http.get<UserList>("/users", { page: 1, pageSize: 100 })).items || []; } catch { users.value = []; } } catch (error) { errorMessage.value = (error as { statusMessage?: string }).statusMessage || "角色数据加载失败"; } finally { loading.value = false; } }
 function changePage(nextPage: number) { if (nextPage < 1 || nextPage > totalPages.value) return; page.value = nextPage; void loadRoles(); }
-function openCreate() { editingId.value = null; Object.assign(form, { name: "", code: "", dataScope: "仅本人", status: 1, remark: "" }); initializePermissions([]); formError.value = ""; editorVisible.value = true; }
-async function openEdit(role: Role) { editingId.value = role.id; Object.assign(form, { name: role.name, code: role.code, dataScope: dataScope(role), status: role.status, remark: role.remark || "" }); initializePermissions([]); formError.value = ""; editorVisible.value = true; try { const detail = await http.get<Role>(`/roles/${role.id}`); initializePermissions(detail.permission_codes || []); } catch (error) { formError.value = (error as { statusMessage?: string }).statusMessage || "权限数据加载失败"; } }
+function openCreate() { editingId.value = null; Object.assign(form, { name: "", code: "", status: 1, remark: "" }); initializePermissions([]); formError.value = ""; editorVisible.value = true; }
+async function openEdit(role: Role) { editingId.value = role.id; Object.assign(form, { name: role.name, code: role.code, status: role.status, remark: role.remark || "" }); initializePermissions([]); formError.value = ""; editorVisible.value = true; try { const detail = await http.get<Role>(`/roles/${role.id}`); initializePermissions(detail.permission_codes || []); } catch (error) { formError.value = (error as { statusMessage?: string }).statusMessage || "权限数据加载失败"; } }
 async function saveRole() { if (!form.name || !form.code) { formError.value = "名称和标识不能为空"; return; } saving.value = true; formError.value = ""; const payload = { name: form.name, code: form.code, sort: editingId.value ? roles.value.find((role) => role.id === editingId.value)?.sort || 1 : roles.value.length + 1, status: form.status, remark: form.remark, permissions: selectedPermissionCodes() }; try { if (editingId.value) await http.put(`/roles/${editingId.value}`, payload, { payloadMode: "json" }); else await http.post("/roles", payload, { payloadMode: "json" }); editorVisible.value = false; await loadRoles(); } catch (error) { formError.value = (error as { statusMessage?: string }).statusMessage || "保存失败"; } finally { saving.value = false; } }
 async function removeRole(role: Role) { if (!window.confirm(`确认删除“${role.name}”吗？`)) return; try { await http.delete(`/roles/${role.id}`); await loadRoles(); } catch (error) { errorMessage.value = (error as { statusMessage?: string }).statusMessage || "删除失败"; } }
 onMounted(loadRoles);

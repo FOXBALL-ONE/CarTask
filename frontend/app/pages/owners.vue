@@ -5,7 +5,7 @@
         <h1 class="page__title">车主信息</h1>
         <p class="page__desc">管理车主出入证及车位车牌信息</p>
       </div>
-      <button class="button button--primary" type="button" @click="openCreate">
+      <button v-if="can('owner:manage')" class="button button--primary" type="button" @click="openCreate">
         <span class="material-icons-outlined">add</span>新增车主
       </button>
     </header>
@@ -43,8 +43,8 @@
               <td><span class="tag" :class="owner.status === 1 ? 'tag--green' : 'tag--red'">{{ owner.status === 1 ? "正常" : "停用" }}</span></td>
               <td class="muted">-</td>
               <td class="actions-cell">
-                <button class="row-action" type="button" title="充值" @click="rechargeOwner(owner)"><span class="material-icons-outlined">account_balance_wallet</span></button><button class="row-action" type="button" title="修改信息" @click="openEdit(owner)"><span class="material-icons-outlined">edit</span></button>
-                <button class="row-action row-action--danger" type="button" title="删除" @click="removeOwner(owner)"><span class="material-icons-outlined">delete</span></button>
+                <button v-if="can('owner:manage')" class="row-action" type="button" title="充值" @click="rechargeOwner(owner)"><span class="material-icons-outlined">account_balance_wallet</span></button><button v-if="can('owner:manage')" class="row-action" type="button" title="修改信息" @click="openEdit(owner)"><span class="material-icons-outlined">edit</span></button>
+                <button v-if="can('owner:manage')" class="row-action row-action--danger" type="button" title="删除" @click="removeOwner(owner)"><span class="material-icons-outlined">delete</span></button>
               </td>
             </tr>
             <tr v-if="owners.length === 0"><td colspan="12" class="empty">暂无数据</td></tr>
@@ -91,6 +91,7 @@ interface OwnerList { items: Owner[]; total: number; page: number; pageSize: num
 interface PlateList { items: Plate[]; total: number }
 
 const http = useHttp();
+const { can } = usePermission();
 const keyword = ref("");
 const status = ref("");
 const page = ref(1);
@@ -157,6 +158,8 @@ async function rechargeOwner(owner: Owner) {
   catch (error) { errorMessage.value = (error as { statusMessage?: string }).statusMessage || "充值失败"; }
 }
 onMounted(loadOwners);
+// 切换工作部门后必须重载：列表数据是命令式加载进本地 ref 的，不会自动响应会话变化。
+useScopeRefresh(loadOwners);
 </script>
 
 <style scoped>

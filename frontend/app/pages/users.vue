@@ -9,7 +9,7 @@
         <button class="button button--ghost" type="button" @click="exportUsers">
           <span class="material-icons-outlined">download</span>导出
         </button>
-        <button class="button button--primary" type="button" @click="openCreate">
+        <button v-if="can('user:create')" class="button button--primary" type="button" @click="openCreate">
           <span class="material-icons-outlined">add</span>新增用户
         </button>
       </div>
@@ -68,13 +68,13 @@
                 <td>{{ user.phone || "-" }}</td>
                 <td><span class="role-tag">{{ roleName(user) }}</span></td>
                 <td>
-                  <button class="status-switch" :class="{ enabled: user.status === 1 }" type="button" :aria-label="user.status === 1 ? '停用用户' : '启用用户'" :aria-pressed="user.status === 1" @click="toggleStatus(user)">
+                  <button v-if="can('user:disable')" class="status-switch" :class="{ enabled: user.status === 1 }" type="button" :aria-label="user.status === 1 ? '停用用户' : '启用用户'" :aria-pressed="user.status === 1" @click="toggleStatus(user)">
                     <span />
                   </button>
                 </td>
                 <td class="actions-cell">
-                  <button class="row-action" type="button" title="编辑" @click="openEdit(user)"><span class="material-icons-outlined">edit</span></button>
-                  <button class="row-action row-action--danger" type="button" title="删除" @click="removeUser(user)"><span class="material-icons-outlined">delete</span></button>
+                  <button v-if="can('user:update')" class="row-action" type="button" title="编辑" @click="openEdit(user)"><span class="material-icons-outlined">edit</span></button>
+                  <button v-if="can('user:disable')" class="row-action row-action--danger" type="button" title="删除" @click="removeUser(user)"><span class="material-icons-outlined">delete</span></button>
                 </td>
               </tr>
               <tr v-if="users.length === 0"><td class="empty" colspan="9">暂无数据</td></tr>
@@ -105,6 +105,10 @@
             <label class="field"><span>角色 <em>*</em></span><select v-model="form.roleId" class="select" required><option :value="null">请选择角色</option><option v-for="role in roles" :key="role.id" :value="role.id">{{ role.name }}</option></select></label>
             <label class="field"><span>手机号 <em>*</em></span><input v-model.trim="form.phone" class="input" required placeholder="请输入手机号"></label>
             <label class="field"><span>状态</span><select v-model.number="form.status" class="select"><option :value="1">正常</option><option :value="0">停用</option></select></label>
+          </div>
+          <div v-if="editingId" class="field field--full managed-scope">
+            <span>部门管理范围</span>
+            <DepartmentTreePicker v-model="managedDepartments" :departments="departments" />
           </div>
           <p v-if="formError" class="form-error">{{ formError }}</p>
         </div>
@@ -152,6 +156,7 @@ const DepartmentNode = defineComponent({
 });
 
 const http = useHttp();
+const { can } = usePermission();
 const keyword = ref("");
 const status = ref("");
 const selectedDepartment = ref(0);
@@ -173,6 +178,8 @@ const originalRoleId = ref<number | null>(null);
 const originalStatus = ref(1);
 const selectedIds = ref<number[]>([]);
 const form = reactive({ username: "", name: "", password: "", deptId: null as number | null, roleId: null as number | null, phone: "", status: 1 });
+/** 该用户的部门管理范围；仅编辑已有用户时可配置（接口按用户 ID 整体替换）。 */
+const managedDepartments = ref<ManagedDepartment[]>([]);
 
 const departmentRoots = computed(() => departments.value.filter((department) => (department.parent ?? 0) === 0));
 const departmentChildren = computed(() => departments.value);
@@ -225,8 +232,13 @@ function resetFilters() { keyword.value = ""; status.value = ""; selectedDepartm
 function selectDepartment(id: number) { selectedDepartment.value = id; page.value = 1; void loadUsers(); }
 function changePage(nextPage: number) { if (nextPage < 1 || nextPage > totalPages.value) return; page.value = nextPage; void loadUsers(); }
 function changePageSize() { page.value = 1; void loadUsers(); }
-function openCreate() { editingId.value = null; originalRoleId.value = null; originalStatus.value = 1; Object.assign(form, { username: "", name: "", password: "", deptId: departments.value[0]?.id ?? null, roleId: roles.value[0]?.id ?? null, phone: "", status: 1 }); formError.value = ""; editorVisible.value = true; }
-function openEdit(user: User) { editingId.value = user.id; originalRoleId.value = user.roleIds?.[0] ?? null; originalStatus.value = user.status; Object.assign(form, { username: user.username, name: user.name || "", password: "", deptId: user.deptId ?? null, roleId: user.roleIds?.[0] ?? null, phone: user.phone || "", status: user.status }); formError.value = ""; editorVisible.value = true; }
+function openCreate() { editingId.value = null; originalRoleId.value = null; originalStatus.value = 1; managedDepartments.value = []; Object.assign(form, { username: "", name: "", password: "", deptId: departments.value[0]?.id ?? null, roleId: roles.value[0]?.id ?? null, phone: "", status: 1 }); formError.value = ""; editorVisible.value = true; }
+function openEdit(user: User) {
+  managedDepartments.value = [];
+  void http.get<{ departments: ManagedDepartment[] }>(`/users/${user.id}/managed-departments`)
+    .then((result) => { managedDepartments.value = result.departments || []; })
+    .catch(() => { managedDepartments.value = []; });
+  editingId.value = user.id; originalRoleId.value = user.roleIds?.[0] ?? null; originalStatus.value = user.status; Object.assign(form, { username: user.username, name: user.name || "", password: "", deptId: user.deptId ?? null, roleId: user.roleIds?.[0] ?? null, phone: user.phone || "", status: user.status }); formError.value = ""; editorVisible.value = true; }
 
 async function saveUser() {
   saving.value = true;
@@ -243,6 +255,7 @@ async function saveUser() {
       const role = roles.value.find((item) => item.id === form.roleId);
       if (form.roleId !== originalRoleId.value && role?.code) await http.put(`/users/${editingId.value}/role`, undefined, { params: { role: role.code } });
       if (form.status !== originalStatus.value) await http.put(`/users/${editingId.value}/account-status`, undefined, { params: { enabled: form.status === 1, status: form.status === 1 ? "Activity" : "BANNED" } });
+      await http.put(`/users/${editingId.value}/managed-departments`, { departments: managedDepartments.value }, { payloadMode: "json" });
     }
     else await http.post("/users", { ...payload, email: `${form.username}@local.invalid` }, { payloadMode: "json" });
     editorVisible.value = false;
@@ -274,6 +287,8 @@ function exportUsers() {
   const link = document.createElement("a"); link.href = URL.createObjectURL(new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" })); link.download = "用户列表.csv"; link.click(); URL.revokeObjectURL(link.href);
 }
 onMounted(initialize);
+// 切换工作部门后必须重载：列表数据是命令式加载进本地 ref 的，不会自动响应会话变化。
+useScopeRefresh(initialize);
 </script>
 
 <style scoped>
@@ -283,4 +298,6 @@ onMounted(initialize);
 .table-wrap { overflow-x: auto; }.table { border-collapse: collapse; font-size: 13px; min-width: 850px; width: 100%; }.table th { background: var(--bg); border-bottom: 1px solid var(--border); color: var(--text-mute); font-size: 12px; font-weight: 500; padding: 10px 14px; text-align: left; white-space: nowrap; }.table td { border-bottom: 1px solid var(--border); color: var(--text); padding: 11px 14px; white-space: nowrap; }.table tbody tr:hover { background: var(--bg); }.checkbox-cell { padding-left: 18px !important; width: 36px; }.actions-cell { text-align: right !important; }.checkbox { accent-color: var(--primary); height: 15px; width: 15px; }.username { color: var(--primary); }.role-tag { background: var(--primary-soft); border-radius: 4px; color: var(--primary); display: inline-flex; font-size: 12px; padding: 2px 8px; }.status-switch { background: #d4d4d8; border: 0; border-radius: 18px; cursor: pointer; height: 18px; padding: 2px; transition: background var(--tr); width: 34px; }.status-switch span { background: #fff; border-radius: 50%; display: block; height: 14px; transition: transform var(--tr); width: 14px; }.status-switch.enabled { background: #059669; }.status-switch.enabled span { transform: translateX(16px); }.row-action, .icon-button { align-items: center; background: transparent; border: 0; border-radius: 5px; color: var(--text-mute); cursor: pointer; display: inline-flex; height: 28px; justify-content: center; width: 28px; }.row-action:hover { background: var(--bg); color: var(--text); }.row-action--danger:hover { background: #fef2f2; color: #dc2626; }.row-action .material-icons-outlined { font-size: 16px; }.empty, .state { color: var(--text-mute); padding: 48px; text-align: center; }.state--error, .form-error { color: #dc2626; }.pagination { align-items: center; color: var(--text-sub); display: flex; gap: 4px; justify-content: flex-end; padding: 14px 18px; }.pagination button { align-items: center; background: transparent; border: 1px solid transparent; border-radius: 5px; color: var(--text-sub); cursor: pointer; display: inline-flex; height: 28px; justify-content: center; min-width: 28px; }.pagination button:hover:not(:disabled), .pagination button.active { background: var(--primary-soft); color: var(--primary); }.pagination button:disabled { cursor: not-allowed; opacity: .4; }.pagination .material-icons-outlined { font-size: 18px; }.pagination__size { align-items: center; color: var(--text-sub); display: flex; font-size: 12px; gap: 6px; }.pagination__size .select { font-size: 12px; height: 28px; min-width: 0; padding: 0 4px 0 8px; width: auto; }
 .modal-mask { align-items: center; background: rgb(0 0 0 / 38%); display: flex; inset: 0; justify-content: center; padding: 20px; position: fixed; z-index: 300; }.modal { background: var(--card); border-radius: 8px; box-shadow: 0 16px 48px rgb(0 0 0 / 20%); max-width: 620px; width: 100%; }.modal__head, .modal__foot { align-items: center; display: flex; justify-content: space-between; padding: 14px 18px; }.modal__head { border-bottom: 1px solid var(--border); }.modal__head h2 { color: var(--text); font-size: 16px; margin: 0; }.modal__foot { border-top: 1px solid var(--border); gap: 8px; justify-content: flex-end; }.modal__body { padding: 20px 18px; }.form-grid { display: grid; gap: 14px 16px; grid-template-columns: repeat(2, minmax(0, 1fr)); }.field { display: grid; gap: 6px; }.field span { color: var(--text-sub); font-size: 12px; font-weight: 500; }.field em { color: #dc2626; font-style: normal; }.field .input, .field .select { width: 100%; }
 @media (max-width: 900px) { .user-layout { flex-direction: column; }.department-panel { width: 100%; }.department-tree { display: flex; flex-wrap: wrap; max-height: 180px; }.department-item { width: auto; } }.department-panel { max-width: 100%; } @media (max-width: 600px) { .page { padding: 16px; }.input { min-width: 0; width: 100%; }.filter-bar { align-items: stretch; flex-direction: column; }.filter-actions { justify-content: flex-end; }.form-grid { grid-template-columns: 1fr; }.modal-mask { padding: 12px; } }
+.managed-scope { border-top: 1px solid var(--border); display: grid; gap: 7px; margin-top: 16px; padding-top: 16px; }
+.managed-scope > span { color: var(--text-sub); font-size: 11px; font-weight: 550; }
 </style>

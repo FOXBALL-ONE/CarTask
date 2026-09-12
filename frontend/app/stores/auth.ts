@@ -1,6 +1,12 @@
 import {defineStore} from "pinia";
 import {TOKEN_COOKIE, useHttp} from "~/composables/useHttp";
 
+export interface WorkingDepartmentOption {
+    id: number;
+    name: string;
+    selected: boolean;
+}
+
 export interface AuthUser {
     user_id: number;
     username: string;
@@ -10,6 +16,13 @@ export interface AuthUser {
     avatar?: string | null;
     /** 为 true 时前端需强制跳转到改密页，服务端也会拦截其他接口。 */
     must_change_password?: boolean;
+    /** 数据范围：ALL 不限部门 / DEPARTMENT 限定部门 / SELF 仅本人。 */
+    scope?: "ALL" | "DEPARTMENT" | "SELF";
+    /** 当前工作部门；null 表示不限部门。 */
+    working_department_id?: number | null;
+    working_department_name?: string | null;
+    /** 当前用户可切换的工作部门；对本人范围的角色为空。 */
+    working_department_options?: WorkingDepartmentOption[];
 }
 
 export interface LoginResponse {
@@ -67,6 +80,13 @@ export const useAuthStore = defineStore("auth", () => {
     // 初始密码未修改：登录后必须先改密，其他页面一律不放行。
     const mustChangePassword = computed(() => user.value?.must_change_password === true);
     const avatar = computed(() => user.value?.avatar?.trim() || "");
+    /**
+     * 数据范围版本号。切换工作部门后自增，各列表页 watch 它重新拉取。
+     *
+     * 各页面的数据都是 onMounted 加载进本地 ref 的，对会话没有响应式依赖，
+     * 所以不能指望切完部门页面会自己刷新。
+     */
+    const scopeEpoch = ref(0);
 
     /** 个人中心改动当前用户字段后同步本地会话缓存，顶栏无需整页刷新即可更新。 */
     function patchCurrentUser(patch: Partial<AuthUser>) {
@@ -244,6 +264,38 @@ export const useAuthStore = defineStore("auth", () => {
         return currentUser;
     }
 
+    /**
+     * 切换当前工作部门。
+     *
+     * 服务端只改 Redis 会话、不重新签发 token，所以这里刷新会话后自增 scopeEpoch，
+     * 由各列表页据此重新拉取——否则页面还停留在旧部门的数据上。
+     */
+    async function switchWorkingDepartment(departmentId: number | null) {
+        const state = await http.put<{
+            current_id: number | null;
+            current_name: string | null;
+            scope: "ALL" | "DEPARTMENT" | "SELF";
+            options: WorkingDepartmentOption[];
+        }>("/auth/working-department", { department_id: departmentId });
+        if (user.value) {
+            user.value = {
+                ...user.value,
+                scope: state.scope,
+                working_department_id: state.current_id,
+                working_department_name: state.current_name,
+                working_department_options: state.options,
+            };
+            if (import.meta.client) {
+                sessionStorage.setItem("loginUser", JSON.stringify({
+                    expires_at: expiresAt.value,
+                    user: user.value,
+                }));
+            }
+        }
+        scopeEpoch.value += 1;
+        return state;
+    }
+
     async function logout() {
         try {
             if (token.value) {
@@ -282,6 +334,7 @@ export const useAuthStore = defineStore("auth", () => {
         isAuthenticated,
         mustChangePassword,
         avatar,
+        scopeEpoch,
         refreshCaptcha,
         login,
         smsLogin,
@@ -290,6 +343,7 @@ export const useAuthStore = defineStore("auth", () => {
         markPasswordChanged,
         restoreSession,
         refreshSession,
+        switchWorkingDepartment,
         logout,
         clearError,
         setError,

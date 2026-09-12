@@ -2,7 +2,7 @@
   <section class="page">
     <header class="page__header">
       <div><h1 class="page__title">设备管理</h1><p class="page__desc">管理门禁设备和车场设备</p></div>
-      <button class="btn btn--primary btn--sm" type="button" @click="openCreate"><span class="material-icons-outlined">add</span>新增设备</button>
+      <button v-if="can('device:manage')" class="btn btn--primary btn--sm" type="button" @click="openCreate"><span class="material-icons-outlined">add</span>新增设备</button>
     </header>
 
     <section class="card">
@@ -26,7 +26,7 @@
               <td><span class="tag" :class="device.brand === 'Hikvision' ? 'tag--blue' : 'tag--green'">{{ device.brand }}</span></td>
               <td class="text-sub">{{ device.model || "-" }}</td><td>{{ device.location || "-" }}</td><td class="text-sub nowrap">{{ device.installDate || "-" }}</td><td class="text-sub nowrap">{{ device.lastOnline || "-" }}</td>
               <td><span class="tag" :class="statusClass(device.status)">{{ statusLabel(device.status) }}</span></td><td class="remark-cell text-sub" :title="device.remark || ''">{{ device.remark || "-" }}</td>
-              <td class="actions-cell"><button class="row-act" type="button" title="编辑" @click="openEdit(device)"><span class="material-icons-outlined">edit</span></button><button class="row-act row-act--danger" type="button" title="删除" @click="removeDevice(device)"><span class="material-icons-outlined">delete</span></button></td>
+              <td class="actions-cell"><button v-if="can('device:manage')" class="row-act" type="button" title="编辑" @click="openEdit(device)"><span class="material-icons-outlined">edit</span></button><button v-if="can('device:manage')" class="row-act row-act--danger" type="button" title="删除" @click="removeDevice(device)"><span class="material-icons-outlined">delete</span></button></td>
             </tr>
             <tr v-if="pagedDevices.length === 0"><td class="empty" colspan="12">暂无数据</td></tr>
           </tbody>
@@ -64,6 +64,7 @@ interface DeviceForm { code: string; name: string; type: string; brand: string; 
 type Toast = { text: string; type: "success" | "error" };
 
 const http = useHttp();
+const { can } = usePermission();
 const pageSize = 8; const devices = ref<Device[]>([]); const deviceTotal = ref(0); const loading = ref(true); const saving = ref(false); const errorMessage = ref(""); const formError = ref(""); const page = ref(1); const editingId = ref<number | null>(null); const editorVisible = ref(false); const toast = ref<Toast | null>(null);
 const filters = reactive({ keyword: "", type: "", status: "" });
 const form = reactive<DeviceForm>({ code: "", name: "", type: "门禁设备", brand: "Hikvision", location: "", installDate: "", host: "", username: "", password: "", appId: "", parkId: "", appSecret: "", remark: "", model: "", status: null, lastOnline: "" });

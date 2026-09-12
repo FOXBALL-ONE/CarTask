@@ -3,7 +3,7 @@
     <header class="page__header">
       <div><h1 class="page__title">车辆进出记录</h1>
         <p class="page__desc">查看车辆通行记录与放行信息</p></div>
-      <button class="button button--soft button--sm" type="button" @click="exportRecords"><span
+      <button v-if="can('vehicle-record:export')" class="button button--soft button--sm" type="button" @click="exportRecords"><span
           class="material-icons-outlined">download</span>导出
       </button>
     </header>
@@ -206,6 +206,7 @@ interface RecordList {
 }
 
 const http = useHttp();
+const { can } = usePermission();
 const pageSizes = [10, 20, 50, 100];
 const pageSize = ref(20);
 const records = ref<VehicleRecord[]>([]);
@@ -390,6 +391,8 @@ onMounted(() => {
   loadRecords();
   window.addEventListener("keydown", handleDetailsKeydown);
 });
+// 切换工作部门后必须重载：列表数据是命令式加载进本地 ref 的，不会自动响应会话变化。
+useScopeRefresh(loadRecords);
 onBeforeUnmount(() => {
   window.removeEventListener("keydown", handleDetailsKeydown);
   releaseDetailImage();

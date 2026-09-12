@@ -94,6 +94,7 @@ interface ParkingLotInfo {
 }
 
 const http = useHttp();
+const { can } = usePermission();
 const page = ref(1);
 const pageSize = 8;
 const zones = ref<Zone[]>([]);

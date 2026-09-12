@@ -9,7 +9,7 @@
       <span class="page-heading__mode"><span />手动执行</span>
     </header>
 
-    <article class="sync-card" :class="`sync-card--${parkingAreaCardState}`">
+    <article v-if="can('dictionary:sync')" class="sync-card" :class="`sync-card--${parkingAreaCardState}`">
       <div class="sync-card__main">
         <header class="sync-card__header">
           <div class="sync-card__icon"><span class="material-icons-outlined">map</span></div>
@@ -71,7 +71,7 @@
       </aside>
     </article>
 
-    <article class="sync-card sync-card--records" :class="`sync-card--${accessRecordCardState}`">
+    <article v-if="can('vehicle-record:sync')" class="sync-card sync-card--records" :class="`sync-card--${accessRecordCardState}`">
       <div class="sync-card__main">
         <header class="sync-card__header">
           <div class="sync-card__icon"><span class="material-icons-outlined">directions_car</span></div>
@@ -143,7 +143,7 @@
       </aside>
     </article>
 
-    <article class="sync-card sync-card--owners" :class="`sync-card--${ownerArchiveCardState}`">
+    <article v-if="can('owner:sync')" class="sync-card sync-card--owners" :class="`sync-card--${ownerArchiveCardState}`">
       <div class="sync-card__main">
         <header class="sync-card__header">
           <div class="sync-card__icon"><span class="material-icons-outlined">contact_page</span></div>
@@ -205,7 +205,7 @@
       </aside>
     </article>
 
-    <article class="sync-card sync-card--accounts" :class="`sync-card--${accountCardState}`">
+    <article v-if="can('account:sync')" class="sync-card sync-card--accounts" :class="`sync-card--${accountCardState}`">
       <div class="sync-card__main">
         <header class="sync-card__header">
           <div class="sync-card__icon"><span class="material-icons-outlined">person_add</span></div>
@@ -267,7 +267,7 @@
       </aside>
     </article>
 
-    <section class="result-panel result-panel--records" aria-live="polite">
+    <section v-if="can('vehicle-record:sync')" class="result-panel result-panel--records" aria-live="polite">
       <header class="result-panel__header">
         <div>
           <p class="result-panel__label">最近一次进出记录同步</p>
@@ -282,7 +282,7 @@
       </div>
     </section>
 
-    <section class="result-panel result-panel--owners" aria-live="polite">
+    <section v-if="can('owner:sync')" class="result-panel result-panel--owners" aria-live="polite">
       <header class="result-panel__header">
         <div>
           <p class="result-panel__label">最近一次车主信息补建</p>
@@ -300,7 +300,7 @@
       </div>
     </section>
 
-    <section class="history-panel" aria-live="polite">
+    <section v-if="can('owner:sync')" class="history-panel" aria-live="polite">
       <header class="history-panel__header">
         <p class="history-panel__label">车主信息补建 · 近期执行</p>
         <NuxtLink class="history-panel__link" to="/sync-history">全部记录<span class="material-icons-outlined">chevron_right</span></NuxtLink>
@@ -317,7 +317,7 @@
       </ul>
     </section>
 
-    <section class="result-panel result-panel--accounts" aria-live="polite">
+    <section v-if="can('account:sync')" class="result-panel result-panel--accounts" aria-live="polite">
       <header class="result-panel__header">
         <div>
           <p class="result-panel__label">最近一次账号生成</p>
@@ -332,7 +332,7 @@
       </div>
     </section>
 
-    <section class="history-panel" aria-live="polite">
+    <section v-if="can('account:sync')" class="history-panel" aria-live="polite">
       <header class="history-panel__header">
         <p class="history-panel__label">车辆业主账号 · 近期执行</p>
         <NuxtLink class="history-panel__link" to="/sync-history">全部记录<span class="material-icons-outlined">chevron_right</span></NuxtLink>
@@ -349,7 +349,7 @@
       </ul>
     </section>
 
-    <section class="result-panel" aria-live="polite">
+    <section v-if="can('dictionary:sync')" class="result-panel" aria-live="polite">
       <header class="result-panel__header">
         <div>
           <p class="result-panel__label">最近一次手动结果</p>
@@ -365,19 +365,19 @@
       </div>
     </section>
 
-    <section class="sync-note">
+    <section v-if="can('dictionary:sync')" class="sync-note">
       <span class="material-icons-outlined">info</span>
       <div><strong>同步规则</strong><p>科拓区域编码是幂等匹配依据；接口返回为空或失败时不会覆盖本地区域，科拓端已删除的区域也不会被自动删除。</p></div>
     </section>
-    <section class="sync-note sync-note--records">
+    <section v-if="can('vehicle-record:sync')" class="sync-note sync-note--records">
       <span class="material-icons-outlined">history</span>
       <div><strong>增量规则</strong><p>仅从上一次成功快照继续读取。图片下载失败会保留源地址并在后续同步中自动重试，不影响流水检查点推进。</p></div>
     </section>
-    <section class="sync-note sync-note--owners">
+    <section v-if="can('owner:sync')" class="sync-note sync-note--owners">
       <span class="material-icons-outlined">manage_search</span>
       <div><strong>补建规则</strong><p>仅处理近 30 天有进出记录的车牌，车牌去除间隔符后判重。车主信息以科拓卡片的卡号、姓名和手机号为准，按手机号判重、卡号次之，同一手机号的多个车牌只建一条车主信息并登记多条车牌关联。已有有效档案的车牌直接跳过；科拓没有卡片信息（例如临时车）、车牌档案已停用的记录不会处理。</p></div>
     </section>
-    <section class="sync-note sync-note--accounts">
+    <section v-if="can('account:sync')" class="sync-note sync-note--accounts">
       <span class="material-icons-outlined">key</span>
       <div><strong>账号规则</strong><p>仅处理近 30 天有进出记录的车牌，车牌去除间隔符后匹配有效车牌档案并关联在营车主。业主手机号即登录名，初始密码统一发放，请提醒业主及时修改。账号部门取自车主信息的部门字段，平台没有同名部门时按名称自动新建（编码以 AUTO- 开头），避免账号无处挂靠。缺少车牌档案或车主已停用的记录不会处理，先执行「车主信息补建」补全资料后可再次执行。</p></div>
     </section>
@@ -442,6 +442,7 @@ interface SyncTaskHistoryResponse {
 type SyncState = "idle" | "running" | "success" | "error";
 
 const http = useHttp();
+const { can } = usePermission();
 const syncState = ref<SyncState>("idle");
 const confirming = ref(false);
 const errorMessage = ref("");

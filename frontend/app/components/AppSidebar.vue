@@ -31,7 +31,7 @@
             </button>
             <div v-if="item.children" :class="{ open: expandedGroups.includes(item.label) }" class="nav__sub">
               <button
-                  v-for="child in item.children"
+                  v-for="child in visibleChildren(item)"
                   :key="child.page"
                   :class="{ active: activePage === child.page }"
                   :title="collapsed ? child.label : undefined"
@@ -91,7 +91,15 @@ interface NavigationItem {
   icon: string;
   page?: string;
   route?: string;
-  permission?: string;
+  /** 需要的权限之一（ANY 语义）；缺省表示无需权限。 */
+  permissions?: string[];
+  /**
+   * 额外要求担任的角色之一。
+   *
+   * 用于"有读权限但页面本身是平台控制台"的情况：部门管理需要 role:read 才能渲染用户列表的
+   * 角色列、需要 department:read 才能画出部门树，但他不该看到角色配置与部门维护页面。
+   */
+  roles?: string[];
   children?: NavigationItem[];
 }
 
@@ -117,13 +125,13 @@ const navigation: { title: string; items: NavigationItem[] }[] = [
   {
     title: "主菜单",
     items: [
-      {label: "仪表盘", icon: "grid_view", page: "dashboard", route: "/"},
-      {label: "用户管理", icon: "group", page: "users", route: "/users"},
-      {label: "在线用户", icon: "sensors", page: "online-users", route: "/online-users", permission: "user:read"},
-      {label: "角色管理", icon: "verified_user", page: "roles", route: "/roles"},
-      {label: "部门管理", icon: "account_tree", page: "depts", route: "/departments"},
-      {label: "岗位管理", icon: "badge", page: "posts", route: "/positions"},
-      {label: "数据导入导出", icon: "swap_vert", page: "data-transfer", route: "/data-transfer"},
+      {label: "仪表盘", icon: "grid_view", page: "dashboard", route: "/", permissions: ["dashboard:read"]},
+      {label: "用户管理", icon: "group", page: "users", route: "/users", permissions: ["user:read"]},
+      {label: "在线用户", icon: "sensors", page: "online-users", route: "/online-users", permissions: ["user:read"]},
+      {label: "角色管理", icon: "verified_user", page: "roles", route: "/roles", permissions: ["role:read"], roles: ["SUPER_ADMIN", "ADMIN"]},
+      {label: "部门管理", icon: "account_tree", page: "depts", route: "/departments", permissions: ["department:read"], roles: ["SUPER_ADMIN", "ADMIN"]},
+      {label: "岗位管理", icon: "badge", page: "posts", route: "/positions", permissions: ["position:read"]},
+      {label: "数据导入导出", icon: "swap_vert", page: "data-transfer", route: "/data-transfer", permissions: ["user:read", "owner:read", "plate:read"]},
     ],
   },
   {
@@ -132,20 +140,20 @@ const navigation: { title: string; items: NavigationItem[] }[] = [
       label: "车辆信息",
       icon: "directions_car",
       children: [
-        {label: "车主信息", icon: "person", page: "owners", route: "/owners"},
-        {label: "车位信息", icon: "local_parking", page: "spots", route: "/spots"},
-        {label: "车牌信息", icon: "pin_drop", page: "plates", route: "/plates"},
-        {label: "停车区域", icon: "map", page: "zones", route: "/zones"},
+        {label: "车主信息", icon: "person", page: "owners", route: "/owners", permissions: ["owner:read"]},
+        {label: "车位信息", icon: "local_parking", page: "spots", route: "/spots", permissions: ["spot:read"]},
+        {label: "车牌信息", icon: "pin_drop", page: "plates", route: "/plates", permissions: ["plate:read"]},
+        {label: "停车区域", icon: "map", page: "zones", route: "/zones", permissions: ["dictionary:read"]},
       ],
     }],
   },
-  {title: "设备管理", items: [{label: "设备管理", icon: "router", page: "devices", route: "/devices"}]},
+  {title: "设备管理", items: [{label: "设备管理", icon: "router", page: "devices", route: "/devices", permissions: ["device:read"]}]},
   {
     title: "门禁管理",
     items: [{
       label: "门禁管理",
       icon: "door_front",
-      children: [{label: "人员信息", icon: "badge", page: "gate-persons", route: "/gate-persons"}],
+      children: [{label: "人员信息", icon: "badge", page: "gate-persons", route: "/gate-persons", permissions: ["gate-person:read"]}],
     }],
   },
   {
@@ -154,31 +162,37 @@ const navigation: { title: string; items: NavigationItem[] }[] = [
       label: "进出记录",
       icon: "swap_horiz",
       children: [
-        {label: "人员进出", icon: "directions_walk", page: "person-records", route: "/person-records"},
-        {label: "车辆进出", icon: "directions_car", page: "vehicle-records", route: "/vehicle-records"},
+        {label: "人员进出", icon: "directions_walk", page: "person-records", route: "/person-records", permissions: ["person-record:read"]},
+        {label: "车辆进出", icon: "directions_car", page: "vehicle-records", route: "/vehicle-records", permissions: ["vehicle-record:read"]},
       ],
     }],
   },
-  {title: "秩序管理", items: [{label: "违规管理", icon: "gavel", page: "violations", route: "/violations"}]},
+  {title: "秩序管理", items: [{label: "违规管理", icon: "gavel", page: "violations", route: "/violations", permissions: ["violation:read"]}]},
   {
     title: "系统",
     items: [
-      {label: "数据同步", icon: "sync_alt", page: "synchronizations", route: "/synchronizations"},
+      {
+        label: "数据同步",
+        icon: "sync_alt",
+        page: "synchronizations",
+        route: "/synchronizations",
+        permissions: ["dictionary:sync", "vehicle-record:sync", "owner:sync", "account:sync"],
+      },
       {
         label: "同步历史",
         icon: "history",
         page: "sync-history",
         route: "/sync-history",
-        permission: "sync-history:read"
+        permissions: ["sync-history:read"],
       },
       {
         label: "系统监控",
         icon: "monitor_heart",
         page: "system-monitor",
         route: "/system-monitor",
-        permission: "system-monitor:read"
+        permissions: ["system-monitor:read"],
       },
-      {label: "日志管理", icon: "receipt_long", page: "logs", route: "/logs"},
+      {label: "日志管理", icon: "receipt_long", page: "logs", route: "/logs", permissions: ["audit:read"]},
     ],
   },
 ];
@@ -209,7 +223,29 @@ function toggleGroup(label: string) {
 }
 
 function itemVisible(item: NavigationItem) {
-  return !item.permission || authStore.user?.permissions?.includes(item.permission) === true;
+  if (item.children?.length) {
+    // 父项没有自己的权限时，只要还有可见子项就保留；全部子项不可见时整组隐藏，
+    // 否则会渲染出一个点开是空的展开组。
+    return visibleChildren(item).length > 0;
+  }
+  return matchesPermissions(item) && matchesRoles(item);
+}
+
+function visibleChildren(item: NavigationItem) {
+  return (item.children ?? []).filter(itemVisible);
+}
+
+function matchesPermissions(item: NavigationItem) {
+  return !item.permissions?.length
+      || item.permissions.some((permission) => authStore.user?.permissions?.includes(permission) === true);
+}
+
+function matchesRoles(item: NavigationItem) {
+  if (!item.roles?.length) {
+    return true;
+  }
+  const role = authStore.user?.role;
+  return typeof role === "string" && item.roles.includes(role);
 }
 
 async function selectPage(route?: string) {

@@ -5,7 +5,7 @@
         <h1 class="page__title">数据导入导出</h1>
         <p class="page__desc">使用 Excel 批量维护用户、车辆、设备和门禁人员数据</p>
       </div>
-      <button class="button button--soft page__export-all" type="button" :disabled="!!busy" @click="downloadAll">
+      <button v-if="canExportAll" class="button button--soft page__export-all" type="button" :disabled="!!busy" @click="downloadAll">
         <span class="material-icons-outlined">download_for_offline</span>{{ busy === "all-export" ? "导出中..." : "导出全部数据" }}
       </button>
     </header>
@@ -14,10 +14,10 @@
       <div class="notice-panel__title">关联资料整批导入</div>
       <p>样表包含部门、岗位、用户、车主、车位、车牌、设备和门禁人员。用编码关联新数据，任一错误整批回滚。</p>
       <div class="transfer-card__actions">
-        <button class="button button--ghost" type="button" :disabled="!!busy" @click="download('all', 'template')">
+        <button v-if="canUseAllSheets" class="button button--ghost" type="button" :disabled="!!busy" @click="download('all', 'template')">
           <span class="material-icons-outlined">description</span>{{ busy === 'all-template' ? '下载中...' : '下载全部导入样表' }}
         </button>
-        <label class="upload-button" :class="{ disabled: !!busy }">
+        <label v-if="canUseAllSheets" class="upload-button" :class="{ disabled: !!busy }">
           <span class="material-icons-outlined">upload_file</span>{{ busy === 'all-import' ? '导入中...' : '导入全部数据' }}
           <input type="file" accept=".xlsx,.xls" :disabled="!!busy" @change="(event) => importFile('all', event)">
         </label>
@@ -26,7 +26,7 @@
     </section>
 
     <section class="transfer-grid">
-      <article v-for="resource in resources" :key="resource.key" class="transfer-card">
+      <article v-for="resource in visibleResources" :key="resource.key" class="transfer-card">
         <div class="transfer-card__icon"><span class="material-icons-outlined">{{ resource.icon }}</span></div>
         <div class="transfer-card__body">
           <h2>{{ resource.label }}</h2>
@@ -39,7 +39,7 @@
               <span class="material-icons-outlined">download</span>{{ busy === `${resource.key}-export` ? "导出中..." : "导出全部" }}
             </button>
           </div>
-          <label class="upload-button" :class="{ disabled: !!busy }">
+          <label v-if="canHandle(resource.key, 'manage')" class="upload-button" :class="{ disabled: !!busy }">
             <span class="material-icons-outlined">upload_file</span>
             <span>{{ busy === `${resource.key}-import` ? "导入中..." : "上传 Excel 导入" }}</span>
             <input type="file" accept=".xlsx,.xls" :disabled="!!busy" @change="(event) => importFile(resource.key, event)">

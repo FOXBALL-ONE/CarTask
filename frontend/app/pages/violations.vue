@@ -10,7 +10,7 @@
         <button class="button button--ghost" type="button" @click="exportRecords">
           <span class="material-icons-outlined">download</span>导出记录
         </button>
-        <button class="button button--primary" type="button" @click="openCreateRecord">
+        <button v-if="can('violation:manage')" class="button button--primary" type="button" @click="openCreateRecord">
           <span class="material-icons-outlined">add</span>新增违规
         </button>
       </div>
@@ -97,7 +97,7 @@
                 <td class="text-sub">{{ record.location || '未记录' }}</td>
                 <td class="time-cell">{{ formatDateTime(record.violation_time) }}</td>
                 <td><span class="status-tag" :class="statusMeta(record.status).className"><i />{{ statusMeta(record.status).label }}</span></td>
-                <td class="actions-cell"><button class="text-action" type="button" @click="openDetails(record)">详情</button><button v-if="record.status === 'PENDING'" class="text-action text-action--accent" type="button" @click="openHandling(record)">处理</button><button class="row-icon row-icon--danger" type="button" title="删除" @click="removeRecord(record)"><span class="material-icons-outlined">delete_outline</span></button></td>
+                <td class="actions-cell"><button class="text-action" type="button" @click="openDetails(record)">详情</button><button v-if="record.status === 'PENDING'" class="text-action text-action--accent" type="button" @click="openHandling(record)">处理</button><button v-if="can('violation:manage')" class="row-icon row-icon--danger" type="button" title="删除" @click="removeRecord(record)"><span class="material-icons-outlined">delete_outline</span></button></td>
               </tr>
               <tr v-if="records.length === 0"><td colspan="8"><div class="empty-state"><span class="material-icons-outlined">task_alt</span><strong>没有匹配的违规记录</strong><span>调整筛选条件，或新增一条违规记录</span></div></td></tr>
             </tbody>
@@ -125,14 +125,14 @@
 
         <div class="section-head">
           <div><h2>计分规则</h2><p>分值会在记录创建时固化，保证历史统计口径不变</p></div>
-          <button class="button button--primary" type="button" @click="openCreateRule"><span class="material-icons-outlined">add</span>新增规则</button>
+          <button v-if="can('violation:manage')" class="button button--primary" type="button" @click="openCreateRule"><span class="material-icons-outlined">add</span>新增规则</button>
         </div>
         <div v-if="typesLoading" class="state"><span class="spinner" />正在加载计分规则</div>
         <div v-else class="table-wrap">
           <table class="table rules-table">
             <thead><tr><th>排序</th><th>违规类型</th><th>记分</th><th>规则说明</th><th>状态</th><th class="actions-cell">操作</th></tr></thead>
             <tbody>
-              <tr v-for="rule in violationTypes" :key="rule.id"><td class="order-number">{{ String(rule.sort_order).padStart(2, '0') }}</td><td><strong>{{ rule.name }}</strong></td><td><span class="score-chip" :class="scoreClass(rule.score)">+{{ rule.score }}</span></td><td class="rule-description">{{ rule.description || '暂无说明' }}</td><td><span class="status-tag" :class="rule.status === 1 ? 'status-tag--success' : 'status-tag--neutral'"><i />{{ rule.status === 1 ? '启用' : '停用' }}</span></td><td class="actions-cell"><button class="text-action" type="button" @click="openEditRule(rule)">编辑</button><button class="row-icon row-icon--danger" type="button" title="删除" @click="removeRule(rule)"><span class="material-icons-outlined">delete_outline</span></button></td></tr>
+              <tr v-for="rule in violationTypes" :key="rule.id"><td class="order-number">{{ String(rule.sort_order).padStart(2, '0') }}</td><td><strong>{{ rule.name }}</strong></td><td><span class="score-chip" :class="scoreClass(rule.score)">+{{ rule.score }}</span></td><td class="rule-description">{{ rule.description || '暂无说明' }}</td><td><span class="status-tag" :class="rule.status === 1 ? 'status-tag--success' : 'status-tag--neutral'"><i />{{ rule.status === 1 ? '启用' : '停用' }}</span></td><td class="actions-cell"><button v-if="can('violation:manage')" class="text-action" type="button" @click="openEditRule(rule)">编辑</button><button v-if="can('violation:manage')" class="row-icon row-icon--danger" type="button" title="删除" @click="removeRule(rule)"><span class="material-icons-outlined">delete_outline</span></button></td></tr>
               <tr v-if="violationTypes.length === 0"><td colspan="6"><div class="empty-state"><span class="material-icons-outlined">rule</span><strong>还没有计分规则</strong><span>新增规则后即可录入违规记录</span></div></td></tr>
             </tbody>
           </table>
@@ -257,6 +257,7 @@ interface Penalty { subject_id: number; subject_name: string; subject_number: st
 interface PenaltyList { items: Penalty[]; total: number }
 
 const http = useHttp();
+const { can } = usePermission();
 const authStore = useAuthStore();
 const tabs: { key: TabKey; label: string; icon: string }[] = [
   { key: "records", label: "违规记录", icon: "fact_check" },
