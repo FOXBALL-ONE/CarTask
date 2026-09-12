@@ -4,14 +4,9 @@ import org.slf4j.LoggerFactory
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
-import tools.jackson.databind.JsonNode
-import tools.jackson.databind.ObjectMapper
 import top.foxball.cartask.audit.AuditRequestContext
-import top.foxball.cartask.entity.ParkingOwner
-import top.foxball.cartask.entity.ParkingPlate
 import top.foxball.cartask.entity.SyncTaskRun
 import top.foxball.cartask.handler.AccountGenerateInProgressException
-import top.foxball.cartask.keytop.KeytopService
 import top.foxball.cartask.repository.AccessRecordRepository
 import top.foxball.cartask.repository.ParkingOwnerRepository
 import top.foxball.cartask.repository.ParkingPlateRepository
@@ -30,9 +25,18 @@ data class AccountGenerateResult(
 )
 
 /**
- * 为车辆业主补建平台登录账号：以近 [ACTIVE_WINDOW_DAYS] 天内有进出记录的车牌为数据源
+ * 为已有车主档案的业主补建平台登录账号：以近 [ACTIVE_WINDOW_DAYS] 天内有进出记录的车牌为数据源
  * （数据库层面按车牌去重），经车牌档案（ParkingPlate）关联车主档案（ParkingOwner），
  * 以车主手机号作为登录名创建账号，已有账号自动跳过。
+ *
+ * 账号的所属部门取自车主档案的部门字段：同名部门已存在则直接挂靠，不存在则按「部门名称 + 自动编码」
+ * 新建，使账号归属不依赖预先存在的部门数据。
+ *
+ * 账号的所属部门取自车主档案的部门字段：同名部门已存在则直接挂靠，不存在则按「部门名称 + 自动编码」
+ * 新建，使账号归属不依赖预先存在的部门数据。
+ *
+ * 车主档案缺失或已停用的车牌由 [SynOwnerArchiveTask] 在更早的时间点单独补建，本任务只负责账号阶段，
+ * 因此不访问科拓接口；补建任务跑过之后，下一次执行本任务即可覆盖到新车主。
  */
 @Component
 class SynAccountGenerateTask(
@@ -42,8 +46,6 @@ class SynAccountGenerateTask(
     private val accessRecordRepository: AccessRecordRepository,
     private val syncTaskHistoryService: SyncTaskHistoryService,
     private val syncTaskProgressService: SyncTaskProgressService = SyncTaskProgressService(),
-    private val keytopService: KeytopService? = null,
-    private val objectMapper: ObjectMapper? = null,
 ) {
     @Scheduled(cron = "\${app.account-generate-cron:0 0 3 * * *}", zone = "Asia/Shanghai")
     fun synAccountGenerate() {
@@ -119,39 +121,13 @@ class SynAccountGenerateTask(
             syncTaskProgressService.update(TASK_KEY, index, activePlates.size)
             val parkingPlate = plateByKey[plate] ?: run {
                 skippedCount++
-                logger.warn("跳过没有有效车牌档案的活跃车牌：{}", plate)
+                logger.warn("跳过没有有效车牌档案的活跃车牌：{}，请先执行车主档案补建", plate)
                 return@forEachIndexed
             }
             val owner = ownerById[parkingPlate.ownerId] ?: run {
-                val source = keytopService?.getCardInfoByUser(plate)?.data?.let { data ->
-                    val mapper = objectMapper ?: return@let null
-                    val node = if (data.isTextual) mapper.readTree(data.asString()) else data
-                    val container = node.get("data")?.takeIf { !it.isNull } ?: node
-                    val card = container.get("cardInfo") ?: container.get("card_info") ?: container
-                    val name = firstText(card, "useName", "use_name", "userName", "user_name", "name")
-                    val phone = firstText(card, "tel", "phone", "mobile")
-                    val cardId = firstText(card, "cardName", "card_name", "cardNo", "card_no", "cardId", "card_id")
-                    if (name != null && phone != null && cardId != null) Triple(name, phone, cardId) else null
-                } ?: run {
-                    skippedCount++
-                    logger.warn("跳过已停用或缺失车主档案的车牌：{}，车主 ID: {}", plate, parkingPlate.ownerId)
-                    return@forEachIndexed
-                }
-                val now = LocalDateTime.now()
-                val created = parkingOwnerRepository.save(ParkingOwner().apply {
-                    cardId = source.third
-                    name = source.first
-                    dept = SYNC_DEPARTMENT
-                    phone = source.second
-                    createdAt = now
-                    updatedAt = now
-                })
-                val createdId = requireNotNull(created.id)
-                parkingPlate.ownerId = createdId
-                parkingPlate.owner = created.name
-                parkingPlateRepository.save(parkingPlate)
-                ownerById[createdId] = created
-                created
+                skippedCount++
+                logger.warn("跳过已停用或缺失车主档案的车牌：{}，车主 ID: {}", plate, parkingPlate.ownerId)
+                return@forEachIndexed
             }
             val phone = owner.phone.trim().takeIf(String::isNotEmpty) ?: run {
                 skippedCount++
@@ -205,11 +181,6 @@ class SynAccountGenerateTask(
         ?.uppercase()
         ?.takeIf(String::isNotEmpty)
 
-    private fun firstText(node: JsonNode, vararg names: String): String? = names.asSequence()
-        .mapNotNull { node.get(it) }
-        .firstOrNull { !it.isNull && !it.isMissingNode && it.asString().isNotBlank() }
-        ?.asString()
-
     private fun recordHistory(
         trigger: SyncTaskRun.Trigger,
         status: SyncTaskRun.Status,
@@ -242,7 +213,6 @@ class SynAccountGenerateTask(
         const val TASK_NAME = "车辆业主账号生成"
         const val DEPARTMENT_ID = 229L
         const val INITIAL_PASSWORD = "Fqjg20221022"
-        const val SYNC_DEPARTMENT = "同步车主"
         const val STATUS_ENABLED = 1
 
         /** 账号生成数据源的进出记录回溯天数。 */

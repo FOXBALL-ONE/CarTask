@@ -15,6 +15,7 @@ import top.foxball.cartask.shared.ResponseBuilder
 import top.foxball.cartask.task.SynAccountGenerateTask
 import top.foxball.cartask.task.SynAreaInfoTask
 import top.foxball.cartask.task.SynCarCapInfoTask
+import top.foxball.cartask.task.SynOwnerArchiveTask
 import java.time.LocalDateTime
 
 @RestController
@@ -22,13 +23,14 @@ import java.time.LocalDateTime
 class SynchronizationController(
     private val synAreaInfoTask: SynAreaInfoTask,
     private val synCarCapInfoTask: SynCarCapInfoTask,
+    private val synOwnerArchiveTask: SynOwnerArchiveTask,
     private val synAccountGenerateTask: SynAccountGenerateTask,
     private val syncTaskHistoryService: SyncTaskHistoryService,
     private val responseBuilder: ResponseBuilder,
     private val syncTaskProgressService: SyncTaskProgressService = SyncTaskProgressService(),
 ) {
     @GetMapping("/progress")
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAnyAuthority('dictionary:sync', 'vehicle-record:sync', 'account:sync')")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAnyAuthority('dictionary:sync', 'vehicle-record:sync', 'owner:sync', 'account:sync')")
     fun syncProgress(): ResponseEntity<Response> {
         data class TaskData(
             @param:JsonProperty("task_key") val taskKey: String,
@@ -122,7 +124,31 @@ class SynchronizationController(
             .build()
     }
 
-    /** 根据车辆主档为业主补建平台登录账号，已有账号的业主自动跳过。 */
+    /** 从车辆进出记录里补建系统缺失的车主信息：回查科拓卡片信息新建车主档案并登记车牌关联。 */
+    @PostMapping("/owners")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('owner:sync')")
+    fun synchronizeOwners(): ResponseEntity<Response> {
+        data class Response(
+            @param:JsonProperty("created_owner_count") val createdOwnerCount: Int,
+            @param:JsonProperty("linked_plate_count") val linkedPlateCount: Int,
+            @param:JsonProperty("skipped_count") val skippedCount: Int,
+            @param:JsonProperty("executed_at") val executedAt: LocalDateTime,
+        )
+
+        val result = synOwnerArchiveTask.generate()
+        val rs = Response(
+            createdOwnerCount = result.createdOwnerCount,
+            linkedPlateCount = result.linkedPlateCount,
+            skippedCount = result.skippedCount,
+            executedAt = LocalDateTime.now(),
+        )
+        return responseBuilder.ok()
+            .message("车主信息补建完成")
+            .data(rs)
+            .build()
+    }
+
+    /** 根据车辆进出记录为业主补建平台登录账号，已有账号的业主自动跳过。 */
     @PostMapping("/accounts")
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('account:sync')")
     fun synchronizeAccounts(): ResponseEntity<Response> {

@@ -84,6 +84,6 @@ class PermissionCatalogInitializer(
 
     private companion object {
         /** 后补进入权限字典的能力，即使 ADMIN 角色已有权限配置也必须补授。 */
-        val ADMIN_ENSURED_PERMISSION_CODES = setOf("account:sync", "sync-history:read")
+        val ADMIN_ENSURED_PERMISSION_CODES = setOf("owner:sync", "account:sync", "sync-history:read")
     }
 }

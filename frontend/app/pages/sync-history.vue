@@ -35,6 +35,7 @@ const pageSize = 20;
 const tasks = [
   { key: "parking_area.sync", label: "停车区域同步" },
   { key: "car_cap_info.sync", label: "车辆进出记录同步" },
+  { key: "owner.archive.generate", label: "车主档案补建" },
   { key: "account.generate", label: "车辆业主账号生成" },
 ];
 const filters = reactive({ taskKey: "" });

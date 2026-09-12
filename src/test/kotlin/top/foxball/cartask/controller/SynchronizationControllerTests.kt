@@ -13,9 +13,11 @@ import top.foxball.cartask.shared.ResponseBuilder
 import top.foxball.cartask.task.AccountGenerateResult
 import top.foxball.cartask.task.CarCapInfoSyncResult
 import top.foxball.cartask.task.CarCapInfoSyncPreview
+import top.foxball.cartask.task.OwnerArchiveResult
 import top.foxball.cartask.task.SynAccountGenerateTask
 import top.foxball.cartask.task.SynAreaInfoTask
 import top.foxball.cartask.task.SynCarCapInfoTask
+import top.foxball.cartask.task.SynOwnerArchiveTask
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import kotlin.test.Test
@@ -25,9 +27,17 @@ import kotlin.test.assertNotNull
 class SynchronizationControllerTests {
     private val areaInfoTask = mock<SynAreaInfoTask>()
     private val carCapInfoTask = mock<SynCarCapInfoTask>()
+    private val ownerArchiveTask = mock<SynOwnerArchiveTask>()
     private val accountGenerateTask = mock<SynAccountGenerateTask>()
     private val historyService = mock<SyncTaskHistoryService>()
-    private val controller = SynchronizationController(areaInfoTask, carCapInfoTask, accountGenerateTask, historyService, ResponseBuilder())
+    private val controller = SynchronizationController(
+        areaInfoTask,
+        carCapInfoTask,
+        ownerArchiveTask,
+        accountGenerateTask,
+        historyService,
+        ResponseBuilder(),
+    )
 
     @Test
     fun `手动执行停车区域同步并返回统计`() {
@@ -135,6 +145,34 @@ class SynchronizationControllerTests {
 
         assertEquals(
             "(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('vehicle-record:sync')",
+            annotation.value,
+        )
+    }
+
+    @Test
+    fun `手动补建车主信息并返回统计`() {
+        whenever(ownerArchiveTask.generate()).thenReturn(OwnerArchiveResult(2, 3, 4, LocalDateTime.now()))
+
+        val response = controller.synchronizeOwners()
+
+        verify(ownerArchiveTask).generate()
+        assertEquals(200, response.statusCode.value())
+        assertEquals("车主信息补建完成", response.body?.message)
+        val data = ObjectMapper().valueToTree<tools.jackson.databind.JsonNode>(response.body?.data)
+        assertEquals(2, data.get("created_owner_count").asInt())
+        assertEquals(3, data.get("linked_plate_count").asInt())
+        assertEquals(4, data.get("skipped_count").asInt())
+        assertNotNull(data.get("executed_at").asString())
+    }
+
+    @Test
+    fun `手动补建车主信息要求独立同步权限`() {
+        val annotation = SynchronizationController::class.java
+            .getDeclaredMethod("synchronizeOwners")
+            .getAnnotation(PreAuthorize::class.java)
+
+        assertEquals(
+            "(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('owner:sync')",
             annotation.value,
         )
     }

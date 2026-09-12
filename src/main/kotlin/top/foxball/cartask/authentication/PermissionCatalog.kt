@@ -25,6 +25,7 @@ object PermissionCatalog {
         Definition("position:manage", "管理岗位"),
         Definition("owner:read", "查看车主"),
         Definition("owner:manage", "管理车主"),
+        Definition("owner:sync", "补建车主信息"),
         Definition("spot:read", "查看车位"),
         Definition("spot:manage", "管理车位"),
         Definition("plate:read", "查看车牌"),
