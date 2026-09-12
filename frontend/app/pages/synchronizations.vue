@@ -143,6 +143,68 @@
       </aside>
     </article>
 
+    <article class="sync-card sync-card--owners" :class="`sync-card--${ownerArchiveCardState}`">
+      <div class="sync-card__main">
+        <header class="sync-card__header">
+          <div class="sync-card__icon"><span class="material-icons-outlined">contact_page</span></div>
+          <div>
+            <div class="sync-card__title-row">
+              <h2>车主信息补建</h2>
+              <span class="state-badge" aria-live="polite">{{ ownerArchiveStateLabel }}</span>
+            </div>
+            <p>以近 30 天有进出记录的车牌为依据（自动去重），对系统没有车主信息的车牌回查科拓卡片信息，新建车主信息并登记车牌关联。</p>
+            <div v-if="progressFor('owner.archive.generate')?.running" class="progress"><div class="progress__bar" :style="{ width: progressPercent('owner.archive.generate') + '%' }" /><span>{{ progressText('owner.archive.generate') }}</span></div>
+          </div>
+        </header>
+
+        <div class="sync-route" :class="{ 'sync-route--running': ownerArchiveRunning }">
+          <div class="endpoint">
+            <span class="endpoint__mark endpoint__mark--remote"><span class="material-icons-outlined">fingerprint</span></span>
+            <span><small>数据来源</small><strong>进出记录车牌与科拓卡片信息</strong></span>
+          </div>
+          <div class="conduit" aria-hidden="true">
+            <span class="conduit__line" />
+            <span class="conduit__packet" />
+            <span class="material-icons-outlined conduit__arrow">arrow_forward</span>
+          </div>
+          <div class="endpoint endpoint--target">
+            <span class="endpoint__mark"><span class="material-icons-outlined">badge</span></span>
+            <span><small>写入目标</small><strong>车主信息与车牌关联</strong></span>
+          </div>
+        </div>
+
+        <div v-if="ownerArchiveSyncState === 'error' && !ownerArchiveRunning" class="feedback feedback--error" role="alert">
+          <span class="material-icons-outlined">error_outline</span>
+          <div><strong>补建未完成</strong><p>{{ ownerArchiveErrorMessage }}</p></div>
+        </div>
+        <div v-else-if="ownerArchiveSyncState === 'success' && !ownerArchiveRunning" class="feedback feedback--success" role="status">
+          <span class="material-icons-outlined">check_circle_outline</span>
+          <div><strong>补建完成</strong><p>{{ ownerArchiveResultSummary }}</p></div>
+        </div>
+      </div>
+
+      <aside class="sync-card__action">
+        <template v-if="!ownerArchiveConfirming">
+          <p class="action-label">本次操作</p>
+          <p class="action-copy">回查科拓卡片信息，为系统没有的车牌补建车主信息和车牌关联。已有档案的车牌不会重复处理。</p>
+          <button class="sync-button" type="button" :disabled="ownerArchiveRunning" @click="ownerArchiveConfirming = true">
+            <span class="material-icons-outlined" :class="{ spinning: ownerArchiveRunning }">{{ ownerArchiveRunning ? 'sync' : 'person_search' }}</span>
+            {{ ownerArchiveRunning ? "正在补建..." : "立即补建" }}
+          </button>
+        </template>
+        <template v-else>
+          <p class="action-label">确认执行</p>
+          <p class="action-copy">新建的车主信息以科拓卡片的卡号、姓名和手机号为准，同一手机号的多个车牌只建一条车主信息。已停用的档案和车主不会被改动。</p>
+          <div class="confirm-actions">
+            <button class="cancel-button" type="button" @click="ownerArchiveConfirming = false">取消</button>
+            <button class="sync-button" type="button" :disabled="ownerArchiveRunning" @click="runOwnerArchiveGeneration">
+              <span class="material-icons-outlined">play_arrow</span>执行补建
+            </button>
+          </div>
+        </template>
+      </aside>
+    </article>
+
     <article class="sync-card sync-card--accounts" :class="`sync-card--${accountCardState}`">
       <div class="sync-card__main">
         <header class="sync-card__header">
@@ -152,7 +214,7 @@
               <h2>车辆业主账号</h2>
               <span class="state-badge" aria-live="polite">{{ accountStateLabel }}</span>
             </div>
-            <p>以近 30 天有进出记录的车牌为依据（自动去重），经车牌档案关联车主信息，为尚未注册的业主自动创建平台登录账号。</p>
+            <p>以近 30 天有进出记录的车牌为依据（自动去重），经车牌档案关联在营车主，为尚未注册的业主自动创建平台登录账号。车主信息缺失的车牌由「车主信息补建」先行处理。</p>
             <div v-if="progressFor('account.generate')?.running" class="progress"><div class="progress__bar" :style="{ width: progressPercent('account.generate') + '%' }" /><span>{{ progressText('account.generate') }}</span></div>
           </div>
         </header>
@@ -160,7 +222,7 @@
         <div class="sync-route" :class="{ 'sync-route--running': accountRunning }">
           <div class="endpoint">
             <span class="endpoint__mark endpoint__mark--remote"><span class="material-icons-outlined">directions_car</span></span>
-            <span><small>数据来源</small><strong>车辆主档业主信息</strong></span>
+            <span><small>数据来源</small><strong>有效车牌档案与在营车主</strong></span>
           </div>
           <div class="conduit" aria-hidden="true">
             <span class="conduit__line" />
@@ -220,6 +282,41 @@
       </div>
     </section>
 
+    <section class="result-panel result-panel--owners" aria-live="polite">
+      <header class="result-panel__header">
+        <div>
+          <p class="result-panel__label">最近一次车主信息补建</p>
+          <p class="result-panel__time">{{ ownerArchiveResult ? formatDateTime(ownerArchiveResult.executed_at) : "执行后将在这里显示本次统计" }}</p>
+        </div>
+        <div class="result-links">
+          <NuxtLink class="result-link" to="/owners"><span class="material-icons-outlined">badge</span>车主信息</NuxtLink>
+          <NuxtLink class="result-link" to="/plates"><span class="material-icons-outlined">directions_car</span>车牌信息</NuxtLink>
+        </div>
+      </header>
+      <div class="metric-grid">
+        <div class="metric metric--owner"><span>新建车主</span><strong>{{ ownerArchiveResult?.created_owner_count ?? "—" }}</strong></div>
+        <div class="metric metric--linked"><span>关联车牌</span><strong>{{ ownerArchiveResult?.linked_plate_count ?? "—" }}</strong></div>
+        <div class="metric metric--quiet"><span>跳过</span><strong>{{ ownerArchiveResult?.skipped_count ?? "—" }}</strong></div>
+      </div>
+    </section>
+
+    <section class="history-panel" aria-live="polite">
+      <header class="history-panel__header">
+        <p class="history-panel__label">车主信息补建 · 近期执行</p>
+        <NuxtLink class="history-panel__link" to="/sync-history">全部记录<span class="material-icons-outlined">chevron_right</span></NuxtLink>
+      </header>
+      <p v-if="historyUnavailable" class="history-panel__empty">执行历史读取失败，需要「查看同步执行历史」权限。</p>
+      <p v-else-if="ownerArchiveHistory.length === 0" class="history-panel__empty">暂无执行记录，定时任务每天 02:45 执行。</p>
+      <ul v-else class="history-list">
+        <li v-for="run in ownerArchiveHistory" :key="run.id" class="history-list__row">
+          <span class="history-list__time">{{ formatDateTime(run.started_at) }}</span>
+          <span class="history-chip" :class="run.trigger === 'MANUAL' ? 'history-chip--manual' : 'history-chip--schedule'">{{ run.trigger === "MANUAL" ? "手动" : "定时" }}</span>
+          <span class="history-chip" :class="run.status === 'SUCCESS' ? 'history-chip--ok' : 'history-chip--fail'">{{ run.status === "SUCCESS" ? "成功" : "失败" }}</span>
+          <span class="history-list__summary" :title="run.error || run.summary || ''">{{ run.error || run.summary || "—" }}</span>
+        </li>
+      </ul>
+    </section>
+
     <section class="result-panel result-panel--accounts" aria-live="polite">
       <header class="result-panel__header">
         <div>
@@ -233,6 +330,23 @@
         <div class="metric metric--quiet"><span>跳过</span><strong>{{ accountResult?.skipped_count ?? "—" }}</strong></div>
         <div class="metric metric--retry"><span>失败</span><strong>{{ accountResult?.failed_count ?? "—" }}</strong></div>
       </div>
+    </section>
+
+    <section class="history-panel" aria-live="polite">
+      <header class="history-panel__header">
+        <p class="history-panel__label">车辆业主账号 · 近期执行</p>
+        <NuxtLink class="history-panel__link" to="/sync-history">全部记录<span class="material-icons-outlined">chevron_right</span></NuxtLink>
+      </header>
+      <p v-if="historyUnavailable" class="history-panel__empty">执行历史读取失败，需要「查看同步执行历史」权限。</p>
+      <p v-else-if="accountHistory.length === 0" class="history-panel__empty">暂无执行记录，定时任务每天 03:00 执行。</p>
+      <ul v-else class="history-list">
+        <li v-for="run in accountHistory" :key="run.id" class="history-list__row">
+          <span class="history-list__time">{{ formatDateTime(run.started_at) }}</span>
+          <span class="history-chip" :class="run.trigger === 'MANUAL' ? 'history-chip--manual' : 'history-chip--schedule'">{{ run.trigger === "MANUAL" ? "手动" : "定时" }}</span>
+          <span class="history-chip" :class="run.status === 'SUCCESS' ? 'history-chip--ok' : 'history-chip--fail'">{{ run.status === "SUCCESS" ? "成功" : "失败" }}</span>
+          <span class="history-list__summary" :title="run.error || run.summary || ''">{{ run.error || run.summary || "—" }}</span>
+        </li>
+      </ul>
     </section>
 
     <section class="result-panel" aria-live="polite">
@@ -259,9 +373,13 @@
       <span class="material-icons-outlined">history</span>
       <div><strong>增量规则</strong><p>仅从上一次成功快照继续读取。图片下载失败会保留源地址并在后续同步中自动重试，不影响流水检查点推进。</p></div>
     </section>
+    <section class="sync-note sync-note--owners">
+      <span class="material-icons-outlined">manage_search</span>
+      <div><strong>补建规则</strong><p>仅处理近 30 天有进出记录的车牌，车牌去除间隔符后判重。车主信息以科拓卡片的卡号、姓名和手机号为准，按手机号判重、卡号次之，同一手机号的多个车牌只建一条车主信息并登记多条车牌关联。已有有效档案的车牌直接跳过；科拓没有卡片信息（例如临时车）、车牌档案已停用的记录不会处理。</p></div>
+    </section>
     <section class="sync-note sync-note--accounts">
       <span class="material-icons-outlined">key</span>
-      <div><strong>账号规则</strong><p>仅处理近 30 天有进出记录的车牌，车牌去除间隔符后匹配有效车牌档案并关联在营车主。业主手机号即登录名，初始密码统一发放，请提醒业主及时修改。缺少车牌档案、车主已停用或手机号为空的记录不会处理，补全资料后可再次执行。</p></div>
+      <div><strong>账号规则</strong><p>仅处理近 30 天有进出记录的车牌，车牌去除间隔符后匹配有效车牌档案并关联在营车主。业主手机号即登录名，初始密码统一发放，请提醒业主及时修改。缺少车牌档案或车主已停用的记录不会处理，先执行「车主信息补建」补全资料后可再次执行。</p></div>
     </section>
   </section>
 </template>
@@ -300,6 +418,27 @@ interface AccountGenerateResult {
   executed_at: string;
 }
 
+interface OwnerArchiveResult {
+  created_owner_count: number;
+  linked_plate_count: number;
+  skipped_count: number;
+  executed_at: string;
+}
+
+interface SyncTaskRunRecord {
+  id: number;
+  trigger: "MANUAL" | "SCHEDULED";
+  status: "SUCCESS" | "FAILED";
+  started_at: string;
+  summary: string | null;
+  error: string | null;
+}
+
+interface SyncTaskHistoryResponse {
+  runs: SyncTaskRunRecord[];
+  total: number;
+}
+
 type SyncState = "idle" | "running" | "success" | "error";
 
 const http = useHttp();
@@ -316,6 +455,13 @@ const accountSyncState = ref<SyncState>("idle");
 const accountConfirming = ref(false);
 const accountErrorMessage = ref("");
 const accountResult = ref<AccountGenerateResult | null>(null);
+const ownerArchiveSyncState = ref<SyncState>("idle");
+const ownerArchiveConfirming = ref(false);
+const ownerArchiveErrorMessage = ref("");
+const ownerArchiveResult = ref<OwnerArchiveResult | null>(null);
+const ownerArchiveHistory = ref<SyncTaskRunRecord[]>([]);
+const accountHistory = ref<SyncTaskRunRecord[]>([]);
+const historyUnavailable = ref(false);
 interface SyncProgress { task_key: string; running: boolean; processed_count: number; total_count: number | null; started_at: string | null }
 const progress = ref<SyncProgress[]>([]);
 let progressTimer: ReturnType<typeof setInterval> | undefined;
@@ -326,9 +472,11 @@ async function loadProgress() { try { progress.value = await http.get<SyncProgre
 const parkingAreaRunning = computed(() => syncState.value === "running" || progressFor("parking_area.sync")?.running === true);
 const accessRecordRunning = computed(() => accessRecordSyncState.value === "running" || progressFor("car_cap_info.sync", "car_cap_info.reconciliation")?.running === true);
 const accountRunning = computed(() => accountSyncState.value === "running" || progressFor("account.generate")?.running === true);
+const ownerArchiveRunning = computed(() => ownerArchiveSyncState.value === "running" || progressFor("owner.archive.generate")?.running === true);
 const parkingAreaCardState = computed<SyncState>(() => parkingAreaRunning.value ? "running" : syncState.value);
 const accessRecordCardState = computed<SyncState>(() => accessRecordRunning.value ? "running" : accessRecordSyncState.value);
 const accountCardState = computed<SyncState>(() => accountRunning.value ? "running" : accountSyncState.value);
+const ownerArchiveCardState = computed<SyncState>(() => ownerArchiveRunning.value ? "running" : ownerArchiveSyncState.value);
 const parkingAreaStateLabel = computed(() => ({
   idle: "待执行",
   running: "同步中",
@@ -365,6 +513,12 @@ const accessRecordResultSummary = computed(() => {
   if (failed_photo_count === 0) return `处理 ${processed_count} 条流水，${local_photo_count} 张抓拍图片已保存到本地。`;
   return `处理 ${processed_count} 条流水，${local_photo_count} 张图片已保存，${failed_photo_count} 张将在后续同步中重试。`;
 });
+const ownerArchiveStateLabel = computed(() => ({
+  idle: "待执行",
+  running: "补建中",
+  success: "已完成",
+  error: "执行失败",
+})[ownerArchiveCardState.value]);
 const accountStateLabel = computed(() => ({
   idle: "待执行",
   running: "生成中",
@@ -377,6 +531,13 @@ const accountResultSummary = computed(() => {
   if (created_count === 0) return "没有需要新建账号的业主，全部已注册或资料不完整。";
   if (failed_count === 0) return `为 ${created_count} 位业主创建了登录账号，跳过 ${skipped_count} 位。`;
   return `为 ${created_count} 位业主创建了登录账号，跳过 ${skipped_count} 位，${failed_count} 位创建失败。`;
+});
+const ownerArchiveResultSummary = computed(() => {
+  if (!ownerArchiveResult.value) return "本地数据未发生变化。";
+  const { created_owner_count, linked_plate_count, skipped_count } = ownerArchiveResult.value;
+  if (linked_plate_count === 0) return "没有需要补建的车主信息，活跃车牌都已有有效档案。";
+  if (linked_plate_count === created_owner_count) return `新建 ${created_owner_count} 位车主信息，跳过 ${skipped_count} 个车牌。`;
+  return `新建 ${created_owner_count} 位车主信息，登记 ${linked_plate_count} 条车牌关联，跳过 ${skipped_count} 个车牌。`;
 });
 
 async function runSynchronization() {
@@ -415,6 +576,38 @@ async function runAccountGeneration() {
   } catch (error) {
     accountErrorMessage.value = (error as { statusMessage?: string }).statusMessage || "无法连接账号生成服务，请稍后重试。";
     accountSyncState.value = "error";
+  } finally {
+    void loadSyncHistory();
+  }
+}
+
+async function runOwnerArchiveGeneration() {
+  ownerArchiveConfirming.value = false;
+  ownerArchiveSyncState.value = "running";
+  ownerArchiveErrorMessage.value = "";
+  try {
+    ownerArchiveResult.value = await http.post<OwnerArchiveResult>("/synchronizations/owners");
+    ownerArchiveSyncState.value = "success";
+  } catch (error) {
+    ownerArchiveErrorMessage.value = (error as { statusMessage?: string }).statusMessage || "无法连接车主信息补建服务，请检查科拓配置后重试。";
+    ownerArchiveSyncState.value = "error";
+  } finally {
+    void loadSyncHistory();
+  }
+}
+
+async function loadSyncHistory() {
+  try {
+    const [owners, accounts] = await Promise.all([
+      http.get<SyncTaskHistoryResponse>("/synchronizations/history", { page: 1, page_size: 5, task_key: "owner.archive.generate" }),
+      http.get<SyncTaskHistoryResponse>("/synchronizations/history", { page: 1, page_size: 5, task_key: "account.generate" }),
+    ]);
+    ownerArchiveHistory.value = owners.runs || [];
+    accountHistory.value = accounts.runs || [];
+    historyUnavailable.value = false;
+  } catch {
+    // 缺少 sync-history:read 权限或服务不可用时不阻塞页面，只隐藏历史内容。
+    historyUnavailable.value = true;
   }
 }
 
@@ -453,7 +646,7 @@ function formatDateTime(value: string) {
   }).format(date);
 }
 
-onMounted(() => { void loadProgress(); progressTimer = setInterval(loadProgress, 2000); });
+onMounted(() => { void loadProgress(); void loadSyncHistory(); progressTimer = setInterval(loadProgress, 2000); });
 onBeforeUnmount(() => { if (progressTimer) clearInterval(progressTimer); });
 </script>
 
@@ -488,6 +681,11 @@ onBeforeUnmount(() => { if (progressTimer) clearInterval(progressTimer); });
 .sync-card--accounts .endpoint__mark--remote { background: #d97706; border-color: #d97706; color: #fff; }
 .sync-card--accounts .conduit__packet { background: #d97706; border-color: color-mix(in srgb, #d97706 20%, var(--card)); }
 .sync-card--accounts .sync-route--running .conduit__line { background: color-mix(in srgb, #d97706 25%, var(--card)); }
+.sync-card--owners .sync-card__icon { background: color-mix(in srgb, #7c3aed 12%, var(--card)); color: #6d28d9; }
+.sync-card--owners .endpoint__mark { color: #6d28d9; }
+.sync-card--owners .endpoint__mark--remote { background: #7c3aed; border-color: #7c3aed; color: #fff; }
+.sync-card--owners .conduit__packet { background: #7c3aed; border-color: color-mix(in srgb, #7c3aed 20%, var(--card)); }
+.sync-card--owners .sync-route--running .conduit__line { background: color-mix(in srgb, #7c3aed 25%, var(--card)); }
 .sync-route { align-items: center; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; display: grid; gap: 16px; grid-template-columns: minmax(150px, 1fr) minmax(100px, .8fr) minmax(150px, 1fr); margin-top: 24px; padding: 18px; }
 .endpoint { align-items: center; display: flex; gap: 10px; min-width: 0; }
 .endpoint--target { justify-self: end; }
@@ -523,24 +721,46 @@ onBeforeUnmount(() => { if (progressTimer) clearInterval(progressTimer); });
 .result-panel__header { align-items: center; border-bottom: 1px solid var(--border); display: flex; gap: 16px; justify-content: space-between; padding: 15px 18px; }
 .result-panel__label { color: var(--text); font-size: 12px; font-weight: 650; margin: 0; }.result-panel__time { color: var(--text-mute); font-size: 11px; margin: 3px 0 0; }
 .result-panel__total { color: var(--text-sub); font-size: 11px; }
+.result-links { display: flex; flex-wrap: wrap; gap: 6px; }
+.result-link { align-items: center; background: var(--bg); border: 1px solid var(--border-strong); border-radius: 6px; color: var(--text-sub); display: inline-flex; font-size: 11px; gap: 5px; padding: 5px 9px; text-decoration: none; transition: background var(--tr), color var(--tr); }
+.result-link:hover { background: var(--primary-soft); border-color: var(--primary); color: var(--primary); }
+.result-link .material-icons-outlined { font-size: 14px; }
+.history-panel { background: var(--card); border: 1px solid var(--border-strong); border-radius: 10px; margin-top: 16px; overflow: hidden; }
+.history-panel__header { align-items: center; border-bottom: 1px solid var(--border); display: flex; gap: 16px; justify-content: space-between; padding: 12px 18px; }
+.history-panel__label { color: var(--text); font-size: 12px; font-weight: 650; margin: 0; }
+.history-panel__link { align-items: center; color: var(--primary); display: inline-flex; font-size: 11px; gap: 2px; text-decoration: none; }
+.history-panel__link .material-icons-outlined { font-size: 15px; }
+.history-panel__empty { color: var(--text-mute); font-size: 12px; margin: 0; padding: 18px; }
+.history-list { list-style: none; margin: 0; padding: 0; }
+.history-list__row { align-items: center; border-bottom: 1px solid var(--border); display: flex; gap: 10px; padding: 10px 18px; }
+.history-list__row:last-child { border-bottom: 0; }
+.history-list__time { color: var(--text-sub); flex: 0 0 152px; font-size: 11px; font-variant-numeric: tabular-nums; }
+.history-chip { border-radius: 4px; flex: 0 0 auto; font-size: 10px; padding: 2px 7px; }
+.history-chip--manual { background: var(--primary-soft); color: var(--primary); }
+.history-chip--schedule { background: var(--bg); color: var(--text-sub); }
+.history-chip--ok { background: color-mix(in srgb, #059669 12%, var(--card)); color: #059669; }
+.history-chip--fail { background: color-mix(in srgb, var(--red) 10%, var(--card)); color: var(--red); }
+.history-list__summary { color: var(--text-sub); flex: 1; font-size: 11px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .metric-grid { display: grid; grid-template-columns: repeat(4, 1fr); }
-.result-panel--records .metric-grid, .result-panel--accounts .metric-grid { grid-template-columns: repeat(3, 1fr); }
+.result-panel--records .metric-grid, .result-panel--accounts .metric-grid, .result-panel--owners .metric-grid { grid-template-columns: repeat(3, 1fr); }
 .metric { border-right: 1px solid var(--border); padding: 17px 18px; position: relative; }.metric:last-child { border-right: 0; }
 .metric::before { background: var(--primary); content: ""; height: 2px; left: 18px; position: absolute; top: 0; width: 22px; }
 .metric--created::before { background: #059669; }.metric--updated::before { background: #d97706; }.metric--quiet::before { background: var(--text-mute); }
 .metric--photo::before { background: #059669; }.metric--retry::before { background: var(--red); }
+.metric--owner::before { background: #7c3aed; }.metric--linked::before { background: var(--primary); }
 .metric span { color: var(--text-sub); display: block; font-size: 11px; }
 .metric strong { color: var(--text); display: block; font-family: Consolas, "SFMono-Regular", monospace; font-size: 23px; font-variant-numeric: tabular-nums; line-height: 1.2; margin-top: 5px; }
 .sync-note { align-items: flex-start; color: var(--text-sub); display: flex; gap: 9px; margin-top: 14px; padding: 0 4px; }.sync-note > .material-icons-outlined { color: var(--primary); font-size: 18px; }.sync-note strong { color: var(--text); font-size: 12px; }.sync-note p { line-height: 1.65; margin: 2px 0 0; }
 .sync-note--records > .material-icons-outlined { color: #047857; }
 .sync-note--accounts > .material-icons-outlined { color: #b45309; }
+.sync-note--owners > .material-icons-outlined { color: #6d28d9; }
 .spinning { animation: spin .9s linear infinite; }
 .progress { background: var(--bg); border: 1px solid var(--border); border-radius: 5px; margin-top: 14px; overflow: hidden; padding: 7px 9px; position: relative; }.progress__bar { background: var(--primary); height: 3px; left: 0; position: absolute; top: 0; transition: width .35s ease; }.progress span { color: var(--text-sub); display: block; font-size: 11px; padding-top: 2px; }
 @keyframes data-flow { 0% { left: 0; opacity: 0; } 15%, 85% { opacity: 1; } 100% { left: calc(100% - 22px); opacity: 0; } }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .sync-route--running .conduit__packet, .spinning { animation: none; }.sync-route--running .conduit__packet { left: 50%; opacity: 1; } }
 @media (max-width: 820px) { .sync-card { grid-template-columns: 1fr; }.sync-card__action { border-left: 0; border-top: 1px solid var(--border); }.sync-route { grid-template-columns: minmax(120px, 1fr) 70px minmax(120px, 1fr); } }
-@media (max-width: 600px) { .sync-page { padding: 16px; }.page-heading { align-items: flex-start; flex-direction: column; gap: 12px; }.sync-card__main, .sync-card__action { padding: 18px; }.sync-route { align-items: stretch; grid-template-columns: 1fr; }.endpoint--target { justify-self: start; }.conduit { height: 32px; margin-left: 17px; width: 20px; }.conduit__line { height: 100%; width: 1px; }.conduit__arrow { bottom: -3px; left: -8px; margin: 0; position: absolute; transform: rotate(90deg); }.conduit__packet { left: -4px; top: 0; }.sync-route--running .conduit__packet { animation-name: data-flow-vertical; }.metric-grid { grid-template-columns: repeat(2, 1fr); }.metric:nth-child(2) { border-right: 0; }.metric:nth-child(-n+2) { border-bottom: 1px solid var(--border); }.result-panel--records .metric:nth-child(3), .result-panel--accounts .metric:nth-child(3) { border-right: 0; }.result-panel__header { align-items: flex-start; flex-direction: column; gap: 7px; } }
+@media (max-width: 600px) { .sync-page { padding: 16px; }.page-heading { align-items: flex-start; flex-direction: column; gap: 12px; }.sync-card__main, .sync-card__action { padding: 18px; }.sync-route { align-items: stretch; grid-template-columns: 1fr; }.endpoint--target { justify-self: start; }.conduit { height: 32px; margin-left: 17px; width: 20px; }.conduit__line { height: 100%; width: 1px; }.conduit__arrow { bottom: -3px; left: -8px; margin: 0; position: absolute; transform: rotate(90deg); }.conduit__packet { left: -4px; top: 0; }.sync-route--running .conduit__packet { animation-name: data-flow-vertical; }.metric-grid { grid-template-columns: repeat(2, 1fr); }.metric:nth-child(2) { border-right: 0; }.metric:nth-child(-n+2) { border-bottom: 1px solid var(--border); }.result-panel--records .metric:nth-child(3), .result-panel--accounts .metric:nth-child(3), .result-panel--owners .metric:nth-child(3) { border-right: 0; }.result-panel__header { align-items: flex-start; flex-direction: column; gap: 7px; }.history-list__row { align-items: flex-start; flex-wrap: wrap; }.history-list__time, .history-list__summary { flex: 1 1 100%; }.history-list__summary { white-space: normal; } }
 @media (max-width: 600px) and (prefers-reduced-motion: reduce) { .sync-route--running .conduit__packet { left: -4px; top: 50%; } }
 @keyframes data-flow-vertical { 0% { opacity: 0; top: 0; } 15%, 85% { opacity: 1; } 100% { opacity: 0; top: calc(100% - 9px); } }
 </style>
