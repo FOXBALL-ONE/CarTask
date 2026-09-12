@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import top.foxball.cartask.service.SyncTaskHistoryService
+import top.foxball.cartask.service.SyncTaskProgressService
 import top.foxball.cartask.shared.Response
 import top.foxball.cartask.shared.ResponseBuilder
 import top.foxball.cartask.task.SynAccountGenerateTask
@@ -24,7 +25,22 @@ class SynchronizationController(
     private val synAccountGenerateTask: SynAccountGenerateTask,
     private val syncTaskHistoryService: SyncTaskHistoryService,
     private val responseBuilder: ResponseBuilder,
+    private val syncTaskProgressService: SyncTaskProgressService = SyncTaskProgressService(),
 ) {
+    @GetMapping("/progress")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAnyAuthority('dictionary:sync', 'vehicle-record:sync', 'account:sync')")
+    fun syncProgress(): ResponseEntity<Response> {
+        data class TaskData(
+            @param:JsonProperty("task_key") val taskKey: String,
+            @param:JsonProperty("task_name") val taskName: String,
+            val running: Boolean,
+            @param:JsonProperty("processed_count") val processedCount: Int,
+            @param:JsonProperty("total_count") val totalCount: Int?,
+            @param:JsonProperty("started_at") val startedAt: LocalDateTime?,
+        )
+        val rs = syncTaskProgressService.snapshot().map { TaskData(it.taskKey, it.taskName, it.running, it.processedCount, it.totalCount, it.startedAt) }
+        return responseBuilder.ok().data(rs).build()
+    }
     /** 从科拓拉取一次停车区域，并将结果幂等写入本地区域字典。 */
     @PostMapping("/parking-areas")
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('dictionary:sync')")

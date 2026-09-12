@@ -10,6 +10,7 @@ import top.foxball.cartask.service.ParkingAreaSyncResult
 import top.foxball.cartask.service.ParkingAreaSyncService
 import top.foxball.cartask.service.SyncTaskHistoryService
 import top.foxball.cartask.service.SyncTaskRunCommand
+import top.foxball.cartask.service.SyncTaskProgressService
 import java.time.LocalDateTime
 
 /** 从科拓同步停车区域与车场详情，维护系统可用的区域字典和停车场信息。 */
@@ -17,6 +18,7 @@ import java.time.LocalDateTime
 class SynAreaInfoTask(
     private val parkingAreaSyncService: ParkingAreaSyncService,
     private val syncTaskHistoryService: SyncTaskHistoryService,
+    private val syncTaskProgressService: SyncTaskProgressService = SyncTaskProgressService(),
 ) {
     @Scheduled(cron = "\${keytop.area-sync-cron:0 0 2 * * *}", zone = "Asia/Shanghai")
     fun synAreaInfo() {
@@ -36,6 +38,7 @@ class SynAreaInfoTask(
 
     private fun synchronize(trigger: SyncTaskRun.Trigger): ParkingAreaSyncResult {
         val startedAt = LocalDateTime.now()
+        syncTaskProgressService.start(TASK_KEY, TASK_NAME, startedAt)
         try {
             val result = parkingAreaSyncService.synchronize()
             if (result.lotName != null) {
@@ -63,6 +66,8 @@ class SynAreaInfoTask(
         } catch (exception: RuntimeException) {
             recordHistory(trigger, SyncTaskRun.Status.FAILED, startedAt, null, exception)
             throw exception
+        } finally {
+            syncTaskProgressService.finish(TASK_KEY, startedAt)
         }
     }
 

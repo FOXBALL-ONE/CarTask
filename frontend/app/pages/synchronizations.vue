@@ -9,20 +9,21 @@
       <span class="page-heading__mode"><span />手动执行</span>
     </header>
 
-    <article class="sync-card" :class="`sync-card--${syncState}`">
+    <article class="sync-card" :class="`sync-card--${parkingAreaCardState}`">
       <div class="sync-card__main">
         <header class="sync-card__header">
           <div class="sync-card__icon"><span class="material-icons-outlined">map</span></div>
           <div>
             <div class="sync-card__title-row">
               <h2>停车区域</h2>
-              <span class="state-badge" aria-live="polite">{{ stateLabel }}</span>
+              <span class="state-badge" aria-live="polite">{{ parkingAreaStateLabel }}</span>
             </div>
             <p>按科拓区域编码匹配本地数据；新增缺失区域，并更新已有区域的名称和顺序。</p>
+            <div v-if="progressFor('parking_area.sync')?.running" class="progress"><div class="progress__bar" :style="{ width: progressPercent('parking_area.sync') + '%' }" /><span>{{ progressText('parking_area.sync') }}</span></div>
           </div>
         </header>
 
-        <div class="sync-route" :class="{ 'sync-route--running': syncState === 'running' }">
+        <div class="sync-route" :class="{ 'sync-route--running': parkingAreaRunning }">
           <div class="endpoint">
             <span class="endpoint__mark endpoint__mark--remote"><span class="material-icons-outlined">cloud</span></span>
             <span><small>数据来源</small><strong>科拓开放平台</strong></span>
@@ -38,11 +39,11 @@
           </div>
         </div>
 
-        <div v-if="syncState === 'error'" class="feedback feedback--error" role="alert">
+        <div v-if="syncState === 'error' && !parkingAreaRunning" class="feedback feedback--error" role="alert">
           <span class="material-icons-outlined">error_outline</span>
           <div><strong>同步未完成</strong><p>{{ errorMessage }}</p></div>
         </div>
-        <div v-else-if="syncState === 'success'" class="feedback feedback--success" role="status">
+        <div v-else-if="syncState === 'success' && !parkingAreaRunning" class="feedback feedback--success" role="status">
           <span class="material-icons-outlined">check_circle_outline</span>
           <div><strong>同步完成</strong><p>{{ resultSummary }}</p></div>
         </div>
@@ -52,9 +53,9 @@
         <template v-if="!confirming">
           <p class="action-label">本次操作</p>
           <p class="action-copy">立即向科拓发起一次请求。自动同步计划不会受到影响。</p>
-          <button class="sync-button" type="button" :disabled="syncState === 'running'" @click="confirming = true">
-            <span class="material-icons-outlined" :class="{ spinning: syncState === 'running' }">{{ syncState === 'running' ? 'sync' : 'sync_alt' }}</span>
-            {{ syncState === "running" ? "正在同步..." : "立即同步" }}
+          <button class="sync-button" type="button" :disabled="parkingAreaRunning" @click="confirming = true">
+            <span class="material-icons-outlined" :class="{ spinning: parkingAreaRunning }">{{ parkingAreaRunning ? 'sync' : 'sync_alt' }}</span>
+            {{ parkingAreaRunning ? "正在同步..." : "立即同步" }}
           </button>
         </template>
         <template v-else>
@@ -62,7 +63,7 @@
           <p class="action-copy">同步会新增或更新本地区域，但不会删除现有区域。</p>
           <div class="confirm-actions">
             <button class="cancel-button" type="button" @click="confirming = false">取消</button>
-            <button class="sync-button" type="button" @click="runSynchronization">
+            <button class="sync-button" type="button" :disabled="parkingAreaRunning" @click="runSynchronization">
               <span class="material-icons-outlined">play_arrow</span>执行同步
             </button>
           </div>
@@ -70,7 +71,7 @@
       </aside>
     </article>
 
-    <article class="sync-card sync-card--records" :class="`sync-card--${accessRecordSyncState}`">
+    <article class="sync-card sync-card--records" :class="`sync-card--${accessRecordCardState}`">
       <div class="sync-card__main">
         <header class="sync-card__header">
           <div class="sync-card__icon"><span class="material-icons-outlined">directions_car</span></div>
@@ -80,10 +81,11 @@
               <span class="state-badge" aria-live="polite">{{ accessRecordStateLabel }}</span>
             </div>
             <p>以最近一次成功快照为起点增量拉取车辆进出记录，并将抓拍图片保存到本地文件库。</p>
+            <div v-if="progressFor('car_cap_info.sync', 'car_cap_info.reconciliation')?.running" class="progress"><div class="progress__bar" :style="{ width: progressPercent('car_cap_info.sync', 'car_cap_info.reconciliation') + '%' }" /><span>{{ progressText('car_cap_info.sync', 'car_cap_info.reconciliation') }}</span></div>
           </div>
         </header>
 
-        <div class="sync-route" :class="{ 'sync-route--running': accessRecordSyncState === 'running' || accessRecordPreviewing }">
+        <div class="sync-route" :class="{ 'sync-route--running': accessRecordRunning || accessRecordPreviewing }">
           <div class="endpoint">
             <span class="endpoint__mark endpoint__mark--remote"><span class="material-icons-outlined">photo_camera</span></span>
             <span><small>数据来源</small><strong>科拓进出流水</strong></span>
@@ -99,11 +101,11 @@
           </div>
         </div>
 
-        <div v-if="accessRecordSyncState === 'error'" class="feedback feedback--error" role="alert">
+        <div v-if="accessRecordSyncState === 'error' && !accessRecordRunning" class="feedback feedback--error" role="alert">
           <span class="material-icons-outlined">error_outline</span>
           <div><strong>同步未完成</strong><p>{{ accessRecordErrorMessage }}</p></div>
         </div>
-        <div v-else-if="accessRecordSyncState === 'success'" class="feedback feedback--success" role="status">
+        <div v-else-if="accessRecordSyncState === 'success' && !accessRecordRunning" class="feedback feedback--success" role="status">
           <span class="material-icons-outlined">check_circle_outline</span>
           <div><strong>同步完成</strong><p>{{ accessRecordResultSummary }}</p></div>
         </div>
@@ -114,7 +116,7 @@
       </div>
 
       <aside class="sync-card__action">
-        <template v-if="accessRecordPreviewing || accessRecordSyncState === 'running'">
+        <template v-if="accessRecordPreviewing || accessRecordRunning">
           <p class="action-label">{{ accessRecordPreviewing ? "正在预检" : "正在同步" }}</p>
           <p class="action-copy">{{ accessRecordPreviewing ? "正在读取科拓待同步记录数，尚未写入本地数据。" : "正在保存流水并下载可用的抓拍图片。" }}</p>
           <button class="sync-button" type="button" disabled>
@@ -141,7 +143,7 @@
       </aside>
     </article>
 
-    <article class="sync-card sync-card--accounts" :class="`sync-card--${accountSyncState}`">
+    <article class="sync-card sync-card--accounts" :class="`sync-card--${accountCardState}`">
       <div class="sync-card__main">
         <header class="sync-card__header">
           <div class="sync-card__icon"><span class="material-icons-outlined">person_add</span></div>
@@ -151,10 +153,11 @@
               <span class="state-badge" aria-live="polite">{{ accountStateLabel }}</span>
             </div>
             <p>以近 30 天有进出记录的车牌为依据（自动去重），经车牌档案关联车主信息，为尚未注册的业主自动创建平台登录账号。</p>
+            <div v-if="progressFor('account.generate')?.running" class="progress"><div class="progress__bar" :style="{ width: progressPercent('account.generate') + '%' }" /><span>{{ progressText('account.generate') }}</span></div>
           </div>
         </header>
 
-        <div class="sync-route" :class="{ 'sync-route--running': accountSyncState === 'running' }">
+        <div class="sync-route" :class="{ 'sync-route--running': accountRunning }">
           <div class="endpoint">
             <span class="endpoint__mark endpoint__mark--remote"><span class="material-icons-outlined">directions_car</span></span>
             <span><small>数据来源</small><strong>车辆主档业主信息</strong></span>
@@ -170,11 +173,11 @@
           </div>
         </div>
 
-        <div v-if="accountSyncState === 'error'" class="feedback feedback--error" role="alert">
+        <div v-if="accountSyncState === 'error' && !accountRunning" class="feedback feedback--error" role="alert">
           <span class="material-icons-outlined">error_outline</span>
           <div><strong>生成未完成</strong><p>{{ accountErrorMessage }}</p></div>
         </div>
-        <div v-else-if="accountSyncState === 'success'" class="feedback feedback--success" role="status">
+        <div v-else-if="accountSyncState === 'success' && !accountRunning" class="feedback feedback--success" role="status">
           <span class="material-icons-outlined">check_circle_outline</span>
           <div><strong>生成完成</strong><p>{{ accountResultSummary }}</p></div>
         </div>
@@ -184,9 +187,9 @@
         <template v-if="!accountConfirming">
           <p class="action-label">本次操作</p>
           <p class="action-copy">为缺少账号的业主按手机号创建登录账号，初始密码统一发放。已有账号不会受到影响。</p>
-          <button class="sync-button" type="button" :disabled="accountSyncState === 'running'" @click="accountConfirming = true">
-            <span class="material-icons-outlined" :class="{ spinning: accountSyncState === 'running' }">{{ accountSyncState === 'running' ? 'sync' : 'person_add_alt' }}</span>
-            {{ accountSyncState === "running" ? "正在生成..." : "立即生成" }}
+          <button class="sync-button" type="button" :disabled="accountRunning" @click="accountConfirming = true">
+            <span class="material-icons-outlined" :class="{ spinning: accountRunning }">{{ accountRunning ? 'sync' : 'person_add_alt' }}</span>
+            {{ accountRunning ? "正在生成..." : "立即生成" }}
           </button>
         </template>
         <template v-else>
@@ -194,7 +197,7 @@
           <p class="action-copy">将以业主手机号作为登录名创建账号；已存在的账号自动跳过，不会重复创建。同一业主的多个车牌只处理一次。</p>
           <div class="confirm-actions">
             <button class="cancel-button" type="button" @click="accountConfirming = false">取消</button>
-            <button class="sync-button" type="button" @click="runAccountGeneration">
+            <button class="sync-button" type="button" :disabled="accountRunning" @click="runAccountGeneration">
               <span class="material-icons-outlined">play_arrow</span>执行生成
             </button>
           </div>
@@ -313,12 +316,25 @@ const accountSyncState = ref<SyncState>("idle");
 const accountConfirming = ref(false);
 const accountErrorMessage = ref("");
 const accountResult = ref<AccountGenerateResult | null>(null);
-const stateLabel = computed(() => ({
+interface SyncProgress { task_key: string; running: boolean; processed_count: number; total_count: number | null; started_at: string | null }
+const progress = ref<SyncProgress[]>([]);
+let progressTimer: ReturnType<typeof setInterval> | undefined;
+function progressFor(...taskKeys: string[]) { return progress.value.find(item => taskKeys.includes(item.task_key)); }
+function progressPercent(...taskKeys: string[]) { const item = progressFor(...taskKeys); return item?.total_count ? Math.min(100, Math.round(item.processed_count / item.total_count * 100)) : 8; }
+function progressText(...taskKeys: string[]) { const item = progressFor(...taskKeys); if (!item) return "正在执行"; return item.total_count ? `${item.processed_count} / ${item.total_count}（${progressPercent(...taskKeys)}%）` : `已处理 ${item.processed_count} 条`; }
+async function loadProgress() { try { progress.value = await http.get<SyncProgress[]>("/synchronizations/progress"); } catch { /* 状态轮询失败不影响手动操作 */ } }
+const parkingAreaRunning = computed(() => syncState.value === "running" || progressFor("parking_area.sync")?.running === true);
+const accessRecordRunning = computed(() => accessRecordSyncState.value === "running" || progressFor("car_cap_info.sync", "car_cap_info.reconciliation")?.running === true);
+const accountRunning = computed(() => accountSyncState.value === "running" || progressFor("account.generate")?.running === true);
+const parkingAreaCardState = computed<SyncState>(() => parkingAreaRunning.value ? "running" : syncState.value);
+const accessRecordCardState = computed<SyncState>(() => accessRecordRunning.value ? "running" : accessRecordSyncState.value);
+const accountCardState = computed<SyncState>(() => accountRunning.value ? "running" : accountSyncState.value);
+const parkingAreaStateLabel = computed(() => ({
   idle: "待执行",
   running: "同步中",
   success: "已完成",
   error: "执行失败",
-})[syncState.value]);
+})[parkingAreaCardState.value]);
 const resultSummary = computed(() => {
   if (!result.value) return "本地数据未发生变化。";
   if (result.value.received_count === 0) return "科拓未返回停车区域，本地数据未改变。";
@@ -326,13 +342,14 @@ const resultSummary = computed(() => {
 });
 const accessRecordStateLabel = computed(() => {
   if (accessRecordPreviewing.value) return "预检中";
+  if (accessRecordRunning.value) return "同步中";
   if (accessRecordPreview.value && accessRecordSyncState.value === "idle") return "待确认";
   return {
     idle: "待执行",
     running: "同步中",
     success: "已完成",
     error: "执行失败",
-  }[accessRecordSyncState.value];
+  }[accessRecordCardState.value];
 });
 const accessRecordPreviewSummary = computed(() => {
   if (!accessRecordPreview.value) return "";
@@ -353,7 +370,7 @@ const accountStateLabel = computed(() => ({
   running: "生成中",
   success: "已完成",
   error: "执行失败",
-})[accountSyncState.value]);
+})[accountCardState.value]);
 const accountResultSummary = computed(() => {
   if (!accountResult.value) return "本地数据未发生变化。";
   const { created_count, skipped_count, failed_count } = accountResult.value;
@@ -435,6 +452,9 @@ function formatDateTime(value: string) {
     hour12: false,
   }).format(date);
 }
+
+onMounted(() => { void loadProgress(); progressTimer = setInterval(loadProgress, 2000); });
+onBeforeUnmount(() => { if (progressTimer) clearInterval(progressTimer); });
 </script>
 
 <style scoped>
@@ -515,6 +535,7 @@ function formatDateTime(value: string) {
 .sync-note--records > .material-icons-outlined { color: #047857; }
 .sync-note--accounts > .material-icons-outlined { color: #b45309; }
 .spinning { animation: spin .9s linear infinite; }
+.progress { background: var(--bg); border: 1px solid var(--border); border-radius: 5px; margin-top: 14px; overflow: hidden; padding: 7px 9px; position: relative; }.progress__bar { background: var(--primary); height: 3px; left: 0; position: absolute; top: 0; transition: width .35s ease; }.progress span { color: var(--text-sub); display: block; font-size: 11px; padding-top: 2px; }
 @keyframes data-flow { 0% { left: 0; opacity: 0; } 15%, 85% { opacity: 1; } 100% { left: calc(100% - 22px); opacity: 0; } }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .sync-route--running .conduit__packet, .spinning { animation: none; }.sync-route--running .conduit__packet { left: 50%; opacity: 1; } }

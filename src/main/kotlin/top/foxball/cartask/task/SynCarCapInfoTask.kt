@@ -18,6 +18,7 @@ import top.foxball.cartask.repository.SyncCheckpointRepository
 import top.foxball.cartask.service.FileService
 import top.foxball.cartask.service.SyncTaskHistoryService
 import top.foxball.cartask.service.SyncTaskRunCommand
+import top.foxball.cartask.service.SyncTaskProgressService
 import java.math.BigDecimal
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -52,13 +53,14 @@ class SynCarCapInfoTask(
     private val fileService: FileService,
     private val syncCheckpointRepository: SyncCheckpointRepository,
     private val syncTaskHistoryService: SyncTaskHistoryService,
+    private val syncTaskProgressService: SyncTaskProgressService = SyncTaskProgressService(),
 ) {
     @Scheduled(cron = "\${keytop.car-cap-info-sync-cron:0 */5 * * * *}", zone = "Asia/Shanghai")
     @Transactional(noRollbackFor = [RuntimeException::class])
     fun synCarCapInfoList() {
         AuditRequestContext.withRun {
             try {
-                execute(SyncTaskRun.Trigger.SCHEDULED)
+                executeIncremental(SyncTaskRun.Trigger.SCHEDULED)
             } catch (exception: VehicleAccessRecordSyncInProgressException) {
                 logger.warn("车辆进出记录同步仍在执行，本次定时任务跳过")
             } catch (exception: RuntimeException) {
@@ -69,20 +71,57 @@ class SynCarCapInfoTask(
 
     /** 手动执行一次基于上次成功检查点的车辆进出记录增量同步。 */
     @Transactional(noRollbackFor = [RuntimeException::class])
-    fun synchronize(): CarCapInfoSyncResult = execute(SyncTaskRun.Trigger.MANUAL)
+    fun synchronize(): CarCapInfoSyncResult = executeIncremental(SyncTaskRun.Trigger.MANUAL)
+
+    /** 每日补偿最近一段时间的记录，覆盖超过增量回看窗口才可见的上游数据。 */
+    @Scheduled(cron = "\${keytop.car-cap-info-reconciliation-cron:0 30 3 * * *}", zone = "Asia/Shanghai")
+    @Transactional(noRollbackFor = [RuntimeException::class])
+    fun reconcileCarCapInfoList() {
+        AuditRequestContext.withRun {
+            try {
+                executeReconciliation(SyncTaskRun.Trigger.SCHEDULED)
+            } catch (exception: VehicleAccessRecordSyncInProgressException) {
+                logger.warn("车辆进出记录补偿同步仍在执行，本次定时任务跳过")
+            } catch (exception: RuntimeException) {
+                logger.error("车辆进出记录补偿同步失败", exception)
+            }
+        }
+    }
+
+    private fun executeIncremental(trigger: SyncTaskRun.Trigger): CarCapInfoSyncResult = execute(
+        trigger = trigger,
+        taskKey = TASK_KEY,
+        taskName = TASK_NAME,
+        synchronization = ::synchronizeIncrementally,
+    )
+
+    private fun executeReconciliation(trigger: SyncTaskRun.Trigger): CarCapInfoSyncResult = execute(
+        trigger = trigger,
+        taskKey = RECONCILIATION_TASK_KEY,
+        taskName = RECONCILIATION_TASK_NAME,
+        synchronization = ::synchronizeReconciliation,
+    )
 
     /** 执行一次同步并记录执行历史；同步正在执行时直接抛出，不记入历史。 */
-    private fun execute(trigger: SyncTaskRun.Trigger): CarCapInfoSyncResult {
+    private fun execute(
+        trigger: SyncTaskRun.Trigger,
+        taskKey: String,
+        taskName: String,
+        synchronization: () -> CarCapInfoSyncResult,
+    ): CarCapInfoSyncResult {
         val startedAt = LocalDateTime.now()
+        syncTaskProgressService.start(taskKey, taskName, startedAt)
         try {
-            val result = synchronizeInternal()
-            recordHistory(trigger, SyncTaskRun.Status.SUCCESS, startedAt, result, null)
+            val result = synchronization()
+            recordHistory(taskKey, taskName, trigger, SyncTaskRun.Status.SUCCESS, startedAt, result, null)
             return result
         } catch (exception: VehicleAccessRecordSyncInProgressException) {
             throw exception
         } catch (exception: RuntimeException) {
-            recordHistory(trigger, SyncTaskRun.Status.FAILED, startedAt, null, exception)
+            recordHistory(taskKey, taskName, trigger, SyncTaskRun.Status.FAILED, startedAt, null, exception)
             throw exception
+        } finally {
+            syncTaskProgressService.finish(taskKey, startedAt)
         }
     }
     
@@ -93,13 +132,11 @@ class SynCarCapInfoTask(
             throw VehicleAccessRecordSyncInProgressException()
         }
         try {
-            require(keytopProperties.carCapInfoPageSize in 1..1000) {
-                "车辆进出记录同步分页大小必须在 1 到 1000 之间"
-            }
+            validateSynchronizationConfiguration()
             val syncEndTime = LocalDateTime.now()
             val checkpoint = syncCheckpointRepository.findFirstBySyncKey(SYNC_KEY)
             val checkpointTime = checkpoint?.cursorTime
-            val startTime = checkpointTime ?: syncEndTime.minusDays(INITIAL_SYNC_DAYS)
+            val startTime = incrementalStartTime(checkpointTime, syncEndTime)
             val response = keytopService.getCarInoutInfo(
                 pageIndex = 1,
                 pageSize = 1,
@@ -122,76 +159,33 @@ class SynCarCapInfoTask(
         }
     }
     
-    private fun synchronizeInternal(): CarCapInfoSyncResult {
+    private fun synchronizeIncrementally(): CarCapInfoSyncResult {
         if (!executionLock.tryLock()) {
             throw VehicleAccessRecordSyncInProgressException()
         }
         try {
-            require(keytopProperties.carCapInfoPageSize in 1..1000) {
-                "车辆进出记录同步分页大小必须在 1 到 1000 之间"
-            }
+            validateSynchronizationConfiguration()
             val syncEndTime = LocalDateTime.now()
             val checkpoint = syncCheckpointRepository.findBySyncKey(SYNC_KEY)
                 ?: SyncCheckpoint().apply { syncKey = SYNC_KEY }
-            val startTime = checkpoint.cursorTime ?: syncEndTime.minusDays(INITIAL_SYNC_DAYS)
+            val startTime = incrementalStartTime(checkpoint.cursorTime, syncEndTime)
             val batchId = UUID.randomUUID().toString()
             checkpoint.status = SyncCheckpoint.Status.RUNNING
             checkpoint.lastBatchId = batchId
             checkpoint.lastError = null
             syncCheckpointRepository.save(checkpoint)
-            retryFailedPhotos()
-            val firstPage = keytopService.getCarInoutInfo(
-                pageIndex = 1,
-                pageSize = keytopProperties.carCapInfoPageSize,
-                startTime = startTime,
-                endTime = syncEndTime,
-            )
-            require(firstPage.code == 0) {
-                "Keytop 车辆进出接口返回失败：${firstPage.code ?: "未知"} ${firstPage.message.orEmpty()}".trim()
-            }
-            
-            val firstData = parseData(firstPage.data)
-            val totalCount = firstData.totalCount
-            val pages = if (totalCount != null) {
-                ceil(totalCount.toDouble() / keytopProperties.carCapInfoPageSize).toInt().coerceAtLeast(1)
-            } else {
-                1
-            }
-            val seen = mutableMapOf<String, AccessRecord>()
-            var result = processRecords(firstData.records, seen)
-            var synchronizedCount = result.processedCount
-            var localPhotoCount = result.localPhotoCount
-            var failedPhotoCount = result.failedPhotoCount
-            var pageIndex = 2
-            while (pageIndex <= pages || (totalCount == null && firstData.records.size >= keytopProperties.carCapInfoPageSize)) {
-                val response = keytopService.getCarInoutInfo(
-                    pageIndex = pageIndex,
-                    pageSize = keytopProperties.carCapInfoPageSize,
-                    startTime = startTime,
-                    endTime = syncEndTime,
-                )
-                require(response.code == 0) {
-                    "Keytop 车辆进出接口第 ${pageIndex} 页返回失败：${response.code ?: "未知"} ${response.message.orEmpty()}".trim()
-                }
-                val data = parseData(response.data)
-                result = processRecords(data.records, seen)
-                synchronizedCount += result.processedCount
-                localPhotoCount += result.localPhotoCount
-                failedPhotoCount += result.failedPhotoCount
-                if (totalCount == null && data.records.size < keytopProperties.carCapInfoPageSize) break
-                pageIndex++
-            }
+            val result = synchronizeRange(startTime, syncEndTime, TASK_KEY)
             checkpoint.cursorTime = syncEndTime
             checkpoint.cursorExternalId = null
             checkpoint.status = SyncCheckpoint.Status.SUCCESS
             checkpoint.lastSuccessAt = LocalDateTime.now()
             checkpoint.lastError = null
             syncCheckpointRepository.save(checkpoint)
-            logger.info("车辆进出记录同步完成：处理 {} 条，查询区间：{} 至 {}", synchronizedCount, startTime, syncEndTime)
+            logger.info("车辆进出记录同步完成：处理 {} 条，查询区间：{} 至 {}", result.processedCount, startTime, syncEndTime)
             return CarCapInfoSyncResult(
-                processedCount = synchronizedCount,
-                localPhotoCount = localPhotoCount,
-                failedPhotoCount = failedPhotoCount,
+                processedCount = result.processedCount,
+                localPhotoCount = result.localPhotoCount,
+                failedPhotoCount = result.failedPhotoCount,
                 startTime = startTime,
                 cursorTime = requireNotNull(checkpoint.cursorTime),
             )
@@ -207,8 +201,95 @@ class SynCarCapInfoTask(
             executionLock.unlock()
         }
     }
+
+    /** 补偿同步不推进主增量检查点，避免补偿任务改变正常同步的水位。 */
+    private fun synchronizeReconciliation(): CarCapInfoSyncResult {
+        if (!executionLock.tryLock()) {
+            throw VehicleAccessRecordSyncInProgressException()
+        }
+        try {
+            validateSynchronizationConfiguration()
+            val syncEndTime = LocalDateTime.now()
+            val startTime = syncEndTime.minus(keytopProperties.carCapInfoReconciliationWindow)
+            val checkpoint = syncCheckpointRepository.findBySyncKey(SYNC_KEY)
+            if (checkpoint == null) {
+                syncCheckpointRepository.save(SyncCheckpoint().apply { syncKey = SYNC_KEY })
+            }
+            val result = synchronizeRange(startTime, syncEndTime, RECONCILIATION_TASK_KEY)
+            logger.info("车辆进出记录补偿同步完成：处理 {} 条，查询区间：{} 至 {}", result.processedCount, startTime, syncEndTime)
+            return CarCapInfoSyncResult(
+                processedCount = result.processedCount,
+                localPhotoCount = result.localPhotoCount,
+                failedPhotoCount = result.failedPhotoCount,
+                startTime = startTime,
+                cursorTime = syncEndTime,
+            )
+        } finally {
+            executionLock.unlock()
+        }
+    }
+
+    /** 所有分页共享同一查询区间，防止同步期间新增记录改变页码边界。 */
+    private fun synchronizeRange(startTime: LocalDateTime, syncEndTime: LocalDateTime, taskKey: String): ProcessResult {
+        retryFailedPhotos()
+        val firstPage = keytopService.getCarInoutInfo(
+            pageIndex = 1,
+            pageSize = keytopProperties.carCapInfoPageSize,
+            startTime = startTime,
+            endTime = syncEndTime,
+        )
+        require(firstPage.code == 0) {
+            "Keytop 车辆进出接口返回失败：${firstPage.code ?: "未知"} ${firstPage.message.orEmpty()}".trim()
+        }
+        val firstData = parseData(firstPage.data)
+        val totalCount = firstData.totalCount
+        val pages = if (totalCount != null) {
+            ceil(totalCount.toDouble() / keytopProperties.carCapInfoPageSize).toInt().coerceAtLeast(1)
+        } else {
+            1
+        }
+        val seen = mutableMapOf<String, AccessRecord>()
+        var result = processRecords(firstData.records, seen)
+        var synchronizedCount = result.processedCount
+        syncTaskProgressService.update(taskKey, synchronizedCount, totalCount)
+        var localPhotoCount = result.localPhotoCount
+        var failedPhotoCount = result.failedPhotoCount
+        var pageIndex = 2
+        while (pageIndex <= pages || (totalCount == null && firstData.records.size >= keytopProperties.carCapInfoPageSize)) {
+            val response = keytopService.getCarInoutInfo(
+                pageIndex = pageIndex,
+                pageSize = keytopProperties.carCapInfoPageSize,
+                startTime = startTime,
+                endTime = syncEndTime,
+            )
+            require(response.code == 0) {
+                "Keytop 车辆进出接口第 ${pageIndex} 页返回失败：${response.code ?: "未知"} ${response.message.orEmpty()}".trim()
+            }
+            val data = parseData(response.data)
+            result = processRecords(data.records, seen)
+            synchronizedCount += result.processedCount
+            syncTaskProgressService.update(taskKey, synchronizedCount, totalCount)
+            localPhotoCount += result.localPhotoCount
+            failedPhotoCount += result.failedPhotoCount
+            if (totalCount == null && data.records.size < keytopProperties.carCapInfoPageSize) break
+            pageIndex++
+        }
+        return ProcessResult(synchronizedCount, localPhotoCount, failedPhotoCount)
+    }
+
+    private fun incrementalStartTime(checkpointTime: LocalDateTime?, syncEndTime: LocalDateTime): LocalDateTime =
+        checkpointTime?.minus(keytopProperties.carCapInfoOverlapWindow)
+            ?: syncEndTime.minusDays(INITIAL_SYNC_DAYS)
+
+    private fun validateSynchronizationConfiguration() {
+        require(keytopProperties.carCapInfoPageSize in 1..1000) {
+            "车辆进出记录同步分页大小必须在 1 到 1000 之间"
+        }
+    }
     
     private fun recordHistory(
+        taskKey: String,
+        taskName: String,
         trigger: SyncTaskRun.Trigger,
         status: SyncTaskRun.Status,
         startedAt: LocalDateTime,
@@ -218,8 +299,8 @@ class SynCarCapInfoTask(
         try {
             syncTaskHistoryService.record(
                 SyncTaskRunCommand(
-                    taskKey = TASK_KEY,
-                    taskName = TASK_NAME,
+                    taskKey = taskKey,
+                    taskName = taskName,
                     trigger = trigger,
                     status = status,
                     startedAt = startedAt,
@@ -541,6 +622,8 @@ class SynCarCapInfoTask(
         const val SYNC_KEY = "keytop.car_cap_info"
         const val TASK_KEY = "car_cap_info.sync"
         const val TASK_NAME = "车辆进出记录同步"
-        const val INITIAL_SYNC_DAYS = 1L
+        const val RECONCILIATION_TASK_KEY = "car_cap_info.reconciliation"
+        const val RECONCILIATION_TASK_NAME = "车辆进出记录补偿同步"
+        const val INITIAL_SYNC_DAYS = 30L
     }
 }
