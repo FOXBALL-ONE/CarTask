@@ -39,8 +39,10 @@ import top.foxball.cartask.service.DepartmentService
 import top.foxball.cartask.service.DeviceService
 import top.foxball.cartask.service.PositionService
 import top.foxball.cartask.service.UserService
+import top.foxball.cartask.shared.PlateNumbers
 import top.foxball.cartask.shared.Response
 import top.foxball.cartask.shared.ResponseBuilder
+import top.foxball.cartask.shared.VehicleInspection
 import java.io.ByteArrayOutputStream
 import java.math.BigDecimal
 import java.nio.charset.StandardCharsets
@@ -191,6 +193,26 @@ data class PlateExportRow(
     @field:ExcelProperty("登记日期") val regDate: String,
 )
 
+class PlateInspectionExcelRow {
+    @field:ExcelProperty("车牌号") var plate: String? = null
+    @field:ExcelProperty("是否已年检") var inspected: String? = null
+    @field:ExcelProperty("年检日期") var inspectionDate: String? = null
+    @field:ExcelProperty("年检有效期至") var validUntil: String? = null
+    @field:ExcelProperty("备注") var remark: String? = null
+}
+
+data class PlateInspectionExportRow(
+    @field:ExcelProperty("编号") val id: Long,
+    @field:ExcelProperty("车牌号") val plate: String,
+    @field:ExcelProperty("车主") val owner: String,
+    @field:ExcelProperty("登记日期") val regDate: String,
+    @field:ExcelProperty("年检状态") val inspectionStatus: String,
+    @field:ExcelProperty("是否已年检") val inspected: String,
+    @field:ExcelProperty("年检日期") val inspectionDate: String?,
+    @field:ExcelProperty("年检有效期至") val inspectionValidUntil: String?,
+    @field:ExcelProperty("备注") val inspectionRemark: String?,
+)
+
 class DeviceExcelRow {
     @field:ExcelProperty("设备编号") var code: String? = null
     @field:ExcelProperty("设备名称") var name: String? = null
@@ -261,7 +283,7 @@ class ExcelController(
     private val excelResourcePolicy: ExcelResourcePolicy,
 ) {
     @GetMapping("/{resource}/template")
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and ((#resource == 'users' and hasAuthority('user:read')) or (#resource == 'positions' and hasAuthority('position:read')) or (#resource == 'owners' and hasAuthority('owner:read')) or (#resource == 'spots' and hasAuthority('spot:read')) or (#resource == 'plates' and hasAuthority('plate:read')) or (#resource == 'devices' and hasAuthority('device:read')) or (#resource == 'gate-persons' and hasAuthority('gate-person:read')))")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and ((#resource == 'users' and hasAuthority('user:read')) or (#resource == 'positions' and hasAuthority('position:read')) or (#resource == 'owners' and hasAuthority('owner:read')) or (#resource == 'spots' and hasAuthority('spot:read')) or (#resource == 'plates' and hasAuthority('plate:read')) or (#resource == 'plate-inspections' and hasAuthority('plate:read')) or (#resource == 'devices' and hasAuthority('device:read')) or (#resource == 'gate-persons' and hasAuthority('gate-person:read')))")
     fun template(@PathVariable resource: String): ResponseEntity<ByteArrayResource> {
         excelResourcePolicy.requireScopable(resource)
         val (filename, rows, type) = when (resource) {
@@ -270,6 +292,7 @@ class ExcelController(
             "owners" -> Triple("车主导入模板.xlsx", listOf(OwnerExcelRow()), OwnerExcelRow::class.java)
             "spots" -> Triple("车位导入模板.xlsx", listOf(SpotExcelRow()), SpotExcelRow::class.java)
             "plates" -> Triple("车牌导入模板.xlsx", listOf(PlateExcelRow()), PlateExcelRow::class.java)
+            "plate-inspections" -> Triple("车辆年检导入模板.xlsx", listOf(PlateInspectionExcelRow()), PlateInspectionExcelRow::class.java)
             "devices" -> Triple("设备导入模板.xlsx", listOf(DeviceExcelRow()), DeviceExcelRow::class.java)
             "gate-persons" -> Triple("门禁人员导入模板.xlsx", listOf(GatePersonExcelRow()), GatePersonExcelRow::class.java)
             else -> throw IllegalArgumentException("不支持的 Excel 数据类型: $resource")
@@ -328,7 +351,7 @@ class ExcelController(
     }
 
     @GetMapping("/{resource}/export")
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and ((#resource == 'users' and hasAuthority('user:read')) or (#resource == 'positions' and hasAuthority('position:read')) or (#resource == 'owners' and hasAuthority('owner:read')) or (#resource == 'spots' and hasAuthority('spot:read')) or (#resource == 'plates' and hasAuthority('plate:read')) or (#resource == 'devices' and hasAuthority('device:read')) or (#resource == 'gate-persons' and hasAuthority('gate-person:read')))")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and ((#resource == 'users' and hasAuthority('user:read')) or (#resource == 'positions' and hasAuthority('position:read')) or (#resource == 'owners' and hasAuthority('owner:read')) or (#resource == 'spots' and hasAuthority('spot:read')) or (#resource == 'plates' and hasAuthority('plate:read')) or (#resource == 'plate-inspections' and hasAuthority('plate:read')) or (#resource == 'devices' and hasAuthority('device:read')) or (#resource == 'gate-persons' and hasAuthority('gate-person:read')))")
     fun export(@PathVariable resource: String): ResponseEntity<ByteArrayResource> {
         excelResourcePolicy.requireScopable(resource)
         val scope = dataScopeResolver.current()
@@ -397,6 +420,15 @@ class ExcelController(
             "plates" -> writeWorkbook("车牌列表.xlsx", plateRepository.findAll().filter { scopeQuerySupport.plateVisible(visibleOwnerIds, scope.userId, it) }.map {
                 PlateExportRow(requireNotNull(it.id), it.plate, it.owner, it.ownerId, if (it.status == 1) "正常" else "停用", it.regDate.toString())
             }, PlateExportRow::class.java)
+            "plate-inspections" -> {
+                val today = LocalDate.now()
+                writeWorkbook("车辆年检信息.xlsx", plateRepository.findAll().filter { scopeQuerySupport.plateVisible(visibleOwnerIds, scope.userId, it) }.sortedBy { it.id }.map {
+                    PlateInspectionExportRow(requireNotNull(it.id), it.plate, it.owner, it.regDate.toString(),
+                        VehicleInspection.status(it.inspectionDate, it.inspectionValidUntil, today),
+                        if (VehicleInspection.inspected(it.inspectionDate, it.inspectionValidUntil)) "是" else "否",
+                        it.inspectionDate?.toString(), it.inspectionValidUntil?.toString(), it.inspectionRemark)
+                }, PlateInspectionExportRow::class.java)
+            }
             "devices" -> {
                 val devices = mutableListOf<Device>()
                 var page = 1
@@ -500,7 +532,7 @@ class ExcelController(
 
     @PostMapping("/{resource}/import", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     @Transactional
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and ((#resource == 'all' and hasAuthority('department:manage') and hasAuthority('user:create') and hasAuthority('position:manage') and hasAuthority('owner:manage') and hasAuthority('spot:manage') and hasAuthority('plate:manage') and hasAuthority('device:manage') and hasAuthority('gate-person:manage')) or (#resource == 'users' and hasAuthority('user:create')) or (#resource == 'positions' and hasAuthority('position:manage')) or (#resource == 'owners' and hasAuthority('owner:manage')) or (#resource == 'spots' and hasAuthority('spot:manage')) or (#resource == 'plates' and hasAuthority('plate:manage')) or (#resource == 'devices' and hasAuthority('device:manage')) or (#resource == 'gate-persons' and hasAuthority('gate-person:manage')))")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and ((#resource == 'all' and hasAuthority('department:manage') and hasAuthority('user:create') and hasAuthority('position:manage') and hasAuthority('owner:manage') and hasAuthority('spot:manage') and hasAuthority('plate:manage') and hasAuthority('device:manage') and hasAuthority('gate-person:manage')) or (#resource == 'users' and hasAuthority('user:create')) or (#resource == 'positions' and hasAuthority('position:manage')) or (#resource == 'owners' and hasAuthority('owner:manage')) or (#resource == 'spots' and hasAuthority('spot:manage')) or (#resource == 'plates' and hasAuthority('plate:manage')) or (#resource == 'plate-inspections' and hasAuthority('plate:manage')) or (#resource == 'devices' and hasAuthority('device:manage')) or (#resource == 'gate-persons' and hasAuthority('gate-person:manage')))")
     fun import(@PathVariable("resource") resource: String, @RequestPart("file") file: MultipartFile): ResponseEntity<top.foxball.cartask.shared.Response> {
         excelResourcePolicy.requireScopable(resource)
         require(!file.isEmpty) { "导入文件不能为空" }
@@ -703,6 +735,42 @@ class ExcelController(
                     }
                     ownerRepository.flush()
                     counts[currentResource] = imported.size
+                }
+                "plate-inspections" -> {
+                    val rows = EasyExcel.read(file.inputStream).head(PlateInspectionExcelRow::class.java).sheet(sheetName).doReadSync<PlateInspectionExcelRow>()
+                    require(rows.isNotEmpty()) { "Excel 中没有可导入的数据" }
+                    val scope = dataScopeResolver.current()
+                    val visibleOwnerIds = if (scope.unrestricted) null else scopeQuerySupport.ownerIdsInScope(scope)
+                    // 年检表按车牌号关联已有车辆：车牌在档案、进出记录里存在间隔符写法差异，先归一化再匹配。
+                    val platesByNumber = plateRepository.findAll().groupBy { PlateNumbers.normalize(it.plate) }
+                    val updated = linkedMapOf<Long, ParkingPlate>()
+                    rows.forEachIndexed { index, row ->
+                        val line = index + 2
+                        val number = requireNotBlank(row.plate, "第${line}行车牌号不能为空")
+                        // 归一化后重号的档案只可能是间隔符写法不同造成的重复登记，拒绝而不是随便挑一辆改。
+                        val candidates = platesByNumber[PlateNumbers.normalize(number)].orEmpty()
+                        val plate = requireNotNull(candidates.singleOrNull()) {
+                            if (candidates.isEmpty()) "第${line}行车牌号不存在：$number" else "第${line}行车牌号对应多辆车辆档案，请先在车牌信息中去重：$number"
+                        }
+                        require(scopeQuerySupport.plateVisible(visibleOwnerIds, scope.userId, plate)) { "第${line}行车牌号不在当前数据范围内：$number" }
+                        val plateId = requireNotNull(plate.id)
+                        require(updated.put(plateId, plate) == null) { "第${line}行车牌号重复：$number" }
+                        // 「是否已年检」必填：留空时如果按未年检处理，会把已经登记好的年检记录悄悄清掉。
+                        if (parseBoolean(requireNotBlank(row.inspected, "第${line}行是否已年检不能为空"), true, "第${line}行是否已年检")) {
+                            val inspectedOn = row.inspectionDate?.trim()?.takeIf { it.isNotEmpty() }?.let { LocalDate.parse(it) } ?: LocalDate.now()
+                            val validUntil = row.validUntil?.trim()?.takeIf { it.isNotEmpty() }?.let { LocalDate.parse(it) }
+                            require(validUntil == null || !validUntil.isBefore(inspectedOn)) { "第${line}行年检有效期不能早于年检日期" }
+                            plate.inspectionDate = inspectedOn
+                            plate.inspectionValidUntil = validUntil ?: VehicleInspection.defaultValidUntil(inspectedOn)
+                            plate.inspectionRemark = row.remark?.trim()?.takeIf { it.isNotEmpty() }
+                        } else {
+                            plate.inspectionDate = null
+                            plate.inspectionValidUntil = null
+                            plate.inspectionRemark = null
+                        }
+                    }
+                    plateRepository.saveAll(updated.values)
+                    counts[currentResource] = updated.size
                 }
                 "devices" -> {
                     val rows = EasyExcel.read(file.inputStream).head(DeviceExcelRow::class.java).sheet(sheetName).doReadSync<DeviceExcelRow>()

@@ -122,6 +122,11 @@ data class PlateRequest(
     @param:JsonProperty("ownerId") val ownerId: Long? = null,
     @param:JsonProperty("status") val status: Int? = null,
     @param:JsonProperty("regDate") val regDate: String? = null,
+    @param:JsonProperty("inspectionDate") val inspectionDate: String? = null,
+    @param:JsonProperty("inspectionValidUntil") val inspectionValidUntil: String? = null,
+    @param:JsonProperty("inspectionRemark") val inspectionRemark: String? = null,
+    /** 是否已年检：false 清空年检登记，true 按请求整条登记（缺年检日期按今天、缺有效期按年检日期起一年）。 */
+    @param:JsonProperty("inspected") val inspected: Boolean? = null,
 )
 
 data class GatePersonRequest(
@@ -164,6 +169,11 @@ data class StoredPlate(
     val ownerId: Long,
     val status: Int,
     val regDate: String,
+    val inspectionDate: String?,
+    val inspectionValidUntil: String?,
+    /** 年检状态文案：未年检 / 有效 / 已过期，由后端按当前日期判定，避免各端各算一套。 */
+    val inspectionStatus: String,
+    val inspectionRemark: String?,
 )
 
 data class StoredGatePerson(

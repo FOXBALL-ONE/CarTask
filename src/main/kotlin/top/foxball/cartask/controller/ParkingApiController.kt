@@ -56,6 +56,7 @@ import top.foxball.cartask.service.PositionService
 import top.foxball.cartask.service.FileService
 import top.foxball.cartask.shared.Response
 import top.foxball.cartask.shared.ResponseBuilder
+import top.foxball.cartask.shared.VehicleInspection
 
 /** 文档 v1 前端接口的兼容层。缺少独立领域表的展示资源在此保持进程内状态。 */
 @RestController
@@ -371,13 +372,15 @@ class ParkingApiController(
 
     @GetMapping("/plates")
     @PreAuthorize("hasAuthority('plate:read')")
-    fun listPlates(@RequestParam(required = false) keyword: String?, @RequestParam(required = false) status: Int?, @RequestParam(defaultValue = "1") page: Int, @RequestParam(name = "pageSize", defaultValue = "8") pageSize: Int): ResponseEntity<Response> {
+    fun listPlates(@RequestParam(required = false) keyword: String?, @RequestParam(required = false) status: Int?, @RequestParam(name = "inspectionStatus", required = false) inspectionStatus: String?, @RequestParam(defaultValue = "1") page: Int, @RequestParam(name = "pageSize", defaultValue = "8") pageSize: Int): ResponseEntity<Response> {
         require(page >= 1) { "页码必须大于 0" }
         require(pageSize in 1..100) { "每页数量必须在 1 到 100 之间" }
         data class PageData(val items: List<StoredPlate>, val total: Int)
         val scope = dataScopeResolver.current()
         val visibleOwnerIds = if (scope.unrestricted) null else scopeQuerySupport.ownerIdsInScope(scope)
-        val filtered = plateRepository.findAll().filter { scopeQuerySupport.plateVisible(visibleOwnerIds, scope.userId, it) && (keyword.isNullOrBlank() || it.plate.contains(keyword, true) || it.owner.contains(keyword, true)) && (status == null || it.status == status) }.sortedBy { it.id }.map { StoredPlate(requireNotNull(it.id), it.plate, it.owner, it.ownerId, it.status, it.regDate.toString()) }
+        // 年检状态按当天判定：一次请求里取一个日期，避免跨零点时同一页出现两种判定。
+        val today = LocalDate.now()
+        val filtered = plateRepository.findAll().filter { scopeQuerySupport.plateVisible(visibleOwnerIds, scope.userId, it) && (keyword.isNullOrBlank() || it.plate.contains(keyword, true) || it.owner.contains(keyword, true)) && (status == null || it.status == status) && (inspectionStatus.isNullOrBlank() || VehicleInspection.status(it.inspectionDate, it.inspectionValidUntil, today) == inspectionStatus) }.sortedBy { it.id }.map { StoredPlate(requireNotNull(it.id), it.plate, it.owner, it.ownerId, it.status, it.regDate.toString(), it.inspectionDate?.toString(), it.inspectionValidUntil?.toString(), VehicleInspection.status(it.inspectionDate, it.inspectionValidUntil, today), it.inspectionRemark) }
         val from = ((page - 1).coerceAtLeast(0) * pageSize.coerceAtLeast(1)).coerceAtMost(filtered.size); val to = (from + pageSize.coerceAtLeast(1)).coerceAtMost(filtered.size)
         return responseBuilder.ok().data(PageData(filtered.subList(from, to), filtered.size)).build()
     }
@@ -400,9 +403,10 @@ class ParkingApiController(
             regDate = LocalDate.parse(requireNotNull(body.regDate))
         }
         require(plate.status == 0 || plate.status == 1) { "状态必须为 0 或 1" }
+        applyInspection(plate, body)
         val saved = plateRepository.save(plate)
         refreshOwnerCounts()
-        return responseBuilder.created().data(StoredPlate(requireNotNull(saved.id), saved.plate, saved.owner, saved.ownerId, saved.status, saved.regDate.toString())).build()
+        return responseBuilder.created().data(StoredPlate(requireNotNull(saved.id), saved.plate, saved.owner, saved.ownerId, saved.status, saved.regDate.toString(), saved.inspectionDate?.toString(), saved.inspectionValidUntil?.toString(), VehicleInspection.status(saved.inspectionDate, saved.inspectionValidUntil, LocalDate.now()), saved.inspectionRemark)).build()
     }
 
     @PutMapping("/plates/{id}")
@@ -423,9 +427,10 @@ class ParkingApiController(
         body.status?.let { plate.status = it }
         body.regDate?.let { plate.regDate = LocalDate.parse(it) }
         require(plate.status == 0 || plate.status == 1) { "状态必须为 0 或 1" }
+        applyInspection(plate, body)
         val saved = plateRepository.save(plate)
         refreshOwnerCounts()
-        return responseBuilder.ok().data(StoredPlate(requireNotNull(saved.id), saved.plate, saved.owner, saved.ownerId, saved.status, saved.regDate.toString())).build()
+        return responseBuilder.ok().data(StoredPlate(requireNotNull(saved.id), saved.plate, saved.owner, saved.ownerId, saved.status, saved.regDate.toString(), saved.inspectionDate?.toString(), saved.inspectionValidUntil?.toString(), VehicleInspection.status(saved.inspectionDate, saved.inspectionValidUntil, LocalDate.now()), saved.inspectionRemark)).build()
     }
 
     @DeleteMapping("/plates/{id}")
@@ -883,6 +888,40 @@ class ParkingApiController(
             spotStats.zones.map { Parking(it.zoneName, it.total, it.used) }, violationTypes, violationTrend, inoutTrend,
         )
         return responseBuilder.ok().data(rs).build()
+    }
+
+    /**
+     * 把请求里的年检信息写到车牌上。
+     *
+     * `inspected` 只表达「已年检 / 未年检」两种意图，两者都是整条登记的替换：
+     * false 清空年检信息，true 按请求登记（没给年检日期就按今天，没给有效期就按年检日期起一年）。
+     * 只有 `inspected` 缺省时才退化成局部更新，只写明确给出的字段——这样只改车牌号或状态的请求
+     * 不会顺手抹掉已有的年检记录。
+     *
+     * 备注用「字段是否出现」区分意图：传空串表示清空，不传则保持原值。
+     */
+    private fun applyInspection(plate: ParkingPlate, body: PlateRequest) {
+        if (body.inspected == false) {
+            plate.inspectionDate = null
+            plate.inspectionValidUntil = null
+            plate.inspectionRemark = null
+            return
+        }
+        if (body.inspected == true) {
+            val inspectedOn = body.inspectionDate?.let(LocalDate::parse) ?: LocalDate.now()
+            val validUntil = body.inspectionValidUntil?.let(LocalDate::parse) ?: VehicleInspection.defaultValidUntil(inspectedOn)
+            require(!validUntil.isBefore(inspectedOn)) { "年检有效期不能早于年检日期" }
+            plate.inspectionDate = inspectedOn
+            plate.inspectionValidUntil = validUntil
+            body.inspectionRemark?.let { plate.inspectionRemark = it.trim().takeIf(String::isNotEmpty) }
+            return
+        }
+        body.inspectionDate?.let { plate.inspectionDate = LocalDate.parse(it) }
+        body.inspectionValidUntil?.let { plate.inspectionValidUntil = LocalDate.parse(it) }
+        body.inspectionRemark?.let { plate.inspectionRemark = it.trim().takeIf(String::isNotEmpty) }
+        val inspectedOn = plate.inspectionDate
+        val validUntil = plate.inspectionValidUntil
+        require(inspectedOn == null || validUntil == null || !validUntil.isBefore(inspectedOn)) { "年检有效期不能早于年检日期" }
     }
 
     private fun refreshOwnerCounts() {

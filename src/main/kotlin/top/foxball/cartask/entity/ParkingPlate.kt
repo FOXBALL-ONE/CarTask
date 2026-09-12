@@ -41,6 +41,18 @@ class ParkingPlate {
     @Column(nullable = false)
     lateinit var regDate: LocalDate
 
+    /** 最近一次年检日期；为空表示尚未年检。 */
+    @Column(name = "inspection_date")
+    var inspectionDate: LocalDate? = null
+
+    /** 年检有效期截止日期；为空表示未登记有效期。 */
+    @Column(name = "inspection_valid_until")
+    var inspectionValidUntil: LocalDate? = null
+
+    /** 年检备注，例如检验机构或未通过原因。 */
+    @Column(name = "inspection_remark", length = 255)
+    var inspectionRemark: String? = null
+
     @Column(nullable = false, updatable = false)
     lateinit var createdAt: LocalDateTime
 

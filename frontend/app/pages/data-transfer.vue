@@ -54,6 +54,7 @@
         <li>请先下载对应模板，保持表头名称不变后再填写数据。</li>
         <li>用户导入的密码会按系统安全策略加密保存；账号和邮箱不能重复。</li>
         <li>用户通过部门编码、岗位编码关联，车牌通过车主卡号关联；单表导入也支持已有数据库 ID。车主、车位、车牌状态填写 0 或 1。</li>
+        <li>车辆年检按车牌号匹配已有车辆，「是否已年检」填是/否；已年检的车辆没填年检有效期时，按年检日期起一年计算。</li>
         <li>进出记录、审批申请等过程数据不开放导入，避免破坏系统流水和审计完整性。</li>
       </ul>
     </section>
@@ -63,7 +64,7 @@
 </template>
 
 <script setup lang="ts">
-type ResourceKey = "users" | "positions" | "owners" | "spots" | "plates" | "devices" | "gate-persons";
+type ResourceKey = "users" | "positions" | "owners" | "spots" | "plates" | "plate-inspections" | "devices" | "gate-persons";
 /** "all" 是整批接口（/excel/all/*），不是 resources 里的一张卡片。 */
 type TransferResource = "all" | ResourceKey;
 const resources: { key: ResourceKey; label: string; icon: string; description: string }[] = [
@@ -72,6 +73,7 @@ const resources: { key: ResourceKey; label: string; icon: string; description: s
   { key: "owners", label: "车主数据", icon: "person", description: "批量维护车主卡号、联系方式、车位及车牌数量。" },
   { key: "spots", label: "车位数据", icon: "local_parking", description: "批量维护车位编号、区域、类型和占用状态。" },
   { key: "plates", label: "车牌数据", icon: "pin_drop", description: "批量登记车牌，并关联系统内已有车主。" },
+  { key: "plate-inspections", label: "车辆年检", icon: "fact_check", description: "按车牌号批量登记年检结果，已年检的车辆同时设置年检有效期。" },
   { key: "devices", label: "设备数据", icon: "router", description: "批量维护门禁、摄像头等接入设备信息。" },
   { key: "gate-persons", label: "门禁人员", icon: "badge", description: "批量登记门禁人员基础信息，导入后可继续审批同步。" },
 ];
@@ -87,6 +89,7 @@ const resourcePermissions: Record<ResourceKey, { read: string; manage: string }>
   owners: { read: "owner:read", manage: "owner:manage" },
   spots: { read: "spot:read", manage: "spot:manage" },
   plates: { read: "plate:read", manage: "plate:manage" },
+  "plate-inspections": { read: "plate:read", manage: "plate:manage" },
   devices: { read: "device:read", manage: "device:manage" },
   "gate-persons": { read: "gate-person:read", manage: "gate-person:manage" },
 };

@@ -455,6 +455,7 @@
 - **请求参数**: 
   - `keyword` (string, 可选): 搜索关键词（车牌号/车主姓名）
   - `status` (number, 可选): 状态筛选（1=正常, 0=停用）
+  - `inspectionStatus` (string, 可选): 年检状态筛选（有效/已过期/未年检）
   - `page` (number, 可选): 页码，默认1
   - `pageSize` (number, 可选): 每页数量，默认8
 - **响应**:
@@ -464,18 +465,24 @@
   "data": {
     "items": [
       {
-        "id": 1,                      // 车牌ID
-        "plate": "京A12345",          // 车牌号
-        "owner": "张伟",               // 车主姓名
-        "ownerId": 1,                 // 车主ID
-        "status": 1,                  // 状态：1=正常, 0=停用
-        "regDate": "2024-01-15"       // 登记日期
+        "id": 1,                            // 车牌ID
+        "plate": "京A12345",                // 车牌号
+        "owner": "张伟",                     // 车主姓名
+        "ownerId": 1,                       // 车主ID
+        "status": 1,                        // 状态：1=正常, 0=停用
+        "regDate": "2024-01-15",            // 登记日期
+        "inspectionDate": "2026-05-20",     // 年检日期，未年检为 null
+        "inspectionValidUntil": "2027-05-20", // 年检有效期截止日期，未登记为 null
+        "inspectionStatus": "有效",          // 年检状态：有效/已过期/未年检
+        "inspectionRemark": "上线检验"        // 年检备注
       }
     ],
     "total": 50
   }
 }
 ```
+
+年检状态由服务端按当天判定：没有年检日期也没有有效期时为「未年检」，有效期早于当天时为「已过期」，其余为「有效」。
 
 ### 7.2 新增车牌
 - **接口**: `POST /plates`
@@ -487,7 +494,11 @@
   "owner": "李四",               // 必填，车主姓名
   "ownerId": 2,                 // 必填，车主ID
   "status": 1,                  // 必填，状态
-  "regDate": "2024-03-20"       // 必填，登记日期（YYYY-MM-DD）
+  "regDate": "2024-03-20",      // 必填，登记日期（YYYY-MM-DD）
+  "inspected": true,            // 可选，是否已年检
+  "inspectionDate": "2026-05-20",     // 可选，年检日期
+  "inspectionValidUntil": "2027-05-20", // 可选，年检有效期
+  "inspectionRemark": "上线检验"        // 可选，年检备注
 }
 ```
 
@@ -497,10 +508,24 @@
   - `id` (number): 车牌ID
 - **请求体**: 同新增车牌
 
+`inspected` 是年检字段的总开关，缺省时只更新请求里出现的字段：
+
+- `inspected: false`：清空该车的年检日期、年检有效期与年检备注；
+- `inspected: true`：整条年检登记替换，没给年检日期按当天登记，没给有效期按年检日期起一年；
+- 不传 `inspected`：只写明确给出的年检字段，只改车牌号或状态的请求不会抹掉已有年检信息。
+
+年检有效期早于年检日期时返回错误。年检备注传空串表示清空，不传则保持原值。
+
 ### 7.4 删除车牌
 - **接口**: `DELETE /plates/:id`
 - **URL参数**:
   - `id` (number): 车牌ID
+
+### 7.5 车辆年检导入导出
+- **接口**: `GET /excel/plate-inspections/template`（模板）、`GET /excel/plate-inspections/export`（导出）、`POST /excel/plate-inspections/import`（导入，multipart 字段 `file`）
+- **权限**: 模板与导出需要管理员角色和 `plate:read`，导入需要 `plate:manage`
+- **列表格**: `车牌号`、`是否已年检`、`年检日期`、`年检有效期至`、`备注`（导出另含编号、车主、登记日期、年检状态）
+- **导入规则**: 按车牌号匹配已有车辆，匹配不到或同一车牌重复出现时整批拒绝；`是否已年检` 必填，填「是」时按年检日期设置年检有效期（留空则按年检日期起一年），填「否」时清空该车的年检登记。受限数据范围只能导入范围内的车牌。
 
 ---
 
