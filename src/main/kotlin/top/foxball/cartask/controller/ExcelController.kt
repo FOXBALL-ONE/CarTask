@@ -30,6 +30,10 @@ import top.foxball.cartask.repository.GatePersonRepository
 import top.foxball.cartask.repository.DeviceRepository
 import top.foxball.cartask.repository.ParkingOwnerRepository
 import top.foxball.cartask.repository.ParkingPlateRepository
+import top.foxball.cartask.scope.DataScope
+import top.foxball.cartask.scope.DataScopeResolver
+import top.foxball.cartask.scope.ExcelResourcePolicy
+import top.foxball.cartask.scope.ScopeQuerySupport
 import top.foxball.cartask.repository.ParkingSpotRepository
 import top.foxball.cartask.service.DepartmentService
 import top.foxball.cartask.service.DeviceService
@@ -252,10 +256,14 @@ class ExcelController(
     private val plateRepository: ParkingPlateRepository,
     private val gatePersonRepository: GatePersonRepository,
     private val responseBuilder: ResponseBuilder,
+    private val dataScopeResolver: DataScopeResolver,
+    private val scopeQuerySupport: ScopeQuerySupport,
+    private val excelResourcePolicy: ExcelResourcePolicy,
 ) {
     @GetMapping("/{resource}/template")
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and ((#resource == 'users' and hasAuthority('user:read')) or (#resource == 'positions' and hasAuthority('position:read')) or (#resource == 'owners' and hasAuthority('owner:read')) or (#resource == 'spots' and hasAuthority('spot:read')) or (#resource == 'plates' and hasAuthority('plate:read')) or (#resource == 'devices' and hasAuthority('device:read')) or (#resource == 'gate-persons' and hasAuthority('gate-person:read')))")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and ((#resource == 'users' and hasAuthority('user:read')) or (#resource == 'positions' and hasAuthority('position:read')) or (#resource == 'owners' and hasAuthority('owner:read')) or (#resource == 'spots' and hasAuthority('spot:read')) or (#resource == 'plates' and hasAuthority('plate:read')) or (#resource == 'devices' and hasAuthority('device:read')) or (#resource == 'gate-persons' and hasAuthority('gate-person:read')))")
     fun template(@PathVariable resource: String): ResponseEntity<ByteArrayResource> {
+        excelResourcePolicy.requireScopable(resource)
         val (filename, rows, type) = when (resource) {
             "users" -> Triple("用户导入模板.xlsx", listOf(UserExcelRow()), UserExcelRow::class.java)
             "positions" -> Triple("岗位导入模板.xlsx", listOf(PositionExcelRow()), PositionExcelRow::class.java)
@@ -270,8 +278,9 @@ class ExcelController(
     }
 
     @GetMapping("/all/template")
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('department:manage') and hasAuthority('user:create') and hasAuthority('position:manage') and hasAuthority('owner:manage') and hasAuthority('spot:manage') and hasAuthority('plate:manage') and hasAuthority('device:manage') and hasAuthority('gate-person:manage')")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('department:manage') and hasAuthority('user:create') and hasAuthority('position:manage') and hasAuthority('owner:manage') and hasAuthority('spot:manage') and hasAuthority('plate:manage') and hasAuthority('device:manage') and hasAuthority('gate-person:manage')")
     fun allTemplate(): ResponseEntity<ByteArrayResource> {
+        excelResourcePolicy.requireScopable("all")
         val sheets = listOf(
             Triple("说明", listOf("填写说明"), listOf(
                 listOf("本文件是基础资料新增样表，包含真实会导入的示例行。使用前请修改示例值；不需要的数据删除示例行但保留工作表及表头。"),
@@ -319,8 +328,13 @@ class ExcelController(
     }
 
     @GetMapping("/{resource}/export")
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and ((#resource == 'users' and hasAuthority('user:read')) or (#resource == 'positions' and hasAuthority('position:read')) or (#resource == 'owners' and hasAuthority('owner:read')) or (#resource == 'spots' and hasAuthority('spot:read')) or (#resource == 'plates' and hasAuthority('plate:read')) or (#resource == 'devices' and hasAuthority('device:read')) or (#resource == 'gate-persons' and hasAuthority('gate-person:read')))")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and ((#resource == 'users' and hasAuthority('user:read')) or (#resource == 'positions' and hasAuthority('position:read')) or (#resource == 'owners' and hasAuthority('owner:read')) or (#resource == 'spots' and hasAuthority('spot:read')) or (#resource == 'plates' and hasAuthority('plate:read')) or (#resource == 'devices' and hasAuthority('device:read')) or (#resource == 'gate-persons' and hasAuthority('gate-person:read')))")
     fun export(@PathVariable resource: String): ResponseEntity<ByteArrayResource> {
+        excelResourcePolicy.requireScopable(resource)
+        val scope = dataScopeResolver.current()
+        // 车主与车位没有自己的部门字段，归属要经车主判定；先算一次，避免逐行重算。
+        val visibleOwnerIds = if (scope.unrestricted) null else scopeQuerySupport.ownerIdsInScope(scope)
+        val visibleOwnerCodes = if (scope.unrestricted) null else scopeQuerySupport.ownerCardIdsInScope(scope)
         return when (resource) {
             "users" -> {
                 val users = mutableListOf<UserService.UserData>()
@@ -374,13 +388,13 @@ class ExcelController(
                     PositionExportRow::class.java,
                 )
             }
-            "owners" -> writeWorkbook("车主列表.xlsx", ownerRepository.findAll().map {
+            "owners" -> writeWorkbook("车主列表.xlsx", scopeQuerySupport.visibleInScope(scope, ownerRepository.findAll()).map {
                 OwnerExportRow(requireNotNull(it.id), it.cardId, it.name, it.dept, it.phone, it.spotCount, it.plateCount, it.balance.toPlainString(), if (it.status == 1) "正常" else "停用")
             }, OwnerExportRow::class.java)
-            "spots" -> writeWorkbook("车位列表.xlsx", spotRepository.findAll().map {
+            "spots" -> writeWorkbook("车位列表.xlsx", spotRepository.findAll().filter { scopeQuerySupport.spotVisible(visibleOwnerCodes, it.ownerCode) }.map {
                 SpotExportRow(requireNotNull(it.id), it.code, it.area, it.type, it.owner, if (it.status == 1) "正常" else "停用", it.remark)
             }, SpotExportRow::class.java)
-            "plates" -> writeWorkbook("车牌列表.xlsx", plateRepository.findAll().map {
+            "plates" -> writeWorkbook("车牌列表.xlsx", plateRepository.findAll().filter { scopeQuerySupport.plateVisible(visibleOwnerIds, scope.userId, it) }.map {
                 PlateExportRow(requireNotNull(it.id), it.plate, it.owner, it.ownerId, if (it.status == 1) "正常" else "停用", it.regDate.toString())
             }, PlateExportRow::class.java)
             "devices" -> {
@@ -396,7 +410,7 @@ class ExcelController(
                     DeviceExportRow(requireNotNull(it.id), it.deviceCode, it.deviceName, it.deviceType, it.brand, it.model, it.location, it.ip, it.installDate, if (it.status == Device.Status.Activity) "正常" else "停用", it.orderNumber)
                 }, DeviceExportRow::class.java)
             }
-            "gate-persons" -> writeWorkbook("门禁人员列表.xlsx", gatePersonRepository.findAll().map {
+            "gate-persons" -> writeWorkbook("门禁人员列表.xlsx", scopeQuerySupport.visibleInScope(scope, gatePersonRepository.findAll()).map {
                 GatePersonExportRow(requireNotNull(it.id), it.code, it.dept, it.name, it.phone, it.idCard, it.createTime.toString(), it.approveStatus.value(), it.syncStatus.value())
             }, GatePersonExportRow::class.java)
             else -> throw IllegalArgumentException("不支持的 Excel 数据类型: $resource")
@@ -404,8 +418,9 @@ class ExcelController(
     }
 
     @GetMapping("/all/export")
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('user:read') and hasAuthority('position:read') and hasAuthority('owner:read') and hasAuthority('spot:read') and hasAuthority('plate:read') and hasAuthority('device:read') and hasAuthority('gate-person:read')")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('user:read') and hasAuthority('position:read') and hasAuthority('owner:read') and hasAuthority('spot:read') and hasAuthority('plate:read') and hasAuthority('device:read') and hasAuthority('gate-person:read')")
     fun exportAll(): ResponseEntity<ByteArrayResource> {
+        excelResourcePolicy.requireScopable("all")
         val users = mutableListOf<UserService.UserData>()
         var userPage = 1
         var userTotal = Long.MAX_VALUE
@@ -485,8 +500,9 @@ class ExcelController(
 
     @PostMapping("/{resource}/import", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     @Transactional
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and ((#resource == 'all' and hasAuthority('department:manage') and hasAuthority('user:create') and hasAuthority('position:manage') and hasAuthority('owner:manage') and hasAuthority('spot:manage') and hasAuthority('plate:manage') and hasAuthority('device:manage') and hasAuthority('gate-person:manage')) or (#resource == 'users' and hasAuthority('user:create')) or (#resource == 'positions' and hasAuthority('position:manage')) or (#resource == 'owners' and hasAuthority('owner:manage')) or (#resource == 'spots' and hasAuthority('spot:manage')) or (#resource == 'plates' and hasAuthority('plate:manage')) or (#resource == 'devices' and hasAuthority('device:manage')) or (#resource == 'gate-persons' and hasAuthority('gate-person:manage')))")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and ((#resource == 'all' and hasAuthority('department:manage') and hasAuthority('user:create') and hasAuthority('position:manage') and hasAuthority('owner:manage') and hasAuthority('spot:manage') and hasAuthority('plate:manage') and hasAuthority('device:manage') and hasAuthority('gate-person:manage')) or (#resource == 'users' and hasAuthority('user:create')) or (#resource == 'positions' and hasAuthority('position:manage')) or (#resource == 'owners' and hasAuthority('owner:manage')) or (#resource == 'spots' and hasAuthority('spot:manage')) or (#resource == 'plates' and hasAuthority('plate:manage')) or (#resource == 'devices' and hasAuthority('device:manage')) or (#resource == 'gate-persons' and hasAuthority('gate-person:manage')))")
     fun import(@PathVariable("resource") resource: String, @RequestPart("file") file: MultipartFile): ResponseEntity<top.foxball.cartask.shared.Response> {
+        excelResourcePolicy.requireScopable(resource)
         require(!file.isEmpty) { "导入文件不能为空" }
         data class Response(val count: Int, val counts: Map<String, Int>)
         val sheetNames = linkedMapOf("departments" to "部门", "positions" to "岗位", "users" to "用户",
@@ -501,6 +517,9 @@ class ExcelController(
                 reader.finish()
             }
         }
+        // 范围受限时导入必须落到当前工作部门；表里填了别的部门直接带行号报错，而不是悄悄改写。
+        val forcedDepartment = excelResourcePolicy.forcedImportDepartment()
+        val forcedImportRole = excelResourcePolicy.forcedImportRole()
         for (currentResource in if (resource == "all") sheetNames.keys else listOf(resource)) {
             val sheetName = if (resource == "all") sheetNames.getValue(currentResource) else null
             counts[currentResource] = 0
@@ -541,14 +560,24 @@ class ExcelController(
                             username = requireNotBlank(row.username, "第${line}行账号不能为空"),
                             email = row.email?.trim().takeUnless { it.isNullOrEmpty() } ?: "${row.username}@local.invalid",
                             credential = requireNotBlank(row.password, "第${line}行密码不能为空"),
-                            role = row.role?.trim().takeUnless { it.isNullOrEmpty() } ?: "USER",
+                            // 角色编码这一列是提权入口：部门管理导入时一律强制为普通用户。
+                            role = forcedImportRole ?: (row.role?.trim().takeUnless { it.isNullOrEmpty() } ?: "USER"),
                             enabled = parseBoolean(row.enabled, true, "第${line}行启用"),
                             phone = row.phone?.trim().takeUnless { it.isNullOrEmpty() },
                             gender = parseGender(row.gender, line),
-                            departmentId = row.departmentCode?.trim()?.takeIf { it.isNotEmpty() }?.let { code ->
-                                require(row.departmentId == null) { "第${line}行部门编码和ID不能同时填写" }
-                                requireNotNull(departmentRepository.findAll().singleOrNull { it.departmentNumber == code }) { "第${line}行部门编码不存在：$code" }.id
-                            } ?: row.departmentId,
+                            departmentId = if (forcedDepartment != null) {
+                                row.departmentCode?.trim()?.takeIf { it.isNotEmpty() }?.let { code ->
+                                    require(code == forcedDepartment.code) {
+                                        "第${line}行只能导入到当前工作部门 ${forcedDepartment.name}（${forcedDepartment.code}）"
+                                    }
+                                }
+                                forcedDepartment.id
+                            } else {
+                                row.departmentCode?.trim()?.takeIf { it.isNotEmpty() }?.let { code ->
+                                    require(row.departmentId == null) { "第${line}行部门编码和ID不能同时填写" }
+                                    requireNotNull(departmentRepository.findAll().singleOrNull { it.departmentNumber == code }) { "第${line}行部门编码不存在：$code" }.id
+                                } ?: row.departmentId
+                            },
                             positionId = row.positionCode?.trim()?.takeIf { it.isNotEmpty() }?.let { code ->
                                 require(row.positionId == null) { "第${line}行岗位编码和ID不能同时填写" }
                                 requireNotNull(positionRepository.findByCodeNumber(code)) { "第${line}行岗位编码不存在：$code" }.id
@@ -589,7 +618,9 @@ class ExcelController(
                         ParkingOwner().apply {
                             cardId = requireNotBlank(row.cardId, "第${line}行卡号不能为空")
                             name = requireNotBlank(row.name, "第${line}行姓名不能为空")
-                            dept = requireNotBlank(row.dept, "第${line}行部门不能为空")
+                            dept = forcedDepartment?.name ?: requireNotBlank(row.dept, "第${line}行部门不能为空")
+                            departmentCode = forcedDepartment?.code
+                                ?: scopeQuerySupport.stampDepartmentCode(dept, null)
                             phone = requireNotBlank(row.phone, "第${line}行手机号不能为空")
                             spotCount = row.spotCount ?: 0
                             plateCount = row.plateCount ?: 0
@@ -706,7 +737,9 @@ class ExcelController(
                         val line = index + 2
                         GatePerson().apply {
                             code = requireNotBlank(row.code, "第${line}行人员编号不能为空")
-                            dept = requireNotBlank(row.dept, "第${line}行部门不能为空")
+                            dept = forcedDepartment?.name ?: requireNotBlank(row.dept, "第${line}行部门不能为空")
+                            departmentCode = forcedDepartment?.code
+                                ?: scopeQuerySupport.stampDepartmentCode(dept, null)
                             name = requireNotBlank(row.name, "第${line}行姓名不能为空")
                             phone = requireNotBlank(row.phone, "第${line}行手机号不能为空")
                             idCard = requireNotBlank(row.idCard, "第${line}行身份证号不能为空")

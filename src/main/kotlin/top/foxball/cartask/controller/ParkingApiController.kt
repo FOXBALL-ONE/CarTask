@@ -31,6 +31,7 @@ import top.foxball.cartask.entity.ParkingOwner
 import top.foxball.cartask.entity.ParkingPlate
 import top.foxball.cartask.entity.ParkingSpot
 import top.foxball.cartask.entity.Position
+import top.foxball.cartask.entity.StoredFile
 import top.foxball.cartask.audit.AuditAction
 import top.foxball.cartask.audit.AuditCommand
 import top.foxball.cartask.audit.AuditService
@@ -46,6 +47,9 @@ import top.foxball.cartask.repository.AuditEventRepository
 import top.foxball.cartask.repository.OperationLogRepository
 import top.foxball.cartask.entity.OperationLog
 import top.foxball.cartask.repository.ViolationRecordRepository
+import top.foxball.cartask.scope.DataScopeResolver
+import top.foxball.cartask.scope.ScopeGuard
+import top.foxball.cartask.scope.ScopeQuerySupport
 import top.foxball.cartask.service.DepartmentService
 import top.foxball.cartask.service.PositionService
 import top.foxball.cartask.service.FileService
@@ -73,6 +77,9 @@ class ParkingApiController(
     private val objectMapper: ObjectMapper,
     private val auditService: AuditService,
     private val logVisibilityService: LogVisibilityService,
+    private val dataScopeResolver: DataScopeResolver,
+    private val scopeQuerySupport: ScopeQuerySupport,
+    private val scopeGuard: ScopeGuard,
 ) {
     @GetMapping("/depts")
     @PreAuthorize("hasAuthority('department:read')")
@@ -195,8 +202,12 @@ class ParkingApiController(
         require(page >= 1) { "页码必须大于 0" }
         require(pageSize in 1..100) { "每页数量必须在 1 到 100 之间" }
         data class PageData(val items: List<StoredOwner>, val total: Int, val page: Int, @param:JsonProperty("pageSize") val pageSizeValue: Int)
+        val scope = dataScopeResolver.current()
+        // 范围谓词始终参与：客户端传的 dept 只能在此基础上继续收窄，不可能放宽范围。
+        val visibleOwnerIds = if (scope.unrestricted) null else scopeQuerySupport.ownerIdsInScope(scope)
         val filtered = ownerRepository.findAll().filter {
-            (keyword.isNullOrBlank() || it.cardId.contains(keyword, true) || it.name.contains(keyword, true) || it.phone.contains(keyword, true)) &&
+            (visibleOwnerIds == null || requireNotNull(it.id) in visibleOwnerIds) &&
+                (keyword.isNullOrBlank() || it.cardId.contains(keyword, true) || it.name.contains(keyword, true) || it.phone.contains(keyword, true)) &&
                 (dept.isNullOrBlank() || it.dept == dept) && (status == null || it.status == status)
         }.sortedBy { it.id }.map { StoredOwner(requireNotNull(it.id), it.cardId, it.name, it.dept, it.phone, it.spotCount, it.plateCount, it.balance, it.status) }
         val from = ((page - 1).coerceAtLeast(0) * pageSize.coerceAtLeast(1)).coerceAtMost(filtered.size)
@@ -209,15 +220,21 @@ class ParkingApiController(
     fun createOwner(@RequestBody body: OwnerRequest): ResponseEntity<Response> {
         val cardId = requireNotNull(body.cardId) { "车主卡号不能为空" }
         require(!ownerRepository.existsByCardId(cardId)) { "车主卡号已存在" }
+        val dept = requireNotNull(body.dept) { "部门不能为空" }
+        val scope = scopeGuard.currentScope()
+        val deptCode = scopeQuerySupport.stampDepartmentCode(dept, null)
+        // 写路径同样要校验：否则部门管理能造出一条自己看不见、却归属别的部门的记录。
+        scopeGuard.requireDepartmentCodeAllowed(deptCode, scope)
         val owner = ParkingOwner().apply {
             this.cardId = cardId
             name = requireNotNull(body.name) { "姓名不能为空" }
-            dept = requireNotNull(body.dept) { "部门不能为空" }
+            this.dept = dept
             phone = requireNotNull(body.phone) { "手机号不能为空" }
             spotCount = requireNotNull(body.spotCount) { "车位数量不能为空" }
             plateCount = requireNotNull(body.plateCount) { "车牌数量不能为空" }
             balance = body.balance ?: BigDecimal.ZERO
             status = requireNotNull(body.status) { "状态不能为空" }
+            departmentCode = deptCode
         }
         require(owner.spotCount >= 0 && owner.plateCount >= 0) { "数量不能为负数" }
         require(owner.balance >= BigDecimal.ZERO) { "余额不能为负数" }
@@ -229,11 +246,18 @@ class ParkingApiController(
     @PutMapping("/owners/{id}")
     @PreAuthorize("hasAuthority('owner:manage')")
     fun updateOwner(@PathVariable id: Long, @RequestBody body: OwnerRequest): ResponseEntity<Response> {
-        val owner = ownerRepository.findById(id).orElseThrow { IllegalArgumentException("车主不存在") }
+        val scope = scopeGuard.currentScope()
+        val owner = scopeGuard.requireVisibleRow(ownerRepository.findById(id).orElse(null), scope, "车主不存在")
         val previousName = owner.name
         body.cardId?.let { require(!ownerRepository.existsByCardIdAndIdNot(it, id)) { "车主卡号已存在" }; owner.cardId = it }
         body.name?.let { owner.name = it }
-        body.dept?.let { owner.dept = it }
+        body.dept?.let {
+            val newCode = scopeQuerySupport.stampDepartmentCode(it, owner.departmentCode)
+            // 既不能把本部门车主挪到范围外，也不能把范围外车主挪进来。
+            scopeGuard.requireDepartmentCodeAllowed(newCode, scope)
+            owner.dept = it
+            owner.departmentCode = newCode
+        }
         body.phone?.let { owner.phone = it }
         body.spotCount?.let { owner.spotCount = it }
         body.plateCount?.let { owner.plateCount = it }
@@ -255,7 +279,11 @@ class ParkingApiController(
     @DeleteMapping("/owners/{id}")
     @PreAuthorize("hasAuthority('owner:manage')")
     fun deleteOwner(@PathVariable id: Long): ResponseEntity<Response> {
-        val owner = ownerRepository.findById(id).orElseThrow { IllegalArgumentException("车主不存在") }
+        val owner = scopeGuard.requireVisibleRow(
+            ownerRepository.findById(id).orElse(null),
+            scopeGuard.currentScope(),
+            "车主不存在",
+        )
         require(plateRepository.findAll().none { it.ownerId == id } && spotRepository.findAll().none { it.owner == owner.name }) {
             "车主仍有关联车位或车牌"
         }
@@ -266,7 +294,11 @@ class ParkingApiController(
     @PostMapping("/owners/{id}/recharge")
     @PreAuthorize("hasAuthority('owner:manage')")
     fun rechargeOwner(@PathVariable id: Long, @RequestBody body: RechargeRequest): ResponseEntity<Response> {
-        val old = ownerRepository.findById(id).orElseThrow { IllegalArgumentException("车主不存在") }
+        val old = scopeGuard.requireVisibleRow(
+            ownerRepository.findById(id).orElse(null),
+            scopeGuard.currentScope(),
+            "车主不存在",
+        )
         val amount = body.amount ?: throw IllegalArgumentException("充值金额不能为空")
         require(amount > BigDecimal.ZERO) { "充值金额必须为正数" }
         old.balance += amount
@@ -284,7 +316,9 @@ class ParkingApiController(
         require(page >= 1) { "页码必须大于 0" }
         require(pageSize in 1..100) { "每页数量必须在 1 到 100 之间" }
         data class PageData(val items: List<StoredSpot>, val total: Int)
-        val filtered = spotRepository.findAll().filter { (keyword.isNullOrBlank() || it.code.contains(keyword, true)) && (area.isNullOrBlank() || it.area == area) && (type.isNullOrBlank() || it.type == type) && (status == null || it.status == status) }.sortedBy { it.id }.map { StoredSpot(requireNotNull(it.id), it.code, it.area, it.type, it.owner, it.status, it.remark) }
+        val scope = dataScopeResolver.current()
+        val visibleOwnerCodes = if (scope.unrestricted) null else scopeQuerySupport.ownerCardIdsInScope(scope)
+        val filtered = spotRepository.findAll().filter { scopeQuerySupport.spotVisible(visibleOwnerCodes, it.ownerCode) && (keyword.isNullOrBlank() || it.code.contains(keyword, true)) && (area.isNullOrBlank() || it.area == area) && (type.isNullOrBlank() || it.type == type) && (status == null || it.status == status) }.sortedBy { it.id }.map { StoredSpot(requireNotNull(it.id), it.code, it.area, it.type, it.owner, it.status, it.remark) }
         val from = ((page - 1).coerceAtLeast(0) * pageSize.coerceAtLeast(1)).coerceAtMost(filtered.size)
         val to = (from + pageSize.coerceAtLeast(1)).coerceAtMost(filtered.size)
         return responseBuilder.ok().data(PageData(filtered.subList(from, to), filtered.size)).build()
@@ -295,7 +329,10 @@ class ParkingApiController(
     fun createSpot(@RequestBody body: SpotRequest): ResponseEntity<Response> {
         val code = requireNotNull(body.code) { "车位编号不能为空" }
         require(!spotRepository.existsByCode(code)) { "车位编号已存在" }
-        val spot = ParkingSpot().apply { this.code = code; area = requireNotNull(body.area); type = requireNotNull(body.type); owner = body.owner; status = requireNotNull(body.status) { "状态不能为空" }; remark = body.remark }
+        val ownerCode = scopeQuerySupport.stampOwnerCode(body.owner, null)
+        // 车位没有自己的部门字段，归属完全靠车主；目标车主不在范围内就不允许建。
+        scopeGuard.requireOwnerCodeAllowed(ownerCode, scopeGuard.currentScope())
+        val spot = ParkingSpot().apply { this.code = code; area = requireNotNull(body.area); type = requireNotNull(body.type); owner = body.owner; this.ownerCode = ownerCode; status = requireNotNull(body.status) { "状态不能为空" }; remark = body.remark }
         require(spot.status == 0 || spot.status == 1) { "状态必须为 0 或 1" }
         val saved = spotRepository.save(spot)
         refreshOwnerCounts()
@@ -305,10 +342,16 @@ class ParkingApiController(
     @PutMapping("/spots/{id}")
     @PreAuthorize("hasAuthority('spot:manage')")
     fun updateSpot(@PathVariable id: Long, @RequestBody body: SpotRequest): ResponseEntity<Response> {
-        val spot = spotRepository.findById(id).orElseThrow { IllegalArgumentException("车位不存在") }
+        val scope = scopeGuard.currentScope()
+        val spot = scopeGuard.requireVisibleSpot(spotRepository.findById(id).orElse(null), scope, "车位不存在")
         body.code?.let { require(!spotRepository.existsByCodeAndIdNot(it, id)) { "车位编号已存在" }; spot.code = it }
         body.area?.let { spot.area = it }; body.type?.let { spot.type = it }
-        if (body.ownerProvided || body.status == 0) spot.owner = body.owner
+        if (body.ownerProvided || body.status == 0) {
+            val newOwnerCode = scopeQuerySupport.stampOwnerCode(body.owner, spot.ownerCode)
+            scopeGuard.requireOwnerCodeAllowed(newOwnerCode, scope)
+            spot.owner = body.owner
+            spot.ownerCode = newOwnerCode
+        }
         body.status?.let { spot.status = it }; body.remark?.let { spot.remark = it }
         require(spot.status == 0 || spot.status == 1) { "状态必须为 0 或 1" }
         val saved = spotRepository.save(spot)
@@ -318,7 +361,11 @@ class ParkingApiController(
 
     @DeleteMapping("/spots/{id}")
     @PreAuthorize("hasAuthority('spot:manage')")
-    fun deleteSpot(@PathVariable id: Long): ResponseEntity<Response> { require(spotRepository.existsById(id)) { "车位不存在" }; spotRepository.deleteById(id); refreshOwnerCounts(); return responseBuilder.ok().message("删除成功").data(mapOf("id" to id)).build() }
+    fun deleteSpot(@PathVariable id: Long): ResponseEntity<Response> {
+        scopeGuard.requireVisibleSpot(spotRepository.findById(id).orElse(null), scopeGuard.currentScope(), "车位不存在")
+        spotRepository.deleteById(id); refreshOwnerCounts()
+        return responseBuilder.ok().message("删除成功").data(mapOf("id" to id)).build()
+    }
 
     @GetMapping("/plates")
     @PreAuthorize("hasAuthority('plate:read')")
@@ -326,7 +373,9 @@ class ParkingApiController(
         require(page >= 1) { "页码必须大于 0" }
         require(pageSize in 1..100) { "每页数量必须在 1 到 100 之间" }
         data class PageData(val items: List<StoredPlate>, val total: Int)
-        val filtered = plateRepository.findAll().filter { (keyword.isNullOrBlank() || it.plate.contains(keyword, true) || it.owner.contains(keyword, true)) && (status == null || it.status == status) }.sortedBy { it.id }.map { StoredPlate(requireNotNull(it.id), it.plate, it.owner, it.ownerId, it.status, it.regDate.toString()) }
+        val scope = dataScopeResolver.current()
+        val visibleOwnerIds = if (scope.unrestricted) null else scopeQuerySupport.ownerIdsInScope(scope)
+        val filtered = plateRepository.findAll().filter { scopeQuerySupport.plateVisible(visibleOwnerIds, scope.userId, it) && (keyword.isNullOrBlank() || it.plate.contains(keyword, true) || it.owner.contains(keyword, true)) && (status == null || it.status == status) }.sortedBy { it.id }.map { StoredPlate(requireNotNull(it.id), it.plate, it.owner, it.ownerId, it.status, it.regDate.toString()) }
         val from = ((page - 1).coerceAtLeast(0) * pageSize.coerceAtLeast(1)).coerceAtMost(filtered.size); val to = (from + pageSize.coerceAtLeast(1)).coerceAtMost(filtered.size)
         return responseBuilder.ok().data(PageData(filtered.subList(from, to), filtered.size)).build()
     }
@@ -337,6 +386,7 @@ class ParkingApiController(
         val plateNumber = requireNotNull(body.plate) { "车牌号不能为空" }
         require(!plateRepository.existsByPlate(plateNumber)) { "车牌号已存在" }
         val ownerId = requireNotNull(body.ownerId) { "车主 ID 不能为空" }
+        scopeGuard.requireOwnerAllowed(ownerId, scopeGuard.currentScope())
         val owner = ownerRepository.findById(ownerId).orElseThrow { IllegalArgumentException("车主不存在") }
         val ownerName = requireNotNull(body.owner) { "车主姓名不能为空" }
         require(owner.name == ownerName) { "车主姓名与车主 ID 不一致" }
@@ -356,12 +406,14 @@ class ParkingApiController(
     @PutMapping("/plates/{id}")
     @PreAuthorize("hasAuthority('plate:manage')")
     fun updatePlate(@PathVariable id: Long, @RequestBody body: PlateRequest): ResponseEntity<Response> {
-        val plate = plateRepository.findById(id).orElseThrow { IllegalArgumentException("车牌不存在") }
+        val scope = scopeGuard.currentScope()
+        val plate = scopeGuard.requireVisiblePlate(plateRepository.findById(id).orElse(null), scope, "车牌不存在")
         body.plate?.let {
             require(!plateRepository.existsByPlateAndIdNot(it, id)) { "车牌号已存在" }
             plate.plate = it
         }
         val ownerId = body.ownerId ?: plate.ownerId
+        scopeGuard.requireOwnerAllowed(ownerId, scope)
         val owner = ownerRepository.findById(ownerId).orElseThrow { IllegalArgumentException("车主不存在") }
         body.owner?.let { require(it == owner.name) { "车主姓名与车主 ID 不一致" } }
         plate.ownerId = ownerId
@@ -376,7 +428,11 @@ class ParkingApiController(
 
     @DeleteMapping("/plates/{id}")
     @PreAuthorize("hasAuthority('plate:manage')")
-    fun deletePlate(@PathVariable id: Long): ResponseEntity<Response> { require(plateRepository.existsById(id)) { "车牌不存在" }; plateRepository.deleteById(id); refreshOwnerCounts(); return responseBuilder.ok().message("删除成功").data(mapOf("id" to id)).build() }
+    fun deletePlate(@PathVariable id: Long): ResponseEntity<Response> {
+        scopeGuard.requireVisiblePlate(plateRepository.findById(id).orElse(null), scopeGuard.currentScope(), "车牌不存在")
+        plateRepository.deleteById(id); refreshOwnerCounts()
+        return responseBuilder.ok().message("删除成功").data(mapOf("id" to id)).build()
+    }
 
     @GetMapping("/gate-persons")
     @PreAuthorize("hasAuthority('gate-person:read')")
@@ -384,7 +440,7 @@ class ParkingApiController(
         require(page >= 1) { "页码必须大于 0" }
         require(pageSize in 1..100) { "每页数量必须在 1 到 100 之间" }
         data class PageData(val items: List<StoredGatePerson>, val total: Int)
-        val filtered = gatePersonRepository.findAll().filter { (keyword.isNullOrBlank() || listOf(it.code, it.name, it.phone, it.idCard).any { value -> value.contains(keyword, true) }) && (dept.isNullOrBlank() || it.dept == dept) && (approveStatus.isNullOrBlank() || it.approveStatus.name == approveStatus || (approveStatus == "审核中" && it.approveStatus == GatePerson.ApproveStatus.PENDING) || (approveStatus == "通过" && it.approveStatus == GatePerson.ApproveStatus.APPROVED) || (approveStatus == "拒绝" && it.approveStatus == GatePerson.ApproveStatus.REJECTED)) && (syncStatus.isNullOrBlank() || syncStatus == it.syncStatus.name || (syncStatus == "已同步" && it.syncStatus == GatePerson.SyncStatus.SYNCED) || (syncStatus == "未同步" && it.syncStatus == GatePerson.SyncStatus.NOT_SYNCED)) }.sortedBy { it.id }.map { StoredGatePerson(requireNotNull(it.id), it.code, it.dept, it.name, it.phone, it.idCard, it.face, it.createTime.toString(), when (it.approveStatus) { GatePerson.ApproveStatus.PENDING -> "审核中"; GatePerson.ApproveStatus.APPROVED -> "通过"; GatePerson.ApproveStatus.REJECTED -> "拒绝" }, if (it.syncStatus == GatePerson.SyncStatus.SYNCED) "已同步" else "未同步") }
+        val filtered = scopeQuerySupport.visibleInScope(dataScopeResolver.current(), gatePersonRepository.findAll()).filter { (keyword.isNullOrBlank() || listOf(it.code, it.name, it.phone, it.idCard).any { value -> value.contains(keyword, true) }) && (dept.isNullOrBlank() || it.dept == dept) && (approveStatus.isNullOrBlank() || it.approveStatus.name == approveStatus || (approveStatus == "审核中" && it.approveStatus == GatePerson.ApproveStatus.PENDING) || (approveStatus == "通过" && it.approveStatus == GatePerson.ApproveStatus.APPROVED) || (approveStatus == "拒绝" && it.approveStatus == GatePerson.ApproveStatus.REJECTED)) && (syncStatus.isNullOrBlank() || syncStatus == it.syncStatus.name || (syncStatus == "已同步" && it.syncStatus == GatePerson.SyncStatus.SYNCED) || (syncStatus == "未同步" && it.syncStatus == GatePerson.SyncStatus.NOT_SYNCED)) }.sortedBy { it.id }.map { StoredGatePerson(requireNotNull(it.id), it.code, it.dept, it.name, it.phone, it.idCard, it.face, it.createTime.toString(), when (it.approveStatus) { GatePerson.ApproveStatus.PENDING -> "审核中"; GatePerson.ApproveStatus.APPROVED -> "通过"; GatePerson.ApproveStatus.REJECTED -> "拒绝" }, if (it.syncStatus == GatePerson.SyncStatus.SYNCED) "已同步" else "未同步") }
         val from = ((page - 1).coerceAtLeast(0) * pageSize.coerceAtLeast(1)).coerceAtMost(filtered.size); val to = (from + pageSize.coerceAtLeast(1)).coerceAtMost(filtered.size)
         return responseBuilder.ok().data(PageData(filtered.subList(from, to), filtered.size)).build()
     }
@@ -392,7 +448,11 @@ class ParkingApiController(
     @GetMapping("/gate-persons/{id}")
     @PreAuthorize("hasAuthority('gate-person:read')")
     fun getGatePerson(@PathVariable id: Long): ResponseEntity<Response> {
-        val person = gatePersonRepository.findById(id).orElseThrow { IllegalArgumentException("人员不存在") }
+        val person = scopeGuard.requireVisibleRow(
+            gatePersonRepository.findById(id).orElse(null),
+            scopeGuard.currentScope(),
+            "人员不存在",
+        )
         val data = StoredGatePerson(requireNotNull(person.id), person.code, person.dept, person.name, person.phone, person.idCard, person.face, person.createTime.toString(), person.approveStatus.value(), person.syncStatus.value())
         return responseBuilder.ok().data(data).build()
     }
@@ -409,9 +469,13 @@ class ParkingApiController(
     ): ResponseEntity<Response> {
         requireImageUpload(face)
         val file = fileService.upload(face)
+        val gatePersonDepartmentCode = scopeQuerySupport.stampDepartmentCode(dept, null)
+        // 与车主一致：不允许在范围外的部门下新建门禁人员。
+        scopeGuard.requireDepartmentCodeAllowed(gatePersonDepartmentCode, scopeGuard.currentScope())
         val person = GatePerson().apply {
             this.code = code
             this.dept = dept
+            this.departmentCode = gatePersonDepartmentCode
             this.name = name
             this.phone = phone
             this.idCard = idCard
@@ -422,6 +486,8 @@ class ParkingApiController(
         require(!gatePersonRepository.existsByCode(person.code)) { "人员编号已存在" }
         require(!gatePersonRepository.existsByIdCard(person.idCard)) { "身份证号已存在" }
         val saved = gatePersonRepository.save(person)
+        // 关联到人员编号：本人范围下靠它才能取到自己的门禁图片，否则只有上传部门看得到。
+        fileService.linkBusiness(file.id, StoredFile.BUSINESS_GATE_PERSON, saved.code)
         val data = StoredGatePerson(requireNotNull(saved.id), saved.code, saved.dept, saved.name, saved.phone, saved.idCard, saved.face, saved.createTime.toString(), saved.approveStatus.value(), saved.syncStatus.value())
         return responseBuilder.created().data(data).build()
     }
@@ -438,9 +504,15 @@ class ParkingApiController(
         @RequestPart("face", required = false) face: MultipartFile?,
     ): ResponseEntity<Response> {
         face?.let(::requireImageUpload)
-        val person = gatePersonRepository.findById(id).orElseThrow { IllegalArgumentException("人员不存在") }
+        val scope = scopeGuard.currentScope()
+        val person = scopeGuard.requireVisibleRow(gatePersonRepository.findById(id).orElse(null), scope, "人员不存在")
         code?.let { require(!gatePersonRepository.existsByCodeAndIdNot(it, id)) { "人员编号已存在" }; person.code = it }
-        dept?.let { person.dept = it }
+        dept?.let {
+            val newCode = scopeQuerySupport.stampDepartmentCode(it, person.departmentCode)
+            scopeGuard.requireDepartmentCodeAllowed(newCode, scope)
+            person.dept = it
+            person.departmentCode = newCode
+        }
         name?.let { person.name = it }
         phone?.let { person.phone = it }
         idCard?.let { require(!gatePersonRepository.existsByIdCardAndIdNot(it, id)) { "身份证号已存在" }; person.idCard = it }
@@ -452,15 +524,19 @@ class ParkingApiController(
 
     @PutMapping("/gate-persons/{id}/approve")
     @PreAuthorize("hasAuthority('gate-person:manage')")
-    fun approveGatePerson(@PathVariable id: Long): ResponseEntity<Response> { val person = gatePersonRepository.findById(id).orElseThrow { IllegalArgumentException("人员不存在") }; person.approveStatus = GatePerson.ApproveStatus.APPROVED; gatePersonRepository.save(person); return responseBuilder.ok().message("审批通过").build() }
+    fun approveGatePerson(@PathVariable id: Long): ResponseEntity<Response> { val person = scopeGuard.requireVisibleRow(gatePersonRepository.findById(id).orElse(null), scopeGuard.currentScope(), "人员不存在"); person.approveStatus = GatePerson.ApproveStatus.APPROVED; gatePersonRepository.save(person); return responseBuilder.ok().message("审批通过").build() }
 
     @PutMapping("/gate-persons/{id}/reject")
     @PreAuthorize("hasAuthority('gate-person:manage')")
-    fun rejectGatePerson(@PathVariable id: Long): ResponseEntity<Response> { val person = gatePersonRepository.findById(id).orElseThrow { IllegalArgumentException("人员不存在") }; person.approveStatus = GatePerson.ApproveStatus.REJECTED; gatePersonRepository.save(person); return responseBuilder.ok().message("审批拒绝").build() }
+    fun rejectGatePerson(@PathVariable id: Long): ResponseEntity<Response> { val person = scopeGuard.requireVisibleRow(gatePersonRepository.findById(id).orElse(null), scopeGuard.currentScope(), "人员不存在"); person.approveStatus = GatePerson.ApproveStatus.REJECTED; gatePersonRepository.save(person); return responseBuilder.ok().message("审批拒绝").build() }
 
     @DeleteMapping("/gate-persons/{id}")
     @PreAuthorize("hasAuthority('gate-person:manage')")
-    fun deleteGatePerson(@PathVariable id: Long): ResponseEntity<Response> { require(gatePersonRepository.existsById(id)) { "人员不存在" }; gatePersonRepository.deleteById(id); return responseBuilder.ok().message("删除成功").data(mapOf("id" to id)).build() }
+    fun deleteGatePerson(@PathVariable id: Long): ResponseEntity<Response> {
+        scopeGuard.requireVisibleRow(gatePersonRepository.findById(id).orElse(null), scopeGuard.currentScope(), "人员不存在")
+        gatePersonRepository.deleteById(id)
+        return responseBuilder.ok().message("删除成功").data(mapOf("id" to id)).build()
+    }
 
     @PostMapping("/gate-persons/{id}/delete-requests")
     @PreAuthorize("hasAuthority('gate-person:manage')")
@@ -543,7 +619,8 @@ class ParkingApiController(
         require(pageSize in 1..100) { "每页数量必须在 1 到 100 之间" }
         data class PersonRecordData(val id: Long, val person: String, @param:JsonProperty("cardId") val cardId: String?, val dept: String?, val time: String, val direction: String, val gate: String?, val method: String?, val status: String, val photo: String?)
         data class PageData(val items: List<PersonRecordData>, val total: Int)
-        val filtered = personAccessRecordRepository.findAll().filter {
+        val scope = dataScopeResolver.current()
+        val filtered = scopeQuerySupport.personRecordsInScope(scope, personAccessRecordRepository.findAll()).filter {
             (keyword.isNullOrBlank() || it.person.contains(keyword, true) || it.cardId.orEmpty().contains(keyword, true)) &&
                 (direction.isNullOrBlank() || it.direction == direction) && (gate.isNullOrBlank() || it.gate == gate) &&
                 (passType.isNullOrBlank() || it.method == passType) && (recordStatus.isNullOrBlank() || it.status == recordStatus) && (startDate == null || !it.time.toLocalDate().isBefore(startDate)) &&
@@ -591,6 +668,9 @@ class ParkingApiController(
             else -> null
         }
         val spec = vehicleRecordSpec(keyword?.trim()?.ifBlank { null }, directionFilter, gate?.ifBlank { null }, passType?.ifBlank { null }, startDate, endDate)
+            // 范围必须下推到 SQL：本接口是数据库分页并直接返回 totalElements 的，事后过滤会让
+            // 总数失真，甚至出现「总数大于 0 但当前页为空」。
+            .and(scopeQuerySupport.accessRecordSpec(dataScopeResolver.current()))
         val records = accessRecordRepository.findAll(spec, PageRequest.of(page - 1, pageSize, Sort.by(Sort.Direction.DESC, "inAndOutTime", "id")))
         val items = records.content.map {
             VehicleRecord(
@@ -771,15 +851,29 @@ class ParkingApiController(
         data class Series(val name: String, val data: List<Int>, val color: String)
         data class Trend(val labels: List<String>, val series: List<Series>)
         data class Dashboard(val stats: List<Stat>, val parking: List<Parking>, @param:JsonProperty("violationTypes") val violationTypes: List<Map<String, Any>>, @param:JsonProperty("violationTrend") val violationTrend: Trend, @param:JsonProperty("inoutTrend") val inoutTrend: Trend)
-        val used = spotRepository.findAll().count { it.status == 1 }
-        val total = spotRepository.count().toInt()
+        val scope = dataScopeResolver.current()
+        // 仪表盘全是聚合数，不过滤就是「部门管理看到全公司数字」，比列表泄露更容易被忽略。
+        val visibleOwnerCodes = if (scope.unrestricted) null else scopeQuerySupport.ownerCardIdsInScope(scope)
+        val spots = spotRepository.findAll().filter { scopeQuerySupport.spotVisible(visibleOwnerCodes, it.ownerCode) }
+        val used = spots.count { it.status == 1 }
+        val total = spots.size
         val violations = violationRecordRepository.findAllWithViolationType()
+            .filter { scopeQuerySupport.violationSubjectVisible(scope, it.subject) }
         val violationTypes = violations.groupingBy { it.violationType.violationName ?: "未分类" }.eachCount().entries.map { mapOf<String, Any>("name" to it.key, "value" to it.value, "color" to "#3B6DFF") }
         val violationDates = (0..6).map { LocalDate.now().minusDays((6 - it).toLong()) }
         val weekLabels = listOf("周一", "周二", "周三", "周四", "周五", "周六", "周日")
         val violationLabels = violationDates.map { weekLabels[it.dayOfWeek.value - 1] }
         val violationTrend = Trend(violationLabels, listOf(Series("违规次数", violationDates.map { day -> violations.count { it.violationTime.toLocalDate() == day } }, "#E9A568")))
-        val accessRecords = accessRecordRepository.findAll().filter { it.inAndOutTime.toLocalDate() == LocalDate.now() }
+        val todayStart = LocalDate.now().atStartOfDay()
+        val todaySpec = Specification<AccessRecord> { root, _, cb ->
+            cb.and(
+                cb.greaterThanOrEqualTo(root.get("inAndOutTime"), todayStart),
+                cb.lessThan(root.get("inAndOutTime"), todayStart.plusDays(1)),
+            )
+        }
+        val accessRecords = accessRecordRepository.findAll(
+            Specification.where(scopeQuerySupport.accessRecordSpec(scope)).and(todaySpec),
+        )
         val inoutLabels = listOf("00:00", "04:00", "08:00", "12:00", "16:00", "20:00")
         val inoutTrend = Trend(inoutLabels, listOf(
             Series("进场", inoutLabels.mapIndexed { index, _ -> accessRecords.count { it.inAndOut == AccessRecord.InAndOut.IN && it.inAndOutTime.hour / 4 == index } }, "#38BDF8"),
@@ -787,7 +881,7 @@ class ParkingApiController(
         ))
         val rs = Dashboard(
             listOf(Stat("车位总数", total, "0%", "flat", "blue"), Stat("已分配", used, "0%", "flat", "green"), Stat("空闲车位", total - used, "0%", "flat", "orange"), Stat("今日违规", violations.count { it.violationTime.toLocalDate() == java.time.LocalDate.now() }, "0%", "flat", "red")),
-            spotRepository.findAll().groupBy { it.area }.entries.map { (area, rows) -> Parking(area, rows.size, rows.count { it.status == 1 }) }, violationTypes, violationTrend, inoutTrend,
+            spots.groupBy { it.area }.entries.map { (area, rows) -> Parking(area, rows.size, rows.count { it.status == 1 }) }, violationTypes, violationTrend, inoutTrend,
         )
         return responseBuilder.ok().data(rs).build()
     }

@@ -5,9 +5,9 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.mock.web.MockMultipartFile
-import org.springframework.security.test.context.support.WithMockUser
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.context.bean.override.mockito.MockitoBean
+import top.foxball.cartask.scope.WithCurrentUser
 import top.foxball.cartask.audit.AuditService
 import top.foxball.cartask.repository.*
 import java.io.ByteArrayOutputStream
@@ -33,7 +33,7 @@ class ExcelImportIntegrationTests(
     lateinit var auditService: AuditService
 
     @Test
-    @WithMockUser(authorities = ["ROLE_SUPER_ADMIN", "department:manage", "user:create", "position:manage",
+    @WithCurrentUser(role = "SUPER_ADMIN", authorities = ["department:manage", "user:create", "position:manage",
         "owner:manage", "spot:manage", "plate:manage", "device:manage", "gate-person:manage", "user:role-assign"])
     fun `sample imports dependencies and late errors roll back earlier sheets`() {
         val sample = controller.allTemplate().body!!.byteArray

@@ -5,8 +5,8 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.security.test.context.support.WithMockUser
 import org.springframework.test.context.ActiveProfiles
+import top.foxball.cartask.scope.WithCurrentUser
 import top.foxball.cartask.entity.ViolationSubject
 import top.foxball.cartask.repository.ViolationRecordRepository
 import top.foxball.cartask.repository.ViolationSettingRepository
@@ -38,7 +38,7 @@ class ViolationManagementControllerIntegrationTests(
     }
 
     @Test
-    @WithMockUser(authorities = ["violation:read", "violation:manage"])
+    @WithCurrentUser(role = "ADMIN", authorities = ["violation:read", "violation:manage"])
     fun `确认违规后按阈值处罚且规则变更不改历史分值`() {
         controller.updateViolationSetting(6, 30)
         controller.createViolationType("堵塞消防通道", 6, "车辆占用消防通道", 1, 1)

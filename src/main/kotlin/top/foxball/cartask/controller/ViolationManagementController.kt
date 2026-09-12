@@ -21,6 +21,8 @@ import top.foxball.cartask.repository.ViolationRecordRepository
 import top.foxball.cartask.repository.ViolationSettingRepository
 import top.foxball.cartask.repository.ViolationSubjectRepository
 import top.foxball.cartask.repository.ViolationTypeRepository
+import top.foxball.cartask.scope.DataScopeResolver
+import top.foxball.cartask.scope.ScopeQuerySupport
 import top.foxball.cartask.shared.Response
 import top.foxball.cartask.shared.ResponseBuilder
 
@@ -33,6 +35,8 @@ class ViolationManagementController(
     private val violationSubjectRepository: ViolationSubjectRepository,
     private val violationTypeRepository: ViolationTypeRepository,
     private val violationSettingRepository: ViolationSettingRepository,
+    private val dataScopeResolver: DataScopeResolver,
+    private val scopeQuerySupport: ScopeQuerySupport,
 ) {
     @GetMapping("/violations")
     @PreAuthorize("hasAuthority('violation:read')")
@@ -77,9 +81,12 @@ class ViolationManagementController(
         )
         data class Response(val items: List<ViolationData>, val total: Int, val summary: SummaryData)
 
+        val scope = dataScopeResolver.current()
         val all = violationRecordRepository.findAllWithViolationType()
         val filtered = all.filter { record ->
-            (keyword.isNullOrBlank() || listOf(
+            // 范围谓词始终参与：违规记录本身没有部门字段，归属由主体承载。
+            scopeQuerySupport.violationSubjectVisible(scope, record.subject) &&
+                (keyword.isNullOrBlank() || listOf(
                 record.subject.subjectNumber,
                 record.subject.subjectName,
                 record.violationType.violationName.orEmpty(),
@@ -356,7 +363,9 @@ class ViolationManagementController(
         data class Response(val items: List<PenaltyData>, val total: Int)
 
         val setting = setting()
+        val scope = dataScopeResolver.current()
         val penalties = violationRecordRepository.findAllWithViolationType()
+            .filter { scopeQuerySupport.violationSubjectVisible(scope, it.subject) }
             .filter { it.handlingStatus in setOf(ViolationRecord.HandlingStatus.CONFIRMED, ViolationRecord.HandlingStatus.HANDLED) }
             .groupBy { it.subject.id }
             .mapNotNull { (_, subjectRecords) ->

@@ -32,7 +32,7 @@ class FileController(
 ) {
     /** 接收单个 multipart 文件并返回文件元数据。 */
     @PostMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('file:upload')")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('file:upload')")
     fun upload(@RequestPart("file") file: MultipartFile): ResponseEntity<Response> {
         data class Response(
             val id: UUID,
@@ -57,7 +57,7 @@ class FileController(
 
     /** 返回指定文件的元数据和下载地址。 */
     @GetMapping("/{id}")
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('file:read')")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('file:read')")
     fun get(@PathVariable id: UUID): ResponseEntity<Response> {
         data class Response(
             val id: UUID,
@@ -82,7 +82,7 @@ class FileController(
 
     /** 以附件形式下载指定文件并恢复原始文件名。 */
     @GetMapping("/{id}/download")
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('file:read')")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('file:read')")
     fun download(@PathVariable id: UUID): ResponseEntity<FileSystemResource> {
         val fileData = fileService.openDownload(id)
         val mediaType = try {

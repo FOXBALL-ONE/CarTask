@@ -13,6 +13,9 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import top.foxball.cartask.entity.User
+import top.foxball.cartask.scope.ManagedDepartmentInput
+import top.foxball.cartask.scope.ScopeGuard
+import top.foxball.cartask.scope.WorkingDepartmentService
 import top.foxball.cartask.service.UserService
 import top.foxball.cartask.shared.Response
 import top.foxball.cartask.shared.ResponseBuilder
@@ -24,10 +27,12 @@ import java.time.LocalDateTime
 class UserController(
     private val userService: UserService,
     private val responseBuilder: ResponseBuilder,
+    private val scopeGuard: ScopeGuard,
+    private val workingDepartmentService: WorkingDepartmentService,
 ) {
     /** 文档兼容的 JSON 用户创建入口。 */
     @PostMapping(consumes = ["application/json"])
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('user:create')")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('user:create')")
     fun createDocument(@RequestBody body: DocumentUserRequest): ResponseEntity<Response> {
         data class Response(
             val id: Long,
@@ -67,7 +72,7 @@ class UserController(
 
     /** 文档兼容的 JSON 用户更新入口。 */
     @PutMapping("/{id}", consumes = ["application/json"])
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('user:update')")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('user:update')")
     fun updateDocument(@PathVariable id: Long, @RequestBody body: DocumentUserRequest): ResponseEntity<Response> {
         data class Response(
             val id: Long,
@@ -100,7 +105,7 @@ class UserController(
 
     /** 创建一个用户账户。 */
     @PostMapping
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('user:create')")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('user:create')")
     fun create(
         @RequestParam username: String,
         @RequestParam email: String,
@@ -161,7 +166,7 @@ class UserController(
 
     /** 根据并列参数批量创建用户账户。 */
     @PostMapping("/batch")
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('user:create')")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('user:create')")
     fun createBatch(
         @RequestParam username: List<String>,
         @RequestParam email: List<String>,
@@ -234,7 +239,7 @@ class UserController(
 
     /** 按用户 ID 查询账户信息。 */
     @GetMapping("/{id}")
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('user:read')")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('user:read')")
     fun get(@PathVariable id: Long): ResponseEntity<Response> {
         data class Response(
             val id: Long,
@@ -265,7 +270,7 @@ class UserController(
 
     /** 分页查询用户账户。 */
     @GetMapping
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('user:read')")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('user:read')")
     fun listDocument(
         @RequestParam(required = false) keyword: String?,
         @RequestParam(required = false) status: Int?,
@@ -302,10 +307,19 @@ class UserController(
             sourceTotal = source.total
             sourcePage++
         } while (allUsers.size < sourceTotal)
+        val scope = scopeGuard.currentScope()
+        // 客户端传的 department_id 必须与范围取交集。写成「传了就用传的、没传就用范围」是
+        // 一行数据泄露，而且读起来完全正确——部门管理只要换个 id 就能读到别的部门。
+        val requestedFilter = scopeGuard.requestedDepartment(departmentId, scope)
+        if (requestedFilter.denied) {
+            return responseBuilder.ok().data(Response(emptyList(), 0, page, pageSize)).build()
+        }
+        // 范围本身已经由 UserServiceImpl.list 下推到 SQL（导出用户走的是同一条路径），
+        // 这里只负责把客户端过滤参数与它叠加。
         val users = allUsers.filter {
             (keyword.isNullOrBlank() || it.username.contains(keyword, true) || it.name.orEmpty().contains(keyword, true) || it.phone.orEmpty().contains(keyword, true)) &&
                 (status == null || (if (it.status == User.Status.Activity) 1 else 0) == status) &&
-                (departmentId == null || it.departmentId == departmentId)
+                (requestedFilter.departmentId == null || it.departmentId == requestedFilter.departmentId)
         }
         val from = ((page - 1) * pageSize).coerceAtMost(users.size)
         val to = (from + pageSize).coerceAtMost(users.size)
@@ -325,7 +339,7 @@ class UserController(
 
     /** 兼容原有 snake_case 分页参数。 */
     @GetMapping(params = ["page_size"])
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('user:read')")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('user:read')")
     fun list(
         @RequestParam(defaultValue = "1") page: Int,
         @RequestParam(name = "page_size", defaultValue = "20") pageSize: Int,
@@ -373,7 +387,7 @@ class UserController(
 
     /** 按多个用户 ID 批量查询账户信息。 */
     @GetMapping("/batch")
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('user:read')")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('user:read')")
     fun getBatch(@RequestParam id: List<Long>): ResponseEntity<Response> {
         data class UserData(
             val id: Long,
@@ -413,7 +427,7 @@ class UserController(
 
     /** 更新指定用户账户的可变字段。 */
     @PutMapping("/{id}")
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('user:update')")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('user:update')")
     fun update(
         @PathVariable id: Long,
         @RequestParam(required = false) username: String?,
@@ -462,7 +476,7 @@ class UserController(
 
     /** 对多个用户应用相同的更新内容。 */
     @PutMapping("/batch")
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('user:update')")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('user:update')")
     fun updateBatch(
         @RequestParam id: List<Long>,
         @RequestParam(required = false) username: String?,
@@ -502,7 +516,7 @@ class UserController(
 
     /** 启停或封禁账户会撤销旧会话，独立于普通资料更新。 */
     @PutMapping("/{id}/account-status")
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('user:disable')")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('user:disable')")
     fun updateAccountStatus(
         @PathVariable id: Long,
         @RequestParam enabled: Boolean,
@@ -533,5 +547,56 @@ class UserController(
         userService.deleteBatch(id)
         val rs = Response(id)
         return responseBuilder.ok().data(rs).build()
+    }
+
+    /**
+     * 查询用户的部门管理范围。
+     *
+     * 只有超级管理员能读写：范围决定「能看多少数据」，让部门管理自己去改范围就是一条提权路径。
+     */
+    @GetMapping("/{id}/managed-departments")
+    @PreAuthorize("hasRole('SUPER_ADMIN') and hasAuthority('user:role-assign')")
+    fun managedDepartments(@PathVariable id: Long): ResponseEntity<Response> {
+        data class DepartmentData(
+            @param:JsonProperty("department_id") val departmentId: Long,
+            @param:JsonProperty("department_name") val departmentName: String,
+            @param:JsonProperty("include_descendants") val includeDescendants: Boolean,
+        )
+        data class Response(val departments: List<DepartmentData>)
+
+        val rs = Response(
+            workingDepartmentService.managedDepartmentsOf(id).map {
+                DepartmentData(it.departmentId, it.departmentName, it.includeDescendants)
+            },
+        )
+        return responseBuilder.ok().data(rs).build()
+    }
+
+    /** 整体替换用户的部门管理范围；替换会撤销该用户已签发的会话。 */
+    @PutMapping("/{id}/managed-departments")
+    @PreAuthorize("hasRole('SUPER_ADMIN') and hasAuthority('user:role-assign')")
+    fun replaceManagedDepartments(
+        @PathVariable id: Long,
+        @RequestBody body: ManagedDepartmentRequest,
+    ): ResponseEntity<Response> {
+        data class DepartmentData(
+            @param:JsonProperty("department_id") val departmentId: Long,
+            @param:JsonProperty("department_name") val departmentName: String,
+            @param:JsonProperty("include_descendants") val includeDescendants: Boolean,
+        )
+        data class Response(val departments: List<DepartmentData>)
+
+        val items = body.departments.orEmpty().map { item ->
+            ManagedDepartmentInput(
+                departmentId = requireNotNull(item.departmentId) { "部门不能为空" },
+                includeDescendants = item.includeDescendants,
+            )
+        }
+        val rs = Response(
+            workingDepartmentService.replaceManagedDepartments(id, items).map {
+                DepartmentData(it.departmentId, it.departmentName, it.includeDescendants)
+            },
+        )
+        return responseBuilder.ok().message("部门管理范围已更新").data(rs).build()
     }
 }

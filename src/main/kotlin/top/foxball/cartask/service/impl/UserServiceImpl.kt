@@ -1,6 +1,8 @@
 package top.foxball.cartask.service.impl
 
 import jakarta.transaction.Transactional
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.PageRequest
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.security.access.AccessDeniedException
@@ -12,6 +14,8 @@ import top.foxball.cartask.entity.User
 import top.foxball.cartask.repository.DepartmentRepository
 import top.foxball.cartask.repository.PositionRepository
 import top.foxball.cartask.repository.UserRepository
+import top.foxball.cartask.scope.DataScopeResolver
+import top.foxball.cartask.scope.ScopeKind
 import top.foxball.cartask.repository.RoleRepository
 import top.foxball.cartask.service.UserService
 import top.foxball.cartask.audit.AuditAction
@@ -28,6 +32,7 @@ class UserServiceImpl(
     private val passwordEncoder: PasswordEncoder,
     private val tokenSessionRepository: RedisTokenSessionRepository,
     private val roleAssignmentPolicy: RoleAssignmentPolicy,
+    private val dataScopeResolver: DataScopeResolver,
     private val auditService: AuditService? = null,
     private val roleRepository: RoleRepository? = null,
 ) : UserService {
@@ -107,12 +112,36 @@ class UserServiceImpl(
         return ids.map { toData(usersById.getValue(it)) }
     }
 
-    /** 校验分页参数后返回用户分页数据。 */
+    /**
+     * 校验分页参数后返回用户分页数据。
+     *
+     * 这里同时承担数据范围过滤：Excel 导出用户是靠循环调用本方法捞全量的，范围过滤放在这一层，
+     * 接口与导出就都受同一套规则约束，不需要在导出侧再写一遍。
+     */
     @Transactional
     override fun list(page: Int, pageSize: Int): UserService.PageData {
         require(page >= 1) { "页码必须大于 0" }
         require(pageSize in 1..100) { "每页数量必须在 1 到 100 之间" }
-        val result = userRepository.findAll(PageRequest.of(page - 1, pageSize))
+        val scope = dataScopeResolver.current()
+        val pageable = PageRequest.of(page - 1, pageSize)
+        // 范围必须下推到 SQL：本方法返回 totalElements，事后过滤会让总数失真，
+        // 而导出的 while 循环是照着这个总数捞的，少捞了也不会报错。
+        val result = when (scope.kind) {
+            ScopeKind.ALL -> userRepository.findAll(pageable)
+
+            ScopeKind.DEPARTMENTS -> if (scope.departmentIds.isEmpty()) {
+                Page.empty<User>(pageable)
+            } else {
+                userRepository.findAllByDepartment_IdIn(scope.departmentIds, pageable)
+            }
+
+            // 本人范围只会被普通用户命中，而普通用户本就没有用户管理权限；
+            // 这里只返回本人，避免一旦将来放开权限就直接看到全员。
+            ScopeKind.SELF -> {
+                val self = userRepository.findById(requireNotNull(scope.userId)).orElse(null)
+                if (self == null) Page.empty<User>(pageable) else PageImpl(listOf(self), pageable, 1)
+            }
+        }
         return UserService.PageData(result.content.map(::toData), page, pageSize, result.totalElements)
     }
 
