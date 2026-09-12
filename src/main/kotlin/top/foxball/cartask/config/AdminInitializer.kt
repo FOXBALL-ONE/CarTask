@@ -8,6 +8,7 @@ import org.springframework.boot.context.event.ApplicationReadyEvent
 import org.springframework.core.Ordered
 import org.springframework.core.annotation.Order
 import org.springframework.stereotype.Component
+import top.foxball.cartask.authentication.SecurityRole
 import top.foxball.cartask.entity.Role
 import top.foxball.cartask.entity.User
 import top.foxball.cartask.repository.RoleRepository
@@ -16,6 +17,10 @@ import java.time.LocalDateTime
 
 /**
  * 按环境变量配置，在启动完成后创建或强制更新一个管理员账号。
+ *
+ * 这个账号是库的引导账号，角色必须是 [SecurityRole.SUPER_ADMIN]：`role:manage`、
+ * `permission:manage`、`user:role-assign` 这些治理权限只有超级管理员拿得到，建成平台管理
+ * （ADMIN）的话，全新库里没有任何人能给自己或别人提权，只能改库。
  *
  * 运行顺序固定为早于 [PermissionCatalogInitializer]：后者只在角色行已存在时才按角色填充权限，
  * 若它先跑完再建角色行，这个管理员会带着一个零权限的角色登录，表现为登录后什么都看不到。
@@ -37,24 +42,25 @@ class AdminInitializer(
         if (!properties.enabled) return
         properties.validate()
 
-        val adminRole = roleRepository.findByNameIgnoreCase(ADMIN_ROLE)
+        val adminRole = roleRepository.findByNameIgnoreCase(SecurityRole.SUPER_ADMIN)
             ?: roleRepository.save(
                 Role().apply {
-                    name = ADMIN_ROLE
-                    description = "管理员"
+                    name = SecurityRole.SUPER_ADMIN
+                    description = "超级管理员"
                     enabled = true
                 },
             )
-        val existing = userRepository.findByUsername(properties.username.trim())
+        val username = properties.username.trim()
+        val existing = userRepository.findByUsername(username)
         if (existing == null) {
             val now = LocalDateTime.now()
             userRepository.save(
                 User().apply {
-                    username = properties.username.trim()
+                    this.username = username
                     nickName = "管理员"
-                    email = "${properties.username.trim()}@local.invalid"
+                    email = "${username}@local.invalid"
                     passwordHash = passwordEncoder.encode(properties.password).toString()
-                    role = ADMIN_ROLE
+                    role = SecurityRole.SUPER_ADMIN
                     roles = linkedSetOf(adminRole)
                     status = User.Status.Activity
                     enabled = true
@@ -62,25 +68,33 @@ class AdminInitializer(
                     updatedAt = now
                 },
             )
-            logger.info("管理员初始化完成: username={}", properties.username.trim())
+            logger.info("管理员初始化完成: username={}", username)
             return
         }
+
+        // 角色无条件对齐：它是这个初始化器自身的契约，不是需要保留的人工配置。上一版把默认
+        // 管理员建成了平台管理（ADMIN），只有新建时才写角色的话，存量库重启一次也修不回来。
+        val roleAligned = existing.role != SecurityRole.SUPER_ADMIN
+        if (roleAligned) {
+            existing.role = SecurityRole.SUPER_ADMIN
+            existing.roles = linkedSetOf(adminRole)
+        }
         if (!properties.forceWrite) {
-            logger.info("管理员已存在，跳过初始化: username={}", properties.username.trim())
+            if (!roleAligned) {
+                logger.info("管理员已存在，跳过初始化: username={}", username)
+                return
+            }
+            existing.updatedAt = LocalDateTime.now()
+            userRepository.save(existing)
+            logger.info("管理员角色对齐为超级管理员: username={}", username)
             return
         }
 
         existing.passwordHash = passwordEncoder.encode(properties.password).toString()
-        existing.role = ADMIN_ROLE
-        existing.roles = linkedSetOf(adminRole)
         existing.status = User.Status.Activity
         existing.enabled = true
         existing.updatedAt = LocalDateTime.now()
         userRepository.save(existing)
-        logger.info("管理员初始化强制写入完成: username={}", properties.username.trim())
-    }
-
-    private companion object {
-        const val ADMIN_ROLE = "ADMIN"
+        logger.info("管理员初始化强制写入完成: username={}", username)
     }
 }
