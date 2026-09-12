@@ -57,7 +57,17 @@ class SynCarCapInfoTaskTests {
     }
 
     @Test
-    fun `预检首次同步时报告近一天内待同步记录且不写入检查点`() {
+    fun `补偿同步按配置的上海时区 cron 执行`() {
+        val scheduled = SynCarCapInfoTask::class.java
+            .getDeclaredMethod("reconcileCarCapInfoList")
+            .getAnnotation(Scheduled::class.java)
+
+        assertEquals("\${keytop.car-cap-info-reconciliation-cron:0 30 3 * * *}", scheduled.cron)
+        assertEquals("Asia/Shanghai", scheduled.zone)
+    }
+
+    @Test
+    fun `预检首次同步时报告近三十天内待同步记录且不写入检查点`() {
         whenever(syncCheckpointRepository.findFirstBySyncKey("keytop.car_cap_info")).thenReturn(null)
         whenever(keytopService.getCarInoutInfo(eq(1), eq(1), isNull(), anyOrNull(), anyOrNull())).thenReturn(
             KeytopResponse(0, "success", objectMapper.readTree("""{"totalCount":"42","detailList":[]}""")),
@@ -67,14 +77,34 @@ class SynCarCapInfoTaskTests {
 
         assertEquals(true, result.initialSync)
         assertEquals(42, result.pendingCount)
-        assertEquals(Duration.ofDays(1), Duration.between(result.startTime, result.endTime))
+        assertEquals(Duration.ofDays(30), Duration.between(result.startTime, result.endTime))
         assertEquals(null, result.checkpointTime)
         verify(syncCheckpointRepository, never()).save(any())
         verify(repository, never()).save(any())
     }
 
     @Test
-    fun `无同步快照时同步近一天并写入当前时刻快照`() {
+    fun `预检已有检查点时从回看窗口起点查询`() {
+        val checkpointTime = LocalDateTime.of(2026, 9, 12, 8, 0)
+        whenever(syncCheckpointRepository.findFirstBySyncKey("keytop.car_cap_info")).thenReturn(
+            SyncCheckpoint().apply {
+                id = 1
+                syncKey = "keytop.car_cap_info"
+                cursorTime = checkpointTime
+            },
+        )
+        whenever(keytopService.getCarInoutInfo(eq(1), eq(1), isNull(), anyOrNull(), anyOrNull())).thenReturn(
+            KeytopResponse(0, "success", objectMapper.readTree("""{"totalCount":"0","detailList":[]}""")),
+        )
+
+        val result = task.previewSynchronization()
+
+        assertEquals(checkpointTime.minusMinutes(30), result.startTime)
+        assertEquals(checkpointTime, result.checkpointTime)
+    }
+
+    @Test
+    fun `无同步快照时同步近三十天并写入当前时刻快照`() {
         whenever(syncCheckpointRepository.findBySyncKey("keytop.car_cap_info")).thenReturn(null)
         whenever(repository.findTopByOrderByInAndOutTimeDescIdDesc()).thenReturn(null)
         whenever(
@@ -120,7 +150,7 @@ class SynCarCapInfoTaskTests {
         val endTimeCaptor = argumentCaptor<LocalDateTime>()
         verify(keytopService).getCarInoutInfo(eq(1), eq(2), isNull(), startTimeCaptor.capture(), endTimeCaptor.capture())
         verify(keytopService).getCarInoutInfo(eq(2), eq(2), isNull(), anyOrNull(), eq(endTimeCaptor.firstValue))
-        assertEquals(Duration.ofDays(1), Duration.between(startTimeCaptor.firstValue, endTimeCaptor.firstValue))
+        assertEquals(Duration.ofDays(30), Duration.between(startTimeCaptor.firstValue, endTimeCaptor.firstValue))
         verify(repository, times(3)).save(captor.capture())
         val records = captor.allValues
         assertEquals(AccessRecord.InAndOut.IN, records[0].inAndOut)
@@ -165,7 +195,7 @@ class SynCarCapInfoTaskTests {
     }
 
     @Test
-    fun `缺少快照时忽略本地最新记录并按近一天范围同步`() {
+    fun `缺少快照时忽略本地最新记录并按近三十天范围同步`() {
         val latest = AccessRecord().apply {
             id = 9
             carNumber = "沪A12345"
@@ -201,7 +231,7 @@ class SynCarCapInfoTaskTests {
         val startTimeCaptor = argumentCaptor<LocalDateTime>()
         val endTimeCaptor = argumentCaptor<LocalDateTime>()
         verify(keytopService).getCarInoutInfo(eq(1), eq(2), isNull(), startTimeCaptor.capture(), endTimeCaptor.capture())
-        assertEquals(Duration.ofDays(1), Duration.between(startTimeCaptor.firstValue, endTimeCaptor.firstValue))
+        assertEquals(Duration.ofDays(30), Duration.between(startTimeCaptor.firstValue, endTimeCaptor.firstValue))
         verify(repository).save(existing)
         assertEquals("已更新", existing.releaseInstructions)
     }
@@ -242,10 +272,46 @@ class SynCarCapInfoTaskTests {
         task.synCarCapInfoList()
 
         val endTimeCaptor = argumentCaptor<LocalDateTime>()
-        verify(keytopService).getCarInoutInfo(eq(1), eq(2), isNull(), eq(LocalDateTime.of(2026, 8, 20, 9, 0)), endTimeCaptor.capture())
+        verify(keytopService).getCarInoutInfo(eq(1), eq(2), isNull(), eq(LocalDateTime.of(2026, 8, 20, 8, 30)), endTimeCaptor.capture())
         assertEquals(endTimeCaptor.firstValue, checkpoint.cursorTime)
         assertEquals(null, checkpoint.cursorExternalId)
         assertEquals(SyncCheckpoint.Status.SUCCESS, checkpoint.status)
+    }
+
+    @Test
+    fun `补偿同步查询最近七十二小时且不推进主检查点`() {
+        val cursorTime = LocalDateTime.of(2026, 9, 12, 8, 0)
+        val checkpoint = SyncCheckpoint().apply {
+            id = 1
+            syncKey = "keytop.car_cap_info"
+            this.cursorTime = cursorTime
+            cursorExternalId = "T-8"
+            status = SyncCheckpoint.Status.SUCCESS
+        }
+        whenever(syncCheckpointRepository.findBySyncKey("keytop.car_cap_info")).thenReturn(checkpoint)
+        whenever(keytopService.getCarInoutInfo(eq(1), eq(2), isNull(), anyOrNull(), anyOrNull())).thenReturn(
+            KeytopResponse(0, "success", objectMapper.readTree("""{"totalCount":"0","detailList":[]}""")),
+        )
+        val startTimeCaptor = argumentCaptor<LocalDateTime>()
+        val endTimeCaptor = argumentCaptor<LocalDateTime>()
+        val command = argumentCaptor<SyncTaskRunCommand>()
+
+        task.reconcileCarCapInfoList()
+
+        verify(keytopService).getCarInoutInfo(
+            eq(1),
+            eq(2),
+            isNull(),
+            startTimeCaptor.capture(),
+            endTimeCaptor.capture(),
+        )
+        assertEquals(Duration.ofHours(72), Duration.between(startTimeCaptor.firstValue, endTimeCaptor.firstValue))
+        assertEquals(cursorTime, checkpoint.cursorTime)
+        assertEquals("T-8", checkpoint.cursorExternalId)
+        assertEquals(SyncCheckpoint.Status.SUCCESS, checkpoint.status)
+        verify(historyService).record(command.capture())
+        assertEquals("car_cap_info.reconciliation", command.firstValue.taskKey)
+        assertEquals(SyncTaskRun.Status.SUCCESS, command.firstValue.status)
     }
 
     @Test
@@ -259,7 +325,7 @@ class SynCarCapInfoTaskTests {
             status = SyncCheckpoint.Status.SUCCESS
         }
         whenever(syncCheckpointRepository.findBySyncKey("keytop.car_cap_info")).thenReturn(checkpoint)
-        whenever(keytopService.getCarInoutInfo(eq(1), eq(2), isNull(), eq(cursorTime), anyOrNull()))
+        whenever(keytopService.getCarInoutInfo(eq(1), eq(2), isNull(), eq(cursorTime.minusMinutes(30)), anyOrNull()))
             .thenReturn(KeytopResponse(1, "failed", null))
 
         task.synCarCapInfoList()
@@ -371,7 +437,7 @@ class SynCarCapInfoTaskTests {
             cursorExternalId = "T-0"
         }
         whenever(syncCheckpointRepository.findBySyncKey("keytop.car_cap_info")).thenReturn(checkpoint)
-        whenever(keytopService.getCarInoutInfo(eq(1), eq(2), isNull(), eq(cursorTime), anyOrNull())).thenReturn(
+        whenever(keytopService.getCarInoutInfo(eq(1), eq(2), isNull(), eq(cursorTime.minusMinutes(30)), anyOrNull())).thenReturn(
             KeytopResponse(
                 0,
                 "success",
@@ -380,7 +446,7 @@ class SynCarCapInfoTaskTests {
                 ),
             ),
         )
-        whenever(keytopService.getCarInoutInfo(eq(2), eq(2), isNull(), eq(cursorTime), anyOrNull()))
+        whenever(keytopService.getCarInoutInfo(eq(2), eq(2), isNull(), eq(cursorTime.minusMinutes(30)), anyOrNull()))
             .thenReturn(KeytopResponse(1, "failed", null))
         whenever(repository.findBySourceRecordId(any())).thenReturn(null)
         whenever(repository.findByIdentity(any(), any(), any())).thenReturn(null)

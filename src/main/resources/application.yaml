@@ -76,3 +76,6 @@ keytop:
   area-sync-cron: ${KEYTOP_AREA_SYNC_CRON:0 0 2 * * *}
   car-cap-info-sync-cron: ${KEYTOP_CAR_CAP_INFO_SYNC_CRON:0 */5 * * * *}
   car-cap-info-page-size: ${KEYTOP_CAR_CAP_INFO_PAGE_SIZE:100}
+  car-cap-info-overlap-window: ${KEYTOP_CAR_CAP_INFO_OVERLAP_WINDOW:30m}
+  car-cap-info-reconciliation-window: ${KEYTOP_CAR_CAP_INFO_RECONCILIATION_WINDOW:72h}
+  car-cap-info-reconciliation-cron: ${KEYTOP_CAR_CAP_INFO_RECONCILIATION_CRON:0 30 3 * * *}
