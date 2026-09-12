@@ -256,7 +256,7 @@
         </template>
         <template v-else>
           <p class="action-label">确认执行</p>
-          <p class="action-copy">将以业主手机号作为登录名创建账号；已存在的账号自动跳过，不会重复创建。同一业主的多个车牌只处理一次。</p>
+          <p class="action-copy">将以业主手机号作为登录名创建账号，并按车主信息的部门字段挂靠部门（缺同名部门时自动新建）。已存在的账号自动跳过，不会重复创建。同一业主的多个车牌只处理一次。</p>
           <div class="confirm-actions">
             <button class="cancel-button" type="button" @click="accountConfirming = false">取消</button>
             <button class="sync-button" type="button" :disabled="accountRunning" @click="runAccountGeneration">
@@ -379,7 +379,7 @@
     </section>
     <section class="sync-note sync-note--accounts">
       <span class="material-icons-outlined">key</span>
-      <div><strong>账号规则</strong><p>仅处理近 30 天有进出记录的车牌，车牌去除间隔符后匹配有效车牌档案并关联在营车主。业主手机号即登录名，初始密码统一发放，请提醒业主及时修改。缺少车牌档案或车主已停用的记录不会处理，先执行「车主信息补建」补全资料后可再次执行。</p></div>
+      <div><strong>账号规则</strong><p>仅处理近 30 天有进出记录的车牌，车牌去除间隔符后匹配有效车牌档案并关联在营车主。业主手机号即登录名，初始密码统一发放，请提醒业主及时修改。账号部门取自车主信息的部门字段，平台没有同名部门时按名称自动新建（编码以 AUTO- 开头），避免账号无处挂靠。缺少车牌档案或车主已停用的记录不会处理，先执行「车主信息补建」补全资料后可再次执行。</p></div>
     </section>
   </section>
 </template>

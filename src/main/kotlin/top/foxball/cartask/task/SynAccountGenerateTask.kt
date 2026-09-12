@@ -5,15 +5,18 @@ import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
 import top.foxball.cartask.audit.AuditRequestContext
+import top.foxball.cartask.entity.Department
 import top.foxball.cartask.entity.SyncTaskRun
 import top.foxball.cartask.handler.AccountGenerateInProgressException
 import top.foxball.cartask.repository.AccessRecordRepository
+import top.foxball.cartask.repository.DepartmentRepository
 import top.foxball.cartask.repository.ParkingOwnerRepository
 import top.foxball.cartask.repository.ParkingPlateRepository
 import top.foxball.cartask.service.SyncTaskHistoryService
 import top.foxball.cartask.service.SyncTaskRunCommand
 import top.foxball.cartask.service.SyncTaskProgressService
 import top.foxball.cartask.service.UserService
+import java.security.MessageDigest
 import java.time.LocalDateTime
 import java.util.concurrent.locks.ReentrantLock
 
@@ -32,9 +35,6 @@ data class AccountGenerateResult(
  * 账号的所属部门取自车主档案的部门字段：同名部门已存在则直接挂靠，不存在则按「部门名称 + 自动编码」
  * 新建，使账号归属不依赖预先存在的部门数据。
  *
- * 账号的所属部门取自车主档案的部门字段：同名部门已存在则直接挂靠，不存在则按「部门名称 + 自动编码」
- * 新建，使账号归属不依赖预先存在的部门数据。
- *
  * 车主档案缺失或已停用的车牌由 [SynOwnerArchiveTask] 在更早的时间点单独补建，本任务只负责账号阶段，
  * 因此不访问科拓接口；补建任务跑过之后，下一次执行本任务即可覆盖到新车主。
  */
@@ -44,6 +44,7 @@ class SynAccountGenerateTask(
     private val parkingPlateRepository: ParkingPlateRepository,
     private val parkingOwnerRepository: ParkingOwnerRepository,
     private val accessRecordRepository: AccessRecordRepository,
+    private val departmentRepository: DepartmentRepository,
     private val syncTaskHistoryService: SyncTaskHistoryService,
     private val syncTaskProgressService: SyncTaskProgressService = SyncTaskProgressService(),
 ) {
@@ -116,6 +117,9 @@ class SynAccountGenerateTask(
         val existingUsernames = userService.findExistingUsernames(
             ownerById.values.mapNotNull { it.phone.trim().takeIf(String::isNotEmpty) }.toSet(),
         )
+        // 车主部门按名称索引；本次新建的部门同步写入，同一部门下的多个车主只建一次。
+        val departmentByName = departmentRepository.findAll()
+            .associateByTo(mutableMapOf()) { it.name.trim() }
 
         activePlates.forEachIndexed { index, plate ->
             syncTaskProgressService.update(TASK_KEY, index, activePlates.size)
@@ -155,7 +159,7 @@ class SynAccountGenerateTask(
                         email = "${phone}@auto.local",
                         credential = INITIAL_PASSWORD,
                         phone = phone,
-                        departmentId = DEPARTMENT_ID,
+                        departmentId = ensureDepartment(owner.dept, departmentByName)?.id,
                         nickName = nickName,
                     ),
                 )
@@ -169,6 +173,30 @@ class SynAccountGenerateTask(
 
         logger.info("车辆业主账号生成完成：创建 {} 个，跳过 {} 个，失败 {} 个", createdCount, skippedCount, failedCount)
         return AccountGenerateResult(createdCount, skippedCount, failedCount, LocalDateTime.now())
+    }
+
+    /**
+     * 取车主档案部门字段对应的平台部门，缺失时按名称新建：车主部门在旧系统里只是文本，
+     * 平台部门表没有对应记录，账号会因为没有部门可挂而创建失败。
+     * 新建的部门编码由名称摘要生成，保证同一名称重复执行得到同一个编码，不会重复建部门。
+     */
+    private fun ensureDepartment(name: String, cache: MutableMap<String, Department>): Department? {
+        val departmentName = name.trim().takeIf(String::isNotEmpty) ?: return null
+        return cache.getOrPut(departmentName) {
+            // 编码取名称摘要：同一名称重复执行得到同一个编码，换一次进程也不会重复建部门。
+            val code = MessageDigest.getInstance("SHA-256")
+                .digest(departmentName.toByteArray(Charsets.UTF_8))
+                .take(DIGEST_BYTES)
+                .joinToString("") { "%02X".format(it) }
+            departmentRepository.save(
+                Department().apply {
+                    this.name = departmentName
+                    departmentNumber = "$DEPARTMENT_CODE_PREFIX$code"
+                    sortOrder = 0
+                    status = STATUS_ENABLED
+                },
+            )
+        }
     }
 
     /**
@@ -211,9 +239,14 @@ class SynAccountGenerateTask(
     private companion object {
         const val TASK_KEY = "account.generate"
         const val TASK_NAME = "车辆业主账号生成"
-        const val DEPARTMENT_ID = 229L
         const val INITIAL_PASSWORD = "Fqjg20221022"
         const val STATUS_ENABLED = 1
+
+        /** 自动创建部门的编码前缀，便于与人工维护的部门编码区分。 */
+        const val DEPARTMENT_CODE_PREFIX = "AUTO-"
+
+        /** 部门编码摘要保留的字节数，5 字节即 10 位十六进制。 */
+        const val DIGEST_BYTES = 5
 
         /** 账号生成数据源的进出记录回溯天数。 */
         const val ACTIVE_WINDOW_DAYS = 30L

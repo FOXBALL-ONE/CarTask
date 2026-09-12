@@ -12,10 +12,12 @@ import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import org.springframework.scheduling.annotation.Scheduled
+import top.foxball.cartask.entity.Department
 import top.foxball.cartask.entity.ParkingOwner
 import top.foxball.cartask.entity.ParkingPlate
 import top.foxball.cartask.entity.SyncTaskRun
 import top.foxball.cartask.repository.AccessRecordRepository
+import top.foxball.cartask.repository.DepartmentRepository
 import top.foxball.cartask.repository.ParkingOwnerRepository
 import top.foxball.cartask.repository.ParkingPlateRepository
 import top.foxball.cartask.service.SyncTaskHistoryService
@@ -31,12 +33,14 @@ class SynAccountGenerateTaskTests {
     private val parkingPlateRepository = mock<ParkingPlateRepository>()
     private val parkingOwnerRepository = mock<ParkingOwnerRepository>()
     private val accessRecordRepository = mock<AccessRecordRepository>()
+    private val departmentRepository = mock<DepartmentRepository>()
     private val historyService = mock<SyncTaskHistoryService>()
     private val task = SynAccountGenerateTask(
         userService,
         parkingPlateRepository,
         parkingOwnerRepository,
         accessRecordRepository,
+        departmentRepository,
         historyService,
     )
 
@@ -52,11 +56,17 @@ class SynAccountGenerateTaskTests {
         updatedAt = savedAt
     }
 
-    private fun owner(id: Long, name: String, phone: String, status: Int = 1): ParkingOwner = ParkingOwner().apply {
+    private fun owner(
+        id: Long,
+        name: String,
+        phone: String,
+        status: Int = 1,
+        dept: String = "运营部",
+    ): ParkingOwner = ParkingOwner().apply {
         this.id = id
         cardId = "CARD-$id"
         this.name = name
-        dept = "运营部"
+        this.dept = dept
         this.phone = phone
         spotCount = 1
         plateCount = 1
@@ -66,12 +76,29 @@ class SynAccountGenerateTaskTests {
         updatedAt = savedAt
     }
 
+    private fun department(id: Long, name: String): Department = Department().apply {
+        this.id = id
+        this.name = name
+        departmentNumber = "DEPT-$id"
+        sortOrder = 0
+        status = 1
+    }
+
     /** 模拟车牌档案与车主档案的关联查询。 */
     private fun prepareArchives(vararg plates: ParkingPlate, owners: List<ParkingOwner> = emptyList()) {
         whenever(parkingPlateRepository.findAll()).thenReturn(plates.toList())
         whenever(parkingOwnerRepository.findAllById(any())).thenAnswer { invocation ->
             val ids = invocation.getArgument<Collection<Long>>(0)
             owners.filter { it.id in ids }
+        }
+    }
+
+    /** 模拟部门查询与落库：真实 JPA 会把自增主键回填到实体上。 */
+    private fun prepareDepartments(vararg departments: Department) {
+        whenever(departmentRepository.findAll()).thenReturn(departments.toList())
+        var nextId = 500L
+        whenever(departmentRepository.save(any())).thenAnswer { invocation ->
+            invocation.getArgument<Department>(0).apply { id = nextId++ }
         }
     }
 
@@ -92,6 +119,7 @@ class SynAccountGenerateTaskTests {
             plate("粤A·12345", ownerId = 1),
             owners = listOf(owner(1, "张三", " 13800138000 ")),
         )
+        prepareDepartments()
         whenever(userService.findExistingUsernames(setOf("13800138000"))).thenReturn(emptySet())
         val command = argumentCaptor<UserService.CreateCommand>()
         val startTimeCaptor = argumentCaptor<LocalDateTime>()
@@ -107,7 +135,96 @@ class SynAccountGenerateTaskTests {
         assertEquals("13800138000@auto.local", command.firstValue.email)
         assertEquals("Fqjg20221022", command.firstValue.credential)
         assertEquals("张三", command.firstValue.nickName)
-        assertEquals(229L, command.firstValue.departmentId)
+        assertEquals(500L, command.firstValue.departmentId)
+    }
+
+    @Test
+    fun `车主部门不存在时按名称新建部门并挂靠账号`() {
+        whenever(accessRecordRepository.findDistinctCarNumbersSince(any())).thenReturn(listOf("沪A00001"))
+        prepareArchives(
+            plate("沪A00001", ownerId = 1),
+            owners = listOf(owner(1, "张三", "13800138000", dept = "运营部")),
+        )
+        prepareDepartments()
+        whenever(userService.findExistingUsernames(setOf("13800138000"))).thenReturn(emptySet())
+        val departmentCaptor = argumentCaptor<Department>()
+        val commandCaptor = argumentCaptor<UserService.CreateCommand>()
+
+        val result = task.generate()
+
+        verify(departmentRepository).save(departmentCaptor.capture())
+        assertEquals("运营部", departmentCaptor.firstValue.name)
+        assertEquals(1, departmentCaptor.firstValue.status)
+        assertTrue(
+            departmentCaptor.firstValue.departmentNumber.startsWith("AUTO-"),
+            "自动创建的部门编码应带 AUTO- 前缀，实际 ${departmentCaptor.firstValue.departmentNumber}",
+        )
+        verify(userService).create(commandCaptor.capture())
+        assertEquals(500L, commandCaptor.firstValue.departmentId)
+        assertEquals(1, result.createdCount)
+    }
+
+    @Test
+    fun `车主部门已存在时直接复用不新建`() {
+        whenever(accessRecordRepository.findDistinctCarNumbersSince(any())).thenReturn(listOf("沪A00001"))
+        prepareArchives(
+            plate("沪A00001", ownerId = 1),
+            owners = listOf(owner(1, "张三", "13800138000", dept = "运营部")),
+        )
+        prepareDepartments(department(7L, "运营部"))
+        whenever(userService.findExistingUsernames(setOf("13800138000"))).thenReturn(emptySet())
+        val commandCaptor = argumentCaptor<UserService.CreateCommand>()
+
+        task.generate()
+
+        verify(departmentRepository, never()).save(any())
+        verify(userService).create(commandCaptor.capture())
+        assertEquals(7L, commandCaptor.firstValue.departmentId)
+    }
+
+    @Test
+    fun `同一部门的多个车主只新建一次部门`() {
+        whenever(accessRecordRepository.findDistinctCarNumbersSince(any()))
+            .thenReturn(listOf("沪A00001", "沪A00002"))
+        prepareArchives(
+            plate("沪A00001", ownerId = 1),
+            plate("沪A00002", ownerId = 2),
+            owners = listOf(
+                owner(1, "张三", "13800138000", dept = "运营部"),
+                owner(2, "李四", "13800138001", dept = "运营部"),
+            ),
+        )
+        prepareDepartments()
+        whenever(
+            userService.findExistingUsernames(setOf("13800138000", "13800138001")),
+        ).thenReturn(emptySet())
+        val commandCaptor = argumentCaptor<UserService.CreateCommand>()
+
+        val result = task.generate()
+
+        verify(departmentRepository, times(1)).save(any())
+        verify(userService, times(2)).create(commandCaptor.capture())
+        assertEquals(500L, commandCaptor.allValues[0].departmentId)
+        assertEquals(500L, commandCaptor.allValues[1].departmentId)
+        assertEquals(2, result.createdCount)
+    }
+
+    @Test
+    fun `车主部门为空时账号不挂部门`() {
+        whenever(accessRecordRepository.findDistinctCarNumbersSince(any())).thenReturn(listOf("沪A00001"))
+        prepareArchives(
+            plate("沪A00001", ownerId = 1),
+            owners = listOf(owner(1, "张三", "13800138000", dept = " ")),
+        )
+        prepareDepartments()
+        whenever(userService.findExistingUsernames(setOf("13800138000"))).thenReturn(emptySet())
+        val commandCaptor = argumentCaptor<UserService.CreateCommand>()
+
+        task.generate()
+
+        verify(departmentRepository, never()).save(any())
+        verify(userService).create(commandCaptor.capture())
+        assertNull(commandCaptor.firstValue.departmentId)
     }
 
     @Test
@@ -123,6 +240,7 @@ class SynAccountGenerateTaskTests {
                 owner(4, "赵六", " "),
             ),
         )
+        prepareDepartments()
         whenever(userService.findExistingUsernames(emptySet())).thenReturn(emptySet())
 
         val result = task.generate()
@@ -145,6 +263,7 @@ class SynAccountGenerateTaskTests {
                 owner(2, "李四", "13800138001"),
             ),
         )
+        prepareDepartments()
         whenever(
             userService.findExistingUsernames(setOf("13800138000", "13800138001")),
         ).thenReturn(emptySet())
@@ -181,6 +300,7 @@ class SynAccountGenerateTaskTests {
             plate("粤A12345", ownerId = 1),
             owners = listOf(owner(1, "张三", "13800138000")),
         )
+        prepareDepartments()
         whenever(userService.findExistingUsernames(setOf("13800138000"))).thenReturn(emptySet())
         val command = argumentCaptor<SyncTaskRunCommand>()
 
