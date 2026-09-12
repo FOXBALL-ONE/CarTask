@@ -12,7 +12,13 @@ import top.foxball.cartask.entity.Permission
 import top.foxball.cartask.repository.PermissionRepository
 import top.foxball.cartask.repository.RoleRepository
 
-/** 补齐内置权限字典，不覆盖数据库中已有权限的名称或启用状态。 */
+/**
+ * 补齐内置权限字典，不覆盖数据库中已有权限的名称或启用状态。
+ *
+ * 必须跑在角色初始化器之后：权限是按角色行填充的，角色行还不存在时这一步会整段跳过，
+ * 结果是那个角色能登录但没有任何权限。用显式 @Order 固定，不依赖同序监听器的注册顺序。
+ * @Order 必须标在方法上——ApplicationListenerMethodAdapter 只读方法上的注解，标在类上会被忽略。
+ */
 @Component
 class PermissionCatalogInitializer(
     private val permissionRepository: PermissionRepository,

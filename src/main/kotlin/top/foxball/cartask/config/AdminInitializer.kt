@@ -5,6 +5,8 @@ import org.slf4j.LoggerFactory
 import org.springframework.context.event.EventListener
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.boot.context.event.ApplicationReadyEvent
+import org.springframework.core.Ordered
+import org.springframework.core.annotation.Order
 import org.springframework.stereotype.Component
 import top.foxball.cartask.entity.Role
 import top.foxball.cartask.entity.User
@@ -12,7 +14,13 @@ import top.foxball.cartask.repository.RoleRepository
 import top.foxball.cartask.repository.UserRepository
 import java.time.LocalDateTime
 
-/** 按环境变量配置，在启动完成后创建或强制更新一个管理员账号。 */
+/**
+ * 按环境变量配置，在启动完成后创建或强制更新一个管理员账号。
+ *
+ * 运行顺序固定为早于 [PermissionCatalogInitializer]：后者只在角色行已存在时才按角色填充权限，
+ * 若它先跑完再建角色行，这个管理员会带着一个零权限的角色登录，表现为登录后什么都看不到。
+ * @Order 必须标在方法上——ApplicationListenerMethodAdapter 只读方法上的注解，标在类上会被忽略。
+ */
 @Component
 class AdminInitializer(
     private val properties: AdminInitializerProperties,
@@ -22,6 +30,7 @@ class AdminInitializer(
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
 
+    @Order(Ordered.LOWEST_PRECEDENCE - 50)
     @EventListener(classes = [ApplicationReadyEvent::class])
     @Transactional
     fun write() {
