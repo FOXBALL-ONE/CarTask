@@ -4,10 +4,15 @@ import org.springframework.security.access.AccessDeniedException
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.stereotype.Component
 
-/** 防止普通管理员授予或修改管理员及超级管理员角色。 */
+/**
+ * 防止普通管理员授予或修改管理员及超级管理员角色。
+ *
+ * 部门管理持有 user:create / owner:manage 等权限，而 Excel 导入与用户创建都会把请求里的
+ * 角色字符串交给这里校验，因此 DEPT_ADMIN 必须与 ADMIN 同等受保护，否则是一条直接的提权路径。
+ */
 @Component
 class RoleAssignmentPolicy {
-    private val protectedRoles = setOf("SUPER_ADMIN", "ADMIN")
+    private val protectedRoles = setOf(SecurityRole.SUPER_ADMIN, SecurityRole.ADMIN, SecurityRole.DEPT_ADMIN)
 
     fun validateAssignment(role: String) {
         val normalizedRole = SecurityRole.normalize(role)

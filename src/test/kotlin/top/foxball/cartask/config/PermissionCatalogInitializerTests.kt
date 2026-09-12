@@ -51,6 +51,70 @@ class PermissionCatalogInitializerTests {
     }
 
     @Test
+    fun `部门管理角色获得业务权限但不含治理与无部门关联的只读权限`() {
+        val complete = PermissionCatalog.definitions.map { definition ->
+            Permission().apply { code = definition.code; name = definition.name }
+        }
+        whenever(permissionRepository.findAll()).thenReturn(complete)
+        val deptAdmin = top.foxball.cartask.entity.Role().apply { name = "DEPT_ADMIN" }
+        whenever(roleRepository.findByNameIgnoreCase("DEPT_ADMIN")).thenReturn(deptAdmin)
+
+        PermissionCatalogInitializer(permissionRepository, roleRepository).write()
+
+        val granted = deptAdmin.permissions.map { it.code }.toSet()
+        assertTrue(
+            granted.containsAll(
+                listOf(
+                    "vehicle-record:read",
+                    "person-record:read",
+                    "owner:manage",
+                    "plate:manage",
+                    "gate-person:read",
+                    "user:create",
+                ),
+            ),
+        )
+        val denied = setOf(
+            "role:manage",
+            "permission:manage",
+            "user:role-assign",
+            "user:disable",
+            "department:manage",
+            "audit:read",
+            "audit:delete",
+            "system-monitor:read",
+            "device:read",
+            "device:manage",
+            "position:read",
+            "dictionary:manage",
+        )
+        assertTrue(
+            granted.intersect(denied).isEmpty(),
+            "部门管理不应获得这些权限：${granted.intersect(denied)}",
+        )
+    }
+
+    @Test
+    fun `普通用户获得自助读取权限但不含任何管理权限`() {
+        val complete = PermissionCatalog.definitions.map { definition ->
+            Permission().apply { code = definition.code; name = definition.name }
+        }
+        whenever(permissionRepository.findAll()).thenReturn(complete)
+        val user = top.foxball.cartask.entity.Role().apply { name = "USER" }
+        whenever(roleRepository.findByNameIgnoreCase("USER")).thenReturn(user)
+
+        PermissionCatalogInitializer(permissionRepository, roleRepository).write()
+
+        val granted = user.permissions.map { it.code }.toSet()
+        // 普通用户要能看到自己的进出记录；这些接口本身按本人范围过滤，所以给读权限不越权。
+        assertTrue(granted.containsAll(listOf("dashboard:read", "vehicle-record:read", "person-record:read")))
+        assertTrue(
+            granted.none { it.endsWith(":manage") || it.endsWith(":create") || it.endsWith(":update") || it.endsWith(":disable") },
+            "普通用户不应获得任何管理类权限，实际：$granted",
+        )
+    }
+
+    @Test
     fun `启动时修正旧版系统监控权限编码`() {
         val legacyMonitor = Permission().apply {
             code = PermissionCatalog.LEGACY_SYSTEM_MONITOR_READ

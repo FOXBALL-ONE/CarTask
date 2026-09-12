@@ -77,7 +77,7 @@ class RoleController(
 
     /** 按主键获取一条实体记录。 */
     @GetMapping("/{id}")
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('role:read')")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('role:read')")
     fun get(@PathVariable id: Long): ResponseEntity<Response> {
         data class Response(
             val id: Long,
@@ -96,13 +96,13 @@ class RoleController(
 
     /** 按多个主键批量获取实体记录。 */
     @GetMapping("/batch")
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('role:read')")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('role:read')")
     fun getBatch(@RequestParam id: List<Long>): ResponseEntity<Response> =
         responseBuilder.ok().data(service.getBatch(id)).build()
 
     /** 返回文档约定的角色列表。 */
     @GetMapping
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('role:read')")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('role:read')")
     fun list(
         @RequestParam(defaultValue = "1") page: Int,
         @RequestParam(name = "pageSize", defaultValue = "8") pageSize: Int,
@@ -142,7 +142,7 @@ class RoleController(
 
     /** 兼容原有 snake_case 分页参数。 */
     @GetMapping(params = ["page_size"])
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('role:read')")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('role:read')")
     fun listPaged(
         @RequestParam(defaultValue = "1") page: Int,
         @RequestParam(name = "page_size", defaultValue = "20") pageSize: Int,

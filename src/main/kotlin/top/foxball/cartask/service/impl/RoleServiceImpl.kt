@@ -58,12 +58,12 @@ class RoleServiceImpl(
     }
 
     @Transactional
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('role:read')")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('role:read')")
     override fun get(id: Long): Role = repository.findById(id)
         .orElseThrow { IllegalArgumentException("记录不存在: $id") }
 
     @Transactional
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('role:read')")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('role:read')")
     override fun getBatch(ids: List<Long>): List<Role> {
         require(ids.isNotEmpty()) { "ID 列表不能为空" }
         require(ids.all { it > 0 }) { "ID 必须大于 0" }
@@ -75,7 +75,7 @@ class RoleServiceImpl(
     }
 
     @Transactional
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('role:read')")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('role:read')")
     override fun list(page: Int, pageSize: Int): Page<Role> {
         require(page >= 1) { "页码必须大于 0" }
         require(pageSize in 1..100) { "每页数量必须在 1 到 100 之间" }

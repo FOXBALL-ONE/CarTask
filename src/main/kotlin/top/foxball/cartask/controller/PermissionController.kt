@@ -37,19 +37,19 @@ class PermissionController(
 
     /** 按主键获取一条实体记录。 */
     @GetMapping("/{id}")
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('permission:read')")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('permission:read')")
     fun get(@PathVariable id: Long): ResponseEntity<Response> =
         responseBuilder.ok().data(service.get(id)).build()
 
     /** 按多个主键批量获取实体记录。 */
     @GetMapping("/batch")
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('permission:read')")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('permission:read')")
     fun getBatch(@RequestParam id: List<Long>): ResponseEntity<Response> =
         responseBuilder.ok().data(service.getBatch(id)).build()
 
     /** 分页查询实体记录。 */
     @GetMapping
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('permission:read')")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('permission:read')")
     fun list(
         @RequestParam(defaultValue = "1") page: Int,
         @RequestParam(name = "page_size", defaultValue = "20") pageSize: Int,

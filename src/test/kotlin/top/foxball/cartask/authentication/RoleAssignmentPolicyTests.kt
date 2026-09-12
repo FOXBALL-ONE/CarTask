@@ -43,4 +43,19 @@ class RoleAssignmentPolicyTests {
         assertDoesNotThrow { policy.validateAssignment("SUPER_ADMIN") }
         assertDoesNotThrow { policy.validateManagement(listOf("ADMIN", "SUPER_ADMIN")) }
     }
+
+    @Test
+    fun `部门管理不能授予任何后台角色`() {
+        SecurityContextHolder.getContext().authentication = UsernamePasswordAuthenticationToken(
+            "dept",
+            null,
+            listOf(SimpleGrantedAuthority("ROLE_DEPT_ADMIN")),
+        )
+
+        assertDoesNotThrow { policy.validateAssignment("USER") }
+        assertThrows(AccessDeniedException::class.java) { policy.validateAssignment("DEPT_ADMIN") }
+        assertThrows(AccessDeniedException::class.java) { policy.validateAssignment("ADMIN") }
+        assertThrows(AccessDeniedException::class.java) { policy.validateAssignment("SUPER_ADMIN") }
+        assertThrows(AccessDeniedException::class.java) { policy.validateManagement(listOf("USER", "DEPT_ADMIN")) }
+    }
 }

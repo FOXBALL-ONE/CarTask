@@ -25,31 +25,31 @@ class AccessControlController(
 ) {
     /** 创建一条实体记录。 */
     @PostMapping
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('access-control:apply')")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('access-control:apply')")
     fun create(@RequestBody entity: AccessControl): ResponseEntity<Response> =
         responseBuilder.created().data(service.create(entity)).build()
 
     /** 批量创建实体记录。 */
     @PostMapping("/batch")
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('access-control:apply')")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('access-control:apply')")
     fun createBatch(@RequestBody entities: List<AccessControl>): ResponseEntity<Response> =
         responseBuilder.created().data(service.createBatch(entities)).build()
 
     /** 按主键获取一条实体记录。 */
     @GetMapping("/{id}")
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('access-control:read')")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('access-control:read')")
     fun get(@PathVariable id: Long): ResponseEntity<Response> =
         responseBuilder.ok().data(service.get(id)).build()
 
     /** 按多个主键批量获取实体记录。 */
     @GetMapping("/batch")
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('access-control:read')")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('access-control:read')")
     fun getBatch(@RequestParam id: List<Long>): ResponseEntity<Response> =
         responseBuilder.ok().data(service.getBatch(id)).build()
 
     /** 分页查询实体记录。 */
     @GetMapping
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('access-control:read')")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('access-control:read')")
     fun list(
         @RequestParam(defaultValue = "1") page: Int,
         @RequestParam(name = "page_size", defaultValue = "20") pageSize: Int,
@@ -57,18 +57,18 @@ class AccessControlController(
 
     /** 更新指定主键的实体记录。 */
     @PutMapping("/{id}")
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('access-control:update')")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('access-control:update')")
     fun update(@PathVariable id: Long, @RequestBody entity: AccessControl): ResponseEntity<Response> =
         responseBuilder.ok().data(service.update(id, entity)).build()
 
     /** 批量更新实体记录。 */
     @PutMapping("/batch")
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('access-control:update')")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('access-control:update')")
     fun updateBatch(@RequestBody entities: List<AccessControl>): ResponseEntity<Response> =
         responseBuilder.ok().data(service.updateBatch(entities)).build()
 
     @PostMapping("/{id}/review")
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('access-control:review')")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('access-control:review')")
     fun review(
         @PathVariable id: Long,
         @RequestParam approved: Boolean,
@@ -76,7 +76,7 @@ class AccessControlController(
     ): ResponseEntity<Response> = responseBuilder.ok().data(service.review(id, approved, reason)).build()
 
     @PostMapping("/{id}/sync")
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('access-control:sync')")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('access-control:sync')")
     fun synchronize(@PathVariable id: Long): ResponseEntity<Response> =
         responseBuilder.ok().data(service.synchronize(id)).build()
 

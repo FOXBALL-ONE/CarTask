@@ -63,7 +63,7 @@ class SynchronizationControllerTests {
             .getAnnotation(PreAuthorize::class.java)
 
         assertEquals(
-            "(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('dictionary:sync')",
+            "(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('dictionary:sync')",
             annotation.value,
         )
     }
@@ -132,7 +132,7 @@ class SynchronizationControllerTests {
             .getAnnotation(PreAuthorize::class.java)
 
         assertEquals(
-            "(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('vehicle-record:sync')",
+            "(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('vehicle-record:sync')",
             annotation.value,
         )
     }
@@ -144,7 +144,7 @@ class SynchronizationControllerTests {
             .getAnnotation(PreAuthorize::class.java)
 
         assertEquals(
-            "(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('vehicle-record:sync')",
+            "(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('vehicle-record:sync')",
             annotation.value,
         )
     }
@@ -172,7 +172,7 @@ class SynchronizationControllerTests {
             .getAnnotation(PreAuthorize::class.java)
 
         assertEquals(
-            "(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('owner:sync')",
+            "(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('owner:sync')",
             annotation.value,
         )
     }
@@ -200,7 +200,7 @@ class SynchronizationControllerTests {
             .getAnnotation(PreAuthorize::class.java)
 
         assertEquals(
-            "(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('account:sync')",
+            "(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('account:sync')",
             annotation.value,
         )
     }
@@ -248,7 +248,7 @@ class SynchronizationControllerTests {
             .getAnnotation(PreAuthorize::class.java)
 
         assertEquals(
-            "(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('sync-history:read')",
+            "(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('sync-history:read')",
             annotation.value,
         )
     }

@@ -38,7 +38,7 @@ class AccessRecordController(
 
     /** 按主键获取一条进出记录，返回前端进出记录展示格式。 */
     @GetMapping("/{id}")
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('access-record:read')")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('access-record:read')")
     fun get(@PathVariable id: Long): ResponseEntity<Response> {
         data class Response(
             val id: Long,
@@ -73,7 +73,7 @@ class AccessRecordController(
 
     /** 按多个主键批量获取进出记录。 */
     @GetMapping("/batch")
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('access-record:read')")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('access-record:read')")
     fun getBatch(@RequestParam id: List<Long>): ResponseEntity<Response> {
         data class RecordData(
             val id: Long,
@@ -111,7 +111,7 @@ class AccessRecordController(
 
     /** 分页查询进出记录。 */
     @GetMapping
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('access-record:read')")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('access-record:read')")
     fun list(
         @RequestParam(defaultValue = "1") page: Int,
         @RequestParam(name = "page_size", defaultValue = "20") pageSize: Int,
@@ -162,7 +162,7 @@ class AccessRecordController(
 
     /** 更新指定主键的实体记录。 */
     @PutMapping("/{id}")
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('access-record:correct')")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('access-record:correct')")
     fun update(
         @PathVariable id: Long,
         @RequestParam(name = "correction_reason") correctionReason: String,
@@ -201,7 +201,7 @@ class AccessRecordController(
 
     /** 批量更新实体记录。 */
     @PutMapping("/batch")
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('access-record:correct')")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('access-record:correct')")
     fun updateBatch(
         @RequestParam(name = "correction_reason") correctionReason: String,
         @RequestBody entities: List<AccessRecord>,
@@ -241,7 +241,7 @@ class AccessRecordController(
     }
 
     @PostMapping("/{id}/release")
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('access-record:release')")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('access-record:release')")
     fun release(
         @PathVariable id: Long,
         @RequestParam(name = "release_reason") releaseReason: String,

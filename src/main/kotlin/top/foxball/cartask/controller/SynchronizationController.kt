@@ -30,7 +30,7 @@ class SynchronizationController(
     private val syncTaskProgressService: SyncTaskProgressService = SyncTaskProgressService(),
 ) {
     @GetMapping("/progress")
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAnyAuthority('dictionary:sync', 'vehicle-record:sync', 'owner:sync', 'account:sync')")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAnyAuthority('dictionary:sync', 'vehicle-record:sync', 'owner:sync', 'account:sync')")
     fun syncProgress(): ResponseEntity<Response> {
         data class TaskData(
             @param:JsonProperty("task_key") val taskKey: String,
@@ -45,7 +45,7 @@ class SynchronizationController(
     }
     /** 从科拓拉取一次停车区域，并将结果幂等写入本地区域字典。 */
     @PostMapping("/parking-areas")
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('dictionary:sync')")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('dictionary:sync')")
     fun synchronizeParkingAreas(): ResponseEntity<Response> {
         data class Response(
             @param:JsonProperty("received_count") val receivedCount: Int,
@@ -71,7 +71,7 @@ class SynchronizationController(
 
     /** 根据上次成功检查点，从科拓增量同步车辆进出记录与抓拍图片。 */
     @GetMapping("/access-records/preview")
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('vehicle-record:sync')")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('vehicle-record:sync')")
     fun previewAccessRecordSynchronization(): ResponseEntity<Response> {
         data class Response(
             @param:JsonProperty("initial_sync") val initialSync: Boolean,
@@ -98,7 +98,7 @@ class SynchronizationController(
     }
 
     @PostMapping("/access-records")
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('vehicle-record:sync')")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('vehicle-record:sync')")
     fun synchronizeAccessRecords(): ResponseEntity<Response> {
         data class Response(
             @param:JsonProperty("processed_count") val processedCount: Int,
@@ -126,7 +126,7 @@ class SynchronizationController(
 
     /** 从车辆进出记录里补建系统缺失的车主信息：回查科拓卡片信息新建车主档案并登记车牌关联。 */
     @PostMapping("/owners")
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('owner:sync')")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('owner:sync')")
     fun synchronizeOwners(): ResponseEntity<Response> {
         data class Response(
             @param:JsonProperty("created_owner_count") val createdOwnerCount: Int,
@@ -150,7 +150,7 @@ class SynchronizationController(
 
     /** 根据车辆进出记录为业主补建平台登录账号，已有账号的业主自动跳过。 */
     @PostMapping("/accounts")
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('account:sync')")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('account:sync')")
     fun synchronizeAccounts(): ResponseEntity<Response> {
         data class Response(
             @param:JsonProperty("created_count") val createdCount: Int,
@@ -174,7 +174,7 @@ class SynchronizationController(
 
     /** 分页查询数据同步任务的执行历史，可按任务标识过滤。 */
     @GetMapping("/history")
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('sync-history:read')")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('sync-history:read')")
     fun syncHistory(
         @RequestParam(defaultValue = "1") page: Int,
         @RequestParam(name = "page_size", defaultValue = "20") pageSize: Int,
