@@ -11,6 +11,8 @@ class CurrentUserPrincipal(
     role: String,
     val tokenId: String,
     permissions: Collection<String> = emptySet(),
+    /** 为 true 时除改密相关接口外的业务请求都会被拒绝。 */
+    val mustChangePassword: Boolean = false,
 ) {
     val role: String = SecurityRole.normalize(role)
     val permissions: Set<String> = Collections.unmodifiableSet(

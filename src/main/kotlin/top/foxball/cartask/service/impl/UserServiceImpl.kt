@@ -73,6 +73,7 @@ class UserServiceImpl(
                         .orElseThrow { IllegalArgumentException("职位不存在: $positionId") }
                 }
                 status = command.status
+                mustChangePassword = command.mustChangePassword
                 roles = assignedRoles
                 createdAt = now
                 updatedAt = now

@@ -6,6 +6,8 @@ import top.foxball.cartask.entity.User
 interface UserRepository : JpaRepository<User, Long> {
     fun findByUsername(username: String): User?
 
+    fun findByPhone(phone: String): User?
+
     fun existsByUsername(username: String): Boolean
 
     fun findAllByUsernameIn(usernames: Collection<String>): List<User>

@@ -20,6 +20,12 @@ interface UserService {
         @param:JsonProperty("status") val status: User.Status = User.Status.Activity,
         @param:JsonProperty("nick_name") val nickName: String? = null,
         @param:JsonProperty("role_ids") val roleIds: List<Long>? = null,
+        /**
+         * 新建账号是否必须在首次登录时改密。
+         * 默认 true：管理员创建、批量导入和业主账号生成下发的都是初始密码，对第三方可见，
+         * 不改就成了可被长期冒用的凭据。仅系统预置的演示数据会显式传 false。
+         */
+        @param:JsonProperty("must_change_password") val mustChangePassword: Boolean = true,
     )
 
     /** 用户可变字段命令；未提供的字段保持原值。 */

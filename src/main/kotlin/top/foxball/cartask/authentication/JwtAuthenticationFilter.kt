@@ -12,6 +12,7 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.slf4j.MDC
 import org.springframework.stereotype.Component
 import org.springframework.web.filter.OncePerRequestFilter
+import top.foxball.cartask.service.OnlinePresenceService
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 
@@ -21,6 +22,7 @@ class JwtAuthenticationFilter(
     private val jwtTokenService: JwtTokenService,
     private val sessionRepository: RedisTokenSessionRepository,
     private val rolePermissionService: RolePermissionService,
+    private val onlinePresenceService: OnlinePresenceService? = null,
 ) : OncePerRequestFilter() {
     private val log = LoggerFactory.getLogger(javaClass)
     private val tokenResolver = DefaultBearerTokenResolver()
@@ -60,6 +62,7 @@ class JwtAuthenticationFilter(
                 verified.role,
                 verified.tokenId,
                 rolePermissionService.permissionsFor(verified.role),
+                session.mustChangePassword,
             )
             MDC.put("actor_type", "USER")
             MDC.put("actor_id", "user:${principal.userId}")
@@ -69,6 +72,8 @@ class JwtAuthenticationFilter(
                 details = WebAuthenticationDetailsSource().buildDetails(request)
             }
             SecurityContextHolder.setContext(context)
+            runCatching { onlinePresenceService?.touch(principal.userId) }
+                .onFailure { log.debug("记录在线心跳失败: {}", it.message) }
             filterChain.doFilter(request, response)
         } catch (ex: AuthenticationInfrastructureException) {
             log.warn("JWT 认证基础设施不可用: {}", ex.message)

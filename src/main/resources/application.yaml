@@ -22,6 +22,14 @@ spring:
       timeout: ${REDIS_TIMEOUT:2s}
       database: 5
 shopmall:
+  sms:
+    enabled: ${SMS_ENABLED:false}
+    access-key-id: ${SMS_ACCESS_KEY_ID:}
+    access-key-secret: ${SMS_ACCESS_KEY_SECRET:}
+    endpoint: ${SMS_ENDPOINT:dysmsapi.aliyuncs.com}
+    sign-name: ${SMS_SIGN_NAME:}
+    template-code: ${SMS_TEMPLATE_CODE:}
+    country-code: ${SMS_COUNTRY_CODE:86}
   security:
     cors:
       allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:8090,http://127.0.0.1:8090}

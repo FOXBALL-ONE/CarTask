@@ -119,6 +119,7 @@ const navigation: { title: string; items: NavigationItem[] }[] = [
     items: [
       {label: "仪表盘", icon: "grid_view", page: "dashboard", route: "/"},
       {label: "用户管理", icon: "group", page: "users", route: "/users"},
+      {label: "在线用户", icon: "sensors", page: "online-users", route: "/online-users", permission: "user:read"},
       {label: "角色管理", icon: "verified_user", page: "roles", route: "/roles"},
       {label: "部门管理", icon: "account_tree", page: "depts", route: "/departments"},
       {label: "岗位管理", icon: "badge", page: "posts", route: "/positions"},

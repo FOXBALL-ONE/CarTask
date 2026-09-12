@@ -16,6 +16,7 @@ import org.springframework.web.cors.CorsConfiguration
 import org.springframework.web.cors.CorsConfigurationSource
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 import top.foxball.cartask.authentication.JwtAuthenticationFilter
+import top.foxball.cartask.authentication.PasswordChangeRequiredFilter
 import top.foxball.cartask.audit.AuditRequestContextFilter
 import top.foxball.cartask.audit.AuditRequestContext
 import top.foxball.cartask.audit.AuditAction
@@ -26,6 +27,7 @@ import top.foxball.cartask.audit.AuditService
 @EnableMethodSecurity
 class SecurityConfig(
     private val jwtAuthenticationFilter: JwtAuthenticationFilter,
+    private val passwordChangeRequiredFilter: PasswordChangeRequiredFilter,
     private val auditRequestContextFilter: AuditRequestContextFilter,
     private val corsProperties: CorsProperties,
     private val auditService: AuditService,
@@ -45,6 +47,7 @@ class SecurityConfig(
                 it.requestMatchers(
                     "/api/auth/login",
                     "/api/auth/captcha",
+                    "/api/auth/sms/**",
                     "/error",
                 ).permitAll()
                 it.requestMatchers(HttpMethod.POST, "/api/auth/logout").authenticated()
@@ -88,6 +91,7 @@ class SecurityConfig(
                 }
             }
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter::class.java)
+            .addFilterAfter(passwordChangeRequiredFilter, JwtAuthenticationFilter::class.java)
             .addFilterBefore(auditRequestContextFilter, JwtAuthenticationFilter::class.java)
         return http.build()
     }

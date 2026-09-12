@@ -41,6 +41,22 @@ class User {
     @Column(nullable = false, length = 255)
     lateinit var passwordHash: String
 
+    /**
+     * 头像图片。以压缩后的 data URL 存储，而不是文件系统 URL：
+     * 前端 <img> 无法携带 Bearer token，走文件下载接口会拿到 401，
+     * 因此头像必须能直接内联渲染。
+     */
+    @Column(columnDefinition = "text")
+    var avatar: String? = null
+
+    /**
+     * 是否为管理员或系统下发的初始密码，为 true 时首次登录必须修改密码。
+     * 初始密码对管理员可见（业主账号生成还是固定口令），不改就是可被冒用的长期凭据。
+     * 带 default false 是为了让 ddl-auto=update 能给已有数据的表安全补列。
+     */
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    var mustChangePassword: Boolean = false
+
     /** 联系电话；未填写时为空。 */
     @Column(length = 32)
     var phone: String? = null

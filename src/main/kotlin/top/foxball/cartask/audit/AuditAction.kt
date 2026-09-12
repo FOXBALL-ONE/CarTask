@@ -11,6 +11,8 @@ enum class AuditAction(
     AUTH_LOGIN_SUCCEEDED("AUTH_LOGIN_SUCCEEDED", AuditEvent.Category.AUTHENTICATION, AuditEvent.RiskLevel.MEDIUM),
     AUTH_LOGIN_FAILED("AUTH_LOGIN_FAILED", AuditEvent.Category.AUTHENTICATION, AuditEvent.RiskLevel.MEDIUM),
     AUTH_LOGOUT("AUTH_LOGOUT", AuditEvent.Category.AUTHENTICATION, AuditEvent.RiskLevel.HIGH),
+    AUTH_PASSWORD_CHANGED("AUTH_PASSWORD_CHANGED", AuditEvent.Category.AUTHENTICATION, AuditEvent.RiskLevel.HIGH),
+    PROFILE_UPDATED("PROFILE_UPDATED", AuditEvent.Category.ACCOUNT, AuditEvent.RiskLevel.MEDIUM),
     AUTHORIZATION_DENIED("AUTHORIZATION_DENIED", AuditEvent.Category.AUTHORIZATION, AuditEvent.RiskLevel.MEDIUM),
     USER_CREATED("USER_CREATED", AuditEvent.Category.ACCOUNT, AuditEvent.RiskLevel.HIGH),
     USER_UPDATED("USER_UPDATED", AuditEvent.Category.ACCOUNT, AuditEvent.RiskLevel.MEDIUM),

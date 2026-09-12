@@ -2,6 +2,7 @@ package top.foxball.cartask.config
 
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Configuration
+import top.foxball.cartask.sms.SmsProperties
 
 /**
  * 装配验证码及订单邮件模块：注册 [MailProperties] 和 [OrderMailProperties] 绑定。
@@ -10,5 +11,5 @@ import org.springframework.context.annotation.Configuration
  * `JavaMailSender` 由 spring-boot-starter-mail 按 `spring.mail.*` 自动配置，无需在此声明。
  */
 @Configuration
-@EnableConfigurationProperties(MailProperties::class)
+@EnableConfigurationProperties(MailProperties::class, SmsProperties::class)
 class MailConfig

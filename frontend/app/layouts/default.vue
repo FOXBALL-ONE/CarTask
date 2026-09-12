@@ -46,13 +46,16 @@
           </button>
           <div class="user-chip">
             <button class="user-chip__button" type="button" :aria-expanded="userMenuOpen" @click="userMenuOpen = !userMenuOpen">
-              <span class="avatar">{{ userInitial }}</span>
+              <span class="avatar">
+                <img v-if="userAvatar" :src="userAvatar" alt="" >
+                <template v-else>{{ userInitial }}</template>
+              </span>
               <span class="user-chip__info"><span class="user-chip__name">{{ userName }}</span><span class="user-chip__role">{{ userRole }}</span></span>
               <span class="material-icons-outlined">expand_more</span>
             </button>
             <div v-show="userMenuOpen" class="dropdown-menu user-menu">
               <button type="button" class="dropdown-item" @click="navigate('profile')"><span class="material-icons-outlined">person</span>个人中心</button>
-              <button type="button" class="dropdown-item" @click="navigate('password')"><span class="material-icons-outlined">lock</span>修改密码</button>
+              <button type="button" class="dropdown-item" @click="openPasswordTab"><span class="material-icons-outlined">lock</span>修改密码</button>
               <button type="button" class="dropdown-item" @click="logout"><span class="material-icons-outlined">logout</span>退出登录</button>
             </div>
           </div>
@@ -75,15 +78,17 @@ const searchQuery = ref("");
 const systemName = ref("Admin Pro");
 const userName = computed(() => authStore.user?.username || "超级管理员");
 const userRole = computed(() => authStore.user?.role || "admin");
+const userAvatar = computed(() => authStore.avatar);
 
 const pageLabels: Record<string, string> = {
-  dashboard: "仪表盘", users: "用户管理", roles: "角色管理", depts: "部门管理", posts: "岗位管理", "data-transfer": "数据导入导出",
+  dashboard: "仪表盘", users: "用户管理", "online-users": "在线用户", roles: "角色管理", depts: "部门管理", posts: "岗位管理", "data-transfer": "数据导入导出",
   owners: "车主信息", spots: "车位信息", plates: "车牌信息", zones: "停车区域", devices: "设备管理", "gate-persons": "人员信息",
   "person-records": "人员进出", "vehicle-records": "车辆进出", violations: "违规管理", synchronizations: "数据同步", "sync-history": "同步执行历史", "system-monitor": "系统监控", logs: "日志管理", profile: "个人中心", password: "修改密码",
 };
 const routePages: Record<string, string> = {
   "/": "dashboard",
   "/users": "users",
+  "/online-users": "online-users",
   "/roles": "roles",
   "/gate-persons": "gate-persons",
   "/devices": "devices",
@@ -101,10 +106,12 @@ const routePages: Record<string, string> = {
   "/sync-history": "sync-history",
   "/system-monitor": "system-monitor",
   "/logs": "logs",
+  "/profile": "profile",
 };
 const pagePaths: Record<string, string> = {
   dashboard: "/",
   users: "/users",
+  "online-users": "/online-users",
   roles: "/roles",
   "gate-persons": "/gate-persons",
   devices: "/devices",
@@ -122,6 +129,7 @@ const pagePaths: Record<string, string> = {
   "sync-history": "/sync-history",
   "system-monitor": "/system-monitor",
   logs: "/logs",
+  profile: "/profile",
 };
 const isLoginPage = computed(() => route.path === "/login");
 const activePage = computed(() => typeof route.query.page === "string" ? route.query.page : (routePages[route.path] ?? "dashboard"));
@@ -154,6 +162,13 @@ async function navigate(page: string, routePath?: string) {
     return;
   }
   await router.replace({ query: { ...route.query, page } });
+}
+
+/** 顶栏「修改密码」直接打开个人中心的改密标签。 */
+async function openPasswordTab() {
+  userMenuOpen.value = false;
+  closeMobileSidebar();
+  await router.replace({ path: "/profile", query: { tab: "password" } });
 }
 
 function handleSettings(action: "config" | "backup" | "about") {
@@ -192,6 +207,20 @@ onMounted(() => {
   document.documentElement.dataset.theme = darkTheme.value ? "dark" : "light";
   authStore.restoreSession();
 });
+
+// 初始密码未修改时只允许停留在个人中心改密页。
+// 标记来自登录响应或 /auth/session，整页刷新时会在会话恢复后才变为 true，
+// 因此这里用 immediate + 持续监听，作为路由中间件之外的兜底。
+watch(
+  () => authStore.mustChangePassword,
+  async (required) => {
+    if (!import.meta.client || !required || route.path === "/profile") {
+      return;
+    }
+    await router.replace({ path: "/profile", query: { tab: "password" } });
+  },
+  { immediate: true },
+);
 </script>
 
 <style scoped>
@@ -219,7 +248,8 @@ onMounted(() => {
 .user-chip { margin-left: 4px; position: relative; }
 .user-chip__button { align-items: center; background: transparent; border: 0; border-radius: 20px; color: var(--text-sub); cursor: pointer; display: flex; gap: 8px; padding: 3px 8px 3px 3px; }
 .user-chip__button:hover { background: var(--bg); }
-.avatar { align-items: center; background: var(--text); border-radius: 50%; color: var(--card); display: flex; flex-shrink: 0; font-size: 12px; font-weight: 600; height: 28px; justify-content: center; width: 28px; }
+.avatar { align-items: center; background: var(--text); border-radius: 50%; color: var(--card); display: flex; flex-shrink: 0; font-size: 12px; font-weight: 600; height: 28px; justify-content: center; overflow: hidden; width: 28px; }
+.avatar img { height: 100%; object-fit: cover; width: 100%; }
 .user-chip__info { display: grid; text-align: left; }
 .user-chip__name { color: var(--text); font-size: 13px; font-weight: 500; line-height: 1.2; }
 .user-chip__role { color: var(--text-mute); font-size: 11px; }

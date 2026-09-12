@@ -72,15 +72,24 @@ function requestPath(url: string): string {
 }
 
 function isLoginEndpoint(url: string): boolean {
-    return /\/(?:api\/)?auth\/login(?:\/|$)/.test(requestPath(url));
+    return /\/(?:api\/)?auth\/(?:sms\/)?login(?:\/|$)/.test(requestPath(url));
 }
 
 function isLogoutEndpoint(url: string): boolean {
     return /\/(?:api\/)?auth\/logout$/.test(requestPath(url));
 }
 
+/**
+ * 登录前的免认证接口（短信发送等）。
+ * 这些接口用 401 表达「图形验证码/凭据不正确」，而不是「登录态失效」，
+ * 因此不能走 token 失效清理流程。
+ */
+function isPreLoginEndpoint(url: string): boolean {
+    return /\/(?:api\/)?auth\/sms\//.test(requestPath(url));
+}
+
 function isAuthenticationEndpoint(url: string): boolean {
-    return isLoginEndpoint(url) || isLogoutEndpoint(url);
+    return isLoginEndpoint(url) || isLogoutEndpoint(url) || isPreLoginEndpoint(url);
 }
 
 function requestFailure(error: unknown): RequestFailure {
