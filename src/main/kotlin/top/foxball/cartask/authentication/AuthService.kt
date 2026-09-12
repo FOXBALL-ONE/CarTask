@@ -30,6 +30,8 @@ interface AuthService {
         /** 初始密码尚未修改，前端需强制进入改密页；服务端另有过滤器兜底拦截。 */
         val mustChangePassword: Boolean = false,
         val avatar: kotlin.String? = null,
+        /** 本次会话的当前工作部门；null 表示不限部门。 */
+        val workingDepartmentId: Long? = null,
     )
 
     data class SmsSendCommand(
@@ -117,6 +119,7 @@ class AuthServiceImpl(
                 issuedAt = issued.issuedAt,
                 expiresAt = issued.expiresAt,
                 mustChangePassword = user.mustChangePassword,
+                workingDepartmentId = defaultWorkingDepartment(user, role),
             ),
             Duration.between(issued.issuedAt, issued.expiresAt),
         )
@@ -139,6 +142,7 @@ class AuthServiceImpl(
             permissions,
             user.mustChangePassword,
             user.avatar,
+            defaultWorkingDepartment(user, role),
         )
     }
 
@@ -182,17 +186,18 @@ class AuthServiceImpl(
         sessionRepository.save(
             issued.tokenId,
             RedisTokenSession(
-                userId,
-                user.username,
-                role,
-                version,
-                issued.tokenHash,
-                issued.tokenCiphertext,
-                issued.tokenEncryptionKeyId,
-                SESSION_SCHEMA_VERSION,
-                issued.issuedAt,
-                issued.expiresAt,
-                user.mustChangePassword,
+                userId = userId,
+                username = user.username,
+                role = role,
+                tokenVersion = version,
+                tokenHash = issued.tokenHash,
+                tokenCiphertext = issued.tokenCiphertext,
+                tokenEncryptionKeyId = issued.tokenEncryptionKeyId,
+                sessionSchemaVersion = SESSION_SCHEMA_VERSION,
+                issuedAt = issued.issuedAt,
+                expiresAt = issued.expiresAt,
+                mustChangePassword = user.mustChangePassword,
+                workingDepartmentId = defaultWorkingDepartment(user, role),
             ),
             Duration.between(issued.issuedAt, issued.expiresAt),
         )
@@ -205,9 +210,20 @@ class AuthServiceImpl(
             permissions,
             user.mustChangePassword,
             user.avatar,
+            defaultWorkingDepartment(user, role),
         )
     }
     
+    /**
+     * 登录时的默认工作部门。
+     *
+     * 部门管理必须落在自己的归属部门——它的数据范围始终受部门限制，默认「全部」会立刻
+     * 得到一个看不到任何数据的会话。其余角色默认为「全部」，与引入工作部门之前的行为一致，
+     * 升级后存量用户不会突然失去可见数据。
+     */
+    private fun defaultWorkingDepartment(user: User, role: String): Long? =
+        if (role == SecurityRole.DEPT_ADMIN) user.department?.id else null
+
     override fun logout(tokenId: kotlin.String) {
         sessionRepository.delete(tokenId)
         runCatching {
@@ -224,6 +240,6 @@ class AuthServiceImpl(
 
     private companion object {
         /** 会话正文结构版本；新增 must_change_password 字段后升到 2，旧会话缺字段时按 false 解析。 */
-        const val SESSION_SCHEMA_VERSION = 2
+        const val SESSION_SCHEMA_VERSION = 3
     }
 }

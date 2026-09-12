@@ -14,6 +14,10 @@ import top.foxball.cartask.entity.StoredFile
 import top.foxball.cartask.handler.ParamErrorException
 import top.foxball.cartask.handler.ResourceNotFoundException
 import top.foxball.cartask.repository.StoredFileRepository
+import top.foxball.cartask.scope.DataScope
+import top.foxball.cartask.scope.DataScopeResolver
+import top.foxball.cartask.scope.DepartmentLinkResolver
+import top.foxball.cartask.scope.ScopeQuerySupport
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
@@ -130,11 +134,19 @@ class FileServiceImplTests {
         Files.walk(root).use { paths -> assertTrue(paths.count() == 1L) }
     }
 
-    private fun service(root: Path, repository: StoredFileRepository): FileServiceImpl = FileServiceImpl(
-        fileRepository = repository,
-        properties = FileProperties(root.toString(), "https://files.example.com/shopmall/"),
-        transactionOperations = TransactionOperations.withoutTransaction(),
-    )
+    private fun service(root: Path, repository: StoredFileRepository): FileServiceImpl {
+        // 文件读取现在受数据范围约束；这几个用例验证的是存储与路径安全，因此统一放开范围。
+        val dataScopeResolver = mock(DataScopeResolver::class.java)
+        `when`(dataScopeResolver.current()).thenReturn(DataScope.All)
+        return FileServiceImpl(
+            fileRepository = repository,
+            properties = FileProperties(root.toString(), "https://files.example.com/shopmall/"),
+            transactionOperations = TransactionOperations.withoutTransaction(),
+            dataScopeResolver = dataScopeResolver,
+            scopeQuerySupport = mock(ScopeQuerySupport::class.java),
+            departmentLinkResolver = mock(DepartmentLinkResolver::class.java),
+        )
+    }
 
     private fun storedFile(id: UUID, relativePath: String): StoredFile = StoredFile().apply {
         this.id = id

@@ -29,6 +29,10 @@ interface AccessRecordRepository : JpaRepository<AccessRecord, Long>, JpaSpecifi
 
     fun countByPhotoSyncStatus(photoSyncStatus: AccessRecord.PhotoSyncStatus): Long
 
+    /** 未回填归一化车牌的记录数；数据范围回填接口的统计口径。 */
+    @Query("select count(record) from AccessRecord record where record.carNumberNormalized is null")
+    fun countByCarNumberNormalizedIsNull(): Long
+
     @Query(
         """
         select record from AccessRecord record

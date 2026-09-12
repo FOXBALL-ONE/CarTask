@@ -28,6 +28,13 @@ class ParkingPlate {
     @Column(nullable = false)
     var ownerId: Long = 0
 
+    /**
+     * 显式指定的归属账号。设置后优先于通过车主手机号自动关联，用于公司车、共用车辆等场景。
+     * 裸 id，不加外键约束，与 [ownerId] 保持一致。
+     */
+    @Column(name = "linked_user_id")
+    var linkedUserId: Long? = null
+
     @Column(nullable = false)
     var status: Int = 1
 

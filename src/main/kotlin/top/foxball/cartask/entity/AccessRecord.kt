@@ -11,11 +11,14 @@ import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
+import jakarta.persistence.PrePersist
+import jakarta.persistence.PreUpdate
 import jakarta.persistence.Table
 import jakarta.persistence.UniqueConstraint
 import java.time.LocalDateTime
 import java.math.BigDecimal
 import top.foxball.cartask.entity.type.CarType
+import top.foxball.cartask.shared.PlateNumbers
 
 /** 车辆进出门禁的流水记录。 */
 @Entity
@@ -34,6 +37,16 @@ class AccessRecord {
     /** 车辆号牌；无牌车辆可为空。 */
     @Column(name = "car_number", length = 64)
     var carNumber: String? = null
+
+    /**
+     * 归一化后的号牌，由 [syncCarNumberNormalized] 在写入时自动维护。
+     *
+     * 范围查询要在 SQL 里用 `IN` 匹配车牌，而 [carNumber] 是科拓原始格式、车牌档案是人工格式，
+     * 两边存在间隔符差异，直接比较会漏。历史数据为 null，由回填接口补齐。
+     * 用生命周期回调而不是在每个写入点赋值，是为了不依赖调用方记得——漏一处就是数据泄露。
+     */
+    @Column(name = "car_number_normalized", length = 64)
+    var carNumberNormalized: String? = null
 
     /** 科拓抓拍流水的稳定复合标识；由 trafficId、抓拍方向、时间、通道流水等字段组成。 */
     @Column(name = "source_record_id", length = 256)
@@ -123,6 +136,13 @@ class AccessRecord {
     enum class InAndOut {
         IN,
         OUT,
+    }
+
+    /** 号牌归一化结果始终跟随 [carNumber]，避免各写入点漏赋值导致范围查询漏数据。 */
+    @PrePersist
+    @PreUpdate
+    fun syncCarNumberNormalized() {
+        carNumberNormalized = PlateNumbers.normalize(carNumber)
     }
 
     /** 放行来源渠道。 */

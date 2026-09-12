@@ -1,14 +1,19 @@
 package top.foxball.cartask.service.impl
 
+import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.stereotype.Service
 import org.springframework.transaction.support.TransactionOperations
 import org.springframework.web.multipart.MultipartFile
 import org.springframework.web.util.UriComponentsBuilder
+import top.foxball.cartask.authentication.CurrentUserPrincipal
 import top.foxball.cartask.config.FileProperties
 import top.foxball.cartask.entity.StoredFile
 import top.foxball.cartask.handler.ParamErrorException
 import top.foxball.cartask.handler.ResourceNotFoundException
 import top.foxball.cartask.repository.StoredFileRepository
+import top.foxball.cartask.scope.DataScopeResolver
+import top.foxball.cartask.scope.DepartmentLinkResolver
+import top.foxball.cartask.scope.ScopeQuerySupport
 import top.foxball.cartask.service.FileService
 import top.foxball.cartask.audit.AuditAction
 import top.foxball.cartask.audit.AuditCommand
@@ -37,6 +42,9 @@ class FileServiceImpl(
     private val fileRepository: StoredFileRepository,
     private val properties: FileProperties,
     private val transactionOperations: TransactionOperations,
+    private val dataScopeResolver: DataScopeResolver,
+    private val scopeQuerySupport: ScopeQuerySupport,
+    private val departmentLinkResolver: DepartmentLinkResolver,
     private val auditService: AuditService? = null,
 ) : FileService {
     private val remoteHttpClient = HttpClient.newBuilder()
@@ -48,6 +56,7 @@ class FileServiceImpl(
     override fun upload(file: MultipartFile): FileService.FileData {
         require(!file.isEmpty) { "文件不能为空" }
         val storedUpload = storeUpload(file)
+        applyUploader(storedUpload.metadata)
         try {
             val saved = transactionOperations.execute {
                 val persisted = fileRepository.saveAndFlush(storedUpload.metadata)
@@ -68,7 +77,7 @@ class FileServiceImpl(
         }
     }
 
-    override fun importRemote(url: String): FileService.FileData {
+    override fun importRemote(url: String, origin: FileService.FileOrigin?): FileService.FileData {
         val uri = try {
             URI.create(url.trim())
         } catch (_: IllegalArgumentException) {
@@ -108,6 +117,7 @@ class FileServiceImpl(
             )
         }
         return try {
+            origin?.let { applyOrigin(storedUpload.metadata, it) }
             val saved = transactionOperations.execute {
                 val persisted = fileRepository.saveAndFlush(storedUpload.metadata)
                 auditService?.record(
@@ -128,11 +138,10 @@ class FileServiceImpl(
     }
 
     /** 将已存储的元数据转换为对外返回数据。 */
-    override fun get(id: UUID): FileService.FileData = fileData(findFile(id))
-
+    override fun get(id: UUID): FileService.FileData = fileData(findVisibleFile(id))
     /** 验证记录和文件均存在后，返回下载资源描述。 */
     override fun openDownload(id: UUID): FileService.DownloadData {
-        val storedFile = findFile(id)
+        val storedFile = findVisibleFile(id)
         val path = resolveStoredPath(storedFile.relativePath)
         if (!Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS)) {
             throw ResourceNotFoundException("文件不存在")
@@ -227,6 +236,49 @@ class FileServiceImpl(
     /** 按 ID 查询元数据；不存在时统一转换为资源不存在错误。 */
     private fun findFile(id: UUID): StoredFile = fileRepository.findById(id)
         .orElseThrow { ResourceNotFoundException("文件不存在") }
+
+    /**
+     * 按当前数据范围取文件。
+     *
+     * 文件表原先没有归属字段，任何 `file:read` 持有者只要知道 UUID 就能下载任意附件，
+     * 包括别人车辆的进出抓拍。范围外与不存在用同一个错误，避免用响应差异探测文件是否存在。
+     */
+    private fun findVisibleFile(id: UUID): StoredFile {
+        val storedFile = findFile(id)
+        val scope = dataScopeResolver.current()
+        // 不受限范围直接放行，省掉逐条的业务归属反查。
+        if (!scope.unrestricted && !scopeQuerySupport.fileVisible(scope, storedFile)) {
+            throw ResourceNotFoundException("文件不存在")
+        }
+        return storedFile
+    }
+
+    /**
+     * 落上上传者与其当前工作部门。
+     *
+     * 部门归属取上传者的当前工作部门；同步任务从外部平台拉取的图片没有登录主体，
+     * 归属由调用方通过 [FileService.FileOrigin] 显式传入。
+     */
+    private fun applyUploader(metadata: StoredFile) {
+        val principal = SecurityContextHolder.getContext().authentication?.principal as? CurrentUserPrincipal ?: return
+        metadata.uploadedByUserId = principal.userId
+        principal.workingDepartmentId
+            ?.let { departmentId -> departmentLinkResolver.snapshot().codesOf(setOf(departmentId)).singleOrNull() }
+            ?.let { metadata.departmentCode = it }
+    }
+
+    private fun applyOrigin(metadata: StoredFile, origin: FileService.FileOrigin) {
+        origin.departmentCode?.let { metadata.departmentCode = it }
+        origin.businessType?.let { metadata.businessType = it }
+        origin.businessId?.let { metadata.businessId = it }
+    }
+
+    override fun linkBusiness(id: UUID, businessType: String, businessId: String) {
+        val storedFile = findFile(id)
+        storedFile.businessType = businessType
+        storedFile.businessId = businessId
+        fileRepository.save(storedFile)
+    }
 
     /** 将数据库相对路径安全地限制在配置的文件根目录内。 */
     private fun resolveStoredPath(relativePath: String): Path {

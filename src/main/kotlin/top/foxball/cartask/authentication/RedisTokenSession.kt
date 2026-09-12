@@ -20,4 +20,12 @@ data class RedisTokenSession(
      * 避免为此在校验链路上多查一次数据库。旧会话缺少该字段时按 false 解析。
      */
     @param:JsonProperty("must_change_password") val mustChangePassword: Boolean = false,
+    /**
+     * 当前工作部门；null 表示不限部门（「全部」）。
+     *
+     * 只存在于会话，刻意不进 JWT：切换工作部门时不必重新签发 token，也不会因为
+     * token 与会话不一致被 [JwtAuthenticationFilter] 的一致性校验拒绝。
+     * 旧会话缺少该字段时按 null 解析，即与引入该字段之前的行为一致。
+     */
+    @param:JsonProperty("working_department_id") val workingDepartmentId: Long? = null,
 )

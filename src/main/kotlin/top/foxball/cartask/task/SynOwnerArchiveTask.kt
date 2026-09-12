@@ -18,6 +18,7 @@ import top.foxball.cartask.repository.ParkingPlateRepository
 import top.foxball.cartask.service.SyncTaskHistoryService
 import top.foxball.cartask.service.SyncTaskRunCommand
 import top.foxball.cartask.service.SyncTaskProgressService
+import top.foxball.cartask.shared.PlateNumbers
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.util.concurrent.locks.ReentrantLock
@@ -96,7 +97,7 @@ class SynOwnerArchiveTask(
 
         val activePlates = accessRecordRepository
             .findDistinctCarNumbersSince(startedAt.minusDays(ACTIVE_WINDOW_DAYS))
-            .mapNotNull(::normalizePlate)
+            .mapNotNull(PlateNumbers::normalize)
             .toSet()
         syncTaskProgressService.update(TASK_KEY, 0, activePlates.size)
         if (activePlates.isEmpty()) {
@@ -107,7 +108,7 @@ class SynOwnerArchiveTask(
         // 车牌档案按归一化车牌建索引；停用档案一并保留，避免为已停用车牌重复插入同一个车牌号。
         val plateByKey = parkingPlateRepository.findAll()
             .asSequence()
-            .mapNotNull { plate -> normalizePlate(plate.plate)?.let { it to plate } }
+            .mapNotNull { plate -> PlateNumbers.normalize(plate.plate)?.let { it to plate } }
             .toMap(mutableMapOf())
         val owners = parkingOwnerRepository.findAll()
         val ownerById = owners.associateBy { requireNotNull(it.id) }.toMutableMap()
@@ -207,16 +208,6 @@ class SynOwnerArchiveTask(
         }
     }
 
-    /**
-     * 车牌归一化：进出记录的车牌来自科拓，车牌档案由人工或导入维护，两边可能存在
-     * 间隔符（·）和空格差异，匹配前统一去除并转大写。
-     */
-    private fun normalizePlate(value: String?): String? = value
-        ?.replace(SEPARATOR_PATTERN, "")
-        ?.trim()
-        ?.uppercase()
-        ?.takeIf(String::isNotEmpty)
-
     private fun firstText(node: JsonNode, vararg names: String): String? = names.asSequence()
         .mapNotNull { node.get(it) }
         .firstOrNull { !it.isNull && !it.isMissingNode && it.asString().isNotBlank() }
@@ -260,7 +251,6 @@ class SynOwnerArchiveTask(
 
         /** 车主档案补建数据源的进出记录回溯天数。 */
         const val ACTIVE_WINDOW_DAYS = 30L
-        val SEPARATOR_PATTERN = Regex("[\\s·.。]")
         val logger = LoggerFactory.getLogger(SynOwnerArchiveTask::class.java)
         val executionLock = ReentrantLock()
     }

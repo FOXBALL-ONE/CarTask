@@ -14,7 +14,9 @@ import top.foxball.cartask.handler.VehicleAccessRecordSyncInProgressException
 import top.foxball.cartask.keytop.KeytopProperties
 import top.foxball.cartask.keytop.KeytopService
 import top.foxball.cartask.repository.AccessRecordRepository
+import top.foxball.cartask.entity.StoredFile
 import top.foxball.cartask.repository.SyncCheckpointRepository
+import top.foxball.cartask.shared.PlateNumbers
 import top.foxball.cartask.service.FileService
 import top.foxball.cartask.service.SyncTaskHistoryService
 import top.foxball.cartask.service.SyncTaskRunCommand
@@ -336,7 +338,7 @@ class SynCarCapInfoTask(
                 ?: accessRecordRepository.findBySourceRecordId(key)
                 ?: accessRecordRepository.findByIdentity(record.carNumber, record.inAndOut, record.inAndOutTime)
             val stored = if (existing == null) {
-                applyPhoto(record, importPhoto(record.sourcePhotoUrl))
+                applyPhoto(record, importPhoto(record))
                 accessRecordRepository.save(record)
                 seen[key] = record
                 record
@@ -356,7 +358,7 @@ class SynCarCapInfoTask(
                 val sourceChanged = existing.sourcePhotoUrl != record.sourcePhotoUrl
                 existing.sourcePhotoUrl = record.sourcePhotoUrl
                 if (sourceChanged || existing.photoSyncStatus != AccessRecord.PhotoSyncStatus.LOCAL) {
-                    applyPhoto(existing, importPhoto(existing.sourcePhotoUrl))
+                    applyPhoto(existing, importPhoto(existing))
                 }
                 existing.feeAmount = record.feeAmount
                 existing.recordStatus = record.recordStatus
@@ -517,13 +519,13 @@ class SynCarCapInfoTask(
     private fun retryFailedPhotos() {
         accessRecordRepository.findTop100ByPhotoSyncStatusOrderByIdAsc(AccessRecord.PhotoSyncStatus.FAILED)
             .forEach { record ->
-                applyPhoto(record, importPhoto(record.sourcePhotoUrl))
+                applyPhoto(record, importPhoto(record))
                 accessRecordRepository.save(record)
             }
     }
     
-    private fun importPhoto(sourceUrl: String?): PhotoImportResult {
-        val url = sourceUrl?.trim()
+    private fun importPhoto(record: AccessRecord): PhotoImportResult {
+        val url = record.sourcePhotoUrl?.trim()
         if (url.isNullOrBlank()) {
             return PhotoImportResult(null, AccessRecord.PhotoSyncStatus.NOT_AVAILABLE, null)
         }
@@ -532,7 +534,16 @@ class SynCarCapInfoTask(
         }
         return runCatching {
             PhotoImportResult(
-                fileService.importRemote(url).downloadUrl,
+                // 抓拍图片必须带上业务归属：文件表没有归属就没有数据范围可言，而同步任务没有
+                // 登录主体，无法像用户上传那样自动落标。部门归属不在这里写死，
+                // 而是由范围解析按车牌反查当前车主部门，这样换车主或改部门名都不会失效。
+                fileService.importRemote(
+                    url,
+                    FileService.FileOrigin(
+                        businessType = StoredFile.BUSINESS_VEHICLE_PLATE,
+                        businessId = PlateNumbers.normalize(record.carNumber),
+                    ),
+                ).downloadUrl,
                 AccessRecord.PhotoSyncStatus.LOCAL,
                 null
             )

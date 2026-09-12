@@ -41,6 +41,19 @@ class ViolationSubject {
     @Column(length = 255)
     var remark: String? = null
 
+    /**
+     * 归属部门编码，由主体标识（车牌或工号）解析而来。
+     *
+     * 违规记录整条关联链上原本没有任何部门字段，完全无法按部门裁剪；部门归属落在主体上，
+     * 记录经主体间接获得归属。历史数据为 null，由归属回填接口补齐。
+     */
+    @Column(name = "department_code", length = 64)
+    var departmentCode: String? = null
+
+    /** 归属账号；本人范围下据此判定，否则只能靠车牌/工号字符串匹配。 */
+    @Column(name = "linked_user_id")
+    var linkedUserId: Long? = null
+
     /** 主体状态。 */
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)

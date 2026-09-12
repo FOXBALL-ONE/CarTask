@@ -192,3 +192,13 @@ data class StoredDeleteRequest(
     val applyTime: String,
     val status: String,
 )
+
+/** 替换某个用户的部门管理范围。 */
+data class ManagedDepartmentRequest(
+    val departments: List<ManagedDepartmentItem>? = null,
+)
+
+data class ManagedDepartmentItem(
+    @param:JsonProperty("department_id") val departmentId: Long? = null,
+    @param:JsonProperty("include_descendants") val includeDescendants: Boolean = false,
+)

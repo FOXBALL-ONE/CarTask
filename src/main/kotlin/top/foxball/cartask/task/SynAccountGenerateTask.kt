@@ -16,6 +16,7 @@ import top.foxball.cartask.service.SyncTaskHistoryService
 import top.foxball.cartask.service.SyncTaskRunCommand
 import top.foxball.cartask.service.SyncTaskProgressService
 import top.foxball.cartask.service.UserService
+import top.foxball.cartask.shared.PlateNumbers
 import java.security.MessageDigest
 import java.time.LocalDateTime
 import java.util.concurrent.locks.ReentrantLock
@@ -96,7 +97,7 @@ class SynAccountGenerateTask(
 
         val activePlates = accessRecordRepository
             .findDistinctCarNumbersSince(startedAt.minusDays(ACTIVE_WINDOW_DAYS))
-            .mapNotNull(::normalizePlate)
+            .mapNotNull(PlateNumbers::normalize)
             .toSet()
         syncTaskProgressService.update(TASK_KEY, 0, activePlates.size)
         if (activePlates.isEmpty()) {
@@ -107,7 +108,7 @@ class SynAccountGenerateTask(
         val plateByKey = parkingPlateRepository.findAll()
             .asSequence()
             .filter { it.status == STATUS_ENABLED }
-            .mapNotNull { plate -> normalizePlate(plate.plate)?.let { it to plate } }
+            .mapNotNull { plate -> PlateNumbers.normalize(plate.plate)?.let { it to plate } }
             .toMap()
         val ownerById = parkingOwnerRepository
             .findAllById(plateByKey.values.map { it.ownerId }.toSet())
@@ -199,16 +200,6 @@ class SynAccountGenerateTask(
         }
     }
 
-    /**
-     * 车牌归一化：进出记录的车牌来自科拓，车牌档案由人工或导入维护，两边可能存在
-     * 间隔符（·）和空格差异，匹配前统一去除并转大写。
-     */
-    private fun normalizePlate(value: String?): String? = value
-        ?.replace(SEPARATOR_PATTERN, "")
-        ?.trim()
-        ?.uppercase()
-        ?.takeIf(String::isNotEmpty)
-
     private fun recordHistory(
         trigger: SyncTaskRun.Trigger,
         status: SyncTaskRun.Status,
@@ -250,7 +241,6 @@ class SynAccountGenerateTask(
 
         /** 账号生成数据源的进出记录回溯天数。 */
         const val ACTIVE_WINDOW_DAYS = 30L
-        val SEPARATOR_PATTERN = Regex("[\\s·.。]")
         val logger = LoggerFactory.getLogger(SynAccountGenerateTask::class.java)
         val executionLock = ReentrantLock()
     }

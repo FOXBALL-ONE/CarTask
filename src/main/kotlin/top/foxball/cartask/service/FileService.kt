@@ -23,11 +23,21 @@ interface FileService {
         val sizeBytes: Long,
     )
 
+    /** 远程导入时的业务归属，用于把图片限定在对应范围的可见集合内。 */
+    data class FileOrigin(
+        val departmentCode: String? = null,
+        val businessType: String? = null,
+        val businessId: String? = null,
+    )
+
     /** 上传文件并返回其元数据与下载地址。 */
     fun upload(file: MultipartFile): FileData
 
     /** 下载远程资源并写入本地文件存储，返回本地下载地址。 */
-    fun importRemote(url: String): FileData
+    fun importRemote(url: String, origin: FileOrigin? = null): FileData
+
+    /** 把已上传的文件关联到业务对象，使业务归属人也能取到该文件。 */
+    fun linkBusiness(id: UUID, businessType: String, businessId: String)
 
     /** 按文件 ID 查询元数据。 */
     fun get(id: UUID): FileData

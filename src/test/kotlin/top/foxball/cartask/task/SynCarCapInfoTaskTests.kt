@@ -181,14 +181,14 @@ class SynCarCapInfoTaskTests {
             ),
         )
         whenever(repository.findByIdentity(any(), any(), any())).thenReturn(null)
-        whenever(fileService.importRemote(sourceUrl)).thenReturn(
+        whenever(fileService.importRemote(eq(sourceUrl), any())).thenReturn(
             FileService.FileData(UUID.randomUUID(), "capture.jpg", "image/jpeg", 3, localUrl, LocalDateTime.now()),
         )
         val captor = argumentCaptor<AccessRecord>()
 
         task.synCarCapInfoList()
 
-        verify(fileService).importRemote(sourceUrl)
+        verify(fileService).importRemote(eq(sourceUrl), any())
         verify(repository).save(captor.capture())
         assertEquals(localUrl, captor.firstValue.photoUrl)
         assertEquals(AccessRecord.PhotoSyncStatus.LOCAL, captor.firstValue.photoSyncStatus)
@@ -471,7 +471,7 @@ class SynCarCapInfoTaskTests {
         whenever(syncCheckpointRepository.findBySyncKey("keytop.car_cap_info")).thenReturn(checkpoint)
         whenever(repository.findTopByOrderByInAndOutTimeDescIdDesc()).thenReturn(null)
         whenever(repository.findTop100ByPhotoSyncStatusOrderByIdAsc(AccessRecord.PhotoSyncStatus.FAILED)).thenReturn(listOf(failed))
-        whenever(fileService.importRemote(failed.sourcePhotoUrl!!)).thenReturn(
+        whenever(fileService.importRemote(eq(failed.sourcePhotoUrl!!), any())).thenReturn(
             FileService.FileData(UUID.randomUUID(), "capture.jpg", "image/jpeg", 3, localUrl, LocalDateTime.now()),
         )
         whenever(keytopService.getCarInoutInfo(eq(1), eq(2), isNull(), anyOrNull(), anyOrNull()))

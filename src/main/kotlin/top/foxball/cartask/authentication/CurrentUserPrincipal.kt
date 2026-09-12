@@ -13,6 +13,13 @@ class CurrentUserPrincipal(
     permissions: Collection<String> = emptySet(),
     /** 为 true 时除改密相关接口外的业务请求都会被拒绝。 */
     val mustChangePassword: Boolean = false,
+    /**
+     * 当前工作部门；null 表示不限部门。
+     *
+     * 取自 Redis 会话（[JwtAuthenticationFilter] 每请求本来就要读该会话），因此携带它
+     * 不会增加任何 Redis 或数据库调用。数据范围解析以它为准。
+     */
+    val workingDepartmentId: Long? = null,
 ) {
     val role: String = SecurityRole.normalize(role)
     val permissions: Set<String> = Collections.unmodifiableSet(

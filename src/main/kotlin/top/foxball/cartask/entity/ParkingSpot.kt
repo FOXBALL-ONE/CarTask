@@ -30,6 +30,16 @@ class ParkingSpot {
     @Column(length = 128)
     var owner: String? = null
 
+    /**
+     * 车主卡号，取值来自 [ParkingOwner.cardId]（该列有唯一约束）。
+     *
+     * 车位此前只存车主姓名，而姓名会重名——导入代码自己都要靠
+     * `count { it.name == owner } == 1` 来回避歧义。要按部门划定车位范围就必须有稳定键。
+     * 历史数据为 null，读时按 [owner] 兜底解析。
+     */
+    @Column(name = "owner_code", length = 64)
+    var ownerCode: String? = null
+
     @Column(nullable = false)
     var status: Int = 0
 
