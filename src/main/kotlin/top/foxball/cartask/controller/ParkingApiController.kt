@@ -50,6 +50,7 @@ import top.foxball.cartask.repository.ViolationRecordRepository
 import top.foxball.cartask.scope.DataScopeResolver
 import top.foxball.cartask.scope.ScopeGuard
 import top.foxball.cartask.scope.ScopeQuerySupport
+import top.foxball.cartask.service.DashboardSpotStatsService
 import top.foxball.cartask.service.DepartmentService
 import top.foxball.cartask.service.PositionService
 import top.foxball.cartask.service.FileService
@@ -80,6 +81,7 @@ class ParkingApiController(
     private val dataScopeResolver: DataScopeResolver,
     private val scopeQuerySupport: ScopeQuerySupport,
     private val scopeGuard: ScopeGuard,
+    private val dashboardSpotStatsService: DashboardSpotStatsService,
 ) {
     @GetMapping("/depts")
     @PreAuthorize("hasAuthority('department:read')")
@@ -852,11 +854,8 @@ class ParkingApiController(
         data class Trend(val labels: List<String>, val series: List<Series>)
         data class Dashboard(val stats: List<Stat>, val parking: List<Parking>, @param:JsonProperty("violationTypes") val violationTypes: List<Map<String, Any>>, @param:JsonProperty("violationTrend") val violationTrend: Trend, @param:JsonProperty("inoutTrend") val inoutTrend: Trend)
         val scope = dataScopeResolver.current()
-        // 仪表盘全是聚合数，不过滤就是「部门管理看到全公司数字」，比列表泄露更容易被忽略。
-        val visibleOwnerCodes = if (scope.unrestricted) null else scopeQuerySupport.ownerCardIdsInScope(scope)
-        val spots = spotRepository.findAll().filter { scopeQuerySupport.spotVisible(visibleOwnerCodes, it.ownerCode) }
-        val used = spots.count { it.status == 1 }
-        val total = spots.size
+        // 车位指标按配置的车场/区域统计：总数取科拓同步的区域容量，已分配取本地已登记且启用的车位数。
+        val spotStats = dashboardSpotStatsService.currentStats(scope)
         val violations = violationRecordRepository.findAllWithViolationType()
             .filter { scopeQuerySupport.violationSubjectVisible(scope, it.subject) }
         val violationTypes = violations.groupingBy { it.violationType.violationName ?: "未分类" }.eachCount().entries.map { mapOf<String, Any>("name" to it.key, "value" to it.value, "color" to "#3B6DFF") }
@@ -880,8 +879,8 @@ class ParkingApiController(
             Series("出场", inoutLabels.mapIndexed { index, _ -> accessRecords.count { it.inAndOut == AccessRecord.InAndOut.OUT && it.inAndOutTime.hour / 4 == index } }, "#6EE7B7"),
         ))
         val rs = Dashboard(
-            listOf(Stat("车位总数", total, "0%", "flat", "blue"), Stat("已分配", used, "0%", "flat", "green"), Stat("空闲车位", total - used, "0%", "flat", "orange"), Stat("今日违规", violations.count { it.violationTime.toLocalDate() == java.time.LocalDate.now() }, "0%", "flat", "red")),
-            spots.groupBy { it.area }.entries.map { (area, rows) -> Parking(area, rows.size, rows.count { it.status == 1 }) }, violationTypes, violationTrend, inoutTrend,
+            listOf(Stat("车位总数", spotStats.total, "0%", "flat", "blue"), Stat("已分配", spotStats.used, "0%", "flat", "green"), Stat("空闲车位", (spotStats.total - spotStats.used).coerceAtLeast(0), "0%", "flat", "orange"), Stat("今日违规", violations.count { it.violationTime.toLocalDate() == java.time.LocalDate.now() }, "0%", "flat", "red")),
+            spotStats.zones.map { Parking(it.zoneName, it.total, it.used) }, violationTypes, violationTrend, inoutTrend,
         )
         return responseBuilder.ok().data(rs).build()
     }
