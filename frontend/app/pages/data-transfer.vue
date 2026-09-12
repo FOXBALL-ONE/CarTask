@@ -63,7 +63,9 @@
 </template>
 
 <script setup lang="ts">
-type ResourceKey = "all" | "users" | "positions" | "owners" | "spots" | "plates" | "devices" | "gate-persons";
+type ResourceKey = "users" | "positions" | "owners" | "spots" | "plates" | "devices" | "gate-persons";
+/** "all" 是整批接口（/excel/all/*），不是 resources 里的一张卡片。 */
+type TransferResource = "all" | ResourceKey;
 const resources: { key: ResourceKey; label: string; icon: string; description: string }[] = [
   { key: "users", label: "用户数据", icon: "group", description: "批量创建系统用户，包含账号、组织归属和状态。" },
   { key: "positions", label: "岗位数据", icon: "badge", description: "批量维护岗位名称、编码、排序和启用状态。" },
@@ -73,13 +75,57 @@ const resources: { key: ResourceKey; label: string; icon: string; description: s
   { key: "devices", label: "设备数据", icon: "router", description: "批量维护门禁、摄像头等接入设备信息。" },
   { key: "gate-persons", label: "门禁人员", icon: "badge", description: "批量登记门禁人员基础信息，导入后可继续审批同步。" },
 ];
+/**
+ * 与后端 ExcelController 的 @PreAuthorize 一一对应：模板与导出要资源的 :read，导入要 :manage。
+ *
+ * 两边口径必须一致，否则会出现「按钮点得动、请求被 403 拒绝」；前端这里只是体验层，真正的
+ * 拦截在服务端。
+ */
+const resourcePermissions: Record<ResourceKey, { read: string; manage: string }> = {
+  users: { read: "user:read", manage: "user:create" },
+  positions: { read: "position:read", manage: "position:manage" },
+  owners: { read: "owner:read", manage: "owner:manage" },
+  spots: { read: "spot:read", manage: "spot:manage" },
+  plates: { read: "plate:read", manage: "plate:manage" },
+  devices: { read: "device:read", manage: "device:manage" },
+  "gate-persons": { read: "gate-person:read", manage: "gate-person:manage" },
+};
+/** 这些接口后端都要求三种管理角色之一，普通用户即使有读权限也不该看到这里的操作入口。 */
+const adminRoles = ["SUPER_ADMIN", "ADMIN", "DEPT_ADMIN"];
+const { can } = usePermission();
+const authStore = useAuthStore();
 const busy = ref("");
 const message = ref("");
 const feedbackType = ref<"success" | "error">("success");
 const runtimeConfig = useRuntimeConfig();
 const token = useCookie<string | null>("cartask_auth_token");
 
-function endpoint(resource: ResourceKey, action: "template" | "export" | "import") {
+const isAdminRole = computed(() => {
+  const role = authStore.user?.role;
+  return typeof role === "string" && adminRoles.includes(role);
+});
+
+/** 单个资源是否有对应权限。导入按钮用 manage，卡片本身用 read。 */
+function canHandle(resource: ResourceKey, action: "read" | "manage") {
+  return isAdminRole.value && can(resourcePermissions[resource][action]);
+}
+
+/** 与 canAny 的 ANY 语义相对：整批接口要求的是一整组权限全都要有。 */
+function canAll(permissions: string[]) {
+  return isAdminRole.value && permissions.every((permission) => can(permission));
+}
+
+// /excel/all/export 要整组读权限；/excel/all/template 与 /excel/all/import 还要 department:manage。
+const canExportAll = computed(() => canAll(Object.values(resourcePermissions).map((item) => item.read)));
+const canUseAllSheets = computed(() => canAll([
+  "department:manage",
+  ...Object.values(resourcePermissions).map((item) => item.manage),
+]));
+
+// 没有读权限的资源整张卡片隐藏：连模板都下载不了，摆在那里只会让人点了才发现被拒。
+const visibleResources = computed(() => resources.filter((resource) => canHandle(resource.key, "read")));
+
+function endpoint(resource: TransferResource, action: "template" | "export" | "import") {
   const base = String(runtimeConfig.public.baseUrl || "http://127.0.0.1:8080/api").replace(/\/$/, "");
   return `${base}/excel/${resource}/${action}`;
 }
@@ -88,7 +134,7 @@ function authorization() {
   return token.value ? { Authorization: /^Bearer\s/i.test(token.value) ? token.value : `Bearer ${token.value}` } : {};
 }
 
-async function download(resource: ResourceKey, action: "template" | "export") {
+async function download(resource: TransferResource, action: "template" | "export") {
   busy.value = `${resource}-${action}`;
   message.value = "";
   try {
@@ -132,7 +178,7 @@ async function downloadAll() {
   }
 }
 
-async function importFile(resource: ResourceKey, event: Event) {
+async function importFile(resource: TransferResource, event: Event) {
   const input = event.target as HTMLInputElement;
   const file = input.files?.[0];
   if (!file) return;
