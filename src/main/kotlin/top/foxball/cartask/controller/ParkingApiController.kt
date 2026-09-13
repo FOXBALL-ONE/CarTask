@@ -54,6 +54,7 @@ import top.foxball.cartask.service.DashboardSpotStatsService
 import top.foxball.cartask.service.DepartmentService
 import top.foxball.cartask.service.PositionService
 import top.foxball.cartask.service.FileService
+import top.foxball.cartask.shared.GatePersonFields
 import top.foxball.cartask.shared.Response
 import top.foxball.cartask.shared.ResponseBuilder
 import top.foxball.cartask.shared.VehicleInspection
@@ -447,7 +448,15 @@ class ParkingApiController(
         require(page >= 1) { "页码必须大于 0" }
         require(pageSize in 1..100) { "每页数量必须在 1 到 100 之间" }
         data class PageData(val items: List<StoredGatePerson>, val total: Int)
-        val filtered = scopeQuerySupport.visibleInScope(dataScopeResolver.current(), gatePersonRepository.findAll()).filter { (keyword.isNullOrBlank() || listOf(it.code, it.name, it.phone, it.idCard).any { value -> value.contains(keyword, true) }) && (dept.isNullOrBlank() || it.dept == dept) && (approveStatus.isNullOrBlank() || it.approveStatus.name == approveStatus || (approveStatus == "审核中" && it.approveStatus == GatePerson.ApproveStatus.PENDING) || (approveStatus == "通过" && it.approveStatus == GatePerson.ApproveStatus.APPROVED) || (approveStatus == "拒绝" && it.approveStatus == GatePerson.ApproveStatus.REJECTED)) && (syncStatus.isNullOrBlank() || syncStatus == it.syncStatus.name || (syncStatus == "已同步" && it.syncStatus == GatePerson.SyncStatus.SYNCED) || (syncStatus == "未同步" && it.syncStatus == GatePerson.SyncStatus.NOT_SYNCED)) }.sortedBy { it.id }.map { StoredGatePerson(requireNotNull(it.id), it.code, it.dept, it.name, it.phone, it.idCard, it.face, it.createTime.toString(), when (it.approveStatus) { GatePerson.ApproveStatus.PENDING -> "审核中"; GatePerson.ApproveStatus.APPROVED -> "通过"; GatePerson.ApproveStatus.REJECTED -> "拒绝" }, if (it.syncStatus == GatePerson.SyncStatus.SYNCED) "已同步" else "未同步") }
+        val filtered = scopeQuerySupport.visibleInScope(dataScopeResolver.current(), gatePersonRepository.findAll())
+            .filter { person ->
+                (keyword.isNullOrBlank() || listOf(person.code, person.name, person.phone, person.idCard).any { value -> value.contains(keyword, true) }) &&
+                    (dept.isNullOrBlank() || person.dept == dept) &&
+                    (approveStatus.isNullOrBlank() || approveStatus == person.approveStatus.name || approveStatus == person.approveStatus.value()) &&
+                    (syncStatus.isNullOrBlank() || syncStatus == person.syncStatus.name || syncStatus == person.syncStatus.value())
+            }
+            .sortedBy { it.id }
+            .map { StoredGatePerson(requireNotNull(it.id), it.code, it.dept, it.name, it.phone, it.idCard, it.face, it.createTime.toString(), it.approveStatus.value(), it.syncStatus.value()) }
         val from = ((page - 1).coerceAtLeast(0) * pageSize.coerceAtLeast(1)).coerceAtMost(filtered.size); val to = (from + pageSize.coerceAtLeast(1)).coerceAtMost(filtered.size)
         return responseBuilder.ok().data(PageData(filtered.subList(from, to), filtered.size)).build()
     }
@@ -466,6 +475,7 @@ class ParkingApiController(
 
     @PostMapping("/gate-persons", consumes = ["multipart/form-data"])
     @PreAuthorize("hasAuthority('gate-person:manage')")
+    @Transactional
     fun createGatePersonMultipart(
         @RequestPart("code") code: String,
         @RequestPart("dept") dept: String,
@@ -475,32 +485,48 @@ class ParkingApiController(
         @RequestPart("face") face: MultipartFile,
     ): ResponseEntity<Response> {
         requireImageUpload(face)
-        val file = fileService.upload(face)
-        val gatePersonDepartmentCode = scopeQuerySupport.stampDepartmentCode(dept, null)
+        val validatedCode = GatePersonFields.requireCode(code)
+        val validatedDept = GatePersonFields.requireDept(dept)
+        val validatedName = GatePersonFields.requireName(name)
+        val validatedPhone = GatePersonFields.requirePhone(phone)
+        val validatedIdCard = GatePersonFields.requireIdCard(idCard)
+        // 唯一性必须先于上传：先传文件再报唯一性冲突，文件已经独立落库，会永久留在存储里。
+        require(!gatePersonRepository.existsByCode(validatedCode)) { "人员编号已存在" }
+        require(!gatePersonRepository.existsByIdCard(validatedIdCard)) { "身份证号已存在" }
+        val gatePersonDepartmentCode = scopeQuerySupport.stampDepartmentCode(validatedDept, null)
         // 与车主一致：不允许在范围外的部门下新建门禁人员。
         scopeGuard.requireDepartmentCodeAllowed(gatePersonDepartmentCode, scopeGuard.currentScope())
+        val file = fileService.upload(face)
         val person = GatePerson().apply {
-            this.code = code
-            this.dept = dept
+            this.code = validatedCode
+            this.dept = validatedDept
             this.departmentCode = gatePersonDepartmentCode
-            this.name = name
-            this.phone = phone
-            this.idCard = idCard
+            this.name = validatedName
+            this.phone = validatedPhone
+            this.idCard = validatedIdCard
             this.face = file.downloadUrl
             createTime = LocalDateTime.now()
             updatedAt = createTime
         }
-        require(!gatePersonRepository.existsByCode(person.code)) { "人员编号已存在" }
-        require(!gatePersonRepository.existsByIdCard(person.idCard)) { "身份证号已存在" }
         val saved = gatePersonRepository.save(person)
         // 关联到人员编号：本人范围下靠它才能取到自己的门禁图片，否则只有上传部门看得到。
         fileService.linkBusiness(file.id, StoredFile.BUSINESS_GATE_PERSON, saved.code)
+        auditService.record(
+            AuditCommand(
+                AuditAction.GATE_PERSON_CREATED,
+                "gate_person",
+                saved.id?.toString(),
+                targetSummary = mapOf("code" to saved.code, "department_code" to saved.departmentCode),
+                afterData = mapOf("review_status" to saved.approveStatus.value(), "synchronized" to (saved.syncStatus == GatePerson.SyncStatus.SYNCED)),
+            ),
+        )
         val data = StoredGatePerson(requireNotNull(saved.id), saved.code, saved.dept, saved.name, saved.phone, saved.idCard, saved.face, saved.createTime.toString(), saved.approveStatus.value(), saved.syncStatus.value())
         return responseBuilder.created().data(data).build()
     }
 
     @PutMapping("/gate-persons/{id}", consumes = ["multipart/form-data"])
     @PreAuthorize("hasAuthority('gate-person:manage')")
+    @Transactional
     fun updateGatePersonMultipart(
         @PathVariable id: Long,
         @RequestPart("code", required = false) code: String?,
@@ -513,32 +539,116 @@ class ParkingApiController(
         face?.let(::requireImageUpload)
         val scope = scopeGuard.currentScope()
         val person = scopeGuard.requireVisibleRow(gatePersonRepository.findById(id).orElse(null), scope, "人员不存在")
-        code?.let { require(!gatePersonRepository.existsByCodeAndIdNot(it, id)) { "人员编号已存在" }; person.code = it }
-        dept?.let {
-            val newCode = scopeQuerySupport.stampDepartmentCode(it, person.departmentCode)
-            scopeGuard.requireDepartmentCodeAllowed(newCode, scope)
-            person.dept = it
-            person.departmentCode = newCode
+        val previousCode = person.code
+        val previousDepartmentCode = person.departmentCode
+        val previousStatus = person.approveStatus
+        val previousSyncStatus = person.syncStatus
+        // 只有内容真的变了才算改动：没变的 PUT（前端回填表单后原样提交）不该把已通过的人打回待审核。
+        var changed = false
+        code?.let {
+            val validatedCode = GatePersonFields.requireCode(it)
+            require(!gatePersonRepository.existsByCodeAndIdNot(validatedCode, id)) { "人员编号已存在" }
+            if (validatedCode != person.code) { person.code = validatedCode; changed = true }
         }
-        name?.let { person.name = it }
-        phone?.let { person.phone = it }
-        idCard?.let { require(!gatePersonRepository.existsByIdCardAndIdNot(it, id)) { "身份证号已存在" }; person.idCard = it }
-        face?.let { person.face = fileService.upload(it).downloadUrl }
+        dept?.let {
+            val validatedDept = GatePersonFields.requireDept(it)
+            val newCode = scopeQuerySupport.stampDepartmentCode(validatedDept, person.departmentCode)
+            scopeGuard.requireDepartmentCodeAllowed(newCode, scope)
+            if (validatedDept != person.dept) {
+                person.dept = validatedDept
+                changed = true
+            }
+            // 部门编码可能只是被回填（历史行 department_code 为 null，见 GatePerson 的注释）。
+            // 它不是用户可见内容，所以照常落库，但不算「改动」：不退回待审核，也不写更新审计。
+            // 否则前端原样提交一条已通过的历史记录就会把它打回待审核。
+            if (newCode != person.departmentCode) person.departmentCode = newCode
+        }
+        name?.let { val validatedName = GatePersonFields.requireName(it); if (validatedName != person.name) { person.name = validatedName; changed = true } }
+        phone?.let { val validatedPhone = GatePersonFields.requirePhone(it); if (validatedPhone != person.phone) { person.phone = validatedPhone; changed = true } }
+        idCard?.let {
+            val validatedIdCard = GatePersonFields.requireIdCard(it)
+            require(!gatePersonRepository.existsByIdCardAndIdNot(validatedIdCard, id)) { "身份证号已存在" }
+            if (validatedIdCard != person.idCard) { person.idCard = validatedIdCard; changed = true }
+        }
+        val uploadedFace = face?.let { fileService.upload(it) }
+        uploadedFace?.let { person.face = it.downloadUrl; changed = true }
+        // 已审核通过的内容被改动后必须回到待审核：否则「先送审、通过后再改」可以静默绕过审核。
+        if (changed && person.approveStatus != GatePerson.ApproveStatus.PENDING) {
+            person.approveStatus = GatePerson.ApproveStatus.PENDING
+            person.syncStatus = GatePerson.SyncStatus.NOT_SYNCED
+        }
         val saved = gatePersonRepository.save(person)
+        // 人脸文件既按人员编号判定归属、也按部门快照判定归属：编号或部门变了都要重新锚定，
+        // 否则旧编号再也取不到照片，或旧部门在人员调走之后仍能下载。
+        if (previousCode != saved.code || previousDepartmentCode != saved.departmentCode) {
+            fileService.relinkBusiness(StoredFile.BUSINESS_GATE_PERSON, previousCode, saved.code, saved.departmentCode)
+        }
+        uploadedFace?.let { fileService.linkBusiness(it.id, StoredFile.BUSINESS_GATE_PERSON, saved.code) }
+        if (changed) {
+            auditService.record(
+                AuditCommand(
+                    AuditAction.GATE_PERSON_UPDATED,
+                    "gate_person",
+                    id.toString(),
+                    targetSummary = mapOf("code" to saved.code, "department_code" to saved.departmentCode),
+                    beforeData = mapOf("review_status" to previousStatus.value(), "synchronized" to (previousSyncStatus == GatePerson.SyncStatus.SYNCED)),
+                    afterData = mapOf("review_status" to saved.approveStatus.value(), "synchronized" to (saved.syncStatus == GatePerson.SyncStatus.SYNCED)),
+                ),
+            )
+        }
         val data = StoredGatePerson(requireNotNull(saved.id), saved.code, saved.dept, saved.name, saved.phone, saved.idCard, saved.face, saved.createTime.toString(), saved.approveStatus.value(), saved.syncStatus.value())
         return responseBuilder.ok().data(data).build()
     }
 
     @PutMapping("/gate-persons/{id}/approve")
-    @PreAuthorize("hasAuthority('gate-person:manage')")
-    fun approveGatePerson(@PathVariable id: Long): ResponseEntity<Response> { val person = scopeGuard.requireVisibleRow(gatePersonRepository.findById(id).orElse(null), scopeGuard.currentScope(), "人员不存在"); person.approveStatus = GatePerson.ApproveStatus.APPROVED; gatePersonRepository.save(person); return responseBuilder.ok().message("审批通过").build() }
+    @PreAuthorize("hasAuthority('gate-person:review')")
+    @Transactional
+    fun approveGatePerson(@PathVariable id: Long, @RequestParam(required = false) reason: String?): ResponseEntity<Response> {
+        val saved = reviewGatePerson(requireVisibleGatePerson(id), approved = true, reason = reason)
+        return responseBuilder.ok().message("审批通过").data(mapOf("id" to saved.id, "approveStatus" to saved.approveStatus.value())).build()
+    }
 
     @PutMapping("/gate-persons/{id}/reject")
-    @PreAuthorize("hasAuthority('gate-person:manage')")
-    fun rejectGatePerson(@PathVariable id: Long): ResponseEntity<Response> { val person = scopeGuard.requireVisibleRow(gatePersonRepository.findById(id).orElse(null), scopeGuard.currentScope(), "人员不存在"); person.approveStatus = GatePerson.ApproveStatus.REJECTED; gatePersonRepository.save(person); return responseBuilder.ok().message("审批拒绝").build() }
+    @PreAuthorize("hasAuthority('gate-person:review')")
+    @Transactional
+    fun rejectGatePerson(@PathVariable id: Long, @RequestParam(required = false) reason: String?): ResponseEntity<Response> {
+        val saved = reviewGatePerson(requireVisibleGatePerson(id), approved = false, reason = reason)
+        return responseBuilder.ok().message("审批拒绝").data(mapOf("id" to saved.id, "approveStatus" to saved.approveStatus.value())).build()
+    }
 
+    /**
+     * 批量审核。
+     *
+     * 单独开一个端点而不是让前端循环单条 PUT：单条调用下「部分成功」是常态，前端既拿不到一个
+     * 明确的审核结论，也没法把失败的那几个人一次性告诉用户。
+     */
+    @PutMapping("/gate-persons/reviews")
+    @PreAuthorize("hasAuthority('gate-person:review')")
+    @Transactional
+    fun reviewGatePersons(@RequestBody body: GatePersonReviewBody): ResponseEntity<Response> {
+        val ids = requireNotNull(body.ids) { "审核列表不能为空" }
+        require(ids.isNotEmpty()) { "审核列表不能为空" }
+        require(ids.size <= BATCH_REVIEW_MAX) { "单次批量审核不能超过 $BATCH_REVIEW_MAX 人，请分批提交" }
+        require(ids.distinct().size == ids.size) { "审核记录的 ID 不能重复" }
+        val approved = requireNotNull(body.approved) { "必须指定审核结论" }
+        // 范围只解析一次：current() 每次都要重读整张部门表，逐条解析会把一次批量放大成 N 倍库查询。
+        val scope = scopeGuard.currentScope()
+        val byId = gatePersonRepository.findAllById(ids).associateBy { requireNotNull(it.id) }
+        // 一次取齐，不再逐条 findById；缺失与范围外共用同一个错误，避免用响应差异探测别的部门。
+        val reviewed = ids.map { id ->
+            reviewGatePerson(scopeGuard.requireVisibleRow(byId[id], scope, "人员不存在"), approved, body.reason)
+        }
+        return responseBuilder.ok().message("已审核 ${reviewed.size} 人").data(mapOf("reviewed" to reviewed.size)).build()
+    }
+
+    /**
+     * 门禁人员物理删除。
+     *
+     * 与门禁授权一致地置为 denyAll：删除人员必须走「申请删除 → 审批同意」这条留痕路径，
+     * 否则持有 manage 的部门管理可以直接删掉本部门人员，删除审核形同虚设。
+     */
     @DeleteMapping("/gate-persons/{id}")
-    @PreAuthorize("hasAuthority('gate-person:manage')")
+    @PreAuthorize("denyAll()")
     fun deleteGatePerson(@PathVariable id: Long): ResponseEntity<Response> {
         scopeGuard.requireVisibleRow(gatePersonRepository.findById(id).orElse(null), scopeGuard.currentScope(), "人员不存在")
         gatePersonRepository.deleteById(id)
@@ -548,19 +658,30 @@ class ParkingApiController(
     @PostMapping("/gate-persons/{id}/delete-requests")
     @PreAuthorize("hasAuthority('gate-person:manage')")
     fun createDeleteRequest(@PathVariable id: Long, @RequestBody body: DeleteRequestBody): ResponseEntity<Response> {
-        val person = gatePersonRepository.findById(id).orElseThrow { IllegalArgumentException("人员不存在") }
+        val person = scopeGuard.requireVisibleRow(gatePersonRepository.findById(id).orElse(null), scopeGuard.currentScope(), "人员不存在")
         val request = GateDeleteRequest().apply {
             personId = id
             code = person.code
             dept = person.dept
+            departmentCode = person.departmentCode
             name = person.name
             phone = person.phone
             idCard = person.idCard
             face = person.face
-            reason = requireNotNull(body.reason) { "删除原因不能为空" }
+            reason = requireNotNull(body.reason?.trim()?.takeIf(String::isNotEmpty)) { "删除原因不能为空" }
             applyTime = LocalDateTime.now()
         }
         val saved = gateDeleteRequestRepository.save(request)
+        auditService.record(
+            AuditCommand(
+                AuditAction.GATE_DELETE_REQUESTED,
+                "gate_delete_request",
+                saved.id?.toString(),
+                reason = saved.reason,
+                targetSummary = mapOf("person_id" to id, "code" to saved.code, "department_code" to saved.departmentCode),
+                afterData = mapOf("status" to saved.status.value()),
+            ),
+        )
         val data = StoredDeleteRequest(
             requireNotNull(saved.id), saved.personId, saved.code, saved.dept, saved.name,
             saved.phone, saved.idCard, saved.face, saved.reason, saved.applyTime.toString(), saved.status.value(),
@@ -579,13 +700,14 @@ class ParkingApiController(
         data class Response(val items: List<StoredDeleteRequest>, val total: Int)
         require(page >= 1) { "页码必须大于 0" }
         require(pageSize in 1..100) { "每页数量必须在 1 到 100 之间" }
-        val requests = gateDeleteRequestRepository.findAll()
+        // 删除申请带姓名、手机号与身份证快照，必须和门禁人员本身一样按工作部门裁剪。
+        val requests = scopeQuerySupport.visibleInScope(dataScopeResolver.current(), gateDeleteRequestRepository.findAll())
             .filter { request ->
                 (keyword.isNullOrBlank() || listOf(request.code, request.name, request.phone, request.idCard).any { it.contains(keyword, true) }) &&
                     (status.isNullOrBlank() || request.status.name == status || request.status.value() == status)
             }
             .sortedByDescending { it.applyTime }
-            .map { request -> StoredDeleteRequest(requireNotNull(request.id), request.personId, request.code, request.dept, request.name, request.phone, request.idCard, request.face, request.reason, request.applyTime.toString(), request.status.value()) }
+            .map { StoredDeleteRequest(requireNotNull(it.id), it.personId, it.code, it.dept, it.name, it.phone, it.idCard, it.face, it.reason, it.applyTime.toString(), it.status.value()) }
         val from = ((page - 1) * pageSize).coerceAtMost(requests.size)
         val to = (from + pageSize).coerceAtMost(requests.size)
         val rs = Response(requests.subList(from, to), requests.size)
@@ -594,20 +716,63 @@ class ParkingApiController(
 
     @Transactional
     @PutMapping("/gate-persons/delete-requests/{id}/approve")
-    @PreAuthorize("hasAuthority('gate-person:manage')")
+    @PreAuthorize("hasAuthority('gate-person:review')")
     fun approveDeleteRequest(@PathVariable id: Long): ResponseEntity<Response> {
-        val request = gateDeleteRequestRepository.findById(id).orElseThrow { IllegalArgumentException("删除申请不存在") }
+        val scope = scopeGuard.currentScope()
+        val request = scopeGuard.requireVisibleRow(gateDeleteRequestRepository.findById(id).orElse(null), scope, "删除申请不存在")
         require(request.status == GateDeleteRequest.Status.PENDING) { "删除申请已处理" }
-        require(gatePersonRepository.existsById(request.personId)) { "人员不存在" }
-        gatePersonRepository.deleteById(request.personId)
+        // 真正被删的是人员，范围校验必须落在人员上：申请单本身的可见性不构成删除授权。
+        val person = scopeGuard.requireVisibleRow(gatePersonRepository.findById(request.personId).orElse(null), scope, "人员不存在")
+        gatePersonRepository.deleteById(requireNotNull(person.id))
+        // 人脸是敏感生物特征，人员已删除就不能再按它的编号被反查下载。
+        fileService.unlinkBusiness(StoredFile.BUSINESS_GATE_PERSON, person.code)
         request.status = GateDeleteRequest.Status.APPROVED
         gateDeleteRequestRepository.save(request)
+        auditService.record(
+            AuditCommand(
+                AuditAction.GATE_DELETE_REQUEST_REVIEWED,
+                "gate_delete_request",
+                id.toString(),
+                reason = request.reason,
+                targetSummary = mapOf("person_id" to request.personId, "code" to request.code),
+                beforeData = mapOf("status" to GateDeleteRequest.Status.PENDING.value()),
+                afterData = mapOf("status" to request.status.value()),
+            ),
+        )
+        // 人员被物理删除是 CRITICAL 级事实，单独立案；申请单的状态流转不足以表达它。
+        auditService.record(
+            AuditCommand(
+                AuditAction.GATE_PERSON_DELETED,
+                "gate_person",
+                person.id?.toString(),
+                reason = request.reason,
+                targetSummary = mapOf("code" to person.code, "department_code" to person.departmentCode, "person_id" to person.id),
+                afterData = mapOf("deleted" to true),
+            ),
+        )
         return responseBuilder.ok().message("已同意删除申请").build()
     }
 
     @PutMapping("/gate-persons/delete-requests/{id}/reject")
-    @PreAuthorize("hasAuthority('gate-person:manage')")
-    fun rejectDeleteRequest(@PathVariable id: Long): ResponseEntity<Response> { val request = gateDeleteRequestRepository.findById(id).orElseThrow { IllegalArgumentException("删除申请不存在") }; require(request.status == GateDeleteRequest.Status.PENDING) { "删除申请已处理" }; request.status = GateDeleteRequest.Status.REJECTED; gateDeleteRequestRepository.save(request); return responseBuilder.ok().message("已拒绝删除申请").build() }
+    @PreAuthorize("hasAuthority('gate-person:review')")
+    fun rejectDeleteRequest(@PathVariable id: Long): ResponseEntity<Response> {
+        val request = scopeGuard.requireVisibleRow(gateDeleteRequestRepository.findById(id).orElse(null), scopeGuard.currentScope(), "删除申请不存在")
+        require(request.status == GateDeleteRequest.Status.PENDING) { "删除申请已处理" }
+        request.status = GateDeleteRequest.Status.REJECTED
+        gateDeleteRequestRepository.save(request)
+        auditService.record(
+            AuditCommand(
+                AuditAction.GATE_DELETE_REQUEST_REVIEWED,
+                "gate_delete_request",
+                id.toString(),
+                reason = request.reason,
+                targetSummary = mapOf("person_id" to request.personId, "code" to request.code),
+                beforeData = mapOf("status" to GateDeleteRequest.Status.PENDING.value()),
+                afterData = mapOf("status" to request.status.value()),
+            ),
+        )
+        return responseBuilder.ok().message("已拒绝删除申请").build()
+    }
 
     @GetMapping("/person-records")
     @PreAuthorize("hasAuthority('person-record:read')")
@@ -962,12 +1127,73 @@ class ParkingApiController(
         cb.and(*predicates.toTypedArray())
     }
 
+    /** 门禁人员审核的单一入口：单条与批量共用，避免两条路径的状态机走偏。 */
+    private fun reviewGatePerson(person: GatePerson, approved: Boolean, reason: String?): GatePerson {
+        val id = requireNotNull(person.id)
+        val before = person.approveStatus
+        require(before == GatePerson.ApproveStatus.PENDING) { "该人员当前状态不允许审核，请编辑后重新提交" }
+        person.approveStatus = if (approved) GatePerson.ApproveStatus.APPROVED else GatePerson.ApproveStatus.REJECTED
+        // 驳回的人不能继续留在「已同步」上，否则会出现已拒绝却已下发的矛盾状态。
+        if (!approved) person.syncStatus = GatePerson.SyncStatus.NOT_SYNCED
+        val saved = gatePersonRepository.save(person)
+        auditService.record(
+            AuditCommand(
+                AuditAction.GATE_PERSON_REVIEWED,
+                "gate_person",
+                id.toString(),
+                reason = reason,
+                targetSummary = mapOf("code" to saved.code),
+                beforeData = mapOf("review_status" to before.value()),
+                afterData = mapOf("review_status" to saved.approveStatus.value()),
+            ),
+        )
+        return saved
+    }
+
+    /** 按 ID 取范围内人员；不存在与范围外共用同一个错误，避免用响应差异探测别的部门。 */
+    private fun requireVisibleGatePerson(id: Long): GatePerson =
+        scopeGuard.requireVisibleRow(gatePersonRepository.findById(id).orElse(null), scopeGuard.currentScope(), "人员不存在")
+
     private fun requireImageUpload(file: MultipartFile) {
+        require(file.size <= FACE_PHOTO_MAX_BYTES) { "人脸照片不能超过 2MB" }
         require(file.contentType?.startsWith("image/", ignoreCase = true) == true) { "人脸照片必须为图片格式" }
         val extension = file.originalFilename
             ?.substringAfterLast('.', "")
             ?.lowercase(Locale.ROOT)
-        require(extension in setOf("jpg", "jpeg", "png", "gif", "webp", "bmp")) { "人脸照片格式不受支持" }
+        require(extension in FACE_PHOTO_EXTENSIONS) { "人脸照片格式不受支持" }
+        // 只信客户端给的内容类型与扩展名，会被「改个后缀 + 伪造 Content-Type」绕过，再核对文件头。
+        require(matchesImageSignature(file)) { "人脸照片内容不是受支持的图片" }
+    }
+
+    /**
+     * 按文件头判断是不是受支持的图片。
+     *
+     * WebP 不能只看 RIFF 前缀——WAV、AVI 同样是 RIFF 容器，必须再核对偏移 8 处的 WEBP 标识，
+     * 否则把音频改名为 face.webp 就能通过校验。
+     */
+    private fun matchesImageSignature(file: MultipartFile): Boolean {
+        val header = ByteArray(IMAGE_HEADER_BYTES)
+        val size = file.inputStream.use { it.read(header) }
+        if (size < 4) return false
+        fun matches(offset: Int, vararg expected: Int): Boolean =
+            size >= offset + expected.size && expected.indices.all { header[offset + it] == expected[it].toByte() }
+        return matches(0, 0xFF, 0xD8, 0xFF) || // JPEG
+            matches(0, 0x89, 'P'.code, 'N'.code, 'G'.code) || // PNG
+            matches(0, 'G'.code, 'I'.code, 'F'.code) || // GIF
+            matches(0, 'B'.code, 'M'.code) || // BMP
+            (matches(0, 'R'.code, 'I'.code, 'F'.code, 'F'.code) && matches(8, 'W'.code, 'E'.code, 'B'.code, 'P'.code)) // WebP
+    }
+
+    private companion object {
+        /** 与原型一致：人脸照片上限 2MB。 */
+        const val FACE_PHOTO_MAX_BYTES = 2 * 1024 * 1024
+
+        /** 单次批量审核的条数上限：一次请求要逐条写审计并占用一个事务，必须有个封顶。 */
+        const val BATCH_REVIEW_MAX = 200
+
+        const val IMAGE_HEADER_BYTES = 12
+
+        val FACE_PHOTO_EXTENSIONS = setOf("jpg", "jpeg", "png", "gif", "webp", "bmp")
     }
 
 }

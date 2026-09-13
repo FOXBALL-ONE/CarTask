@@ -273,6 +273,9 @@ class GlobalExceptionHandler(
             "uk_logistics_idempotency" in detail -> "幂等键冲突，请重试查询原结果"
             "uk_order_idempotency" in detail -> "下单幂等键冲突，请重试查询原订单"
             "fk_support_ticket_message_attachment_file" in detail -> "工单消息使用中的附件不能删除"
+            // 门禁人员的唯一性是先查后存，并发下会落到数据库约束上；不映射就是一句 500。
+            "uk_gate_person_code" in detail -> "人员编号已存在"
+            "uk_gate_person_id_card" in detail -> "身份证号已存在"
             else -> null
         }
         if (message != null) {

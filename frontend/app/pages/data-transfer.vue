@@ -35,7 +35,7 @@
             <button class="button button--ghost" type="button" :disabled="!!busy" @click="download(resource.key, 'template')">
               <span class="material-icons-outlined">description</span>{{ busy === `${resource.key}-template` ? "下载中..." : "下载模板" }}
             </button>
-            <button class="button button--soft" type="button" :disabled="!!busy" @click="download(resource.key, 'export')">
+            <button v-if="canExport(resource.key)" class="button button--soft" type="button" :disabled="!!busy" @click="download(resource.key, 'export')">
               <span class="material-icons-outlined">download</span>{{ busy === `${resource.key}-export` ? "导出中..." : "导出全部" }}
             </button>
           </div>
@@ -83,7 +83,8 @@ const resources: { key: ResourceKey; label: string; icon: string; description: s
  * 两边口径必须一致，否则会出现「按钮点得动、请求被 403 拒绝」；前端这里只是体验层，真正的
  * 拦截在服务端。
  */
-const resourcePermissions: Record<ResourceKey, { read: string; manage: string }> = {
+/** export 缺省时沿用 read：只有门禁人员的导出被单独拆成了独立权限码。 */
+const resourcePermissions: Record<ResourceKey, { read: string; manage: string; export?: string }> = {
   users: { read: "user:read", manage: "user:create" },
   positions: { read: "position:read", manage: "position:manage" },
   owners: { read: "owner:read", manage: "owner:manage" },
@@ -91,7 +92,7 @@ const resourcePermissions: Record<ResourceKey, { read: string; manage: string }>
   plates: { read: "plate:read", manage: "plate:manage" },
   "plate-inspections": { read: "plate:read", manage: "plate:manage" },
   devices: { read: "device:read", manage: "device:manage" },
-  "gate-persons": { read: "gate-person:read", manage: "gate-person:manage" },
+  "gate-persons": { read: "gate-person:read", manage: "gate-person:manage", export: "gate-person:export" },
 };
 /** 这些接口后端都要求三种管理角色之一，普通用户即使有读权限也不该看到这里的操作入口。 */
 const adminRoles = ["SUPER_ADMIN", "ADMIN", "DEPT_ADMIN"];
@@ -108,9 +109,13 @@ const isAdminRole = computed(() => {
   return typeof role === "string" && adminRoles.includes(role);
 });
 
-/** 单个资源是否有对应权限。导入按钮用 manage，卡片本身用 read。 */
+/** 单个资源是否有对应权限。导入按钮用 manage，卡片本身用 read，导出按钮用 export（缺省沿用 read）。 */
 function canHandle(resource: ResourceKey, action: "read" | "manage") {
   return isAdminRole.value && can(resourcePermissions[resource][action]);
+}
+
+function canExport(resource: ResourceKey) {
+  return isAdminRole.value && can(resourcePermissions[resource].export || resourcePermissions[resource].read);
 }
 
 /** 与 canAny 的 ANY 语义相对：整批接口要求的是一整组权限全都要有。 */
@@ -118,8 +123,9 @@ function canAll(permissions: string[]) {
   return isAdminRole.value && permissions.every((permission) => can(permission));
 }
 
-// /excel/all/export 要整组读权限；/excel/all/template 与 /excel/all/import 还要 department:manage。
-const canExportAll = computed(() => canAll(Object.values(resourcePermissions).map((item) => item.read)));
+// /excel/all/export 要整组读权限（门禁人员那项已拆成独立的导出权限）；
+// /excel/all/template 与 /excel/all/import 还要 department:manage。
+const canExportAll = computed(() => canAll(Object.values(resourcePermissions).map((item) => item.export || item.read)));
 const canUseAllSheets = computed(() => canAll([
   "department:manage",
   ...Object.values(resourcePermissions).map((item) => item.manage),

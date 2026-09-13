@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
@@ -56,6 +57,51 @@ class AuditServiceImplTests {
         assertFalse(event.beforeData!!.contains("unreviewed_field"))
         assertNotNull(event.eventHash)
         verify(repository).lockPartition(event.partitionKey)
+    }
+
+    @Test
+    fun `门禁人员审计的载荷键都在白名单内且脱敏仍生效`() {
+        whenever(repository.findTopByPartitionKeyOrderBySequenceNoDesc(any())).thenReturn(null)
+        // 本用例调用 record 两次，桩必须回传「本次」的入参；用 argumentCaptor.firstValue 会两次都拿到第一条。
+        whenever(repository.save(any<AuditEvent>())).thenAnswer { invocation -> invocation.getArgument<AuditEvent>(0) }
+
+        val event = service.record(
+            AuditCommand(
+                AuditAction.GATE_PERSON_REVIEWED,
+                "gate_person",
+                "7",
+                targetSummary = mapOf(
+                    "code" to "GP-1",
+                    "department_code" to "PARKING",
+                    "person_id" to 7L,
+                    "sample_codes" to listOf("GP-1"),
+                ),
+                beforeData = mapOf("review_status" to "审核中", "synchronized" to false),
+                afterData = mapOf("review_status" to "通过", "synchronized" to false),
+            ),
+        )
+
+        // 白名单是严格过滤：键名写错就会被静默丢掉、只留一个空对象——那样「审核通过」和「审核驳回」
+        // 在审计里完全无法区分。这些键必须真的穿过 sanitizeMap 落进 JSON。
+        listOf("code", "department_code", "person_id", "sample_codes").forEach { key ->
+            assertTrue(event.targetSummary!!.contains("\"$key\""), "targetSummary 丢了 $key：${event.targetSummary}")
+        }
+        assertTrue(event.beforeData!!.contains("审核中"), "beforeData 丢了 review_status：${event.beforeData}")
+        assertTrue(event.afterData!!.contains("通过"), "afterData 丢了 review_status：${event.afterData}")
+        // 通过与否必须能从审计里读出来，这是审核留痕的最低要求。
+        assertFalse(event.beforeData == event.afterData)
+
+        // 放开白名单不能顺手把脱敏也放开：命中敏感子串的键依旧要被丢掉。
+        val sanitized = service.record(
+            AuditCommand(
+                AuditAction.GATE_PERSON_CREATED,
+                "gate_person",
+                "8",
+                afterData = mapOf("face_info" to "敏感", "review_status" to "审核中"),
+            ),
+        )
+        assertFalse(sanitized.afterData!!.contains("face_info"), "脱敏失效：${sanitized.afterData}")
+        assertTrue(sanitized.afterData!!.contains("审核中"))
     }
 
     @Test

@@ -3,6 +3,7 @@ package top.foxball.cartask.scope
 import java.time.LocalDateTime
 import java.util.Optional
 import java.util.UUID
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
@@ -11,6 +12,10 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
+import org.springframework.security.core.context.SecurityContextHolder
+import org.springframework.security.core.context.SecurityContextImpl
+import top.foxball.cartask.authentication.CurrentUserPrincipal
 import top.foxball.cartask.entity.Department
 import top.foxball.cartask.entity.ParkingOwner
 import top.foxball.cartask.entity.ParkingPlate
@@ -248,6 +253,36 @@ class ExcelResourcePolicyTests {
             .thenReturn(DataScope.departments(setOf(1L, 2L), setOf("A", "B"), setOf("甲", "乙")))
 
         // 导入总得落到一个部门，范围里有两个又没选工作部门时不能猜。
-        assertThrows(IllegalStateException::class.java) { policy.forcedImportDepartment() }
+        assertThrows(IllegalArgumentException::class.java) { policy.forcedImportDepartment() }
+    }
+
+    @Test
+    fun `工作部门已不在管理范围内时拒绝导入`() {
+        whenever(scopeGuard.currentScope())
+            .thenReturn(DataScope.departments(setOf(1L), setOf("PARKING"), setOf("停车管理组")))
+        // 工作部门是会话里记住的上次选择：管理员把分配范围改小之后它可能已经不在范围内，
+        // 此时照着它写入就是把自己看不到、也管不到的数据落进别的部门。
+        setWorkingDepartment(9L)
+
+        assertThrows(IllegalArgumentException::class.java) { policy.forcedImportDepartment() }
+    }
+
+    @AfterEach
+    fun clearAuthentication() {
+        SecurityContextHolder.clearContext()
+    }
+
+    /** 只影响 ExcelResourcePolicy 里读 SecurityContext 取工作部门的那处判断。 */
+    private fun setWorkingDepartment(departmentId: Long) {
+        val principal = CurrentUserPrincipal(
+            userId = 1L,
+            username = "excel-policy-user",
+            role = "DEPT_ADMIN",
+            tokenId = "test-token",
+            workingDepartmentId = departmentId,
+        )
+        SecurityContextHolder.setContext(
+            SecurityContextImpl(UsernamePasswordAuthenticationToken(principal, null, principal.authorities)),
+        )
     }
 }

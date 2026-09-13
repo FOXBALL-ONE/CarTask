@@ -125,6 +125,8 @@ class SecurityConfig(
                 "X-RateLimit-Limit",
                 "X-RateLimit-Remaining",
                 "X-Request-Id",
+                // 不暴露它，浏览器读不到导出文件名，Excel 下载只能退化成前端拼的默认名。
+                "Content-Disposition",
             )
             maxAge = 3600
         }

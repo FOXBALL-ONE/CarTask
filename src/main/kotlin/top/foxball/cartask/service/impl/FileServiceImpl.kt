@@ -280,6 +280,26 @@ class FileServiceImpl(
         fileRepository.save(storedFile)
     }
 
+    override fun relinkBusiness(businessType: String, fromBusinessId: String, toBusinessId: String, departmentCode: String?) {
+        transactionOperations.executeWithoutResult {
+            fileRepository.findByBusinessTypeAndBusinessId(businessType, fromBusinessId).forEach {
+                it.businessId = toBusinessId
+                it.departmentCode = departmentCode
+            }
+        }
+    }
+
+    override fun unlinkBusiness(businessType: String, businessId: String) {
+        transactionOperations.executeWithoutResult {
+            fileRepository.findByBusinessTypeAndBusinessId(businessType, businessId).forEach {
+                it.businessType = null
+                it.businessId = null
+                // 部门快照也要清掉：留着它，旧部门与上传者的下载权在业务对象删除后依然成立。
+                it.departmentCode = null
+            }
+        }
+    }
+
     /** 将数据库相对路径安全地限制在配置的文件根目录内。 */
     private fun resolveStoredPath(relativePath: String): Path {
         val relative = try {

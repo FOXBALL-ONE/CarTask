@@ -2,6 +2,9 @@ package top.foxball.cartask.controller
 
 import com.alibaba.excel.EasyExcel
 import com.alibaba.excel.annotation.ExcelProperty
+import top.foxball.cartask.audit.AuditAction
+import top.foxball.cartask.audit.AuditCommand
+import top.foxball.cartask.audit.AuditService
 import top.foxball.cartask.entity.Department
 import top.foxball.cartask.repository.DepartmentRepository
 import top.foxball.cartask.repository.PositionRepository
@@ -34,6 +37,7 @@ import top.foxball.cartask.scope.DataScope
 import top.foxball.cartask.scope.DataScopeResolver
 import top.foxball.cartask.scope.ExcelResourcePolicy
 import top.foxball.cartask.scope.ScopeQuerySupport
+import top.foxball.cartask.shared.GatePersonFields
 import top.foxball.cartask.repository.ParkingSpotRepository
 import top.foxball.cartask.service.DepartmentService
 import top.foxball.cartask.service.DeviceService
@@ -240,14 +244,18 @@ data class DeviceExportRow(
     @field:ExcelProperty("显示排序") val sort: Int,
 )
 
+/**
+ * 门禁人员导入行。
+ *
+ * 这里只有真正会被导入的列。审核与同步状态不开放给样表：导入一律落在待审核、未同步，
+ * 让样表里出现无法生效的「审核状态」列，只会让填表人以为批量预审核已经生效。
+ */
 class GatePersonExcelRow {
     @field:ExcelProperty("人员编号") var code: String? = null
     @field:ExcelProperty("部门") var dept: String? = null
     @field:ExcelProperty("姓名") var name: String? = null
     @field:ExcelProperty("手机号") var phone: String? = null
     @field:ExcelProperty("身份证号") var idCard: String? = null
-    @field:ExcelProperty("审核状态") var approveStatus: String? = null
-    @field:ExcelProperty("同步状态") var syncStatus: String? = null
 }
 
 data class GatePersonExportRow(
@@ -281,6 +289,7 @@ class ExcelController(
     private val dataScopeResolver: DataScopeResolver,
     private val scopeQuerySupport: ScopeQuerySupport,
     private val excelResourcePolicy: ExcelResourcePolicy,
+    private val auditService: AuditService,
 ) {
     @GetMapping("/{resource}/template")
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and ((#resource == 'users' and hasAuthority('user:read')) or (#resource == 'positions' and hasAuthority('position:read')) or (#resource == 'owners' and hasAuthority('owner:read')) or (#resource == 'spots' and hasAuthority('spot:read')) or (#resource == 'plates' and hasAuthority('plate:read')) or (#resource == 'plate-inspections' and hasAuthority('plate:read')) or (#resource == 'devices' and hasAuthority('device:read')) or (#resource == 'gate-persons' and hasAuthority('gate-person:read')))")
@@ -351,7 +360,7 @@ class ExcelController(
     }
 
     @GetMapping("/{resource}/export")
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and ((#resource == 'users' and hasAuthority('user:read')) or (#resource == 'positions' and hasAuthority('position:read')) or (#resource == 'owners' and hasAuthority('owner:read')) or (#resource == 'spots' and hasAuthority('spot:read')) or (#resource == 'plates' and hasAuthority('plate:read')) or (#resource == 'plate-inspections' and hasAuthority('plate:read')) or (#resource == 'devices' and hasAuthority('device:read')) or (#resource == 'gate-persons' and hasAuthority('gate-person:read')))")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and ((#resource == 'users' and hasAuthority('user:read')) or (#resource == 'positions' and hasAuthority('position:read')) or (#resource == 'owners' and hasAuthority('owner:read')) or (#resource == 'spots' and hasAuthority('spot:read')) or (#resource == 'plates' and hasAuthority('plate:read')) or (#resource == 'plate-inspections' and hasAuthority('plate:read')) or (#resource == 'devices' and hasAuthority('device:read')) or (#resource == 'gate-persons' and hasAuthority('gate-person:export')))")
     fun export(@PathVariable resource: String): ResponseEntity<ByteArrayResource> {
         excelResourcePolicy.requireScopable(resource)
         val scope = dataScopeResolver.current()
@@ -442,15 +451,27 @@ class ExcelController(
                     DeviceExportRow(requireNotNull(it.id), it.deviceCode, it.deviceName, it.deviceType, it.brand, it.model, it.location, it.ip, it.installDate, if (it.status == Device.Status.Activity) "正常" else "停用", it.orderNumber)
                 }, DeviceExportRow::class.java)
             }
-            "gate-persons" -> writeWorkbook("门禁人员列表.xlsx", scopeQuerySupport.visibleInScope(scope, gatePersonRepository.findAll()).map {
-                GatePersonExportRow(requireNotNull(it.id), it.code, it.dept, it.name, it.phone, it.idCard, it.createTime.toString(), it.approveStatus.value(), it.syncStatus.value())
-            }, GatePersonExportRow::class.java)
+            "gate-persons" -> {
+                val rows = scopeQuerySupport.visibleInScope(scope, gatePersonRepository.findAll()).map {
+                    GatePersonExportRow(requireNotNull(it.id), it.code, it.dept, it.name, it.phone, it.idCard, it.createTime.toString(), it.approveStatus.value(), it.syncStatus.value())
+                }
+                val response = writeWorkbook("门禁人员列表.xlsx", rows, GatePersonExportRow::class.java)
+                // 工作簿真的写出来了才留痕：先记后写会在写出失败时留下一条「已成功导出」的假记录。
+                auditService.record(
+                    AuditCommand(
+                        AuditAction.SENSITIVE_DATA_EXPORTED,
+                        "gate_person",
+                        targetSummary = mapOf("record_count" to rows.size, "original_filename" to "门禁人员列表.xlsx"),
+                    ),
+                )
+                response
+            }
             else -> throw IllegalArgumentException("不支持的 Excel 数据类型: $resource")
         }
     }
 
     @GetMapping("/all/export")
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('user:read') and hasAuthority('position:read') and hasAuthority('owner:read') and hasAuthority('spot:read') and hasAuthority('plate:read') and hasAuthority('device:read') and hasAuthority('gate-person:read')")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('user:read') and hasAuthority('position:read') and hasAuthority('owner:read') and hasAuthority('spot:read') and hasAuthority('plate:read') and hasAuthority('device:read') and hasAuthority('gate-person:export')")
     fun exportAll(): ResponseEntity<ByteArrayResource> {
         excelResourcePolicy.requireScopable("all")
         val users = mutableListOf<UserService.UserData>()
@@ -522,6 +543,18 @@ class ExcelController(
             writer.finish()
         }
         val disposition = ContentDisposition.attachment().filename("全部数据.xlsx", StandardCharsets.UTF_8).build()
+        // 「导出全部数据」同样含明文身份证与手机号，即使范围未受限也要留痕；写出成功后才记。
+        // targetType 用独立的 excel_all，否则按 target_type=gate_person 检索会把「整库导出」
+        // 误当成门禁人员导出，条数也严重偏低。
+        val exportedRowCount = userRows.size + positionRows.size + ownerRows.size + spotRows.size +
+            plateRows.size + deviceRows.size + gateRows.size
+        auditService.record(
+            AuditCommand(
+                AuditAction.SENSITIVE_DATA_EXPORTED,
+                "excel_all",
+                targetSummary = mapOf("record_count" to exportedRowCount, "original_filename" to "全部数据.xlsx"),
+            ),
+        )
         return ResponseEntity.ok()
             .contentType(MediaType.parseMediaType(XLSX_MEDIA_TYPE))
             .contentLength(output.size().toLong())
@@ -802,15 +835,25 @@ class ExcelController(
                     if (resource == "all" && rows.isEmpty()) continue
                     require(rows.isNotEmpty()) { "Excel 中没有可导入的数据" }
                     val entities = rows.mapIndexed { index, row ->
-                        val line = index + 2
+                        val line = "第${index + 2}行"
+                        val code = GatePersonFields.requireCode(row.code, line)
+                        // 范围受限时导入必须落到当前工作部门；表里填了别的部门直接带行号报错，
+                        // 而不是悄悄改写（那会让用户以为导入到了自己填的部门）。
+                        val requestedDept = row.dept?.trim()?.takeIf(String::isNotEmpty)
+                        if (forcedDepartment != null && requestedDept != null &&
+                            requestedDept != forcedDepartment.name &&
+                            scopeQuerySupport.stampDepartmentCode(requestedDept, null) != forcedDepartment.code
+                        ) {
+                            throw IllegalArgumentException("${line}只能导入到当前工作部门 ${forcedDepartment.name}（${forcedDepartment.code}）")
+                        }
+                        val dept = forcedDepartment?.name ?: GatePersonFields.requireDept(requestedDept, line)
                         GatePerson().apply {
-                            code = requireNotBlank(row.code, "第${line}行人员编号不能为空")
-                            dept = forcedDepartment?.name ?: requireNotBlank(row.dept, "第${line}行部门不能为空")
-                            departmentCode = forcedDepartment?.code
-                                ?: scopeQuerySupport.stampDepartmentCode(dept, null)
-                            name = requireNotBlank(row.name, "第${line}行姓名不能为空")
-                            phone = requireNotBlank(row.phone, "第${line}行手机号不能为空")
-                            idCard = requireNotBlank(row.idCard, "第${line}行身份证号不能为空")
+                            this.code = code
+                            this.dept = dept
+                            departmentCode = forcedDepartment?.code ?: scopeQuerySupport.stampDepartmentCode(dept, null)
+                            name = GatePersonFields.requireName(row.name, line)
+                            phone = GatePersonFields.requirePhone(row.phone, line)
+                            idCard = GatePersonFields.requireIdCard(row.idCard, line)
                             createTime = LocalDateTime.now()
                             updatedAt = createTime
                         }
@@ -823,6 +866,21 @@ class ExcelController(
                     require(idCards.none { gatePersonRepository.existsByIdCard(it) }) { "导入文件中包含已存在的身份证号" }
                     val imported = gatePersonRepository.saveAll(entities)
                     counts[currentResource] = imported.size
+                    // 批量录入同样要留痕；编号只采样前 20 个，避免一次导入上万行把审计记录撑爆。
+                    auditService.record(
+                        AuditCommand(
+                            AuditAction.GATE_PERSON_CREATED,
+                            "gate_person",
+                            targetSummary = mapOf(
+                                "record_count" to imported.size,
+                                "sample_codes" to imported.map { it.code }.take(20),
+                            ),
+                            afterData = mapOf(
+                                "review_status" to GatePerson.ApproveStatus.PENDING.value(),
+                                "synchronized" to false,
+                            ),
+                        ),
+                    )
                 }
                 else -> throw IllegalArgumentException("不支持的 Excel 数据类型: $resource")
             }

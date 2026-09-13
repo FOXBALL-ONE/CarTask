@@ -40,15 +40,24 @@ class ExcelResourcePolicy(
      * 导入时必须落到的部门；返回 null 表示当前范围不受限、按表格里填的部门走。
      *
      * 范围收窄但没有确定到唯一部门时直接拒绝：导入没法猜用户想把数据写到哪个部门。
+     * 拒绝一律用 [IllegalArgumentException]（映射成 400 并带出消息）而不是 IllegalStateException——
+     * 后者没有异常处理器，会落到兜底的 500 且消息为空，用户只看到「Internal Server Error」，
+     * 完全不知道该去切换工作部门。
      */
     fun forcedImportDepartment(): ForcedImportDepartment? {
         val scope = scopeGuard.currentScope()
         if (scope.unrestricted) return null
         val departmentId = currentWorkingDepartmentId()
             ?: scope.departmentIds.singleOrNull()
-            ?: throw IllegalStateException("请先选择一个具体的工作部门再导入")
+            ?: throw IllegalArgumentException("请先选择一个具体的工作部门再导入")
+        // 工作部门是会话里记住的上次选择，不保证还在当前管理范围内（管理员调整分配范围后就会脱节）。
+        // 不求交就是一条把数据写到自己看不到、也管不到的部门下的越权路径——单条录入路径的
+        // requireDepartmentCodeAllowed 在导入这条路上没有第二道防线。
+        if (departmentId !in scope.departmentIds) {
+            throw IllegalArgumentException("当前工作部门不在你的管理范围内，请切换工作部门后再导入")
+        }
         val department = departmentRepository.findById(departmentId).orElseThrow {
-            IllegalStateException("当前工作部门不存在: $departmentId")
+            IllegalArgumentException("当前工作部门不存在: $departmentId")
         }
         return ForcedImportDepartment(departmentId, department.departmentNumber, department.name)
     }

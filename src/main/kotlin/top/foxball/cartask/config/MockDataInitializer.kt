@@ -666,6 +666,8 @@ class MockDataInitializer(
                     personId = requireNotNull(gatePersonTwo.id)
                     code = gatePersonTwo.code
                     dept = gatePersonTwo.dept
+                    // 与真实写路径一致：申请单要落部门编码，否则列表只能靠部门名兜底解析。
+                    departmentCode = gatePersonTwo.departmentCode
                     name = gatePersonTwo.name
                     phone = gatePersonTwo.phone
                     idCard = gatePersonTwo.idCard

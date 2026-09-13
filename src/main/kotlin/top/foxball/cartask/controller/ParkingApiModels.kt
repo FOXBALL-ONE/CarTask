@@ -140,6 +140,13 @@ data class GatePersonRequest(
 
 data class DeleteRequestBody(@param:JsonProperty("reason") val reason: String? = null)
 
+/** 批量审核门禁人员：结论对整批生效，避免前端循环单条调用产生「部分成功」。 */
+data class GatePersonReviewBody(
+    @param:JsonProperty("ids") val ids: List<Long>? = null,
+    @param:JsonProperty("approved") val approved: Boolean? = null,
+    @param:JsonProperty("reason") val reason: String? = null,
+)
+
 data class StoredOwner(
     val id: Long,
     val cardId: String,

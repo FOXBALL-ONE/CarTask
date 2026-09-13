@@ -147,13 +147,19 @@ class AuditServiceImpl(
             "file_content",
             "content_bytes",
         )
-        /** 审计摘要只允许业务白名单字段，未知字段默认丢弃。 */
+        /**
+         * 审计摘要只允许业务白名单字段，未知字段默认丢弃。
+         *
+         * 这是有意为之的收敛：beforeData/afterData 由调用方随手拼 map，不设白名单就迟早会把
+         * 身份证、人脸 URL 这类东西写进审计表。代价是**新增审计字段必须同步加到本集合**，
+         * 否则它会被静默丢掉——只看到 `{}` 的开发者很难想到问题出在这里。
+         */
         val SAFE_KEYS = setOf(
-            "username", "role", "department_id", "enabled", "status", "name", "permissions",
+            "username", "role", "department_id", "department_code", "enabled", "status", "name", "permissions",
             "review_status", "synchronized", "car_number", "in_and_out", "in_and_out_time",
             "release_channel", "operator_name", "original_filename", "size_bytes", "content_type",
-            "code", "deleted", "method", "path", "token_id_hash", "record_count", "occurred_from",
-            "occurred_to", "action", "target_type",
+            "code", "sample_codes", "person_id", "deleted", "method", "path", "token_id_hash",
+            "record_count", "occurred_from", "occurred_to", "action", "target_type",
             // 数据备份的产物摘要。少写一个键，它就会被静默丢掉，只留下一个空 {}
             // ——新增审计字段时必须同步加到这里。
             "include_files", "table_count", "row_count", "file_count", "missing_files",
