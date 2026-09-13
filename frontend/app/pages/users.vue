@@ -17,20 +17,32 @@
 
     <div class="user-layout">
       <aside class="panel department-panel">
-        <div class="panel__head"><h2>部门列表</h2></div>
+        <div class="panel__head department-panel__head">
+          <span class="material-icons-outlined" aria-hidden="true">account_tree</span>
+          <h2>部门列表</h2>
+          <span class="panel__count">共 {{ departments.length }} 个</span>
+        </div>
         <div class="department-tree">
-          <button class="department-item" :class="{ active: selectedDepartment === 0 }" type="button" @click="selectDepartment(0)">
-            <span class="material-icons-outlined">apartment</span>全部部门
-          </button>
+          <div class="department-row" :class="{ active: selectedDepartment === 0 }">
+            <span class="department-row__spacer" aria-hidden="true" />
+            <button class="department-row__select" type="button" @click="selectDepartment(0)">
+              <span class="material-icons-outlined" aria-hidden="true">apartment</span>
+              <span class="department-name">全部部门</span>
+            </button>
+          </div>
+          <div class="department-tree__sep" aria-hidden="true" />
           <template v-for="department in departmentRoots" :key="department.id">
             <department-node
               :department="department"
               :children="departmentChildren"
               :level="0"
               :selected="selectedDepartment"
+              :expanded="expandedDepartments"
               @select="selectDepartment"
+              @toggle="toggleDepartment"
             />
           </template>
+          <p v-if="!loading && departmentRoots.length === 0" class="department-empty">暂无部门</p>
         </div>
       </aside>
 
@@ -132,7 +144,7 @@ interface Department { id: number; name: string; parent?: number | null }
 interface Role { id: number; name: string; code?: string }
 interface RoleList { items: Role[] }
 interface UserList { items: User[]; total: number; page: number; pageSize: number }
-interface DepartmentNodeProps { department: Department; children: Department[]; level: number; selected: number }
+interface DepartmentNodeProps { department: Department; children: Department[]; level: number; selected: number; expanded: number[] }
 
 const DepartmentNode = defineComponent({
   name: "DepartmentNode",
@@ -141,17 +153,56 @@ const DepartmentNode = defineComponent({
     children: { type: Array as PropType<Department[]>, required: true },
     level: { type: Number, required: true },
     selected: { type: Number, required: true },
+    expanded: { type: Array as PropType<number[]>, required: true },
   },
-  emits: ["select"],
+  emits: ["select", "toggle"],
   setup(props: DepartmentNodeProps, { emit }) {
-    const children = computed(() => props.children.filter((item) => (item.parent ?? 0) === props.department.id));
-    return () => h("div", [
-      h("button", { class: ["department-item", { active: props.selected === props.department.id }], style: { paddingLeft: `${12 + props.level * 16}px` }, type: "button", onClick: () => emit("select", props.department.id) }, [
-        h("span", { class: "material-icons-outlined" }, children.value.length ? "folder" : "badge"),
-        h("span", { class: "department-name" }, props.department.name),
-      ]),
-      ...children.value.map((child) => h(DepartmentNode, { department: child, children: props.children, level: props.level + 1, selected: props.selected, onSelect: (id: number) => emit("select", id) })),
-    ]);
+    const subDepartments = computed(() => props.children.filter((item) => (item.parent ?? 0) === props.department.id));
+    const isExpanded = computed(() => props.expanded.includes(props.department.id));
+    return () => {
+      const hasChildren = subDepartments.value.length > 0;
+      return h("div", [
+        h("div", {
+          class: ["department-row", {
+            active: props.selected === props.department.id,
+            "department-row--group": hasChildren,
+            expanded: isExpanded.value,
+          }],
+          // 层级交给 CSS：缩进和左侧导轨都由 --dept-level 算出来，窄屏改成横向排列时也不用重新计算。
+          style: { "--dept-level": String(props.level) },
+        }, [
+          hasChildren
+            ? h("button", {
+              class: "department-row__toggle",
+              type: "button",
+              "aria-expanded": String(isExpanded.value),
+              "aria-label": `${isExpanded.value ? "收起" : "展开"}${props.department.name}`,
+              onClick: () => emit("toggle", props.department.id),
+            }, [h("span", { class: "material-icons-outlined" }, "chevron_right")])
+            : h("span", { class: "department-row__spacer", "aria-hidden": "true" }),
+          h("button", {
+            class: "department-row__select",
+            type: "button",
+            onClick: () => emit("select", props.department.id),
+          }, [
+            h("span", { class: "material-icons-outlined", "aria-hidden": "true" }, hasChildren ? "folder" : "badge"),
+            h("span", { class: "department-name", title: props.department.name }, props.department.name),
+          ]),
+        ]),
+        // 收起时直接卸载子树，展开后各层回到默认展开状态
+        isExpanded.value && hasChildren
+          ? h("div", subDepartments.value.map((child) => h(DepartmentNode, {
+            department: child,
+            children: props.children,
+            level: props.level + 1,
+            selected: props.selected,
+            expanded: props.expanded,
+            onSelect: (id: number) => emit("select", id),
+            onToggle: (id: number) => emit("toggle", id),
+          })))
+          : null,
+      ]);
+    };
   },
 });
 
@@ -160,6 +211,8 @@ const { can } = usePermission();
 const keyword = ref("");
 const status = ref("");
 const selectedDepartment = ref(0);
+/** 处于展开状态的部门 id；折叠状态只影响树的显示，不影响右侧列表的筛选结果。 */
+const expandedDepartments = ref<number[]>([]);
 const page = ref(1);
 const pageSizes = [10, 20, 50, 100];
 const pageSize = ref(20);
@@ -194,6 +247,10 @@ async function loadReferenceData() {
   const [departmentResult, roleResult] = await Promise.all([http.get<Department[]>("/depts"), http.get<RoleList>("/roles", { page: 1, pageSize: 100 })]);
   departments.value = departmentResult || [];
   roles.value = roleResult.items || [];
+  // 有下级的部门默认展开，进页面就能看到完整的上下级结构
+  expandedDepartments.value = departments.value
+    .filter((department) => departments.value.some((child) => (child.parent ?? 0) === department.id))
+    .map((department) => department.id);
 }
 
 async function loadUsers() {
@@ -230,6 +287,11 @@ async function initialize() {
 function search() { page.value = 1; void loadUsers(); }
 function resetFilters() { keyword.value = ""; status.value = ""; selectedDepartment.value = 0; page.value = 1; void loadUsers(); }
 function selectDepartment(id: number) { selectedDepartment.value = id; page.value = 1; void loadUsers(); }
+function toggleDepartment(id: number) {
+  expandedDepartments.value = expandedDepartments.value.includes(id)
+    ? expandedDepartments.value.filter((item) => item !== id)
+    : [...expandedDepartments.value, id];
+}
 function changePage(nextPage: number) { if (nextPage < 1 || nextPage > totalPages.value) return; page.value = nextPage; void loadUsers(); }
 function changePageSize() { page.value = 1; void loadUsers(); }
 function openCreate() { editingId.value = null; originalRoleId.value = null; originalStatus.value = 1; managedDepartments.value = []; Object.assign(form, { username: "", name: "", password: "", deptId: departments.value[0]?.id ?? null, roleId: roles.value[0]?.id ?? null, phone: "", status: 1 }); formError.value = ""; editorVisible.value = true; }
@@ -293,11 +355,54 @@ useScopeRefresh(initialize);
 
 <style scoped>
 .page { min-height: 100%; padding: 24px; }.page__header { align-items: center; display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; margin-bottom: 20px; }.page__title { color: var(--text); font-size: 18px; font-weight: 600; margin: 0; }.page__desc { color: var(--text-sub); margin: 2px 0 0; }.page__actions, .filter-actions { display: flex; gap: 8px; }
-.user-layout { align-items: flex-start; display: flex; gap: 16px; }.panel { background: var(--card); border: 1px solid var(--border-strong); border-radius: 8px; min-width: 0; }.department-panel { flex: 0 0 240px; }.user-panel { flex: 1; overflow: hidden; }.panel__head { border-bottom: 1px solid var(--border); padding: 14px 18px; }.panel__head h2 { color: var(--text); font-size: 14px; margin: 0; }.department-tree { max-height: 580px; overflow-y: auto; padding: 6px 0 10px; }.department-item { align-items: center; background: transparent; border: 0; border-radius: 6px; color: var(--text-sub); cursor: pointer; display: flex; font: inherit; gap: 6px; margin: 1px 8px; min-height: 32px; padding: 6px 8px; text-align: left; width: calc(100% - 16px); }.department-item:hover { background: var(--bg); color: var(--text); }.department-item.active { background: var(--primary-soft); color: var(--primary); font-weight: 500; }.department-item .material-icons-outlined { color: var(--text-mute); font-size: 16px; }.department-item.active .material-icons-outlined { color: var(--primary); }.department-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.user-layout { align-items: flex-start; display: flex; gap: 16px; }.panel { background: var(--card); border: 1px solid var(--border-strong); border-radius: 8px; min-width: 0; }.department-panel { display: flex; flex-direction: column; flex: 0 0 240px; max-height: calc(100dvh - var(--topbar-h) - 32px); position: sticky; top: calc(var(--topbar-h) + 16px); }
+.department-panel__head { align-items: center; display: flex; flex: none; gap: 8px; min-height: 70px; }
+.department-panel__head .material-icons-outlined { color: var(--text-mute); font-size: 17px; }
+.panel__count { background: var(--bg); border-radius: 999px; color: var(--text-mute); font-size: 11px; margin-left: auto; padding: 2px 8px; white-space: nowrap; }
+.user-panel { flex: 1; overflow: hidden; }
+.panel__head { border-bottom: 1px solid var(--border); padding: 14px 18px; }
+.panel__head h2 { color: var(--text); font-size: 14px; margin: 0; }
+.department-tree { flex: 1; min-height: 0; overflow-y: auto; padding: 6px 0 10px; scrollbar-color: var(--border-strong) transparent; scrollbar-width: thin; }
+.department-tree::-webkit-scrollbar { width: 6px; }
+.department-tree::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
+.department-tree::-webkit-scrollbar-track { background: transparent; }
+.department-tree__sep { background: var(--border); height: 1px; margin: 6px 16px 8px; }
+.department-row {
+  align-items: center;
+  background-color: transparent;
+  /* 每条导轨画在对应层级祖先展开箭头的中线上：左侧起始 8px + 箭头半宽 9px */
+  background-image: repeating-linear-gradient(to right, var(--border-strong) 0 1px, transparent 1px 16px);
+  background-position: 17px 0;
+  background-repeat: no-repeat;
+  background-size: calc(var(--dept-level, 0) * 16px) 100%;
+  border-radius: 6px;
+  display: flex;
+  margin: 0 8px;
+  min-height: 34px;
+  padding-left: calc(8px + var(--dept-level, 0) * 16px);
+  padding-right: 6px;
+  position: relative;
+  transition: background-color var(--tr);
+}
+.department-row__spacer { flex: none; width: 18px; }
+.department-row__toggle { align-items: center; background: transparent; border: 0; border-radius: 4px; color: var(--text-mute); cursor: pointer; display: flex; flex: none; font: inherit; height: 22px; justify-content: center; padding: 0; width: 18px; }
+.department-row__toggle .material-icons-outlined { font-size: 18px; transition: transform var(--tr); }
+.department-row.expanded .department-row__toggle .material-icons-outlined { transform: rotate(90deg); }
+.department-row__select { align-items: center; background: transparent; border: 0; color: var(--text-sub); cursor: pointer; display: flex; flex: 1; font: inherit; gap: 7px; min-width: 0; padding: 7px 0 7px 3px; text-align: left; }
+.department-row__select .material-icons-outlined { color: var(--text-mute); flex: none; font-size: 16px; }
+.department-row--group .department-name { color: var(--text); font-weight: 500; }
+.department-row--group .department-row__select .material-icons-outlined { color: var(--text-sub); }
+.department-row:hover { background-color: var(--bg); }
+.department-row:hover .department-row__select { color: var(--text); }
+.department-row.active { background-color: var(--primary-soft); }
+.department-row.active::before { background: var(--primary); border-radius: 0 2px 2px 0; content: ""; height: 18px; left: 0; position: absolute; top: 50%; transform: translateY(-50%); width: 3px; }
+.department-row.active .department-row__select, .department-row.active .department-name, .department-row.active .department-row__select .material-icons-outlined, .department-row.active .department-row__toggle { color: var(--primary); }
+.department-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.department-empty { color: var(--text-mute); font-size: 12px; margin: 14px 18px; }
 .filter-bar { align-items: center; display: flex; flex-wrap: wrap; gap: 10px; padding: 18px; }.input, .select { background: var(--card); border: 1px solid var(--border-strong); border-radius: 6px; box-sizing: border-box; color: var(--text); font: inherit; height: 34px; outline: none; padding: 0 10px; }.input { min-width: 200px; }.select { min-width: 120px; }.input:focus, .select:focus { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-soft); }.button { align-items: center; border: 1px solid transparent; border-radius: 6px; cursor: pointer; display: inline-flex; font: inherit; gap: 5px; height: 32px; justify-content: center; padding: 0 12px; white-space: nowrap; }.button:disabled { cursor: wait; opacity: .6; }.button--primary { background: var(--primary); color: #fff; }.button--soft { background: var(--primary-soft); color: var(--primary); }.button--ghost { background: var(--card); border-color: var(--border-strong); color: var(--text-sub); }.button:hover:not(:disabled) { filter: brightness(.97); }.button .material-icons-outlined { font-size: 16px; }
 .table-wrap { overflow-x: auto; }.table { border-collapse: collapse; font-size: 13px; min-width: 850px; width: 100%; }.table th { background: var(--bg); border-bottom: 1px solid var(--border); color: var(--text-mute); font-size: 12px; font-weight: 500; padding: 10px 14px; text-align: left; white-space: nowrap; }.table td { border-bottom: 1px solid var(--border); color: var(--text); padding: 11px 14px; white-space: nowrap; }.table tbody tr:hover { background: var(--bg); }.checkbox-cell { padding-left: 18px !important; width: 36px; }.actions-cell { text-align: right !important; }.checkbox { accent-color: var(--primary); height: 15px; width: 15px; }.username { color: var(--primary); }.role-tag { background: var(--primary-soft); border-radius: 4px; color: var(--primary); display: inline-flex; font-size: 12px; padding: 2px 8px; }.status-switch { background: #d4d4d8; border: 0; border-radius: 18px; cursor: pointer; height: 18px; padding: 2px; transition: background var(--tr); width: 34px; }.status-switch span { background: #fff; border-radius: 50%; display: block; height: 14px; transition: transform var(--tr); width: 14px; }.status-switch.enabled { background: #059669; }.status-switch.enabled span { transform: translateX(16px); }.row-action, .icon-button { align-items: center; background: transparent; border: 0; border-radius: 5px; color: var(--text-mute); cursor: pointer; display: inline-flex; height: 28px; justify-content: center; width: 28px; }.row-action:hover { background: var(--bg); color: var(--text); }.row-action--danger:hover { background: #fef2f2; color: #dc2626; }.row-action .material-icons-outlined { font-size: 16px; }.empty, .state { color: var(--text-mute); padding: 48px; text-align: center; }.state--error, .form-error { color: #dc2626; }.pagination { align-items: center; color: var(--text-sub); display: flex; gap: 4px; justify-content: flex-end; padding: 14px 18px; }.pagination button { align-items: center; background: transparent; border: 1px solid transparent; border-radius: 5px; color: var(--text-sub); cursor: pointer; display: inline-flex; height: 28px; justify-content: center; min-width: 28px; }.pagination button:hover:not(:disabled), .pagination button.active { background: var(--primary-soft); color: var(--primary); }.pagination button:disabled { cursor: not-allowed; opacity: .4; }.pagination .material-icons-outlined { font-size: 18px; }.pagination__size { align-items: center; color: var(--text-sub); display: flex; font-size: 12px; gap: 6px; }.pagination__size .select { font-size: 12px; height: 28px; min-width: 0; padding: 0 4px 0 8px; width: auto; }
 .modal-mask { align-items: center; background: rgb(0 0 0 / 38%); display: flex; inset: 0; justify-content: center; padding: 20px; position: fixed; z-index: 300; }.modal { background: var(--card); border-radius: 8px; box-shadow: 0 16px 48px rgb(0 0 0 / 20%); max-width: 620px; width: 100%; }.modal__head, .modal__foot { align-items: center; display: flex; justify-content: space-between; padding: 14px 18px; }.modal__head { border-bottom: 1px solid var(--border); }.modal__head h2 { color: var(--text); font-size: 16px; margin: 0; }.modal__foot { border-top: 1px solid var(--border); gap: 8px; justify-content: flex-end; }.modal__body { padding: 20px 18px; }.form-grid { display: grid; gap: 14px 16px; grid-template-columns: repeat(2, minmax(0, 1fr)); }.field { display: grid; gap: 6px; }.field span { color: var(--text-sub); font-size: 12px; font-weight: 500; }.field em { color: #dc2626; font-style: normal; }.field .input, .field .select { width: 100%; }
-@media (max-width: 900px) { .user-layout { flex-direction: column; }.department-panel { width: 100%; }.department-tree { display: flex; flex-wrap: wrap; max-height: 180px; }.department-item { width: auto; } }.department-panel { max-width: 100%; } @media (max-width: 600px) { .page { padding: 16px; }.input { min-width: 0; width: 100%; }.filter-bar { align-items: stretch; flex-direction: column; }.filter-actions { justify-content: flex-end; }.form-grid { grid-template-columns: 1fr; }.modal-mask { padding: 12px; } }
+@media (max-width: 900px) { .user-layout { flex-direction: column; }.department-panel { flex: none; max-height: none; position: static; width: 100%; }.department-tree { max-height: 260px; } }.department-panel { max-width: 100%; } @media (max-width: 600px) { .page { padding: 16px; }.input { min-width: 0; width: 100%; }.filter-bar { align-items: stretch; flex-direction: column; }.filter-actions { justify-content: flex-end; }.form-grid { grid-template-columns: 1fr; }.modal-mask { padding: 12px; } }
 .managed-scope { border-top: 1px solid var(--border); display: grid; gap: 7px; margin-top: 16px; padding-top: 16px; }
 .managed-scope > span { color: var(--text-sub); font-size: 11px; font-weight: 550; }
 </style>
