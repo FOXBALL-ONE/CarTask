@@ -1,0 +1,4 @@
+# Environment Post Processors
+# Loads .env from the working directory before application.yaml placeholders are resolved.
+org.springframework.boot.EnvironmentPostProcessor=\
+top.foxball.cartask.config.DotenvEnvironmentPostProcessor
