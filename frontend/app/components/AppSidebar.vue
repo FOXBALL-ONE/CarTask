@@ -1,84 +1,91 @@
 <template>
-  <aside
-      :class="{ 'sidebar--collapsed': collapsed, 'mobile-open': mobileOpen }"
-      aria-label="主导航"
-      class="sidebar"
-  >
-    <div class="sidebar__logo">
-      <div class="logo__mark">{{ logoMark }}</div>
-      <div class="logo__text">
-        <div class="logo__title">{{ systemName }}</div>
+  <aside :class="sidebarClass" aria-label="主导航">
+    <div
+        :class="['flex min-h-[72px] items-center gap-2.5 border-b border-[var(--border-strong)] py-2',
+                 collapsed ? 'justify-center px-0 max-[768px]:justify-start max-[768px]:px-4' : 'px-4']"
+    >
+      <div
+          :class="['grid shrink-0 place-items-center rounded-[10px] bg-[var(--primary)] font-bold text-white',
+                   collapsed ? 'size-9 text-[18px] max-[768px]:size-10 max-[768px]:text-[20px]' : 'size-10 text-[20px]']"
+      >
+        {{ logoMark }}
+      </div>
+      <div :class="['min-w-0 leading-[1.3]', collapsedHidden]">
+        <div class="line-clamp-2 break-all text-[16px] font-bold text-[var(--text)]">{{ systemName }}</div>
       </div>
     </div>
 
-    <nav class="sidebar__nav">
-      <section v-for="group in navigation" :key="group.title" class="nav__group">
-        <h2 class="nav__group-title">{{ group.title }}</h2>
+    <nav class="flex-1 overflow-y-auto px-2.5 py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <section v-for="group in navigation" :key="group.title" class="mb-2">
+        <h2
+            :class="['whitespace-nowrap px-2.5 pt-3 pb-1 text-[11px] font-normal text-[var(--text-mute)]',
+                     collapsedGroupTitle]"
+        >{{ group.title }}</h2>
         <template v-for="item in group.items" :key="item.label">
           <template v-if="itemVisible(item)">
             <button
                 v-if="item.children"
                 :aria-expanded="expandedGroups.includes(item.label)"
-                :class="{ open: expandedGroups.includes(item.label) }"
+                :class="[navItemClass(false), navItemPadding, 'mb-px text-[13px]']"
                 :title="collapsed ? item.label : undefined"
-                class="nav__item nav__parent"
                 type="button"
                 @click="toggleGroup(item.label)"
             >
-              <span class="material-icons-outlined nav__icon">{{ item.icon }}</span>
-              <span class="nav__label">{{ item.label }}</span>
-              <span class="material-icons-outlined nav__chevron">chevron_right</span>
+              <span :class="navIconClass">{{ item.icon }}</span>
+              <span :class="collapsedHidden">{{ item.label }}</span>
+              <span :class="chevronClass(expandedGroups.includes(item.label))">chevron_right</span>
             </button>
-            <div v-if="item.children" :class="{ open: expandedGroups.includes(item.label) }" class="nav__sub">
+            <div v-if="item.children" :class="['overflow-hidden', subListClass(expandedGroups.includes(item.label))]">
               <button
                   v-for="child in visibleChildren(item)"
                   :key="child.page"
-                  :class="{ active: activePage === child.page }"
+                  :class="[navItemClass(activePage === child.page), 'mb-px py-2 pr-2.5 pl-[38px] text-[12px]']"
                   :title="collapsed ? child.label : undefined"
-                  class="nav__item"
                   type="button"
                   @click="selectPage(child.route)"
               >
-                <span class="material-icons-outlined nav__icon">{{ child.icon }}</span>
-                <span class="nav__label">{{ child.label }}</span>
+                <span :class="navIconClass">{{ child.icon }}</span>
+                <span :class="collapsedHidden">{{ child.label }}</span>
               </button>
             </div>
             <button
                 v-else
-                :class="{ active: activePage === item.page }"
+                :class="[navItemClass(activePage === item.page), navItemPadding, 'mb-px text-[13px]']"
                 :title="collapsed ? item.label : undefined"
-                class="nav__item"
                 type="button"
                 @click="selectPage(item.route)"
             >
-              <span class="material-icons-outlined nav__icon">{{ item.icon }}</span>
-              <span class="nav__label">{{ item.label }}</span>
+              <span :class="navIconClass">{{ item.icon }}</span>
+              <span :class="collapsedHidden">{{ item.label }}</span>
             </button>
           </template>
         </template>
       </section>
     </nav>
 
-    <div class="sidebar__footer">
+    <div class="relative border-t border-[var(--border)] p-2.5">
       <button
           :aria-expanded="settingsOpen"
+          :class="[navItemClass(false), navItemPadding, 'mb-0 text-[13px]']"
           :title="collapsed ? '系统设置' : undefined"
-          class="nav__item"
           type="button"
           @click="settingsOpen = !settingsOpen"
       >
-        <span class="material-icons-outlined nav__icon">settings</span>
-        <span class="nav__label">系统设置</span>
+        <span :class="navIconClass">settings</span>
+        <span :class="collapsedHidden">系统设置</span>
       </button>
-      <div v-show="settingsOpen && !collapsed" class="dropdown-menu settings-menu">
-        <button class="dropdown-item" type="button" @click="emit('settings', 'config')">
-          <span class="material-icons-outlined">build</span>系统配置
+      <div
+          v-show="settingsOpen && !collapsed"
+          class="absolute bottom-2.5 left-[calc(100%+8px)] z-[200] min-w-[180px] rounded-lg border border-[var(--border)] bg-[var(--card)] p-1.5 shadow-[0_8px_24px_rgba(0,0,0,0.12)]"
+      >
+        <button :class="dropdownItemClass" type="button" @click="emit('settings', 'config')">
+          <span class="material-icons-outlined text-[18px] leading-none text-[var(--text-sub)]">build</span>系统配置
         </button>
-        <button v-if="isSuperAdmin" class="dropdown-item" type="button" @click="emit('settings', 'backup')">
-          <span class="material-icons-outlined">storage</span>数据备份
+        <button v-if="isSuperAdmin" :class="dropdownItemClass" type="button" @click="emit('settings', 'backup')">
+          <span class="material-icons-outlined text-[18px] leading-none text-[var(--text-sub)]">storage</span>数据备份
         </button>
-        <button class="dropdown-item" type="button" @click="emit('settings', 'about')">
-          <span class="material-icons-outlined">info</span>关于系统
+        <button :class="dropdownItemClass" type="button" @click="emit('settings', 'about')">
+          <span class="material-icons-outlined text-[18px] leading-none text-[var(--text-sub)]">info</span>关于系统
         </button>
       </div>
     </div>
@@ -128,10 +135,30 @@ const navigation: { title: string; items: NavigationItem[] }[] = [
       {label: "仪表盘", icon: "grid_view", page: "dashboard", route: "/", permissions: ["dashboard:read"]},
       {label: "用户管理", icon: "group", page: "users", route: "/users", permissions: ["user:read"]},
       {label: "在线用户", icon: "sensors", page: "online-users", route: "/online-users", permissions: ["user:read"]},
-      {label: "角色管理", icon: "verified_user", page: "roles", route: "/roles", permissions: ["role:read"], roles: ["SUPER_ADMIN", "ADMIN"]},
-      {label: "部门管理", icon: "account_tree", page: "depts", route: "/departments", permissions: ["department:read"], roles: ["SUPER_ADMIN", "ADMIN"]},
+      {
+        label: "角色管理",
+        icon: "verified_user",
+        page: "roles",
+        route: "/roles",
+        permissions: ["role:read"],
+        roles: ["SUPER_ADMIN", "ADMIN"]
+      },
+      {
+        label: "部门管理",
+        icon: "account_tree",
+        page: "depts",
+        route: "/departments",
+        permissions: ["department:read"],
+        roles: ["SUPER_ADMIN", "ADMIN"]
+      },
       {label: "岗位管理", icon: "badge", page: "posts", route: "/positions", permissions: ["position:read"]},
-      {label: "数据导入导出", icon: "swap_vert", page: "data-transfer", route: "/data-transfer", permissions: ["user:read", "owner:read", "plate:read"]},
+      {
+        label: "数据导入导出",
+        icon: "swap_vert",
+        page: "data-transfer",
+        route: "/data-transfer",
+        permissions: ["user:read", "owner:read", "plate:read"]
+      },
     ],
   },
   {
@@ -147,13 +174,22 @@ const navigation: { title: string; items: NavigationItem[] }[] = [
       ],
     }],
   },
-  {title: "设备管理", items: [{label: "设备管理", icon: "router", page: "devices", route: "/devices", permissions: ["device:read"]}]},
+  {
+    title: "设备管理",
+    items: [{label: "设备管理", icon: "router", page: "devices", route: "/devices", permissions: ["device:read"]}]
+  },
   {
     title: "门禁管理",
     items: [{
       label: "门禁管理",
       icon: "door_front",
-      children: [{label: "人员信息", icon: "badge", page: "gate-persons", route: "/gate-persons", permissions: ["gate-person:read"]}],
+      children: [{
+        label: "人员信息",
+        icon: "badge",
+        page: "gate-persons",
+        route: "/gate-persons",
+        permissions: ["gate-person:read"]
+      }],
     }],
   },
   {
@@ -162,12 +198,33 @@ const navigation: { title: string; items: NavigationItem[] }[] = [
       label: "进出记录",
       icon: "swap_horiz",
       children: [
-        {label: "人员进出", icon: "directions_walk", page: "person-records", route: "/person-records", permissions: ["person-record:read"]},
-        {label: "车辆进出", icon: "directions_car", page: "vehicle-records", route: "/vehicle-records", permissions: ["vehicle-record:read"]},
+        {
+          label: "人员进出",
+          icon: "directions_walk",
+          page: "person-records",
+          route: "/person-records",
+          permissions: ["person-record:read"]
+        },
+        {
+          label: "车辆进出",
+          icon: "directions_car",
+          page: "vehicle-records",
+          route: "/vehicle-records",
+          permissions: ["vehicle-record:read"]
+        },
       ],
     }],
   },
-  {title: "秩序管理", items: [{label: "违规管理", icon: "gavel", page: "violations", route: "/violations", permissions: ["violation:read"]}]},
+  {
+    title: "秩序管理",
+    items: [{
+      label: "违规管理",
+      icon: "gavel",
+      page: "violations",
+      route: "/violations",
+      permissions: ["violation:read"]
+    }]
+  },
   {
     title: "系统",
     items: [
@@ -263,284 +320,57 @@ async function selectPage(route?: string) {
     await navigateTo(route);
   }
 }
+
+/**
+ * 侧栏固定在视口左侧，折叠只改宽度；≤768px 时改为抽屉，靠水平位移滑入滑出。
+ * 断点用 max-[768px]（含 768px）以对齐布局里 toggleSidebar 的 `innerWidth <= 768` 判断。
+ */
+const sidebarClass = computed(() => [
+  "fixed inset-y-0 left-0 z-50 flex flex-col border-r border-[var(--border-strong)] bg-[var(--card)] transition-[width,transform] duration-300 ease-[ease]",
+  props.collapsed ? "w-[var(--sidebar-w-min)] max-[768px]:w-[var(--sidebar-w)]" : "w-[var(--sidebar-w)]",
+  props.mobileOpen
+      ? "max-[768px]:translate-x-0 max-[768px]:shadow-[8px_0_24px_rgba(0,0,0,0.12)]"
+      : "max-[768px]:-translate-x-full",
+]);
+
+// 字号一律写成任意值形式：Tailwind 的 text-xs/text-base 会连同行高一起写死，
+// 而这里的行高由 body 继承（1.5 倍），写死行高会改变导航项的高度。
+const navIconClass = "material-icons-outlined shrink-0 text-[18px] leading-none";
+const dropdownItemClass = "flex w-full cursor-pointer items-center gap-2 rounded-md border-0 bg-transparent px-3 py-2 text-left text-[13px] text-[var(--text)] hover:bg-[var(--bg)]";
+
+/** 折叠时隐藏文字，移动端抽屉里要还原成展开态的排版。 */
+const collapsedHidden = computed(() => props.collapsed ? "hidden max-[768px]:block" : "");
+// 分组标题不是 flex 子项，原型在移动端用的是 display: initial，对 h2 来说即 inline，
+// 这里用 inline 保持同样的盒类型（改用 block 会让每组高出 13px）。
+const collapsedGroupTitle = computed(() => props.collapsed ? "hidden max-[768px]:inline" : "");
+
+const chevronClass = (open: boolean) => [
+  "material-icons-outlined ml-auto text-[16px] leading-none transition-transform duration-200 ease-[ease]",
+  open ? "rotate-90" : "",
+  collapsedHidden.value,
+];
+
+/** 折叠时整组收起；展开态下才由 open 决定，移动端抽屉同理（折叠时也不展开子项）。 */
+const subListClass = (open: boolean) => props.collapsed || !open ? "hidden" : "block";
+
+/** 展开态与折叠态只在居中与内边距上不同；padding 放在这里而不是 navItemClass，避免同一属性出现两个 class。 */
+const navItemPadding = computed(() => props.collapsed
+    ? "justify-center p-2.5 max-[768px]:justify-start max-[768px]:px-2.5 max-[768px]:py-2"
+    : "px-2.5 py-2");
+
+const navItemBase = "relative flex w-full cursor-pointer items-center gap-2.5 rounded-md border-0 text-left whitespace-nowrap transition-[background-color,color] duration-200 ease-[ease]";
+// 不做选中态时才能挂 hover 类，所以 bg-transparent 也只放在这里：Tailwind 把 bg-transparent
+// 排在 bg-[var(--primary-soft)] 之后，两者若同时存在，选中项的底色会被它盖掉。
+const navItemIdle = "bg-transparent text-[var(--text-sub)] hover:bg-[var(--bg)] hover:text-[var(--text)]";
+// 选中指示条：展开态贴在左侧，折叠态是底部横条，移动端再还原成左侧竖条。
+const activeBar = computed(() => props.collapsed
+    ? "before:absolute before:content-[''] before:bg-[var(--primary)] before:bottom-0 before:left-[20%] before:h-[3px] before:w-[60%] before:rounded-t-[2px] max-[768px]:before:top-[20%] max-[768px]:before:bottom-auto max-[768px]:before:left-0 max-[768px]:before:h-[60%] max-[768px]:before:w-[3px] max-[768px]:before:rounded-tl-none max-[768px]:before:rounded-r-[2px]"
+    : "before:absolute before:content-[''] before:bg-[var(--primary)] before:top-[20%] before:left-0 before:h-[60%] before:w-[3px] before:rounded-r-[2px]");
+
+/** 选中项自带底色，所以不能再挂 hover 类：Tailwind 的 hover 规则排在普通工具类之后，会盖掉选中底色。 */
+function navItemClass(active: boolean) {
+  return active
+      ? `${navItemBase} bg-[var(--primary-soft)] font-medium text-[var(--primary)] ${activeBar.value}`
+      : `${navItemBase} ${navItemIdle}`;
+}
 </script>
-
-<style scoped>
-.sidebar {
-  width: var(--sidebar-w);
-  background: var(--card);
-  border-right: 1px solid var(--border-strong);
-  display: flex;
-  flex-direction: column;
-  position: fixed;
-  inset: 0 auto 0 0;
-  z-index: 50;
-  transition: width 0.3s ease, transform 0.3s ease;
-}
-
-.sidebar--collapsed {
-  width: var(--sidebar-w-min);
-}
-
-.sidebar__logo {
-  min-height: 72px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 16px;
-  border-bottom: 1px solid var(--border-strong);
-}
-
-.logo__mark {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  background: var(--primary);
-  color: #fff;
-  display: grid;
-  place-items: center;
-  font-size: 20px;
-  font-weight: 700;
-  flex-shrink: 0;
-}
-
-.logo__text {
-  min-width: 0;
-  line-height: 1.3;
-}
-
-.logo__title {
-  color: var(--text);
-  display: -webkit-box;
-  font-size: 16px;
-  font-weight: 700;
-  overflow: hidden;
-  word-break: break-all;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-}
-
-.sidebar--collapsed .logo__text, .sidebar--collapsed .nav__label, .sidebar--collapsed .nav__group-title, .sidebar--collapsed .nav__chevron {
-  display: none;
-}
-
-.sidebar--collapsed .logo__mark {
-  width: 36px;
-  height: 36px;
-  font-size: 18px;
-}
-
-.sidebar--collapsed .sidebar__logo {
-  justify-content: center;
-  padding: 8px 0;
-}
-
-.sidebar__nav {
-  flex: 1;
-  overflow-y: auto;
-  padding: 12px 10px;
-  scrollbar-width: none;
-}
-
-.sidebar__nav::-webkit-scrollbar {
-  display: none;
-}
-
-.nav__group {
-  margin-bottom: 8px;
-}
-
-.nav__group-title {
-  color: var(--text-mute);
-  font-size: 11px;
-  font-weight: 400;
-  padding: 12px 10px 4px;
-  white-space: nowrap;
-}
-
-.nav__item {
-  width: 100%;
-  align-items: center;
-  background: transparent;
-  border: 0;
-  border-radius: 6px;
-  color: var(--text-sub);
-  cursor: pointer;
-  display: flex;
-  font: inherit;
-  font-size: 13px;
-  gap: 10px;
-  margin-bottom: 1px;
-  padding: 8px 10px;
-  position: relative;
-  text-align: left;
-  transition: background var(--tr), color var(--tr);
-  white-space: nowrap;
-}
-
-.nav__item:hover {
-  background: var(--bg);
-  color: var(--text);
-}
-
-.nav__item.active {
-  background: var(--primary-soft);
-  color: var(--primary);
-  font-weight: 500;
-}
-
-.nav__item.active::before {
-  background: var(--primary);
-  border-radius: 0 2px 2px 0;
-  content: "";
-  height: 60%;
-  left: 0;
-  position: absolute;
-  top: 20%;
-  width: 3px;
-}
-
-.nav__icon {
-  flex-shrink: 0;
-  font-size: 18px;
-  line-height: 1;
-}
-
-.nav__chevron {
-  font-size: 16px;
-  margin-left: auto;
-  transition: transform 0.2s;
-}
-
-.nav__parent.open .nav__chevron {
-  transform: rotate(90deg);
-}
-
-.nav__sub {
-  display: none;
-  overflow: hidden;
-}
-
-.nav__sub.open {
-  display: block;
-}
-
-.nav__sub .nav__item {
-  font-size: 12px;
-  padding-left: 38px;
-}
-
-.sidebar--collapsed .nav__sub {
-  display: none;
-}
-
-.sidebar--collapsed .nav__item {
-  justify-content: center;
-  padding: 10px;
-}
-
-.sidebar--collapsed .nav__item.active::before {
-  border-radius: 2px 2px 0 0;
-  bottom: 0;
-  height: 3px;
-  left: 20%;
-  top: auto;
-  width: 60%;
-}
-
-.sidebar__footer {
-  border-top: 1px solid var(--border);
-  padding: 10px;
-  position: relative;
-}
-
-.sidebar__footer .nav__item {
-  margin-bottom: 0;
-}
-
-.dropdown-menu {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  bottom: 10px;
-  box-shadow: 0 8px 24px rgb(0 0 0 / 12%);
-  min-width: 180px;
-  padding: 6px;
-  position: absolute;
-  z-index: 200;
-}
-
-.settings-menu {
-  left: calc(100% + 8px);
-}
-
-.dropdown-item {
-  align-items: center;
-  background: transparent;
-  border: 0;
-  border-radius: 6px;
-  color: var(--text);
-  cursor: pointer;
-  display: flex;
-  font: inherit;
-  font-size: 13px;
-  gap: 8px;
-  padding: 8px 12px;
-  text-align: left;
-  width: 100%;
-}
-
-.dropdown-item:hover {
-  background: var(--bg);
-}
-
-.dropdown-item .material-icons-outlined {
-  color: var(--text-sub);
-  font-size: 18px;
-}
-
-@media (max-width: 768px) {
-  .sidebar {
-    transform: translateX(-100%);
-    width: var(--sidebar-w);
-  }
-
-  .sidebar.mobile-open {
-    box-shadow: 8px 0 24px rgb(0 0 0 / 12%);
-    transform: translateX(0);
-  }
-
-  .sidebar--collapsed .logo__text, .sidebar--collapsed .nav__label, .sidebar--collapsed .nav__group-title, .sidebar--collapsed .nav__chevron {
-    display: initial;
-  }
-
-  .sidebar--collapsed .sidebar__logo {
-    justify-content: flex-start;
-    padding: 8px 16px;
-  }
-
-  .sidebar--collapsed .logo__mark {
-    width: 40px;
-    height: 40px;
-    font-size: 20px;
-  }
-
-  .sidebar--collapsed .nav__item {
-    justify-content: flex-start;
-    padding: 8px 10px;
-  }
-
-  .sidebar--collapsed .nav__item.active::before {
-    border-radius: 0 2px 2px 0;
-    bottom: auto;
-    height: 60%;
-    left: 0;
-    top: 20%;
-    width: 3px;
-  }
-
-  .sidebar--collapsed .nav__sub {
-    display: none;
-  }
-}
-</style>
