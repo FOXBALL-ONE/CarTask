@@ -34,6 +34,8 @@ object PermissionCatalog {
         Definition("device:manage", "管理设备"),
         Definition("gate-person:read", "查看门禁人员"),
         Definition("gate-person:manage", "管理门禁人员"),
+        Definition("gate-person:review", "审核门禁人员"),
+        Definition("gate-person:export", "导出门禁人员"),
         Definition("person-record:read", "查看人员进出记录"),
         Definition("person-record:export", "导出人员进出记录"),
         Definition("vehicle-record:read", "查看车辆进出记录"),
@@ -63,6 +65,8 @@ object PermissionCatalog {
         Definition("dictionary:sync", "同步停车区域字典"),
         Definition("account:sync", "生成车辆业主账号"),
         Definition("sync-history:read", "查看同步执行历史"),
+        // 周期是全局调度配置，改坏了会静默停止数据拉取，因此不给部门管理。
+        Definition("sync-schedule:manage", "修改同步任务周期"),
         Definition("file:read", "读取文件"),
         Definition("file:upload", "上传文件"),
         // 只授给超级管理员：产物里是整库数据加全部附件，平台管理与部门管理都不该拿到。

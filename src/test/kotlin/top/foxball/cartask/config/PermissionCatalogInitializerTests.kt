@@ -51,6 +51,79 @@ class PermissionCatalogInitializerTests {
     }
 
     @Test
+    fun `一次启动补齐已有管理员角色缺失的多个后补权限`() {
+        val dashboard = Permission().apply { code = "dashboard:read"; name = "查看仪表盘" }
+        val ownerSync = Permission().apply { code = "owner:sync"; name = "补建车主信息" }
+        val gateReview = Permission().apply { code = "gate-person:review"; name = "审核门禁人员" }
+        val gateExport = Permission().apply { code = "gate-person:export"; name = "导出门禁人员" }
+        val syncSchedule = Permission().apply { code = "sync-schedule:manage"; name = "修改同步任务周期" }
+        val admin = top.foxball.cartask.entity.Role().apply {
+            name = "ADMIN"
+            permissions = linkedSetOf(dashboard)
+        }
+        val allPermissions = listOf(dashboard, ownerSync, gateReview, gateExport, syncSchedule)
+        whenever(permissionRepository.findAll()).thenReturn(allPermissions, allPermissions)
+        whenever(roleRepository.findByNameIgnoreCase("ADMIN")).thenReturn(admin)
+
+        PermissionCatalogInitializer(permissionRepository, roleRepository).write()
+
+        // 不能用 any{} 做补授：它在第一个 true 之后就短路，一次缺两个权限时只会补上一个，
+        // 剩下的要等下次重启——中间这段时间对应功能一直 403。这条用例锁住这个行为。
+        val granted = admin.permissions.map { it.code }.toSet()
+        assertTrue(
+            granted.containsAll(listOf("owner:sync", "gate-person:review", "gate-person:export", "sync-schedule:manage")),
+            "一次启动就应补齐全部后补权限，实际：$granted",
+        )
+        verify(roleRepository).save(admin)
+    }
+
+    @Test
+    fun `一次启动补齐已有部门管理角色缺失的多个后补权限`() {
+        val dashboard = Permission().apply { code = "dashboard:read"; name = "查看仪表盘" }
+        val vehicleRecord = Permission().apply { code = "vehicle-record:read"; name = "查看车辆进出记录" }
+        val gateReview = Permission().apply { code = "gate-person:review"; name = "审核门禁人员" }
+        val gateExport = Permission().apply { code = "gate-person:export"; name = "导出门禁人员" }
+        val deptAdmin = top.foxball.cartask.entity.Role().apply {
+            name = "DEPT_ADMIN"
+            permissions = linkedSetOf(dashboard)
+        }
+        val allPermissions = listOf(dashboard, vehicleRecord, gateReview, gateExport)
+        whenever(permissionRepository.findAll()).thenReturn(allPermissions, allPermissions)
+        whenever(roleRepository.findByNameIgnoreCase("DEPT_ADMIN")).thenReturn(deptAdmin)
+
+        PermissionCatalogInitializer(permissionRepository, roleRepository).write()
+
+        // 权限集非空才会走补授分支；空集会命中整段赋值的分支，那样 any{} 的短路照样能过。
+        val granted = deptAdmin.permissions.map { it.code }.toSet()
+        assertTrue(
+            granted.containsAll(listOf("vehicle-record:read", "gate-person:review", "gate-person:export")),
+            "一次启动就应补齐全部后补权限，实际：$granted",
+        )
+    }
+
+    @Test
+    fun `一次启动补齐已有普通用户角色缺失的多个后补读取权限`() {
+        val dashboard = Permission().apply { code = "dashboard:read"; name = "查看仪表盘" }
+        val vehicleRecord = Permission().apply { code = "vehicle-record:read"; name = "查看车辆进出记录" }
+        val personRecord = Permission().apply { code = "person-record:read"; name = "查看人员进出记录" }
+        val user = top.foxball.cartask.entity.Role().apply {
+            name = "USER"
+            permissions = linkedSetOf(dashboard)
+        }
+        val allPermissions = listOf(dashboard, vehicleRecord, personRecord)
+        whenever(permissionRepository.findAll()).thenReturn(allPermissions, allPermissions)
+        whenever(roleRepository.findByNameIgnoreCase("USER")).thenReturn(user)
+
+        PermissionCatalogInitializer(permissionRepository, roleRepository).write()
+
+        val granted = user.permissions.map { it.code }.toSet()
+        assertTrue(
+            granted.containsAll(listOf("vehicle-record:read", "person-record:read")),
+            "一次启动就应补齐全部后补权限，实际：$granted",
+        )
+    }
+
+    @Test
     fun `部门管理角色获得业务权限但不含治理与无部门关联的只读权限`() {
         val complete = PermissionCatalog.definitions.map { definition ->
             Permission().apply { code = definition.code; name = definition.name }
@@ -70,6 +143,9 @@ class PermissionCatalogInitializerTests {
                     "owner:manage",
                     "plate:manage",
                     "gate-person:read",
+                    // 审核与导出从 gate-person:manage 拆出来之后，部门管理仍然要有这两项能力。
+                    "gate-person:review",
+                    "gate-person:export",
                     "user:create",
                 ),
             ),
@@ -88,6 +164,8 @@ class PermissionCatalogInitializerTests {
             "position:read",
             "dictionary:manage",
             "backup:manage",
+            // 同步周期是全局调度配置，部门管理不该改。
+            "sync-schedule:manage",
         )
         assertTrue(
             granted.intersect(denied).isEmpty(),

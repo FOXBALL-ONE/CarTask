@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component
 import top.foxball.cartask.authentication.PermissionCatalog
 import top.foxball.cartask.authentication.SecurityRole
 import top.foxball.cartask.entity.Permission
+import top.foxball.cartask.entity.Role
 import top.foxball.cartask.repository.PermissionRepository
 import top.foxball.cartask.repository.RoleRepository
 
@@ -80,7 +81,7 @@ class PermissionCatalogInitializer(
             if (monitorPermission != null && admin.permissions.add(monitorPermission)) roleRepository.save(admin)
             // 新增的同步权限需要补授给已有权限配置的 ADMIN 角色，避免存量环境看不到新功能。
             val ensured = allPermissions.filterKeys { it in ADMIN_ENSURED_PERMISSION_CODES }.values
-            if (ensured.any { admin.permissions.add(it) }) roleRepository.save(admin)
+            if (grantMissing(admin, ensured)) roleRepository.save(admin)
         }
         val deptAdmin = roleRepository.findByNameIgnoreCase(SecurityRole.DEPT_ADMIN)
         if (deptAdmin != null && deptAdmin.permissions.isEmpty()) {
@@ -92,7 +93,7 @@ class PermissionCatalogInitializer(
         if (deptAdmin != null) {
             // 后补进入字典的权限同样要补授，避免存量环境里部门管理看不到新功能。
             val ensured = allPermissions.filterKeys { it in DEPT_ADMIN_ENSURED_PERMISSION_CODES }.values
-            if (ensured.any { deptAdmin.permissions.add(it) }) roleRepository.save(deptAdmin)
+            if (grantMissing(deptAdmin, ensured)) roleRepository.save(deptAdmin)
         }
         val user = roleRepository.findByNameIgnoreCase(SecurityRole.USER)
         if (user != null && user.permissions.isEmpty()) {
@@ -102,8 +103,23 @@ class PermissionCatalogInitializer(
         if (user != null) {
             // 后补的普通用户可读权限必须补授，否则存量环境里普通用户看不到自己的进出记录。
             val ensured = allPermissions.filterKeys { it in USER_PERMISSION_CODES }.values
-            if (ensured.any { user.permissions.add(it) }) roleRepository.save(user)
+            if (grantMissing(user, ensured)) roleRepository.save(user)
         }
+    }
+
+    /**
+     * 把缺失的权限补授给角色，返回是否真的有变化。
+     *
+     * 这里**不能**写成 `ensured.any { role.permissions.add(it) }`：Kotlin 的 `any` 在第一个 true 之后
+     * 就短路，同一角色一次缺两个权限（例如同时新增的 gate-person:review 与 gate-person:export）时，
+     * 一次启动只补得上一个，另一个要等下次重启，中间这段时间对应的功能一直 403。
+     */
+    private fun grantMissing(role: Role, permissions: Collection<Permission>): Boolean {
+        var changed = false
+        permissions.forEach { permission ->
+            if (role.permissions.add(permission)) changed = true
+        }
+        return changed
     }
 
     private companion object {
@@ -118,7 +134,18 @@ class PermissionCatalogInitializer(
         )
 
         /** 后补进入权限字典的能力，即使 ADMIN 角色已有权限配置也必须补授。 */
-        val ADMIN_ENSURED_PERMISSION_CODES = setOf("owner:sync", "account:sync", "sync-history:read")
+        val ADMIN_ENSURED_PERMISSION_CODES = setOf(
+            "owner:sync",
+            "account:sync",
+            "sync-history:read",
+            // 同步周期原来由环境变量固定，现在开放到页面上；平台管理本该有此能力，
+            // 不补授就是存量环境里的 ADMIN 看得见页面却改不动。
+            "sync-schedule:manage",
+            // 审核与导出从 gate-person:manage 拆出来，存量环境的 ADMIN 原本靠 manage 隐含拥有这两项能力，
+            // 不补授就是一次静默的权限收回。
+            "gate-person:review",
+            "gate-person:export",
+        )
 
         /**
          * 部门管理不授予的权限，采用排除法以便新增权限码时自动纳入。
@@ -143,6 +170,8 @@ class PermissionCatalogInitializer(
             "dictionary:manage",
             // 备份是超级管理员的专属能力，部门管理不得染指。
             "backup:manage",
+            // 同步周期是全局调度配置，部门管理不该改。
+            "sync-schedule:manage",
         )
 
         /** 后补进入权限字典、需要补授给已有部门管理角色的能力。 */
@@ -152,6 +181,10 @@ class PermissionCatalogInitializer(
             "owner:sync",
             "account:sync",
             "sync-history:read",
+            // 与 ADMIN 同理：拆分前部门管理靠 gate-person:manage 就能审核和导出，拆分后必须补授，
+            // 否则存量环境的部门管理会突然失去审核与导出能力。
+            "gate-person:review",
+            "gate-person:export",
         )
 
         /**
