@@ -1,6 +1,8 @@
 package top.foxball.cartask.controller
 
 import com.fasterxml.jackson.annotation.JsonProperty
+import org.springframework.core.io.AbstractResource
+import org.springframework.core.io.Resource
 import org.springframework.http.CacheControl
 import org.springframework.http.ContentDisposition
 import org.springframework.http.HttpHeaders
@@ -11,10 +13,12 @@ import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
-import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody
 import top.foxball.cartask.service.DataBackupService
 import top.foxball.cartask.shared.Response
 import top.foxball.cartask.shared.ResponseBuilder
+import java.io.File
+import java.io.FilterInputStream
+import java.io.InputStream
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.LinkOption
@@ -61,31 +65,31 @@ class DataBackupController(
      * [includeFiles] 为 true 时产出 zip（SQL + 附件 + 清单），为 false 时只产出 SQL。
      * 两种情况下 SQL 都会生成——压缩包只是多带上了附件，不是 SQL 的替代品。
      *
-     * 产物先落到临时目录再流式写出，是为了不让上百 MB 的备份在堆里过一遍；
-     * 临时目录在响应写完之后立刻删除，服务器上不留档。
+     * 产物先落到临时目录再写出，是为了不让上百 MB 的备份在堆里过一遍；
+     * 临时目录在响应流关闭时删除，服务器上不留档。
+     *
+     * **不要改成 StreamingResponseBody**：那会让请求变成异步，容器在流写完后还要做一次 ASYNC 派发
+     * 再走一遍过滤器链，而本项目的鉴权是无状态的（JWT + NullSecurityContextRepository）——
+     * 第二次派发时 JwtAuthenticationFilter 因为 OncePerRequestFilter 的已处理标记不再执行，
+     * SecurityContextHolderFilter 又读不到任何上下文，AuthorizationFilter 就会判定匿名并抛
+     * AccessDeniedException；此时响应体已经写出，状态码改不了也回不去，只会在日志里留下两条 ERROR。
      */
     @GetMapping("/export")
     @PreAuthorize(BACKUP_AUTHORIZATION)
     fun export(
         @RequestParam(name = "include_files", defaultValue = "false") includeFiles: Boolean,
-    ): ResponseEntity<StreamingResponseBody> {
+    ): ResponseEntity<Resource> {
         val artifact = dataBackupService.export(includeFiles)
         val disposition = ContentDisposition.attachment()
             .filename(artifact.filename, StandardCharsets.UTF_8)
             .build()
-        val body = StreamingResponseBody { output ->
-            try {
-                Files.newInputStream(artifact.path).use { it.transferTo(output) }
-            } finally {
-                deleteQuietly(artifact.cleanupRoot)
-            }
-        }
         return ResponseEntity.ok()
             .contentType(MediaType.parseMediaType(artifact.contentType))
+            .contentLength(Files.size(artifact.path))
             .cacheControl(CacheControl.noStore())
             .header(HttpHeaders.CONTENT_DISPOSITION, disposition.toString())
             .header("X-Content-Type-Options", "nosniff")
-            .body(body)
+            .body(BackupArtifactResource(artifact.path, artifact.cleanupRoot))
     }
 
     private fun deleteQuietly(root: Path) {
@@ -94,6 +98,35 @@ class DataBackupController(
             Files.walk(root).use { paths ->
                 // 先深后浅：父目录在校举流里也会出现，顺序反了会因为目录非空而删不掉。
                 paths.sorted { left, right -> right.compareTo(left) }.forEach { Files.deleteIfExists(it) }
+            }
+        }
+    }
+
+    /**
+     * 备份产物对应的只读资源，输入流关闭时把整个临时目录删掉。
+     *
+     * ResourceHttpMessageConverter 写完响应体后一定会在 finally 里关闭这个流，所以清理不需要额外的
+     * 生命周期钩子；这也是同步写出相对于异步写法唯一需要自己接上的地方。
+     */
+    private inner class BackupArtifactResource(
+        private val file: Path,
+        private val cleanupRoot: Path,
+    ) : AbstractResource() {
+        override fun getDescription(): String = "备份产物 [$file]"
+
+        override fun getFilename(): String = file.fileName.toString()
+
+        override fun getFile(): File = file.toFile()
+
+        override fun contentLength(): Long = Files.size(file)
+
+        override fun getInputStream(): InputStream = object : FilterInputStream(Files.newInputStream(file)) {
+            override fun close() {
+                try {
+                    super.close()
+                } finally {
+                    deleteQuietly(cleanupRoot)
+                }
             }
         }
     }
