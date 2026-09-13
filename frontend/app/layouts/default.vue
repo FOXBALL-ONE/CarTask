@@ -120,7 +120,7 @@ async function changeWorkingDepartment(event: Event) {
 const pageLabels: Record<string, string> = {
   dashboard: "仪表盘", users: "用户管理", "online-users": "在线用户", roles: "角色管理", depts: "部门管理", posts: "岗位管理", "data-transfer": "数据导入导出",
   owners: "车主信息", spots: "车位信息", plates: "车牌信息", zones: "停车区域", devices: "设备管理", "gate-persons": "人员信息",
-  "person-records": "人员进出", "vehicle-records": "车辆进出", violations: "违规管理", synchronizations: "数据同步", "sync-history": "同步执行历史", "system-monitor": "系统监控", logs: "日志管理", backup: "数据备份", profile: "个人中心", password: "修改密码",
+  "person-records": "人员进出", "vehicle-records": "车辆进出", violations: "违规管理", synchronizations: "数据同步", "sync-history": "同步执行历史", "system-monitor": "系统监控", logs: "日志管理", backup: "数据备份", about: "关于系统", profile: "个人中心", password: "修改密码",
 };
 const routePages: Record<string, string> = {
   "/": "dashboard",
@@ -144,6 +144,7 @@ const routePages: Record<string, string> = {
   "/system-monitor": "system-monitor",
   "/logs": "logs",
   "/backup": "backup",
+  "/about": "about",
   "/profile": "profile",
 };
 const pagePaths: Record<string, string> = {
@@ -168,6 +169,7 @@ const pagePaths: Record<string, string> = {
   "system-monitor": "/system-monitor",
   logs: "/logs",
   backup: "/backup",
+  about: "/about",
   profile: "/profile",
 };
 const isLoginPage = computed(() => route.path === "/login");
@@ -211,7 +213,7 @@ async function openPasswordTab() {
 }
 
 function handleSettings(action: "config" | "backup" | "about") {
-  void navigate(action === "config" ? "logs" : action === "backup" ? "backup" : "dashboard");
+  void navigate(action === "config" ? "logs" : action === "backup" ? "backup" : "about");
 }
 
 function toggleTheme() {

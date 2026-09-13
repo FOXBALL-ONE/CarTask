@@ -1257,6 +1257,41 @@
 
 ---
 
+## 15. 关于系统
+
+> **权限**: 要求 `dashboard:read`（各内置角色默认都有）。这一页是给任何登录用户看的运行环境说明。
+
+### 15.1 读取系统信息
+
+- **接口**: `GET /system/about`
+- **响应**:
+```json
+{
+  "status": 200,
+  "success": true,
+  "message": "操作成功",
+  "data": {
+    "application": { "name": "carTask", "version": "0.0.1-SNAPSHOT" },
+    "runtime": {
+      "java_version": "25.0.4",
+      "java_vendor": "Oracle Corporation",
+      "jvm_name": "OpenJDK 64-Bit Server VM",
+      "started_at": "2026-09-13T22:02:44",
+      "uptime_millis": 3600000,
+      "time_zone": "Asia/Shanghai"
+    },
+    "framework": { "spring_boot_version": "4.1.0" },
+    "database": { "product": "PostgreSQL", "version": "16.3" }
+  }
+}
+```
+
+- `application.version` 取自 jar 的 manifest；在 IDE 里跑的是 classes 目录，读不到版本时返回 `开发模式（未打包）`。
+- 数据库连不上时 `database` 返回 `{"product":"未知","version":"不可用"}`，整个接口不会因此失败——关于页不该因为依赖不可用而打不开。
+- **刻意只给版本与运行环境**：主机名、地址、内存、磁盘、连接数、连接串都在「系统监控」（`GET /system-monitor`，受 `system-monitor:read` 控制）。这一页任何登录用户都能看，多放一个字段就是多泄一点部署细节。
+
+---
+
 ## 状态码说明
 
 | 状态 | 说明 |
