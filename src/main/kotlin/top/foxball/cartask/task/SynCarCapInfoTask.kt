@@ -1,7 +1,6 @@
 package top.foxball.cartask.task
 
 import org.slf4j.LoggerFactory
-import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
 import tools.jackson.databind.JsonNode
@@ -57,7 +56,10 @@ class SynCarCapInfoTask(
     private val syncTaskHistoryService: SyncTaskHistoryService,
     private val syncTaskProgressService: SyncTaskProgressService = SyncTaskProgressService(),
 ) {
-    @Scheduled(cron = "\${keytop.car-cap-info-sync-cron:0 */5 * * * *}", zone = "Asia/Shanghai")
+    /**
+     * 定时入口。周期由 [SyncScheduleCatalog] 注册、[SyncScheduleScheduler] 按 cron 触发，
+     * 不再用 @Scheduled 固定：周期要能在页面上改。
+     */
     @Transactional(noRollbackFor = [RuntimeException::class])
     fun synCarCapInfoList() {
         AuditRequestContext.withRun {
@@ -75,8 +77,7 @@ class SynCarCapInfoTask(
     @Transactional(noRollbackFor = [RuntimeException::class])
     fun synchronize(): CarCapInfoSyncResult = executeIncremental(SyncTaskRun.Trigger.MANUAL)
 
-    /** 每日补偿最近一段时间的记录，覆盖超过增量回看窗口才可见的上游数据。 */
-    @Scheduled(cron = "\${keytop.car-cap-info-reconciliation-cron:0 30 3 * * *}", zone = "Asia/Shanghai")
+    /** 每日补偿最近一段时间的记录，覆盖超过增量回看窗口才可见的上游数据。周期同样可改。 */
     @Transactional(noRollbackFor = [RuntimeException::class])
     fun reconcileCarCapInfoList() {
         AuditRequestContext.withRun {
@@ -626,7 +627,7 @@ class SynCarCapInfoTask(
         val error: String?,
     )
     
-    private companion object {
+    companion object {
         val logger = LoggerFactory.getLogger(SynCarCapInfoTask::class.java)
         val executionLock = ReentrantLock()
         val PLATFORM_TIME: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")

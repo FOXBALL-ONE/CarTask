@@ -4,10 +4,15 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.PutMapping
+import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
+import top.foxball.cartask.handler.ParamErrorException
+import top.foxball.cartask.service.SyncScheduleService
 import top.foxball.cartask.service.SyncTaskHistoryService
 import top.foxball.cartask.service.SyncTaskProgressService
 import top.foxball.cartask.shared.Response
@@ -18,6 +23,26 @@ import top.foxball.cartask.task.SynCarCapInfoTask
 import top.foxball.cartask.task.SynOwnerArchiveTask
 import java.time.LocalDateTime
 
+/** 修改同步周期的请求体。 */
+class UpdateSyncScheduleRequest {
+    /** Spring 六段式 cron（秒 分 时 日 月 周）。 */
+    @JsonProperty("cron")
+    var cron: String? = null
+}
+
+data class ScheduleData(
+    @param:JsonProperty("task_key") val taskKey: String,
+    @param:JsonProperty("task_name") val taskName: String,
+    val description: String,
+    val cron: String,
+    @param:JsonProperty("default_cron") val defaultCron: String,
+    /** 与配置默认值不同时为 true；改回默认值会删掉覆盖记录。 */
+    val customized: Boolean,
+    @param:JsonProperty("updated_at") val updatedAt: LocalDateTime?,
+    @param:JsonProperty("updated_by") val updatedBy: String?,
+    @param:JsonProperty("next_run_at") val nextRunAt: LocalDateTime?,
+)
+
 @RestController
 @RequestMapping("/api/synchronizations")
 class SynchronizationController(
@@ -26,6 +51,7 @@ class SynchronizationController(
     private val synOwnerArchiveTask: SynOwnerArchiveTask,
     private val synAccountGenerateTask: SynAccountGenerateTask,
     private val syncTaskHistoryService: SyncTaskHistoryService,
+    private val syncScheduleService: SyncScheduleService,
     private val responseBuilder: ResponseBuilder,
     private val syncTaskProgressService: SyncTaskProgressService = SyncTaskProgressService(),
 ) {
@@ -231,4 +257,44 @@ class SynchronizationController(
         )
         return responseBuilder.ok().data(rs).build()
     }
+
+    /** 列出全部可调周期的同步任务：当前周期、配置默认值与下次触发时间。 */
+    @GetMapping("/schedules")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('sync-schedule:manage')")
+    fun syncSchedules(): ResponseEntity<Response> {
+        return responseBuilder.ok()
+            .data(syncScheduleService.list().map(::toScheduleData))
+            .build()
+    }
+
+    /**
+     * 修改某个同步任务的执行周期。保存即生效：事务提交后调度器重新注册触发时间。
+     *
+     * [taskKey] 里带点（如 `car_cap_info.sync`），Spring 默认不再做后缀匹配，无需转义。
+     */
+    @PutMapping("/schedules/{taskKey}")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('sync-schedule:manage')")
+    fun updateSyncSchedule(
+        @PathVariable taskKey: String,
+        @RequestBody request: UpdateSyncScheduleRequest,
+    ): ResponseEntity<Response> {
+        val cron = request.cron?.trim() ?: throw ParamErrorException("cron 表达式不能为空")
+        val updated = syncScheduleService.update(taskKey, cron)
+        return responseBuilder.ok()
+            .message("同步周期已更新：" + updated.taskName)
+            .data(toScheduleData(updated))
+            .build()
+    }
+
+    private fun toScheduleData(schedule: SyncScheduleService.ScheduleView): ScheduleData = ScheduleData(
+        taskKey = schedule.taskKey,
+        taskName = schedule.taskName,
+        description = schedule.description,
+        cron = schedule.cron,
+        defaultCron = schedule.defaultCron,
+        customized = schedule.customized,
+        updatedAt = schedule.updatedAt,
+        updatedBy = schedule.updatedBy,
+        nextRunAt = schedule.nextRunAt,
+    )
 }

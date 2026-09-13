@@ -64,7 +64,7 @@ const permissions: PermissionGroup[] = [
   { key: "access", name: "门禁管理", children: [{ key: "devices", name: "设备管理", ops: [{ label: "查看", code: "device:read" }, { label: "管理", code: "device:manage" }] }, { key: "gate-persons", name: "人员信息", ops: [{ label: "查看", code: "gate-person:read" }, { label: "录入", code: "gate-person:manage" }, { label: "审核", code: "gate-person:review" }, { label: "导出", code: "gate-person:export" }] }] },
   { key: "violations", name: "违规管理", children: [{ key: "violations", name: "违规管理", ops: [{ label: "查看", code: "violation:read" }, { label: "管理", code: "violation:manage" }, { label: "导出", code: "violation:export" }] }] },
   { key: "records", name: "进出记录", children: [{ key: "person-records", name: "人员进出", ops: [{ label: "查看", code: "person-record:read" }, { label: "导出", code: "person-record:export" }] }, { key: "vehicle-records", name: "车辆进出", ops: [{ label: "查看", code: "vehicle-record:read" }, { label: "导出", code: "vehicle-record:export" }] }] },
-  { key: "logs", name: "系统日志", children: [{ key: "logs", name: "日志管理", ops: [{ label: "查看", code: "audit:read" }, { label: "导出", code: "audit:export" }, { label: "校验", code: "audit:verify" }, { label: "清空", code: "audit:delete" }] }] },
+  { key: "logs", name: "系统日志", children: [{ key: "logs", name: "日志管理", ops: [{ label: "查看", code: "audit:read" }, { label: "导出", code: "audit:export" }, { label: "校验", code: "audit:verify" }, { label: "清空", code: "audit:delete" }] }, { key: "sync-schedule", name: "同步周期", ops: [{ label: "修改", code: "sync-schedule:manage" }] }] },
 ];
 const http = useHttp();
 const { can } = usePermission();

@@ -1164,6 +1164,67 @@
 
 ---
 
+## 14. 同步任务周期
+
+> **权限**: 本节接口要求 `(hasRole('SUPER_ADMIN') or hasRole('ADMIN'))` 且持有 `sync-schedule:manage`。部门管理与普通用户一律 403。
+>
+> 同步任务的自动执行时间原先由环境变量固定、改动必须重启；现在开放到「数据同步」页面上，保存即重新注册触发时间。
+> cron 为 **Spring 六段式**「秒 分 时 日 月 周」，按 `Asia/Shanghai` 解释；五段式 Unix cron 会被拒绝。
+
+### 14.1 列出可调周期的同步任务
+
+- **接口**: `GET /synchronizations/schedules`
+- **响应**:
+```json
+{
+  "status": 200,
+  "success": true,
+  "message": "操作成功",
+  "data": [
+    {
+      "task_key": "car_cap_info.sync",
+      "task_name": "车辆进出记录同步",
+      "description": "按上次成功检查点增量拉取车辆进出记录与抓拍图片。",
+      "cron": "0 */5 * * * *",
+      "default_cron": "0 */5 * * * *",
+      "customized": false,
+      "updated_at": null,
+      "updated_by": null,
+      "next_run_at": "2026-09-14T10:05:00"
+    }
+  ]
+}
+```
+
+- `task_key` 与「同步历史」接口返回的任务标识同一套取值：`parking_area.sync`、`car_cap_info.sync`、`car_cap_info.reconciliation`、`owner.archive.generate`、`account.generate`。
+- `cron` 是当前实际生效值，`default_cron` 是配置（环境变量）里的默认值。
+- `customized` 为 `true` 表示改过；把周期改回 `default_cron` 会删除覆盖记录，`customized` 重新变为 `false`。
+- `next_run_at` 是后端按当前周期算出的下次触发时间，用于确认改动已生效。
+
+### 14.2 修改同步周期
+
+- **接口**: `PUT /synchronizations/schedules/{taskKey}`
+- **Content-Type**: `application/json`
+- **路径参数**: `taskKey` 取上表中的 `task_key`（含点号，直接作为路径段传入即可）
+- **请求体**:
+```json
+{
+  "cron": "0 */10 * * * *"
+}
+```
+- **响应**: 与 14.1 的单个元素同构，`cron` 与 `next_run_at` 为新值。
+- **错误**:
+  - `400`：cron 为空、超过 128 字符、不是合法的六段式、或永远不会触发（例如所有日期与星期都取不到交集）。
+  - `404`：`taskKey` 不在可调周期目录里。
+
+**生效时机与留痕**
+
+- 事务提交后才重新注册触发时间，页面显示的值与实际调度一致，不存在「显示新值、按旧值跑」的窗口。
+- 每次修改都会写入一条 `SYNC_SCHEDULE_CHANGED` 审计事件（配置类，风险级别 HIGH），摘要含任务名、新周期与改动前的周期。
+- 改周期不影响正在执行的任务，也不会补跑错过的执行。
+
+---
+
 ## 状态码说明
 
 | 状态 | 说明 |

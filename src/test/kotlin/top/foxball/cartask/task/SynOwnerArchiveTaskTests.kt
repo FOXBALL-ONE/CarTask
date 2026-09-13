@@ -11,7 +11,6 @@ import org.mockito.kotlin.never
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
-import org.springframework.scheduling.annotation.Scheduled
 import tools.jackson.databind.ObjectMapper
 import top.foxball.cartask.entity.ParkingOwner
 import top.foxball.cartask.entity.ParkingPlate
@@ -97,16 +96,6 @@ class SynOwnerArchiveTaskTests {
                 ),
             ),
         )
-    }
-
-    @Test
-    fun `每天上海时区两点四十五分执行`() {
-        val scheduled = SynOwnerArchiveTask::class.java
-            .getDeclaredMethod("synOwnerArchive")
-            .getAnnotation(Scheduled::class.java)
-
-        assertEquals("\${app.owner-archive-cron:0 45 2 * * *}", scheduled.cron)
-        assertEquals("Asia/Shanghai", scheduled.zone)
     }
 
     @Test

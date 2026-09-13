@@ -1,7 +1,6 @@
 package top.foxball.cartask.task
 
 import org.slf4j.LoggerFactory
-import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
 import tools.jackson.databind.JsonNode
@@ -49,7 +48,10 @@ class SynOwnerArchiveTask(
     private val keytopService: KeytopService? = null,
     private val objectMapper: ObjectMapper? = null,
 ) {
-    @Scheduled(cron = "\${app.owner-archive-cron:0 45 2 * * *}", zone = "Asia/Shanghai")
+    /**
+     * 定时入口。周期由 [SyncScheduleCatalog] 注册、[SyncScheduleScheduler] 按 cron 触发，
+     * 不再用 @Scheduled 固定：周期要能在页面上改。
+     */
     fun synOwnerArchive() {
         AuditRequestContext.withRun {
             try {
@@ -243,7 +245,7 @@ class SynOwnerArchiveTask(
     /** 科拓卡片信息中用于补建车主档案的字段。 */
     private data class KeytopOwnerCard(val cardId: String, val name: String, val phone: String)
 
-    private companion object {
+    companion object {
         const val TASK_KEY = "owner.archive.generate"
         const val TASK_NAME = "车主档案补建"
         const val SYNC_DEPARTMENT = "同步车主"

@@ -10,7 +10,6 @@ import org.mockito.kotlin.never
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
-import org.springframework.scheduling.annotation.Scheduled
 import tools.jackson.databind.ObjectMapper
 import top.foxball.cartask.entity.AccessRecord
 import top.foxball.cartask.keytop.KeytopProperties
@@ -45,26 +44,6 @@ class SynCarCapInfoTaskTests {
         syncCheckpointRepository,
         historyService,
     )
-
-    @Test
-    fun `按配置的上海时区 cron 执行`() {
-        val scheduled = SynCarCapInfoTask::class.java
-            .getDeclaredMethod("synCarCapInfoList")
-            .getAnnotation(Scheduled::class.java)
-
-        assertEquals("\${keytop.car-cap-info-sync-cron:0 */5 * * * *}", scheduled.cron)
-        assertEquals("Asia/Shanghai", scheduled.zone)
-    }
-
-    @Test
-    fun `补偿同步按配置的上海时区 cron 执行`() {
-        val scheduled = SynCarCapInfoTask::class.java
-            .getDeclaredMethod("reconcileCarCapInfoList")
-            .getAnnotation(Scheduled::class.java)
-
-        assertEquals("\${keytop.car-cap-info-reconciliation-cron:0 30 3 * * *}", scheduled.cron)
-        assertEquals("Asia/Shanghai", scheduled.zone)
-    }
 
     @Test
     fun `预检首次同步时报告近三十天内待同步记录且不写入检查点`() {

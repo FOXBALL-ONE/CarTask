@@ -1,7 +1,6 @@
 package top.foxball.cartask.task
 
 import org.slf4j.LoggerFactory
-import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
 import top.foxball.cartask.audit.AuditRequestContext
@@ -49,7 +48,10 @@ class SynAccountGenerateTask(
     private val syncTaskHistoryService: SyncTaskHistoryService,
     private val syncTaskProgressService: SyncTaskProgressService = SyncTaskProgressService(),
 ) {
-    @Scheduled(cron = "\${app.account-generate-cron:0 0 3 * * *}", zone = "Asia/Shanghai")
+    /**
+     * 定时入口。周期由 [SyncScheduleCatalog] 注册、[SyncScheduleScheduler] 按 cron 触发，
+     * 不再用 @Scheduled 固定：周期要能在页面上改。
+     */
     fun synAccountGenerate() {
         AuditRequestContext.withRun {
             try {
@@ -227,7 +229,7 @@ class SynAccountGenerateTask(
         }
     }
 
-    private companion object {
+    companion object {
         const val TASK_KEY = "account.generate"
         const val TASK_NAME = "车辆业主账号生成"
         const val INITIAL_PASSWORD = "Fqjg20221022"

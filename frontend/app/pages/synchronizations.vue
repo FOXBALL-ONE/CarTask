@@ -365,6 +365,67 @@
       </div>
     </section>
 
+    <section v-if="can('sync-schedule:manage')" class="schedule-panel">
+      <header class="schedule-panel__head">
+        <div>
+          <h2>同步周期</h2>
+          <p>用 cron 表达式调整各同步任务的自动执行时间。保存后立即重新注册，不需要重启服务，也不影响正在执行的任务。</p>
+        </div>
+        <span class="schedule-panel__hint">六段式：秒 分 时 日 月 周</span>
+      </header>
+
+      <div v-if="scheduleError" class="feedback feedback--error" role="alert">
+        <span class="material-icons-outlined">error_outline</span>
+        <div><strong>周期未保存</strong><p>{{ scheduleError }}</p></div>
+      </div>
+      <div v-else-if="scheduleMessage" class="feedback feedback--success" role="status">
+        <span class="material-icons-outlined">check_circle_outline</span>
+        <div><strong>周期已生效</strong><p>{{ scheduleMessage }}</p></div>
+      </div>
+
+      <ul class="schedule-list">
+        <li v-for="item in schedules" :key="item.task_key" class="schedule-item">
+          <div class="schedule-item__info">
+            <div class="schedule-item__title">
+              <strong>{{ item.task_name }}</strong>
+              <span v-if="item.customized" class="state-badge state-badge--custom">已自定义</span>
+            </div>
+            <p>{{ item.description }}</p>
+            <p class="schedule-item__meta">
+              下次执行 {{ item.next_run_at ? formatDateTime(item.next_run_at) : "不会执行" }}
+              · 默认 {{ item.default_cron }}
+              <template v-if="item.updated_by"> · 由 {{ item.updated_by }} 于 {{ formatDateTime(item.updated_at) }} 修改</template>
+            </p>
+          </div>
+          <div class="schedule-item__edit">
+            <input
+                v-model="scheduleDrafts[item.task_key]"
+                class="schedule-input"
+                :aria-label="`${item.task_name}的 cron 表达式`"
+                :disabled="scheduleSaving === item.task_key"
+                spellcheck="false"
+            >
+            <button
+                class="sync-button sync-button--compact"
+                type="button"
+                :disabled="!!scheduleSaving || scheduleDrafts[item.task_key] === item.cron"
+                @click="saveSchedule(item)"
+            >
+              <span class="material-icons-outlined">{{ scheduleSaving === item.task_key ? "hourglass_top" : "save" }}</span>
+              {{ scheduleSaving === item.task_key ? "保存中" : "保存" }}
+            </button>
+            <button
+                v-if="scheduleDrafts[item.task_key] !== item.default_cron"
+                class="cancel-button"
+                type="button"
+                :disabled="!!scheduleSaving"
+                @click="scheduleDrafts[item.task_key] = item.default_cron"
+            >恢复默认</button>
+          </div>
+        </li>
+      </ul>
+    </section>
+
     <section v-if="can('dictionary:sync')" class="sync-note">
       <span class="material-icons-outlined">info</span>
       <div><strong>同步规则</strong><p>科拓区域编码是幂等匹配依据；接口返回为空或失败时不会覆盖本地区域，科拓端已删除的区域也不会被自动删除。</p></div>
@@ -465,6 +526,58 @@ const accountHistory = ref<SyncTaskRunRecord[]>([]);
 const historyUnavailable = ref(false);
 interface SyncProgress { task_key: string; running: boolean; processed_count: number; total_count: number | null; started_at: string | null }
 const progress = ref<SyncProgress[]>([]);
+
+interface SyncSchedule {
+  task_key: string;
+  task_name: string;
+  description: string;
+  cron: string;
+  default_cron: string;
+  customized: boolean;
+  updated_at: string | null;
+  updated_by: string | null;
+  next_run_at: string | null;
+}
+
+const schedules = ref<SyncSchedule[]>([]);
+/** 每行一个编辑中的 cron；保存成功后用返回值回填，避免显示与后端实际生效值不一致。 */
+const scheduleDrafts = reactive<Record<string, string>>({});
+const scheduleSaving = ref("");
+const scheduleError = ref("");
+const scheduleMessage = ref("");
+
+async function loadSchedules() {
+  if (!can("sync-schedule:manage")) return;
+  try {
+    const data = await http.get<SyncSchedule[]>("/synchronizations/schedules");
+    schedules.value = data;
+    data.forEach((item) => { scheduleDrafts[item.task_key] = item.cron; });
+  } catch (error) {
+    scheduleError.value = (error as { statusMessage?: string }).statusMessage || "同步周期加载失败";
+  }
+}
+
+async function saveSchedule(item: SyncSchedule) {
+  scheduleSaving.value = item.task_key;
+  scheduleError.value = "";
+  scheduleMessage.value = "";
+  try {
+    const updated = await http.put<SyncSchedule, { cron: string }>(
+      `/synchronizations/schedules/${encodeURIComponent(item.task_key)}`,
+      { cron: scheduleDrafts[item.task_key] ?? item.cron },
+      { payloadMode: "json" },
+    );
+    const index = schedules.value.findIndex((entry) => entry.task_key === item.task_key);
+    if (index >= 0) schedules.value[index] = updated;
+    scheduleDrafts[item.task_key] = updated.cron;
+    scheduleMessage.value = `「${updated.task_name}」按 ${updated.cron} 生效，下次执行 ${updated.next_run_at ? formatDateTime(updated.next_run_at) : "不定"}。`;
+  } catch (error) {
+    scheduleError.value = (error as { statusMessage?: string }).statusMessage || "同步周期保存失败";
+  } finally {
+    scheduleSaving.value = "";
+  }
+}
+
 let progressTimer: ReturnType<typeof setInterval> | undefined;
 function progressFor(...taskKeys: string[]) { return progress.value.find(item => taskKeys.includes(item.task_key)); }
 function progressPercent(...taskKeys: string[]) { const item = progressFor(...taskKeys); return item?.total_count ? Math.min(100, Math.round(item.processed_count / item.total_count * 100)) : 8; }
@@ -647,7 +760,7 @@ function formatDateTime(value: string) {
   }).format(date);
 }
 
-onMounted(() => { void loadProgress(); void loadSyncHistory(); progressTimer = setInterval(loadProgress, 2000); });
+onMounted(() => { void loadProgress(); void loadSyncHistory(); void loadSchedules(); progressTimer = setInterval(loadProgress, 2000); });
 onBeforeUnmount(() => { if (progressTimer) clearInterval(progressTimer); });
 </script>
 
@@ -755,6 +868,27 @@ onBeforeUnmount(() => { if (progressTimer) clearInterval(progressTimer); });
 .sync-note--records > .material-icons-outlined { color: #047857; }
 .sync-note--accounts > .material-icons-outlined { color: #b45309; }
 .sync-note--owners > .material-icons-outlined { color: #6d28d9; }
+.schedule-panel { background: var(--card); border: 1px solid var(--border-strong); border-radius: 10px; margin-top: 16px; padding: 22px 24px; }
+.schedule-panel__head { align-items: flex-start; display: flex; gap: 16px; justify-content: space-between; }
+.schedule-panel__head h2 { color: var(--text); font-size: 16px; font-weight: 650; margin: 0; }
+.schedule-panel__head p { color: var(--text-sub); line-height: 1.65; margin: 4px 0 0; }
+.schedule-panel__hint { background: var(--bg); border: 1px solid var(--border); border-radius: 999px; color: var(--text-mute); font-family: Consolas, "SFMono-Regular", monospace; font-size: 11px; padding: 5px 10px; white-space: nowrap; }
+.schedule-list { list-style: none; margin: 16px 0 0; padding: 0; }
+.schedule-item { align-items: flex-start; border-top: 1px solid var(--border); display: flex; gap: 18px; justify-content: space-between; padding: 16px 0; }
+.schedule-item:first-child { border-top: 0; padding-top: 4px; }
+.schedule-item__info { min-width: 0; }
+.schedule-item__title { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; }
+.schedule-item__title strong { color: var(--text); font-size: 13px; font-weight: 600; }
+.schedule-item__info p { color: var(--text-sub); line-height: 1.6; margin: 4px 0 0; }
+.schedule-item__meta { color: var(--text-mute); font-family: Consolas, "SFMono-Regular", monospace; font-size: 11px; }
+.state-badge--custom { background: var(--primary-soft); border-color: transparent; color: var(--primary); }
+.schedule-item__edit { align-items: center; display: flex; flex: 0 0 auto; gap: 8px; }
+.schedule-input { background: var(--bg); border: 1px solid var(--border-strong); border-radius: 6px; color: var(--text); font-family: Consolas, "SFMono-Regular", monospace; font-size: 12px; height: 34px; padding: 0 10px; width: 190px; }
+.schedule-input:focus-visible { border-color: var(--primary); outline: none; }
+.schedule-input:disabled { opacity: .6; }
+.sync-button--compact { padding: 0 12px; width: auto; }
+.sync-button--compact:disabled { cursor: not-allowed; }
+.schedule-item__edit .cancel-button { padding: 0 10px; }
 .spinning { animation: spin .9s linear infinite; }
 .progress { background: var(--bg); border: 1px solid var(--border); border-radius: 5px; margin-top: 14px; overflow: hidden; padding: 7px 9px; position: relative; }.progress__bar { background: var(--primary); height: 3px; left: 0; position: absolute; top: 0; transition: width .35s ease; }.progress span { color: var(--text-sub); display: block; font-size: 11px; padding-top: 2px; }
 @keyframes data-flow { 0% { left: 0; opacity: 0; } 15%, 85% { opacity: 1; } 100% { left: calc(100% - 22px); opacity: 0; } }
@@ -763,5 +897,6 @@ onBeforeUnmount(() => { if (progressTimer) clearInterval(progressTimer); });
 @media (max-width: 820px) { .sync-card { grid-template-columns: 1fr; }.sync-card__action { border-left: 0; border-top: 1px solid var(--border); }.sync-route { grid-template-columns: minmax(120px, 1fr) 70px minmax(120px, 1fr); } }
 @media (max-width: 600px) { .sync-page { padding: 16px; }.page-heading { align-items: flex-start; flex-direction: column; gap: 12px; }.sync-card__main, .sync-card__action { padding: 18px; }.sync-route { align-items: stretch; grid-template-columns: 1fr; }.endpoint--target { justify-self: start; }.conduit { height: 32px; margin-left: 17px; width: 20px; }.conduit__line { height: 100%; width: 1px; }.conduit__arrow { bottom: -3px; left: -8px; margin: 0; position: absolute; transform: rotate(90deg); }.conduit__packet { left: -4px; top: 0; }.sync-route--running .conduit__packet { animation-name: data-flow-vertical; }.metric-grid { grid-template-columns: repeat(2, 1fr); }.metric:nth-child(2) { border-right: 0; }.metric:nth-child(-n+2) { border-bottom: 1px solid var(--border); }.result-panel--records .metric:nth-child(3), .result-panel--accounts .metric:nth-child(3), .result-panel--owners .metric:nth-child(3) { border-right: 0; }.result-panel__header { align-items: flex-start; flex-direction: column; gap: 7px; }.history-list__row { align-items: flex-start; flex-wrap: wrap; }.history-list__time, .history-list__summary { flex: 1 1 100%; }.history-list__summary { white-space: normal; } }
 @media (max-width: 600px) and (prefers-reduced-motion: reduce) { .sync-route--running .conduit__packet { left: -4px; top: 50%; } }
+@media (max-width: 600px) { .schedule-panel { padding: 18px; }.schedule-panel__head { flex-direction: column; gap: 10px; }.schedule-item { flex-direction: column; gap: 12px; }.schedule-item__edit { flex-wrap: wrap; width: 100%; }.schedule-input { flex: 1 1 160px; width: auto; } }
 @keyframes data-flow-vertical { 0% { opacity: 0; top: 0; } 15%, 85% { opacity: 1; } 100% { opacity: 0; top: calc(100% - 9px); } }
 </style>

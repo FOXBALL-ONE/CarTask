@@ -11,7 +11,6 @@ import org.mockito.kotlin.never
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
-import org.springframework.scheduling.annotation.Scheduled
 import top.foxball.cartask.entity.Department
 import top.foxball.cartask.entity.ParkingOwner
 import top.foxball.cartask.entity.ParkingPlate
@@ -100,16 +99,6 @@ class SynAccountGenerateTaskTests {
         whenever(departmentRepository.save(any())).thenAnswer { invocation ->
             invocation.getArgument<Department>(0).apply { id = nextId++ }
         }
-    }
-
-    @Test
-    fun `每天上海时区凌晨三点执行`() {
-        val scheduled = SynAccountGenerateTask::class.java
-            .getDeclaredMethod("synAccountGenerate")
-            .getAnnotation(Scheduled::class.java)
-
-        assertEquals("\${app.account-generate-cron:0 0 3 * * *}", scheduled.cron)
-        assertEquals("Asia/Shanghai", scheduled.zone)
     }
 
     @Test

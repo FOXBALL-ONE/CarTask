@@ -164,6 +164,9 @@ class AuditServiceImpl(
             // ——新增审计字段时必须同步加到这里。
             "include_files", "table_count", "row_count", "file_count", "missing_files",
             "sql_bytes", "archive_bytes", "duration_ms",
+            // 同步周期改动的摘要。字段名不能用 task_key：SAFE_KEYS 之外还有一道
+            // SENSITIVE_KEYS 子串过滤，"key" 会被当成敏感字段整条丢掉。
+            "task", "cron", "previous_cron",
         )
     }
 }

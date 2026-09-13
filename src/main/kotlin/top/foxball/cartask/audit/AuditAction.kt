@@ -21,6 +21,8 @@ enum class AuditAction(
     USER_DELETED("USER_DELETED", AuditEvent.Category.ACCOUNT, AuditEvent.RiskLevel.CRITICAL),
     ROLE_CHANGED("ROLE_CHANGED", AuditEvent.Category.CONFIGURATION, AuditEvent.RiskLevel.CRITICAL),
     PERMISSION_CHANGED("PERMISSION_CHANGED", AuditEvent.Category.CONFIGURATION, AuditEvent.RiskLevel.CRITICAL),
+    /** 改同步任务的执行周期。改坏了会静默停止数据拉取，所以按配置类高风险动作记录。 */
+    SYNC_SCHEDULE_CHANGED("SYNC_SCHEDULE_CHANGED", AuditEvent.Category.CONFIGURATION, AuditEvent.RiskLevel.HIGH),
     ACCESS_CONTROL_CREATED("ACCESS_CONTROL_CREATED", AuditEvent.Category.ACCESS_CONTROL, AuditEvent.RiskLevel.HIGH),
     ACCESS_CONTROL_UPDATED("ACCESS_CONTROL_UPDATED", AuditEvent.Category.ACCESS_CONTROL, AuditEvent.RiskLevel.HIGH),
     ACCESS_CONTROL_REVIEWED("ACCESS_CONTROL_REVIEWED", AuditEvent.Category.ACCESS_CONTROL, AuditEvent.RiskLevel.HIGH),
