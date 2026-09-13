@@ -10,6 +10,7 @@ import top.foxball.cartask.config.MaintenanceGate
 import top.foxball.cartask.entity.StoredFile
 import top.foxball.cartask.handler.BackupInProgressException
 import top.foxball.cartask.repository.StoredFileRepository
+import top.foxball.cartask.service.BackupProgressService
 import top.foxball.cartask.service.DataBackupService
 import java.io.BufferedOutputStream
 import java.io.BufferedWriter
@@ -54,6 +55,7 @@ class DataBackupServiceImpl(
     private val storedFileRepository: StoredFileRepository,
     private val fileProperties: FileProperties,
     private val maintenanceGate: MaintenanceGate,
+    private val backupProgress: BackupProgressService,
     private val auditService: AuditService? = null,
 ) : DataBackupService {
     private val log = LoggerFactory.getLogger(javaClass)
@@ -100,20 +102,23 @@ class DataBackupServiceImpl(
 
     private fun generateArtifact(includeFiles: Boolean): DataBackupService.Artifact {
         val startedAt = System.nanoTime()
-        val workRoot = Files.createTempDirectory(TEMP_DIR_PREFIX)
-        val stamp = LocalDateTime.now().format(FILE_STAMP_FORMATTER)
+        backupProgress.startCounting()
+        var workRoot: Path? = null
         var completed = false
         try {
-            val sqlPath = workRoot.resolve("cartask-backup-$stamp.sql")
+            val workDir = Files.createTempDirectory(TEMP_DIR_PREFIX)
+            workRoot = workDir
+            val stamp = LocalDateTime.now().format(FILE_STAMP_FORMATTER)
+            val sqlPath = workDir.resolve("cartask-backup-$stamp.sql")
             val dump = writeSqlDump(sqlPath)
             val artifact = if (includeFiles) {
-                val archivePath = workRoot.resolve("cartask-backup-$stamp.zip")
+                val archivePath = workDir.resolve("cartask-backup-$stamp.zip")
                 val archive = writeArchive(archivePath, sqlPath, SQL_ENTRY_NAME)
                 DataBackupService.Artifact(
                     path = archivePath,
                     filename = archivePath.fileName.toString(),
                     contentType = ZIP_CONTENT_TYPE,
-                    cleanupRoot = workRoot,
+                    cleanupRoot = workDir,
                     stats = stats(dump, archiveIncluded = true, archiveBytes = archive.bytes, files = archive, startedAt = startedAt),
                 )
             } else {
@@ -121,16 +126,22 @@ class DataBackupServiceImpl(
                     path = sqlPath,
                     filename = sqlPath.fileName.toString(),
                     contentType = SQL_CONTENT_TYPE,
-                    cleanupRoot = workRoot,
+                    cleanupRoot = workDir,
                     stats = stats(dump, archiveIncluded = false, archiveBytes = 0, files = null, startedAt = startedAt),
                 )
             }
             recordAudit(artifact.stats)
             completed = true
+            backupProgress.finish()
             return artifact
+        } catch (exception: Exception) {
+            // 必须连受检异常一起接住：取连接失败抛的是 SQLException，只接 RuntimeException 会让进度
+            // 永远停在「统计范围」，页面上就是一个再也不动的进度条。
+            backupProgress.fail(exception.message ?: exception.javaClass.simpleName)
+            throw exception
         } finally {
             // 成功时产物还要给调用方写出，只有失败才在这里就地清理，避免留下半个文件。
-            if (!completed) deleteRecursively(workRoot)
+            if (!completed) workRoot?.let { deleteRecursively(it) }
         }
     }
 
@@ -213,10 +224,14 @@ class DataBackupServiceImpl(
         val primaryKeys = tables.associateWith { readPrimaryKey(meta, catalog, it) }
         val foreignKeys = tables.associateWith { readForeignKeys(meta, catalog, it, tables) }
 
+        // 先统计范围：进度要按总量算，也让使用者先知道这次要导出多大的东西。
+        val rowsTotal = countRows(connection, tables)
+
         writeHeader(out, meta, tables.size)
         if (postgres) out.write("SET standard_conforming_strings = on;\n")
         out.write("BEGIN;\n\n")
 
+        backupProgress.startDumping(tables.size, rowsTotal)
         out.write("-- ========== 表结构 ==========\n")
         out.write("-- 表已存在时整段跳过：正常情况下先启动应用让 ddl-auto 建好结构，再执行本脚本。\n\n")
         tables.forEach { table ->
@@ -226,10 +241,13 @@ class DataBackupServiceImpl(
 
         out.write("-- ========== 表数据 ==========\n\n")
         var rowCount = 0L
-        tables.forEach { table ->
+        tables.forEachIndexed { index, table ->
             val tableColumns = columns.getValue(table)
-            if (tableColumns.isEmpty()) return@forEach
-            rowCount += writeInserts(connection, out, table, tableColumns, postgres)
+            if (tableColumns.isEmpty()) return@forEachIndexed
+            rowCount += writeInserts(connection, out, table, tableColumns, postgres) { rowsWritten ->
+                backupProgress.dumping(index + 1, rowCount + rowsWritten)
+            }
+            backupProgress.dumping(index + 1, rowCount)
         }
 
         if (postgres) {
@@ -411,6 +429,7 @@ class DataBackupServiceImpl(
         table: TableRef,
         columns: List<ColumnMeta>,
         postgres: Boolean,
+        onProgress: (Long) -> Unit,
     ): Long {
         val projection = columns.joinToString(", ") { quoteIdentifier(it.name) }
         var rows = 0L
@@ -427,11 +446,35 @@ class DataBackupServiceImpl(
                     }
                     out.write(");\n")
                     rows++
+                    // 按批报进度：每行都报一次会让进度快照的读写比真正的导出还忙。
+                    if (rows % FETCH_SIZE == 0L) onProgress(rows)
                 }
             }
         }
         out.write("\n")
+        onProgress(rows)
         return rows
+    }
+
+    /**
+     * 统计每张表的行数，供进度条按数据量推进。
+     *
+     * 这是纯粹的额外开销：COUNT(*) 在大表上就是一次全表扫描，等于把导出时的读放大一倍。换来的是
+     * 一条走得动的进度，以及"这次备份到底多大"的提前交代——后台任务里这个代价可以接受。若哪天表
+     * 大到不能接受，应当改成按表大小估算，并接受进度只是估算值。
+     */
+    private fun countRows(connection: Connection, tables: List<TableRef>): Long {
+        backupProgress.counting(0, tables.size)
+        var total = 0L
+        tables.forEachIndexed { index, table ->
+            total += connection.createStatement().use { statement ->
+                statement.executeQuery("SELECT COUNT(*) FROM ${table.qualifiedName}").use { rs ->
+                    if (rs.next()) rs.getLong(1) else 0L
+                }
+            }
+            backupProgress.counting(index + 1, tables.size)
+        }
+        return total
     }
 
     private fun readValue(rs: ResultSet, index: Int, column: ColumnMeta, postgres: Boolean): Any? =
@@ -486,6 +529,7 @@ class DataBackupServiceImpl(
         var packed = 0
         var bytes = 0L
         var missing = 0
+        backupProgress.startArchiving(stored.size)
         Files.newOutputStream(target, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE).use { raw ->
             ZipOutputStream(BufferedOutputStream(raw)).use { zip ->
                 zip.putNextEntry(ZipEntry(sqlEntryName))
@@ -493,7 +537,7 @@ class DataBackupServiceImpl(
                 zip.closeEntry()
 
                 val statuses = mutableMapOf<UUID, String>()
-                stored.forEach { file ->
+                stored.forEachIndexed { index, file ->
                     val resolved = resolveStoredPath(file.relativePath)
                     if (resolved != null && Files.isRegularFile(resolved, LinkOption.NOFOLLOW_LINKS)) {
                         zip.putNextEntry(ZipEntry("$FILES_ENTRY_PREFIX${zipEntryName(file.relativePath)}"))
@@ -508,6 +552,7 @@ class DataBackupServiceImpl(
                         statuses[file.id] = "MISSING"
                         log.warn("备份时附件物理文件缺失: id={} path={}", file.id, file.relativePath)
                     }
+                    backupProgress.archiving(index + 1)
                 }
 
                 zip.putNextEntry(ZipEntry(MANIFEST_ENTRY_NAME))

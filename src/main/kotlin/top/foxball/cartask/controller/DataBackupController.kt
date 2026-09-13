@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
+import top.foxball.cartask.service.BackupProgressService
 import top.foxball.cartask.service.DataBackupService
 import top.foxball.cartask.shared.Response
 import top.foxball.cartask.shared.ResponseBuilder
@@ -23,6 +24,7 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.LinkOption
 import java.nio.file.Path
+import java.time.LocalDateTime
 
 /**
  * 数据备份接口。
@@ -31,10 +33,27 @@ import java.nio.file.Path
  * 直接用「超级管理员 + backup:manage」把门：平台管理与部门管理都不该拿到它，
  * 数据范围对这类全局导出也没有意义。
  */
+data class BackupProgressData(
+    /** IDLE / COUNTING / DUMPING / ARCHIVING / FINISHED / FAILED。 */
+    val phase: String,
+    val label: String,
+    val percent: Int,
+    @param:JsonProperty("tables_done") val tablesDone: Int,
+    @param:JsonProperty("tables_total") val tablesTotal: Int,
+    @param:JsonProperty("rows_done") val rowsDone: Long,
+    @param:JsonProperty("rows_total") val rowsTotal: Long,
+    @param:JsonProperty("files_done") val filesDone: Int,
+    @param:JsonProperty("files_total") val filesTotal: Int,
+    @param:JsonProperty("started_at") val startedAt: LocalDateTime?,
+    @param:JsonProperty("finished_at") val finishedAt: LocalDateTime?,
+    val message: String?,
+)
+
 @RestController
 @RequestMapping("/api/backup")
 class DataBackupController(
     private val dataBackupService: DataBackupService,
+    private val backupProgressService: BackupProgressService,
     private val responseBuilder: ResponseBuilder,
 ) {
     @GetMapping("/summary")
@@ -55,6 +74,33 @@ class DataBackupController(
             summary.fileCount,
             summary.fileBytes,
             summary.storageRoot,
+        )
+        return responseBuilder.ok().data(rs).build()
+    }
+
+    /**
+     * 当前备份进度，供页面按秒轮询画进度条。
+     *
+     * 路径在 `/api/backup/` 下，因此备份期间也放行（见 MaintenanceFilter）——否则生成过程中
+     * 前端一个字节都拿不到，进度条只会停在起点。
+     */
+    @GetMapping("/progress")
+    @PreAuthorize(BACKUP_AUTHORIZATION)
+    fun progress(): ResponseEntity<Response> {
+        val progress = backupProgressService.snapshot()
+        val rs = BackupProgressData(
+            phase = progress.phase.name,
+            label = progress.label,
+            percent = progress.percent,
+            tablesDone = progress.tablesDone,
+            tablesTotal = progress.tablesTotal,
+            rowsDone = progress.rowsDone,
+            rowsTotal = progress.rowsTotal,
+            filesDone = progress.filesDone,
+            filesTotal = progress.filesTotal,
+            startedAt = progress.startedAt,
+            finishedAt = progress.finishedAt,
+            message = progress.message,
         )
         return responseBuilder.ok().data(rs).build()
     }

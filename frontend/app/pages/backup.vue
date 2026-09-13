@@ -51,12 +51,25 @@
       </p>
     </section>
 
+    <section v-if="progress" class="progress-panel" role="status" aria-live="polite">
+      <header class="progress-panel__head">
+        <div>
+          <div class="progress-panel__label">{{ progress.label }}</div>
+          <p class="progress-panel__detail">{{ progressDetail }}</p>
+        </div>
+        <span class="progress-panel__percent">{{ progress.percent }}%</span>
+      </header>
+      <div class="progress-bar"><div class="progress-bar__fill" :style="{ width: `${progress.percent}%` }" /></div>
+      <p v-if="progress.message" class="progress-panel__message">{{ progress.message }}</p>
+    </section>
+
     <section class="notice-panel">
       <div class="notice-panel__title"><span class="material-icons-outlined">info</span>备份说明</div>
       <ul>
         <li>SQL 脚本包含当前 schema 下全部业务表的结构与数据（系统表除外）。恢复时请先启动应用让表结构就绪，再用 <code>psql -f</code> 执行脚本。</li>
         <li>脚本不会做任何清理，请确认目标库为空或已确认可以覆盖同主键数据后再执行。</li>
         <li>压缩包里的附件按相对路径存放；元数据仍在、物理文件已丢失的条目会在清单里标成 <code>MISSING</code>，不会静默少一个。</li>
+        <li>生成期间系统进入静默：除本页与健康检查外的请求都会返回 503，定时同步跳过本次执行，已经在跑的同步会让备份等它结束再开始。这是为了让导出的数据停在同一时刻，而不是半个批次。</li>
         <li>产物只落在服务器临时目录里，下载写出后立即删除，服务器上不留档。备份包含账号口令散列与生物特征照片，请妥善保管下载到的文件。</li>
         <li>同一时刻只允许执行一次备份，重复点击会提示已有任务在执行。</li>
       </ul>
@@ -75,6 +88,19 @@ interface BackupSummary {
   storage_root: string;
 }
 
+interface BackupProgress {
+  phase: "IDLE" | "COUNTING" | "DUMPING" | "ARCHIVING" | "FINISHED" | "FAILED";
+  label: string;
+  percent: number;
+  tables_done: number;
+  tables_total: number;
+  rows_done: number;
+  rows_total: number;
+  files_done: number;
+  files_total: number;
+  message: string | null;
+}
+
 const { can } = usePermission();
 const runtimeConfig = useRuntimeConfig();
 const token = useCookie<string | null>("cartask_auth_token");
@@ -83,8 +109,26 @@ const includeFiles = ref(false);
 const busy = ref(false);
 const loaded = ref(false);
 const summary = ref<BackupSummary | null>(null);
+const progress = ref<BackupProgress | null>(null);
 const message = ref("");
 const feedbackType = ref<"success" | "error">("success");
+let progressTimer: ReturnType<typeof setInterval> | undefined;
+
+/** 进度明细按阶段换口径：统计看表数、导出看行数、打包看附件数。 */
+const progressDetail = computed(() => {
+  const item = progress.value;
+  if (!item) return "";
+  switch (item.phase) {
+    case "COUNTING":
+      return `已统计 ${item.tables_done} / ${item.tables_total} 张表`;
+    case "DUMPING":
+      return `表 ${item.tables_done} / ${item.tables_total} · 数据 ${item.rows_done} / ${item.rows_total} 行`;
+    case "ARCHIVING":
+      return `附件 ${item.files_done} / ${item.files_total} 个`;
+    default:
+      return "";
+  }
+});
 
 function baseUrl() {
   return String(runtimeConfig.public.baseUrl || "http://127.0.0.1:8080/api").replace(/\/$/, "");
@@ -120,9 +164,34 @@ async function loadSummary() {
   }
 }
 
+async function loadProgress() {
+  try {
+    const response = await fetch(`${baseUrl()}/backup/progress`, { headers: authorization() });
+    if (!response.ok) return;
+    const body = await response.json() as { data?: BackupProgress };
+    progress.value = body.data ?? null;
+  } catch {
+    // 轮询失败不影响正在进行的备份；下一次轮询还会再试。
+  }
+}
+
+function startProgressPolling() {
+  stopProgressPolling();
+  void loadProgress();
+  progressTimer = setInterval(loadProgress, 1000);
+}
+
+function stopProgressPolling() {
+  if (progressTimer) {
+    clearInterval(progressTimer);
+    progressTimer = undefined;
+  }
+}
+
 async function runBackup() {
   busy.value = true;
   message.value = "";
+  startProgressPolling();
   try {
     const response = await fetch(`${baseUrl()}/backup/export?include_files=${includeFiles.value}`, { headers: authorization() });
     if (!response.ok) {
@@ -156,6 +225,9 @@ async function runBackup() {
     showMessage(error instanceof Error ? error.message : "备份失败", "error");
   } finally {
     busy.value = false;
+    // 再拉一次拿最终状态（完成还是失败），否则进度条会停在最后一个中间值上。
+    void loadProgress();
+    stopProgressPolling();
   }
 }
 
@@ -165,6 +237,7 @@ function showMessage(text: string, type: "success" | "error" = "success") {
 }
 
 onMounted(loadSummary);
+onBeforeUnmount(stopProgressPolling);
 </script>
 
 <style scoped>
@@ -189,6 +262,14 @@ onMounted(loadSummary);
 .button:disabled { cursor: not-allowed; opacity: .6; }
 .button--primary { background: var(--primary); color: #fff; }
 .button .material-icons-outlined { font-size: 17px; }
+.progress-panel { background: var(--card); border: 1px solid var(--border-strong); border-radius: 8px; margin-top: 18px; padding: 16px 18px; }
+.progress-panel__head { align-items: flex-start; display: flex; gap: 12px; justify-content: space-between; }
+.progress-panel__label { color: var(--text); font-weight: 600; }
+.progress-panel__detail { color: var(--text-sub); font-size: 12px; margin: 4px 0 0; }
+.progress-panel__percent { color: var(--primary); font-size: 18px; font-weight: 650; }
+.progress-bar { background: var(--bg); border: 1px solid var(--border); border-radius: 999px; height: 8px; margin-top: 12px; overflow: hidden; }
+.progress-bar__fill { background: var(--primary); height: 100%; transition: width .3s ease; }
+.progress-panel__message { color: var(--red); font-size: 12px; margin: 10px 0 0; }
 .notice-panel { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text-sub); margin-top: 18px; padding: 16px 18px; }
 .notice-panel__title { align-items: center; color: var(--text); display: flex; font-weight: 600; gap: 6px; }
 .notice-panel__title .material-icons-outlined { color: var(--primary); font-size: 18px; }

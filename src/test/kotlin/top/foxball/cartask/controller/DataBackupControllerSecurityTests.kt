@@ -11,6 +11,7 @@ class DataBackupControllerSecurityTests {
     fun `备份接口只对超级管理员开放`() {
         val expected = mapOf(
             "summary" to "hasRole('SUPER_ADMIN') and hasAuthority('backup:manage')",
+            "progress" to "hasRole('SUPER_ADMIN') and hasAuthority('backup:manage')",
             "export" to "hasRole('SUPER_ADMIN') and hasAuthority('backup:manage')",
         )
         val handlers = DataBackupController::class.java.declaredMethods

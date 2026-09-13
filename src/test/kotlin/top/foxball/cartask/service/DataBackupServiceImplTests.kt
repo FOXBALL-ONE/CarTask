@@ -3,6 +3,7 @@ package top.foxball.cartask.service
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -61,6 +62,7 @@ class DataBackupServiceImplTests {
         datasource: DriverManagerDataSource,
         storageRoot: Path,
         files: List<StoredFile>,
+        progress: BackupProgressService = BackupProgressService(),
     ): DataBackupServiceImpl {
         val repository = mock<StoredFileRepository>()
         whenever(repository.findAll()).thenReturn(files)
@@ -71,6 +73,7 @@ class DataBackupServiceImplTests {
             storedFileRepository = repository,
             fileProperties = FileProperties(storageRoot = storageRoot.toString(), baseUrl = "http://127.0.0.1:8080"),
             maintenanceGate = MaintenanceGate(),
+            backupProgress = progress,
             auditService = null,
         )
     }
@@ -199,5 +202,58 @@ class DataBackupServiceImplTests {
         assertEquals(2048L, summary.fileBytes)
         assertTrue(summary.databaseProduct.contains("H2"), summary.databaseProduct)
         assertNotNull(summary.storageRoot)
+    }
+
+    @Test
+    fun `导出前先统计范围，结束后进度停在完成`(@TempDir storageRoot: Path) {
+        val datasource = dataSource()
+        seed(datasource)
+        val progress = BackupProgressService()
+
+        val artifact = service(datasource, storageRoot, listOf(storedFile("2026/09/13/photo.jpg")), progress)
+            .export(includeFiles = true)
+
+        try {
+            val snapshot = progress.snapshot()
+            assertEquals(BackupPhase.FINISHED, snapshot.phase)
+            assertEquals("备份完成", snapshot.label)
+            assertEquals(100, snapshot.percent)
+            // 范围统计要落在进度上，页面才有"共多少张表、多少行"可展示。
+            assertEquals(2, snapshot.tablesTotal)
+            assertEquals(2, snapshot.tablesDone)
+            assertEquals(3L, snapshot.rowsTotal)
+            assertEquals(3L, snapshot.rowsDone)
+            // 附件元数据在册但物理文件不存在，打包阶段仍然要走完并如实计数。
+            assertEquals(1, snapshot.filesTotal)
+            assertEquals(1, snapshot.filesDone)
+            assertNotNull(snapshot.startedAt)
+            assertNotNull(snapshot.finishedAt)
+        } finally {
+            artifact.cleanupRoot.toFile().deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `导出失败时进度记下停在哪个阶段`(@TempDir storageRoot: Path) {
+        // 连不上的库：导出在统计范围阶段就会失败。
+        val unreachable = DriverManagerDataSource().apply {
+            setDriverClassName("org.h2.Driver")
+            url = "jdbc:h2:tcp://127.0.0.1:1/unreachable"
+            username = "sa"
+            password = ""
+        }
+        val progress = BackupProgressService()
+        val failing = service(unreachable, storageRoot, emptyList(), progress)
+        var cleanupRoot: Path? = null
+
+        // 取连接失败抛的是受检的 SQLException，进度同样必须落到 FAILED。
+        assertThrows(Exception::class.java) {
+            cleanupRoot = failing.export(includeFiles = false).cleanupRoot
+        }
+
+        val snapshot = progress.snapshot()
+        assertEquals(BackupPhase.FAILED, snapshot.phase)
+        assertNotNull(snapshot.message, "失败原因要留在进度里，否则页面上只剩一个卡住的进度条")
+        cleanupRoot?.let { it.toFile().deleteRecursively() }
     }
 }

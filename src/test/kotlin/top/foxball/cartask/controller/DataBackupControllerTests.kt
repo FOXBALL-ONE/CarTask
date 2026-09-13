@@ -9,6 +9,7 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 import org.springframework.core.io.Resource
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody
+import top.foxball.cartask.service.BackupProgressService
 import top.foxball.cartask.service.DataBackupService
 import top.foxball.cartask.shared.ResponseBuilder
 import java.nio.file.Files
@@ -16,7 +17,7 @@ import java.nio.file.Path
 
 class DataBackupControllerTests {
     private val service = mock<DataBackupService>()
-    private val controller = DataBackupController(service, ResponseBuilder())
+    private val controller = DataBackupController(service, BackupProgressService(), ResponseBuilder())
 
     @Test
     fun `下载备份时同步写出资源内容并在流关闭后清理临时目录`(@TempDir workRoot: Path) {
