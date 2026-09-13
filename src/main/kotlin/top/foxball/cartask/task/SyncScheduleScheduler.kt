@@ -11,6 +11,7 @@ import org.springframework.scheduling.support.CronTrigger
 import org.springframework.stereotype.Component
 import org.springframework.transaction.event.TransactionPhase
 import org.springframework.transaction.event.TransactionalEventListener
+import top.foxball.cartask.config.MaintenanceGate
 import top.foxball.cartask.service.SyncScheduleChangedEvent
 import top.foxball.cartask.service.SyncScheduleService
 import java.util.concurrent.ConcurrentHashMap
@@ -30,6 +31,7 @@ import java.util.concurrent.ScheduledFuture
 class SyncScheduleScheduler(
     private val catalog: SyncScheduleCatalog,
     private val syncScheduleService: SyncScheduleService,
+    private val maintenanceGate: MaintenanceGate,
     private val taskSchedulerProvider: ObjectProvider<TaskScheduler>,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
@@ -73,12 +75,31 @@ class SyncScheduleScheduler(
             return
         }
         jobs.remove(taskKey)?.cancel(false)
-        val scheduled = scheduler.schedule({ definition.trigger() }, trigger)
+        val scheduled = scheduler.schedule({ runGuarded(definition) }, trigger)
         if (scheduled == null) {
             log.warn("同步任务「{}」注册失败，调度器没有返回任务句柄", definition.name)
             return
         }
         jobs[taskKey] = scheduled
         log.info("同步任务「{}」已按 {} 注册，下次执行 {}", definition.name, cron, syncScheduleService.nextRunAt(taskKey))
+    }
+
+    /**
+     * 生成备份期间跳过本次执行。
+     *
+     * 备份要的是一份停在某一刻的数据，同步任务在里面持续写入会把导出的内容搅成半个批次——某张表
+     * 已经是新的、关联的另一张还是旧的。拿不到读锁说明备份正在生成或已经排队，本次直接跳过，
+     * 等备份结束后按原周期继续；已经在跑的同步会让备份等它结束再开始，不会被中途打断。
+     */
+    private fun runGuarded(definition: SyncScheduleDefinition) {
+        if (!maintenanceGate.enterNormalOperation()) {
+            log.warn("正在生成数据备份，本次「{}」跳过，备份结束后按原周期继续", definition.name)
+            return
+        }
+        try {
+            definition.trigger()
+        } finally {
+            maintenanceGate.leaveNormalOperation()
+        }
     }
 }

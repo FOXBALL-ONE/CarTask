@@ -8,22 +8,32 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
+import org.mockito.kotlin.verifyNoInteractions
 import org.mockito.kotlin.whenever
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.scheduling.TaskScheduler
 import org.springframework.scheduling.Trigger
 import org.springframework.scheduling.support.CronTrigger
+import top.foxball.cartask.config.MaintenanceGate
 import top.foxball.cartask.keytop.KeytopProperties
 import top.foxball.cartask.service.SyncScheduleChangedEvent
 import top.foxball.cartask.service.SyncScheduleService
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.ScheduledFuture
+import java.util.concurrent.TimeUnit
+import kotlin.concurrent.thread
 
 class SyncScheduleSchedulerTests {
+    private val areaInfoTask = mock<SynAreaInfoTask>()
+    private val carCapInfoTask = mock<SynCarCapInfoTask>()
+    private val ownerArchiveTask = mock<SynOwnerArchiveTask>()
+    private val accountGenerateTask = mock<SynAccountGenerateTask>()
+
     private val catalog = SyncScheduleCatalog(
-        synAreaInfoTask = mock<SynAreaInfoTask>(),
-        synCarCapInfoTask = mock<SynCarCapInfoTask>(),
-        synOwnerArchiveTask = mock<SynOwnerArchiveTask>(),
-        synAccountGenerateTask = mock<SynAccountGenerateTask>(),
+        synAreaInfoTask = areaInfoTask,
+        synCarCapInfoTask = carCapInfoTask,
+        synOwnerArchiveTask = ownerArchiveTask,
+        synAccountGenerateTask = accountGenerateTask,
         keytopProperties = KeytopProperties(),
         ownerArchiveCron = "0 45 2 * * *",
         accountGenerateCron = "0 0 3 * * *",
@@ -33,8 +43,9 @@ class SyncScheduleSchedulerTests {
     private val taskScheduler = mock<TaskScheduler>()
     private val provider = mock<ObjectProvider<TaskScheduler>>()
     private val service = mock<SyncScheduleService>()
+    private val gate = MaintenanceGate()
 
-    private fun scheduler() = SyncScheduleScheduler(catalog, service, provider)
+    private fun scheduler() = SyncScheduleScheduler(catalog, service, gate, provider)
 
     /** 让每次注册都返回一个句柄，并按目录里的默认周期回应取值。 */
     private fun stubScheduling() {
@@ -114,5 +125,38 @@ class SyncScheduleSchedulerTests {
         scheduler().scheduleAll()
 
         verify(taskScheduler, times(catalog.definitions.size)).schedule(any<Runnable>(), any<Trigger>())
+    }
+
+    @Test
+    fun `生成备份期间跳过同步而不是照跑`() {
+        stubScheduling()
+        val registered = argumentCaptor<Runnable>()
+        scheduler().scheduleAll()
+        verify(taskScheduler, times(catalog.definitions.size)).schedule(registered.capture(), any<Trigger>())
+
+        // 另起一个线程持着写锁，等价于「备份正在生成」。
+        val holding = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        val holder = thread {
+            gate.runExclusive {
+                holding.countDown()
+                release.await()
+            }
+        }
+        assertTrue(holding.await(5, TimeUnit.SECONDS), "没能进入备份状态")
+
+        try {
+            registered.allValues.forEach { it.run() }
+
+            // 备份期间同步写进去就是半个批次的数据，必须一条都不跑。
+            verifyNoInteractions(areaInfoTask, carCapInfoTask, ownerArchiveTask, accountGenerateTask)
+        } finally {
+            release.countDown()
+            holder.join(5_000)
+        }
+
+        // 备份结束后立刻恢复：闸门不能被某次执行长期占着。
+        registered.allValues.forEach { it.run() }
+        verify(areaInfoTask).synAreaInfo()
     }
 }

@@ -10,6 +10,7 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 import org.springframework.jdbc.datasource.DriverManagerDataSource
 import top.foxball.cartask.config.FileProperties
+import top.foxball.cartask.config.MaintenanceGate
 import top.foxball.cartask.entity.StoredFile
 import top.foxball.cartask.repository.StoredFileRepository
 import top.foxball.cartask.service.impl.DataBackupServiceImpl
@@ -69,6 +70,7 @@ class DataBackupServiceImplTests {
             dataSource = datasource,
             storedFileRepository = repository,
             fileProperties = FileProperties(storageRoot = storageRoot.toString(), baseUrl = "http://127.0.0.1:8080"),
+            maintenanceGate = MaintenanceGate(),
             auditService = null,
         )
     }

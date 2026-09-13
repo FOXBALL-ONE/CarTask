@@ -6,6 +6,7 @@ import top.foxball.cartask.audit.AuditAction
 import top.foxball.cartask.audit.AuditCommand
 import top.foxball.cartask.audit.AuditService
 import top.foxball.cartask.config.FileProperties
+import top.foxball.cartask.config.MaintenanceGate
 import top.foxball.cartask.entity.StoredFile
 import top.foxball.cartask.handler.BackupInProgressException
 import top.foxball.cartask.repository.StoredFileRepository
@@ -52,6 +53,7 @@ class DataBackupServiceImpl(
     private val dataSource: DataSource,
     private val storedFileRepository: StoredFileRepository,
     private val fileProperties: FileProperties,
+    private val maintenanceGate: MaintenanceGate,
     private val auditService: AuditService? = null,
 ) : DataBackupService {
     private val log = LoggerFactory.getLogger(javaClass)
@@ -89,41 +91,46 @@ class DataBackupServiceImpl(
             throw BackupInProgressException()
         }
         try {
-            val startedAt = System.nanoTime()
-            val workRoot = Files.createTempDirectory(TEMP_DIR_PREFIX)
-            val stamp = LocalDateTime.now().format(FILE_STAMP_FORMATTER)
-            var completed = false
-            try {
-                val sqlPath = workRoot.resolve("cartask-backup-$stamp.sql")
-                val dump = writeSqlDump(sqlPath)
-                val artifact = if (includeFiles) {
-                    val archivePath = workRoot.resolve("cartask-backup-$stamp.zip")
-                    val archive = writeArchive(archivePath, sqlPath, SQL_ENTRY_NAME)
-                    DataBackupService.Artifact(
-                        path = archivePath,
-                        filename = archivePath.fileName.toString(),
-                        contentType = ZIP_CONTENT_TYPE,
-                        cleanupRoot = workRoot,
-                        stats = stats(dump, archiveIncluded = true, archiveBytes = archive.bytes, files = archive, startedAt = startedAt),
-                    )
-                } else {
-                    DataBackupService.Artifact(
-                        path = sqlPath,
-                        filename = sqlPath.fileName.toString(),
-                        contentType = SQL_CONTENT_TYPE,
-                        cleanupRoot = workRoot,
-                        stats = stats(dump, archiveIncluded = false, archiveBytes = 0, files = null, startedAt = startedAt),
-                    )
-                }
-                recordAudit(artifact.stats)
-                completed = true
-                return artifact
-            } finally {
-                // 成功时产物还要给调用方流式写出，只有失败才在这里就地清理，避免留下半个文件。
-                if (!completed) deleteRecursively(workRoot)
-            }
+            // 只把「生成」这一段关进闸门：产物写完之后数据已经定型，之后的下载不该再挡着其他请求。
+            return maintenanceGate.runExclusive { generateArtifact(includeFiles) }
         } finally {
             exportLock.unlock()
+        }
+    }
+
+    private fun generateArtifact(includeFiles: Boolean): DataBackupService.Artifact {
+        val startedAt = System.nanoTime()
+        val workRoot = Files.createTempDirectory(TEMP_DIR_PREFIX)
+        val stamp = LocalDateTime.now().format(FILE_STAMP_FORMATTER)
+        var completed = false
+        try {
+            val sqlPath = workRoot.resolve("cartask-backup-$stamp.sql")
+            val dump = writeSqlDump(sqlPath)
+            val artifact = if (includeFiles) {
+                val archivePath = workRoot.resolve("cartask-backup-$stamp.zip")
+                val archive = writeArchive(archivePath, sqlPath, SQL_ENTRY_NAME)
+                DataBackupService.Artifact(
+                    path = archivePath,
+                    filename = archivePath.fileName.toString(),
+                    contentType = ZIP_CONTENT_TYPE,
+                    cleanupRoot = workRoot,
+                    stats = stats(dump, archiveIncluded = true, archiveBytes = archive.bytes, files = archive, startedAt = startedAt),
+                )
+            } else {
+                DataBackupService.Artifact(
+                    path = sqlPath,
+                    filename = sqlPath.fileName.toString(),
+                    contentType = SQL_CONTENT_TYPE,
+                    cleanupRoot = workRoot,
+                    stats = stats(dump, archiveIncluded = false, archiveBytes = 0, files = null, startedAt = startedAt),
+                )
+            }
+            recordAudit(artifact.stats)
+            completed = true
+            return artifact
+        } finally {
+            // 成功时产物还要给调用方写出，只有失败才在这里就地清理，避免留下半个文件。
+            if (!completed) deleteRecursively(workRoot)
         }
     }
 
@@ -177,6 +184,11 @@ class DataBackupServiceImpl(
                 // 驱动会把整张表一次性读进内存，全库备份的第一受害者就是应用自己。
                 // 这条连接只读，结束时回滚即可，不影响脚本里那句文本形式的 BEGIN。
                 runCatching { connection.autoCommit = false }
+                // 再抬一次隔离级别：默认的 READ COMMITTED 每条语句各自取快照，逐表读取时前后两张表
+                // 可能落在不同时间点。闸门只能挡住本实例的写入，挡不住别的实例或直接连库的写入，
+                // 快照隔离才是同一份数据。
+                runCatching { connection.transactionIsolation = Connection.TRANSACTION_REPEATABLE_READ }
+                    .onFailure { log.warn("数据库不支持 REPEATABLE READ，本次按默认隔离级别导出：{}", it.message) }
                 try {
                     counts = dumpTo(connection, out)
                 } finally {
