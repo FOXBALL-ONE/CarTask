@@ -1045,6 +1045,81 @@
 
 ---
 
+## 13. 数据备份
+
+> **权限**: 本节接口要求 `hasRole('SUPER_ADMIN')` 且持有 `backup:manage`。平台管理（ADMIN）、部门管理（DEPT_ADMIN）与普通用户一律 403，前端路由与侧边栏入口也只对超级管理员渲染。
+>
+> 备份产物包含整库数据与全部附件（含账号口令散列、人脸照片、进出抓拍），请按敏感数据处理。
+
+### 13.1 读取备份概览
+
+- **接口**: `GET /backup/summary`
+- **说明**: 在真正导出前展示本次备份的体量，供页面提示使用。
+- **响应**:
+```json
+{
+  "status": 200,
+  "success": true,
+  "message": "操作成功",
+  "data": {
+    "database_product": "PostgreSQL 16.3",
+    "table_count": 42,
+    "file_count": 128,
+    "file_bytes": 47443221,
+    "storage_root": "/var/lib/cartask/files"
+  }
+}
+```
+- `table_count` 只统计业务表，数据库自身的系统表不计入。
+- `file_bytes` 是 `stored_files` 里登记的大小合计，与磁盘上的实际占用可能有差异（例如物理文件已丢失）。
+
+### 13.2 生成并下载备份
+
+- **接口**: `GET /backup/export`
+- **请求参数**:
+  - `include_files` (boolean, 可选): 默认 `false`
+- **说明**:
+  - `include_files=false`：返回 `application/sql`，文件名形如 `cartask-backup-20260913-204135.sql`。
+  - `include_files=true`：返回 `application/zip`，文件名形如 `cartask-backup-20260913-204135.zip`，内含 `database.sql`（与前者内容一致）、`files/<相对路径>` 的全部附件，以及 `manifest.csv` 附件清单。
+  - **无论是否勾选压缩包，SQL 备份都会生成**；压缩包只是在其基础上多带上附件。
+- **响应头**: `Content-Disposition: attachment; filename*=UTF-8''...`（前端按此还原文件名）
+- **响应体**: 二进制流（分块传输，不返回统一 JSON 响应体）
+- **出错时**（生成阶段就失败，尚未开始写响应体）返回统一响应体：
+```json
+{
+  "status": 409,
+  "success": false,
+  "message": "已有备份任务正在执行，请等待完成后再试"
+}
+```
+
+**SQL 脚本内容**
+
+1. 表结构：`CREATE TABLE IF NOT EXISTS`，含主键与外键约束，按外键依赖排序输出。表已存在时整段跳过——正常恢复流程是先启动应用让 `ddl-auto` 建好结构，再执行脚本。
+2. 表数据：逐行 `INSERT INTO ... VALUES (...)`，字符串按 SQL 规则转义单引号。
+3. （仅 PostgreSQL）自增序列复位：`setval(pg_get_serial_sequence(...), MAX(col) + 1, false)`。不执行这段，恢复后应用的下一次插入会撞主键。
+
+**附件压缩包内容**
+
+| 条目 | 说明 |
+|------|------|
+| `database.sql` | 与单独导出时完全一致的 SQL 脚本 |
+| `files/<relative_path>` | 按 `stored_files.relative_path` 存放的物理文件 |
+| `manifest.csv` | 附件清单（UTF-8 带 BOM），字段见下 |
+
+`manifest.csv` 列：`id, original_filename, stored_filename, relative_path, content_type, size_bytes, sha256, created_at, uploaded_by_user_id, department_code, business_type, business_id, status`。
+
+- 元数据仍在但物理文件缺失时，该行 `status` 为 `MISSING`，并在响应日志中告警，不会静默少一个文件。
+- 压缩包里不会出现在文件根目录之外的路径。
+
+**其他约束**
+
+- 产物先落到服务器临时目录再流式写出，响应结束后立即删除，服务器上不留档。
+- 同一时刻只允许一次备份，重复请求返回 `409`。
+- 每次成功导出都会写入一条 `DATA_BACKUP_CREATED` 审计事件（风险级别 CRITICAL），摘要含表数量、行数、附件数量、缺失数量与耗时。
+
+---
+
 ## 状态码说明
 
 | 状态 | 说明 |

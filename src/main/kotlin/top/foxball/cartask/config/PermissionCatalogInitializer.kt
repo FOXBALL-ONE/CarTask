@@ -113,6 +113,8 @@ class PermissionCatalogInitializer(
             "permission:manage",
             "user:role-assign",
             "audit:delete",
+            // 备份产物是整库 SQL 加全部附件（含生物特征照片与口令散列），只留给超级管理员。
+            "backup:manage",
         )
 
         /** 后补进入权限字典的能力，即使 ADMIN 角色已有权限配置也必须补授。 */
@@ -139,6 +141,8 @@ class PermissionCatalogInitializer(
             "device:manage",
             "position:read",
             "dictionary:manage",
+            // 备份是超级管理员的专属能力，部门管理不得染指。
+            "backup:manage",
         )
 
         /** 后补进入权限字典、需要补授给已有部门管理角色的能力。 */

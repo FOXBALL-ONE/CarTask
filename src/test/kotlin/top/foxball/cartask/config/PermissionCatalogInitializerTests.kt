@@ -87,10 +87,29 @@ class PermissionCatalogInitializerTests {
             "device:manage",
             "position:read",
             "dictionary:manage",
+            "backup:manage",
         )
         assertTrue(
             granted.intersect(denied).isEmpty(),
             "部门管理不应获得这些权限：${granted.intersect(denied)}",
+        )
+    }
+
+    @Test
+    fun `平台管理角色拿不到数据备份权限`() {
+        val complete = PermissionCatalog.definitions.map { definition ->
+            Permission().apply { code = definition.code; name = definition.name }
+        }
+        whenever(permissionRepository.findAll()).thenReturn(complete, complete)
+        val admin = top.foxball.cartask.entity.Role().apply { name = "ADMIN" }
+        whenever(roleRepository.findByNameIgnoreCase("ADMIN")).thenReturn(admin)
+
+        PermissionCatalogInitializer(permissionRepository, roleRepository).write()
+
+        // 备份产物是整库 SQL 加全部附件（含生物特征照片与口令散列），只留给超级管理员。
+        assertTrue(
+            admin.permissions.none { it.code == "backup:manage" },
+            "平台管理不应获得数据备份权限，实际：${admin.permissions.map { it.code }}",
         )
     }
 

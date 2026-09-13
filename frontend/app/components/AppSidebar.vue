@@ -74,7 +74,7 @@
         <button class="dropdown-item" type="button" @click="emit('settings', 'config')">
           <span class="material-icons-outlined">build</span>系统配置
         </button>
-        <button class="dropdown-item" type="button" @click="emit('settings', 'backup')">
+        <button v-if="isSuperAdmin" class="dropdown-item" type="button" @click="emit('settings', 'backup')">
           <span class="material-icons-outlined">storage</span>数据备份
         </button>
         <button class="dropdown-item" type="button" @click="emit('settings', 'about')">
@@ -201,6 +201,14 @@ const expandedGroups = ref<string[]>([]);
 const settingsOpen = ref(false);
 const authStore = useAuthStore();
 const logoMark = computed(() => props.systemName.trim().charAt(0).toUpperCase() || "A");
+
+/**
+ * 数据备份只对超级管理员开放。
+ *
+ * 与路由中间件（routeRoles）、后端 @PreAuthorize 保持同一口径：这里只是不显示入口，
+ * 真正的拦截在服务端，改一个角色名不该成为拿到整库备份的唯一障碍。
+ */
+const isSuperAdmin = computed(() => authStore.user?.role === "SUPER_ADMIN");
 
 watch(() => props.activePage, (page) => {
   for (const group of navigation) {

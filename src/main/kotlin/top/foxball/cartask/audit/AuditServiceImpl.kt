@@ -154,6 +154,10 @@ class AuditServiceImpl(
             "release_channel", "operator_name", "original_filename", "size_bytes", "content_type",
             "code", "deleted", "method", "path", "token_id_hash", "record_count", "occurred_from",
             "occurred_to", "action", "target_type",
+            // 数据备份的产物摘要。少写一个键，它就会被静默丢掉，只留下一个空 {}
+            // ——新增审计字段时必须同步加到这里。
+            "include_files", "table_count", "row_count", "file_count", "missing_files",
+            "sql_bytes", "archive_bytes", "duration_ms",
         )
     }
 }

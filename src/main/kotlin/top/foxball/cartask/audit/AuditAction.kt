@@ -30,5 +30,7 @@ enum class AuditAction(
     FILE_UPLOADED("FILE_UPLOADED", AuditEvent.Category.FILE, AuditEvent.RiskLevel.MEDIUM),
     FILE_DOWNLOADED("FILE_DOWNLOADED", AuditEvent.Category.FILE, AuditEvent.RiskLevel.HIGH),
     SENSITIVE_DATA_EXPORTED("SENSITIVE_DATA_EXPORTED", AuditEvent.Category.DATA_EXPORT, AuditEvent.RiskLevel.HIGH),
+    /** 导出整库 SQL 与附件压缩包。比普通导出更敏感：产物里有全部账号口令散列与生物特征照片。 */
+    DATA_BACKUP_CREATED("DATA_BACKUP_CREATED", AuditEvent.Category.DATA_EXPORT, AuditEvent.RiskLevel.CRITICAL),
     LOGS_CLEARED("LOGS_CLEARED", AuditEvent.Category.CONFIGURATION, AuditEvent.RiskLevel.CRITICAL),
 }

@@ -65,5 +65,7 @@ object PermissionCatalog {
         Definition("sync-history:read", "查看同步执行历史"),
         Definition("file:read", "读取文件"),
         Definition("file:upload", "上传文件"),
+        // 只授给超级管理员：产物里是整库数据加全部附件，平台管理与部门管理都不该拿到。
+        Definition("backup:manage", "数据备份"),
     )
 }

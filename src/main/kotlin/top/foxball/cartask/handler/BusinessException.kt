@@ -177,3 +177,7 @@ class SupportTicketAttachmentLimitException(
 class SupportTicketUnsafeAttachmentException(
     message: String = "工单附件类型不受支持或未通过安全检查",
 ) : BusinessException(HttpStatus.BAD_REQUEST, message)
+
+class BackupInProgressException(
+    message: String = "已有备份任务正在执行，请等待完成后再试",
+) : BusinessException(HttpStatus.CONFLICT, message)

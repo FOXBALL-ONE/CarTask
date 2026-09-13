@@ -27,6 +27,7 @@ const routePermissions: Record<string, string[]> = {
     "/sync-history": ["sync-history:read"],
     "/system-monitor": ["system-monitor:read"],
     "/logs": ["audit:read"],
+    "/backup": ["backup:manage"],
 };
 
 /**
@@ -38,6 +39,8 @@ const routePermissions: Record<string, string[]> = {
 const routeRoles: Record<string, string[]> = {
     "/roles": ["SUPER_ADMIN", "ADMIN"],
     "/departments": ["SUPER_ADMIN", "ADMIN"],
+    // 备份产物是整库 SQL 加全部附件，权限码之外再卡一道角色，避免有人把 backup:manage 配给别的角色。
+    "/backup": ["SUPER_ADMIN"],
 };
 
 export default defineNuxtRouteMiddleware(async (to) => {
