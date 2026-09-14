@@ -177,6 +177,26 @@ class PlateInspectionIntegrationTests(
     }
 
     @Test
+    @WithCurrentUser(role = "ADMIN", authorities = ["plate:manage", "plate:read"])
+    fun `车牌接口支持保存更新并返回车辆类型`() {
+        val owner = saveOwner("CARD-1006-BRAND", "孙八车辆类型")
+        val created = api.createPlate(PlateRequest(
+            plate = "京HBRAND", owner = owner.name, ownerId = owner.id, status = 1, regDate = "2026-09-01",
+            carBrand = "  小型轿车  ",
+        ))
+        assertEquals(201, created.statusCode.value())
+        assertEquals("小型轿车", objectMapper.valueToTree<JsonNode>(created.body!!.data).get("carBrand").asText())
+
+        val plate = plates.findByPlate("京HBRAND")!!
+        assertEquals("小型轿车", plate.carBrand)
+
+        api.updatePlate(requireNotNull(plate.id), PlateRequest(carBrand = "SUV"))
+
+        assertEquals("SUV", plates.findByPlate("京HBRAND")!!.carBrand)
+        assertEquals("SUV", listPlates(null).single { it.get("plate").asText() == "京HBRAND" }.get("carBrand").asText())
+    }
+
+    @Test
     @WithCurrentUser(role = "ADMIN", authorities = ["plate:read"])
     fun `车牌列表返回年检字段并支持按年检状态筛选`() {
         val owner = saveOwner("CARD-1007", "周九")

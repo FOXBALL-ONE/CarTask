@@ -403,12 +403,13 @@ class ParkingApiController(
             this.ownerId = ownerId
             status = requireNotNull(body.status) { "状态不能为空" }
             regDate = LocalDate.parse(requireNotNull(body.regDate))
+            carBrand = body.carBrand?.trim().orEmpty()
         }
         require(plate.status == 0 || plate.status == 1) { "状态必须为 0 或 1" }
         applyInspection(plate, body)
         val saved = plateRepository.save(plate)
         refreshOwnerCounts()
-        return responseBuilder.created().data(StoredPlate(requireNotNull(saved.id), saved.plate, saved.owner, saved.ownerId, saved.status, saved.regDate.toString(), saved.inspectionDate?.toString(), saved.inspectionValidUntil?.toString(), VehicleInspection.status(saved.inspectionDate, saved.inspectionValidUntil, LocalDate.now()), saved.inspectionRemark)).build()
+        return responseBuilder.created().data(StoredPlate(requireNotNull(saved.id), saved.plate, saved.owner, saved.ownerId, saved.status, saved.regDate.toString(), saved.carBrand, saved.inspectionDate?.toString(), saved.inspectionValidUntil?.toString(), VehicleInspection.status(saved.inspectionDate, saved.inspectionValidUntil, LocalDate.now()), saved.inspectionRemark)).build()
     }
 
     @PutMapping("/plates/{id}")
@@ -428,11 +429,12 @@ class ParkingApiController(
         plate.owner = owner.name
         body.status?.let { plate.status = it }
         body.regDate?.let { plate.regDate = LocalDate.parse(it) }
+        body.carBrand?.let { plate.carBrand = it.trim() }
         require(plate.status == 0 || plate.status == 1) { "状态必须为 0 或 1" }
         applyInspection(plate, body)
         val saved = plateRepository.save(plate)
         refreshOwnerCounts()
-        return responseBuilder.ok().data(StoredPlate(requireNotNull(saved.id), saved.plate, saved.owner, saved.ownerId, saved.status, saved.regDate.toString(), saved.inspectionDate?.toString(), saved.inspectionValidUntil?.toString(), VehicleInspection.status(saved.inspectionDate, saved.inspectionValidUntil, LocalDate.now()), saved.inspectionRemark)).build()
+        return responseBuilder.ok().data(StoredPlate(requireNotNull(saved.id), saved.plate, saved.owner, saved.ownerId, saved.status, saved.regDate.toString(), saved.carBrand, saved.inspectionDate?.toString(), saved.inspectionValidUntil?.toString(), VehicleInspection.status(saved.inspectionDate, saved.inspectionValidUntil, LocalDate.now()), saved.inspectionRemark)).build()
     }
 
     @DeleteMapping("/plates/{id}")

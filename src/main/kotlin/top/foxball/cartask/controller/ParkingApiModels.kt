@@ -124,6 +124,7 @@ data class PlateRequest(
     @param:JsonProperty("ownerId") val ownerId: Long? = null,
     @param:JsonProperty("status") val status: Int? = null,
     @param:JsonProperty("regDate") val regDate: String? = null,
+    @param:JsonProperty("carBrand") val carBrand: String? = null,
     @param:JsonProperty("inspectionDate") val inspectionDate: String? = null,
     @param:JsonProperty("inspectionValidUntil") val inspectionValidUntil: String? = null,
     @param:JsonProperty("inspectionRemark") val inspectionRemark: String? = null,
@@ -178,6 +179,7 @@ data class StoredPlate(
     val ownerId: Long,
     val status: Int,
     val regDate: String,
+    val carBrand: String,
     val inspectionDate: String?,
     val inspectionValidUntil: String?,
     /** 年检状态文案：未年检 / 有效 / 已过期，由后端按当前日期判定，避免各端各算一套。 */

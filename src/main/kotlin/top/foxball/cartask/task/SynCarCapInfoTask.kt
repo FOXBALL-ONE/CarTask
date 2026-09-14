@@ -13,6 +13,7 @@ import top.foxball.cartask.handler.VehicleAccessRecordSyncInProgressException
 import top.foxball.cartask.keytop.KeytopProperties
 import top.foxball.cartask.keytop.KeytopService
 import top.foxball.cartask.repository.AccessRecordRepository
+import top.foxball.cartask.repository.ParkingPlateRepository
 import top.foxball.cartask.entity.StoredFile
 import top.foxball.cartask.repository.SyncCheckpointRepository
 import top.foxball.cartask.shared.PlateNumbers
@@ -55,6 +56,7 @@ class SynCarCapInfoTask(
     private val syncCheckpointRepository: SyncCheckpointRepository,
     private val syncTaskHistoryService: SyncTaskHistoryService,
     private val syncTaskProgressService: SyncTaskProgressService = SyncTaskProgressService(),
+    private val parkingPlateRepository: ParkingPlateRepository,
 ) {
     /**
      * 定时入口。周期由 [SyncScheduleCatalog] 注册、[SyncScheduleScheduler] 按 cron 触发，
@@ -331,8 +333,14 @@ class SynCarCapInfoTask(
         var processed = 0
         var localPhotoCount = 0
         var failedPhotoCount = 0
+        val platesByNormalizedNumber = parkingPlateRepository
+            .findAll()
+            .groupBy { PlateNumbers.normalize(it.plate) }
+            .mapValues { (_, plates) -> plates.first() }
         records.forEach { node ->
             val record = parseRecord(node) ?: return@forEach
+            // 车牌档案的车辆类型直接取科拓返回的 carBrand；字段缺失时按空字符串落库。
+            val carBrand = firstText(node, "carBrand")?.trim().orEmpty()
             val key = requireNotNull(record.sourceRecordId)
             if (seen.containsKey(key)) return@forEach
             val existing = seen[key]
@@ -367,6 +375,11 @@ class SynCarCapInfoTask(
                 accessRecordRepository.save(existing)
                 seen[key] = existing
                 existing
+            }
+            val normalizedPlate = PlateNumbers.normalize(record.carNumber)
+            platesByNormalizedNumber[normalizedPlate]?.let { plate ->
+                plate.carBrand = carBrand
+                parkingPlateRepository.save(plate)
             }
             processed++
             if (stored.photoSyncStatus == AccessRecord.PhotoSyncStatus.LOCAL) localPhotoCount++

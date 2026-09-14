@@ -186,6 +186,7 @@ class PlateExcelRow {
     @field:ExcelProperty("车主ID") var ownerId: Long? = null
     @field:ExcelProperty("状态") var status: Int? = null
     @field:ExcelProperty("登记日期") var regDate: String? = null
+    @field:ExcelProperty("车辆类型") var carBrand: String? = null
 }
 
 data class PlateExportRow(
@@ -195,6 +196,7 @@ data class PlateExportRow(
     @field:ExcelProperty("车主ID") val ownerId: Long,
     @field:ExcelProperty("状态") val status: String,
     @field:ExcelProperty("登记日期") val regDate: String,
+    @field:ExcelProperty("车辆类型") val carBrand: String,
 )
 
 class PlateInspectionExcelRow {
@@ -335,8 +337,8 @@ class ExcelController(
                 listOf(listOf("SAMPLE_CARD", "示例车主", "示例运营部", "13800000001", "0", "1"))),
             Triple("车位", listOf("车位编号", "区域", "类型", "车主姓名", "状态", "备注"),
                 listOf(listOf("SAMPLE_SPOT", "示例A区", "固定", "示例车主", "1", ""))),
-            Triple("车牌", listOf("车牌号", "车主卡号", "状态", "登记日期"),
-                listOf(listOf("京A12345", "SAMPLE_CARD", "1", "2026-09-09"))),
+            Triple("车牌", listOf("车牌号", "车主卡号", "状态", "登记日期", "车辆类型"),
+                listOf(listOf("京A12345", "SAMPLE_CARD", "1", "2026-09-09", "小型轿车"))),
             Triple("设备", listOf("设备编号", "设备名称", "设备类型", "品牌", "型号", "安装位置", "IP地址", "安装日期", "状态", "显示排序"),
                 listOf(listOf("SAMPLE_DEVICE", "示例摄像头", "摄像头", "示例品牌", "示例型号", "示例入口", "192.0.2.10", "2026-09-09", "正常", "0"))),
             Triple("门禁人员", listOf("人员编号", "部门", "姓名", "手机号", "身份证号"),
@@ -427,7 +429,7 @@ class ExcelController(
                 SpotExportRow(requireNotNull(it.id), it.code, it.area, it.type, it.owner, if (it.status == 1) "正常" else "停用", it.remark)
             }, SpotExportRow::class.java)
             "plates" -> writeWorkbook("车牌列表.xlsx", plateRepository.findAll().filter { scopeQuerySupport.plateVisible(visibleOwnerIds, scope.userId, it) }.map {
-                PlateExportRow(requireNotNull(it.id), it.plate, it.owner, it.ownerId, if (it.status == 1) "正常" else "停用", it.regDate.toString())
+                PlateExportRow(requireNotNull(it.id), it.plate, it.owner, it.ownerId, if (it.status == 1) "正常" else "停用", it.regDate.toString(), it.carBrand)
             }, PlateExportRow::class.java)
             "plate-inspections" -> {
                 val today = LocalDate.now()
@@ -511,7 +513,7 @@ class ExcelController(
         }
         val plateRows = plateRepository.findAll().map {
             PlateExportRow(requireNotNull(it.id), it.plate, it.owner, it.ownerId,
-                if (it.status == 1) "正常" else "停用", it.regDate.toString())
+                if (it.status == 1) "正常" else "停用", it.regDate.toString(), it.carBrand)
         }
         val devices = mutableListOf<Device>()
         var devicePage = 1
@@ -750,6 +752,7 @@ class ExcelController(
                             this.owner = owner.name
                             status = row.status ?: 1
                             regDate = LocalDate.parse(requireNotBlank(row.regDate, "第${line}行登记日期不能为空"))
+                            carBrand = row.carBrand?.trim().orEmpty()
                             require(status == 0 || status == 1) { "第${line}行状态必须为 0 或 1" }
                         }
                     }

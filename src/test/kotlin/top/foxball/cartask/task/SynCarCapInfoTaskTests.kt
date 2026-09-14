@@ -12,10 +12,12 @@ import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import tools.jackson.databind.ObjectMapper
 import top.foxball.cartask.entity.AccessRecord
+import top.foxball.cartask.entity.ParkingPlate
 import top.foxball.cartask.keytop.KeytopProperties
 import top.foxball.cartask.keytop.KeytopResponse
 import top.foxball.cartask.keytop.KeytopService
 import top.foxball.cartask.repository.AccessRecordRepository
+import top.foxball.cartask.repository.ParkingPlateRepository
 import top.foxball.cartask.repository.SyncCheckpointRepository
 import top.foxball.cartask.entity.SyncCheckpoint
 import top.foxball.cartask.entity.SyncTaskRun
@@ -33,6 +35,7 @@ class SynCarCapInfoTaskTests {
     private val repository = mock<AccessRecordRepository>()
     private val fileService = mock<FileService>()
     private val syncCheckpointRepository = mock<SyncCheckpointRepository>()
+    private val parkingPlateRepository = mock<ParkingPlateRepository>()
     private val historyService = mock<SyncTaskHistoryService>()
     private val objectMapper = ObjectMapper()
     private val task = SynCarCapInfoTask(
@@ -43,6 +46,7 @@ class SynCarCapInfoTaskTests {
         fileService,
         syncCheckpointRepository,
         historyService,
+        parkingPlateRepository = parkingPlateRepository,
     )
 
     @Test
@@ -213,6 +217,38 @@ class SynCarCapInfoTaskTests {
         assertEquals(Duration.ofDays(30), Duration.between(startTimeCaptor.firstValue, endTimeCaptor.firstValue))
         verify(repository).save(existing)
         assertEquals("已更新", existing.releaseInstructions)
+    }
+
+    @Test
+    fun `同步车辆进出记录时按车牌归一化回写车辆类型`() {
+        val withBrand = ParkingPlate().apply {
+            plate = "沪A·12345"
+            carBrand = "旧类型"
+        }
+        val withoutBrand = ParkingPlate().apply {
+            plate = "沪B12345"
+            carBrand = "旧类型"
+        }
+        whenever(parkingPlateRepository.findAll()).thenReturn(listOf(withBrand, withoutBrand))
+        whenever(syncCheckpointRepository.findBySyncKey("keytop.car_cap_info")).thenReturn(null)
+        whenever(repository.findTopByOrderByInAndOutTimeDescIdDesc()).thenReturn(null)
+        whenever(repository.findBySourceRecordId(any())).thenReturn(null)
+        whenever(repository.findByIdentity(any(), any(), any())).thenReturn(null)
+        whenever(keytopService.getCarInoutInfo(eq(1), eq(2), isNull(), anyOrNull(), anyOrNull())).thenReturn(
+            KeytopResponse(
+                0,
+                "success",
+                objectMapper.readTree(
+                    """{"totalCount":"2","detailList":[{"plateNo":"沪A12345","capFlag":0,"capTime":"2026-08-20 10:00:00","carBrand":"小型轿车"},{"plateNo":"沪B12345","capFlag":1,"capTime":"2026-08-20 10:01:00"}]}""",
+                ),
+            ),
+        )
+
+        task.synCarCapInfoList()
+
+        assertEquals("小型轿车", withBrand.carBrand)
+        assertEquals("", withoutBrand.carBrand)
+        verify(parkingPlateRepository, times(2)).save(any())
     }
 
     @Test

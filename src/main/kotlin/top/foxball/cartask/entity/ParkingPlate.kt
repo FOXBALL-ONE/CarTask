@@ -50,6 +50,10 @@ class ParkingPlate {
     @Column(nullable = false)
     lateinit var regDate: LocalDate
 
+    /** 车辆类型；科拓进出记录中的 carBrand 为空时使用空字符串。 */
+    @Column(name = "car_brand", nullable = false, length = 64, columnDefinition = "varchar(64) default ''")
+    var carBrand: String = ""
+
     /** 最近一次年检日期；为空表示尚未年检。 */
     @Column(name = "inspection_date")
     var inspectionDate: LocalDate? = null
