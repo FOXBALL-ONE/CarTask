@@ -324,6 +324,24 @@ if (authStore.isAuthenticated) {
   await navigateTo(targetPath(), { replace: true });
 }
 
+/**
+ * 系统尚未初始化时把操作者送到配置引导页。
+ *
+ * 没有数据库就没有账号，连图形验证码都取不到，登录页在这个阶段是一条死路：留在原地只会让人以为
+ * 服务坏了。问一句后端就能把这条死路换成一句明确的「先配系统」。
+ */
+async function redirectToSetupIfNeeded() {
+  try {
+    const status = await useHttp().get<{ setup_required: boolean }>("/setup/status");
+    if (status.setup_required) {
+      await navigateTo("/setup", { replace: true });
+    }
+  } catch {
+    // 后端不可达或该接口不存在（正常模式下才有 /setup/status，配置模式下才有真实的 true）：
+    // 留在登录页，登录失败时的提示已经足够说明问题。
+  }
+}
+
 onMounted(() => {
   const storedSysName = localStorage.getItem("sysName");
   if (storedSysName) {
@@ -332,6 +350,7 @@ onMounted(() => {
 
   authStore.restoreSession();
   void genCaptcha();
+  void redirectToSetupIfNeeded();
 });
 
 onUnmounted(stopCountdown);

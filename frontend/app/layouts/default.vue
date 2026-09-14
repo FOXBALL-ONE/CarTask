@@ -172,13 +172,14 @@ const pagePaths: Record<string, string> = {
   about: "/about",
   profile: "/profile",
 };
-const isLoginPage = computed(() => route.path === "/login");
+// 不使用外壳的页面：登录与配置引导都在会话之外，任何一条侧边栏或顶栏都是多余的。
+const isLoginPage = computed(() => route.path === "/login" || route.path === "/setup");
 const activePage = computed(() => typeof route.query.page === "string" ? route.query.page : (routePages[route.path] ?? "dashboard"));
 const activePageLabel = computed(() => pageLabels[activePage.value] ?? "仪表盘");
 const userInitial = computed(() => userName.value.trim().charAt(0).toUpperCase() || "A");
 
 useHead({
-  title: () => isLoginPage.value ? "登录" : `${activePageLabel.value} - ${systemName.value}`,
+  title: () => (route.path === "/setup" ? "系统配置引导" : isLoginPage.value ? "登录" : `${activePageLabel.value} - ${systemName.value}`),
   link: [{ rel: "stylesheet", href: "https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" }],
 });
 

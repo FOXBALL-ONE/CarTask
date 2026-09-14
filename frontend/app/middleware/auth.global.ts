@@ -44,7 +44,8 @@ const routeRoles: Record<string, string[]> = {
 };
 
 export default defineNuxtRouteMiddleware(async (to) => {
-    if (to.path === "/login") {
+    // 登录页与配置引导页都在会话之外：引导页要在系统还没有任何账号时就可用。
+    if (to.path === "/login" || to.path === "/setup") {
         return;
     }
 
