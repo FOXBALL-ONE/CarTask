@@ -71,6 +71,7 @@ async function savePlate() {
   } catch (error) { formError.value = (error as { statusMessage?: string }).statusMessage || "保存失败"; } finally { saving.value = false; }
 }
 async function removePlate(plate: Plate) { if (!window.confirm(`确认删除车牌“${plate.plate}”？`)) return; try { await http.delete(`/plates/${plate.id}`); await loadPlates(); } catch (error) { errorMessage.value = (error as { statusMessage?: string }).statusMessage || "删除失败"; } }
+onMounted(loadPlates);
 // 切换工作部门后必须重载：列表数据是命令式加载进本地 ref 的，不会自动响应会话变化。
 useScopeRefresh(loadPlates);
 </script>
