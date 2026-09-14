@@ -57,6 +57,7 @@ import top.foxball.cartask.service.FileService
 import top.foxball.cartask.shared.GatePersonFields
 import top.foxball.cartask.shared.Response
 import top.foxball.cartask.shared.ResponseBuilder
+import top.foxball.cartask.shared.SerialNumbers
 import top.foxball.cartask.shared.VehicleInspection
 
 /** 文档 v1 前端接口的兼容层。缺少独立领域表的展示资源在此保持进程内状态。 */
@@ -381,7 +382,7 @@ class ParkingApiController(
         val visibleOwnerIds = if (scope.unrestricted) null else scopeQuerySupport.ownerIdsInScope(scope)
         // 年检状态按当天判定：一次请求里取一个日期，避免跨零点时同一页出现两种判定。
         val today = LocalDate.now()
-        val filtered = plateRepository.findAll().filter { scopeQuerySupport.plateVisible(visibleOwnerIds, scope.userId, it) && (keyword.isNullOrBlank() || it.plate.contains(keyword, true) || it.owner.contains(keyword, true)) && (status == null || it.status == status) && (inspectionStatus.isNullOrBlank() || VehicleInspection.status(it.inspectionDate, it.inspectionValidUntil, today) == inspectionStatus) }.sortedBy { it.id }.map { StoredPlate(requireNotNull(it.id), it.plate, it.owner, it.ownerId, it.status, it.regDate.toString(), it.inspectionDate?.toString(), it.inspectionValidUntil?.toString(), VehicleInspection.status(it.inspectionDate, it.inspectionValidUntil, today), it.inspectionRemark) }
+        val filtered = plateRepository.findAll().filter { scopeQuerySupport.plateVisible(visibleOwnerIds, scope.userId, it) && (keyword.isNullOrBlank() || SerialNumbers.matches(it.id, keyword) || it.plate.contains(keyword, true) || it.owner.contains(keyword, true)) && (status == null || it.status == status) && (inspectionStatus.isNullOrBlank() || VehicleInspection.status(it.inspectionDate, it.inspectionValidUntil, today) == inspectionStatus) }.sortedBy { it.id }.map { StoredPlate(requireNotNull(it.id), it.plate, it.owner, it.ownerId, it.status, it.regDate.toString(), it.carBrand, it.inspectionDate?.toString(), it.inspectionValidUntil?.toString(), VehicleInspection.status(it.inspectionDate, it.inspectionValidUntil, today), it.inspectionRemark) }
         val from = ((page - 1).coerceAtLeast(0) * pageSize.coerceAtLeast(1)).coerceAtMost(filtered.size); val to = (from + pageSize.coerceAtLeast(1)).coerceAtMost(filtered.size)
         return responseBuilder.ok().data(PageData(filtered.subList(from, to), filtered.size)).build()
     }

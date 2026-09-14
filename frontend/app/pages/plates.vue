@@ -3,7 +3,7 @@
     <header class="page__header"><div><h1 class="page__title">车牌信息</h1><p class="page__desc">管理车牌、车主关联与车辆年检信息</p></div><button v-if="can('plate:manage')" class="button button--primary" type="button" @click="openCreate"><span class="material-icons-outlined">add</span>新增车牌</button></header>
     <section class="card">
       <div class="toolbar">
-        <input v-model="keyword" class="input" type="search" placeholder="车牌号 / 车主" @keyup.enter="search">
+        <input v-model="keyword" class="input" type="search" placeholder="编号 / 车牌号 / 车主" @keyup.enter="search">
         <select v-model="status" class="select" aria-label="车牌状态"><option value="">全部状态</option><option value="1">正常</option><option value="0">停用</option></select>
         <select v-model="inspectionStatus" class="select" aria-label="年检状态"><option value="">全部年检状态</option><option value="有效">年检有效</option><option value="已过期">年检已过期</option><option value="未年检">未年检</option></select>
         <div class="toolbar__right"><button class="button button--soft" type="button" @click="search"><span class="material-icons-outlined">search</span>搜索</button><button class="button button--ghost" type="button" @click="resetFilters"><span class="material-icons-outlined">restart_alt</span>重置</button></div>
