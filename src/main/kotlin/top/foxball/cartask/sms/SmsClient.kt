@@ -11,6 +11,13 @@ import org.springframework.stereotype.Component
 @ConfigurationProperties(prefix = "cartask.sms")
 data class SmsProperties(
     val enabled: Boolean = false,
+    /**
+     * 临时跳过短信验证的总开关：为 true 时**既不真发短信，也不校验验证码**。
+     *
+     * 只在短信通道不可用期间用来跑通流程（登录、重置密码、换绑手机号都会失去这一步校验），
+     * 默认 false，线上必须保持 false。
+     */
+    val skipVerification: Boolean = false,
     val accessKeyId: String = "",
     val accessKeySecret: String = "",
     val endpoint: String = "dysmsapi.aliyuncs.com",

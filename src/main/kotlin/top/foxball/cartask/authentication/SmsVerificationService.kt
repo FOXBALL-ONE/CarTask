@@ -1,5 +1,6 @@
 package top.foxball.cartask.authentication
 
+import org.slf4j.LoggerFactory
 import org.springframework.dao.DataAccessException
 import org.springframework.data.redis.core.StringRedisTemplate
 import org.springframework.stereotype.Service
@@ -19,8 +20,29 @@ class SmsVerificationService(
     private val properties: SmsProperties,
 ) {
     private val random = SecureRandom()
+    private val logger = LoggerFactory.getLogger(javaClass)
+
+    /**
+     * 短信验证是否已被临时关闭（`cartask.sms.skip-verification=true`）。
+     *
+     * 对调用方公开是因为「跳过短信」还要连带跳过发送前的图形验证码——否则开关打开后，
+     * 用户仍要先过一道图形验证码才能得到一个永远收不到的验证码。
+     */
+    val verificationSkipped: Boolean get() = properties.skipVerification
+
+    init {
+        if (properties.skipVerification) {
+            logger.warn(
+                "短信验证已临时关闭（cartask.sms.skip-verification=true）：短信登录、重置密码与换绑手机号都不再校验验证码，恢复请改为 false",
+            )
+        }
+    }
 
     fun send(phone: String, purpose: Purpose) {
+        if (properties.skipVerification) {
+            logger.warn("短信验证已临时关闭，跳过发送验证码：purpose={} phone={}", purpose, phone)
+            return
+        }
         val normalized = normalize(phone)
         try {
             val codeKey = key(normalized, purpose)
@@ -45,6 +67,10 @@ class SmsVerificationService(
     }
 
     fun verify(phone: String, code: String, purpose: Purpose) {
+        if (properties.skipVerification) {
+            logger.warn("短信验证已临时关闭，跳过验证码校验：purpose={} phone={}", purpose, phone)
+            return
+        }
         val key = key(normalize(phone), purpose)
         val stored = redisTemplate.opsForValue().getAndDelete(key)
         if (stored == null || !MessageDigest.isEqual(stored.toByteArray(), hash(code).toByteArray())) {

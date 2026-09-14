@@ -15,6 +15,7 @@ import top.foxball.cartask.authentication.AccessTokenValue
 import top.foxball.cartask.authentication.AuthService
 import top.foxball.cartask.authentication.CaptchaService
 import top.foxball.cartask.authentication.CurrentUserPrincipal
+import top.foxball.cartask.authentication.SmsVerificationService
 import top.foxball.cartask.scope.WorkingDepartmentService
 import top.foxball.cartask.scope.WorkingDepartmentState
 import top.foxball.cartask.service.ProfileService
@@ -30,6 +31,7 @@ class AuthController(
     private val profileService: ProfileService,
     private val responseBuilder: ResponseBuilder,
     private val workingDepartmentService: WorkingDepartmentService,
+    private val smsVerificationService: SmsVerificationService,
 ) {
     /** 登录图形验证码：无需认证，返回一次性 token 与 base64 SVG 图片。 */
     @GetMapping("/captcha")
@@ -55,6 +57,25 @@ class AuthController(
             .header(HttpHeaders.AUTHORIZATION, "Bearer ${result.accessToken}")
             .header(HttpHeaders.CACHE_CONTROL, "no-store")
             .header("Pragma", "no-cache")
+            .data(rs)
+            .build()
+    }
+
+    /**
+     * 短信验证的生效状态。
+     *
+     * 临时关闭时前端要跟着跳过验证码步骤（否则界面还在等一条永远收不到的短信），
+     * 所以这个状态必须公开可查，且不能缓存。
+     */
+    @GetMapping("/sms/status")
+    fun smsStatus(): ResponseEntity<Response> {
+        data class Response(
+            @param:JsonProperty("verification_enabled") val verificationEnabled: Boolean,
+        )
+
+        val rs = Response(!smsVerificationService.verificationSkipped)
+        return responseBuilder.ok()
+            .header(HttpHeaders.CACHE_CONTROL, "no-store")
             .data(rs)
             .build()
     }

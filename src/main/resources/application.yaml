@@ -24,6 +24,9 @@ spring:
 cartask:
   sms:
     enabled: ${SMS_ENABLED:false}
+    # 临时跳过短信验证：为 true 时既不真发短信也不校验验证码，短信登录/重置密码/换绑手机号都会失去这一步。
+    # 默认 false；仅在短信通道不可用期间临时打开，用完立刻改回 false。
+    skip-verification: ${SMS_SKIP_VERIFICATION:false}
     access-key-id: ${SMS_ACCESS_KEY_ID:}
     access-key-secret: ${SMS_ACCESS_KEY_SECRET:}
     endpoint: ${SMS_ENDPOINT:dysmsapi.aliyuncs.com}

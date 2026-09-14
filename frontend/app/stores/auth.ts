@@ -41,6 +41,8 @@ interface LoginPayload {
 interface SmsSendPayload {
     phone: string;
     captchaAnswer: string;
+    /** 短信用途；后端按用途分别存放验证码，登录与换绑手机号互不覆盖。 */
+    purpose?: "LOGIN" | "CHANGE_PHONE";
 }
 
 interface SmsLoginPayload {
@@ -75,6 +77,14 @@ export const useAuthStore = defineStore("auth", () => {
     const captchaLoading = ref(false);
     const loading = ref(false);
     const smsSending = ref(false);
+    /**
+     * 短信验证是否生效。
+     *
+     * 后端可以临时关掉短信验证（cartask.sms.skip-verification），此时前端要一起跳过验证码步骤，
+     * 否则界面还在等一条永远收不到的短信。取不到状态时按 true 处理：宁可多要一个验证码，
+     * 也不要因为一次网络抖动静默跳过校验。
+     */
+    const smsVerificationEnabled = ref(true);
     const errorMessage = ref("");
     const isAuthenticated = computed(() => Boolean(token.value));
     // 初始密码未修改：登录后必须先改密，其他页面一律不放行。
@@ -207,6 +217,7 @@ export const useAuthStore = defineStore("auth", () => {
 
     // 发送短信验证码同样要过图形验证码：后端校验通过后立即作废该 token，
     // 因此调用方成功拿到验证码后必须刷新图形验证码，否则重发与再次校验都会失败。
+    // 后端临时关闭短信验证时，这一步与图形验证码都会被跳过。
     async function sendSmsCode(payload: SmsSendPayload) {
         smsSending.value = true;
         errorMessage.value = "";
@@ -214,7 +225,7 @@ export const useAuthStore = defineStore("auth", () => {
         try {
             await http.post("/auth/sms/send", {
                 ...payload,
-                purpose: "LOGIN",
+                purpose: payload.purpose ?? "LOGIN",
                 captchaToken: captchaToken.value,
             }, { payloadMode: "json" });
         } catch (error: unknown) {
@@ -222,6 +233,16 @@ export const useAuthStore = defineStore("auth", () => {
             throw error;
         } finally {
             smsSending.value = false;
+        }
+    }
+
+    /** 查询短信验证是否生效；失败时按「生效」处理，见 smsVerificationEnabled 的说明。 */
+    async function loadSmsVerificationStatus() {
+        try {
+            const data = await http.get<{ verification_enabled: boolean }>("/auth/sms/status");
+            smsVerificationEnabled.value = data.verification_enabled !== false;
+        } catch {
+            smsVerificationEnabled.value = true;
         }
     }
 
@@ -330,6 +351,7 @@ export const useAuthStore = defineStore("auth", () => {
         captchaLoading,
         loading,
         smsSending,
+        smsVerificationEnabled,
         errorMessage,
         isAuthenticated,
         mustChangePassword,
@@ -339,6 +361,7 @@ export const useAuthStore = defineStore("auth", () => {
         login,
         smsLogin,
         sendSmsCode,
+        loadSmsVerificationStatus,
         setAvatar,
         markPasswordChanged,
         restoreSession,

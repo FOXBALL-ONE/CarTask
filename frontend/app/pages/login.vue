@@ -135,7 +135,7 @@
             >
           </div>
         </div>
-        <div class="login__field">
+        <div v-if="authStore.smsVerificationEnabled" class="login__field">
           <label class="login__label" for="smsCaptcha">图形验证码</label>
           <div class="login__captcha-row">
             <div class="login__input-wrap">
@@ -163,7 +163,7 @@
             </button>
           </div>
         </div>
-        <div class="login__field">
+        <div v-if="authStore.smsVerificationEnabled" class="login__field">
           <label class="login__label" for="smsCode">短信验证码</label>
           <div class="login__captcha-row">
             <div class="login__input-wrap">
@@ -187,6 +187,7 @@
             >{{ smsSendText }}</button>
           </div>
         </div>
+        <p v-else class="login__notice">短信验证已临时关闭，填写手机号即可登录。</p>
         <button
           type="submit"
           class="login__btn"
@@ -351,6 +352,8 @@ onMounted(() => {
   authStore.restoreSession();
   void genCaptcha();
   void redirectToSetupIfNeeded();
+  // 后端可能临时关掉短信验证，取一次状态好让短信登录跳过验证码步骤。
+  void authStore.loadSmsVerificationStatus();
 });
 
 onUnmounted(stopCountdown);
@@ -416,7 +419,7 @@ async function sendSmsCode() {
   startCountdown();
 }
 
-/** 短信登录：手机号 + 图形验证码（换取短信验证码时校验）+ 短信验证码。 */
+/** 短信登录：手机号 + 图形验证码（换取短信验证码时校验）+ 短信验证码；短信验证被临时关闭时只需手机号。 */
 async function submitSmsLogin() {
   authStore.clearError();
   const phone = smsForm.phone.trim();
@@ -430,7 +433,7 @@ async function submitSmsLogin() {
     authStore.setError("手机号格式无效");
     return;
   }
-  if (!code) {
+  if (authStore.smsVerificationEnabled && !code) {
     authStore.setError("请输入短信验证码");
     return;
   }
@@ -677,6 +680,19 @@ async function submitSmsLogin() {
 .login__btn:hover:not(:disabled) { box-shadow: 0 10px 26px rgb(37 99 235 / 34%); filter: brightness(1.04); transform: translateY(-1px); }
 .login__btn:active:not(:disabled) { box-shadow: 0 6px 16px rgb(37 99 235 / 26%); transform: translateY(0); }
 .login__btn:disabled { box-shadow: none; cursor: not-allowed; opacity: .5; }
+
+/* 临时状态提示（后端关掉短信验证时）：虚线框表示这不是常驻样式 */
+.login__notice {
+  background: var(--g-surface);
+  border: 1px dashed var(--g-line-strong);
+  border-radius: 8px;
+  color: var(--g-sub);
+  font-size: 12.5px;
+  line-height: 1.6;
+  margin-top: 14px;
+  padding: 8px 12px;
+  text-align: center;
+}
 
 .login__error {
   background: var(--g-danger-bg);

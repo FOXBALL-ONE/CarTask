@@ -153,7 +153,11 @@ class AuthServiceImpl(
             else -> throw IllegalArgumentException("短信验证码用途无效")
         }
         // 图形验证码先于发送校验并一次性作废，未通过校验时不产生任何短信费用。
-        captchaService.verify(command.captchaToken, command.captchaAnswer)
+        // 短信验证被临时关闭时连图形验证码一起跳过：这一步存在的意义就是拦住刷短信，
+        // 不再发短信时还要先过验证码，与「跳过短信验证」的语义正好相反。
+        if (!smsVerificationService.verificationSkipped) {
+            captchaService.verify(command.captchaToken, command.captchaAnswer)
+        }
         smsVerificationService.send(command.phone, purpose)
     }
 

@@ -68,4 +68,15 @@ class SmsSendCaptchaTests {
         verify(captchaService, never()).verify(any(), any())
         verify(smsVerificationService, never()).send(any(), any())
     }
+
+    @Test
+    fun `短信验证被临时关闭时连图形验证码一起跳过`() {
+        // 这一步存在的意义是拦住刷短信；不再发短信后还要求图形验证码，与开关的语义正好相反。
+        whenever(smsVerificationService.verificationSkipped).thenReturn(true)
+
+        service.sendSmsCode(AuthService.SmsSendCommand("13800138000", "CHANGE_PHONE", null, null))
+
+        verify(captchaService, never()).verify(any(), any())
+        verify(smsVerificationService).send("13800138000", SmsVerificationService.Purpose.CHANGE_PHONE)
+    }
 }
