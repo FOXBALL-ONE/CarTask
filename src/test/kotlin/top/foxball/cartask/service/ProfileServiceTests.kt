@@ -12,19 +12,26 @@ import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import org.springframework.security.crypto.password.PasswordEncoder
+import top.foxball.cartask.audit.AuditAction
+import top.foxball.cartask.audit.AuditCommand
+import top.foxball.cartask.audit.AuditService
 import top.foxball.cartask.authentication.RedisTokenSessionRepository
+import top.foxball.cartask.authentication.SmsVerificationService
 import top.foxball.cartask.entity.User
+import top.foxball.cartask.handler.VerificationCodeInvalidException
 import top.foxball.cartask.repository.UserRepository
 import top.foxball.cartask.service.impl.ProfileServiceImpl
 import java.time.LocalDateTime
 import java.util.Base64
 
-/** 个人中心的改密与头像约束。 */
+/** 个人中心的改密、头像与手机号换绑约束。 */
 class ProfileServiceTests {
     private val userRepository = mock<UserRepository>()
     private val passwordEncoder = mock<PasswordEncoder>()
     private val tokenSessionRepository = mock<RedisTokenSessionRepository>()
-    private val service = ProfileServiceImpl(userRepository, passwordEncoder, tokenSessionRepository)
+    private val smsVerificationService = mock<SmsVerificationService>()
+    private val auditService = mock<AuditService>()
+    private val service = ProfileServiceImpl(userRepository, passwordEncoder, tokenSessionRepository, smsVerificationService, auditService)
 
     private fun storedUser(mustChangePassword: Boolean = true): User = User().apply {
         id = 7L
@@ -124,5 +131,64 @@ class ProfileServiceTests {
 
         assertNull(user.avatar)
         assertNull(cleared.avatar)
+    }
+
+    @Test
+    fun `短信验证码不正确时换绑手机号被拒绝`() {
+        val user = storedUser()
+        user.phone = "13800138000"
+        stubUser(user)
+        whenever(smsVerificationService.verify(any(), any(), any())).thenThrow(VerificationCodeInvalidException())
+
+        assertThrows(VerificationCodeInvalidException::class.java) {
+            service.changePhone(7L, ProfileService.ChangePhoneCommand("13900139000", "000000"))
+        }
+
+        assertEquals("13800138000", user.phone)
+        verify(userRepository, never()).save(any<User>())
+    }
+
+    @Test
+    fun `手机号格式非法时连验证码都不校验`() {
+        val user = storedUser()
+        stubUser(user)
+
+        assertThrows(IllegalArgumentException::class.java) {
+            service.changePhone(7L, ProfileService.ChangePhoneCommand("not-a-phone", "123456"))
+        }
+
+        verify(smsVerificationService, never()).verify(any(), any(), any())
+    }
+
+    @Test
+    fun `换绑到其他账号已绑定的手机号会被拒绝`() {
+        val user = storedUser()
+        user.phone = "13800138000"
+        stubUser(user)
+        whenever(userRepository.existsByPhoneAndIdNot("13900139000", 7L)).thenReturn(true)
+
+        val ex = assertThrows(IllegalArgumentException::class.java) {
+            service.changePhone(7L, ProfileService.ChangePhoneCommand("13900139000", "123456"))
+        }
+
+        assertEquals("该手机号已被其他账号绑定", ex.message)
+        assertEquals("13800138000", user.phone)
+        verify(userRepository, never()).save(any<User>())
+    }
+
+    @Test
+    fun `验证码通过后换绑手机号并记录审计`() {
+        val user = storedUser()
+        user.phone = "13800138000"
+        stubUser(user)
+
+        val updated = service.changePhone(7L, ProfileService.ChangePhoneCommand(" 13900139000 ", "123456"))
+
+        verify(smsVerificationService).verify("13900139000", "123456", SmsVerificationService.Purpose.CHANGE_PHONE)
+        assertEquals("13900139000", user.phone)
+        assertEquals("13900139000", updated.phone)
+        verify(auditService).record(
+            org.mockito.kotlin.check<AuditCommand> { assertEquals(AuditAction.AUTH_PHONE_CHANGED, it.action) },
+        )
     }
 }

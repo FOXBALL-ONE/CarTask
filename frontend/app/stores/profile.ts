@@ -22,9 +22,14 @@ export interface ProfileData {
 
 export interface ProfileUpdatePayload {
     name?: string;
-    phone?: string;
     email?: string;
     gender?: Gender;
+}
+
+/** 换绑手机号：手机号是登录凭据，必须带上发到新号码上的短信验证码。 */
+export interface PhoneChangePayload {
+    phone: string;
+    code: string;
 }
 
 export interface PasswordChangePayload {
@@ -73,6 +78,19 @@ export const useProfileStore = defineStore("profile", () => {
         }
     }
 
+    /**
+     * 换绑手机号。验证码由 `POST /api/auth/sms/send`（purpose=CHANGE_PHONE）发出，
+     * 本接口只做校验；手机号不在会话缓存里，调用方拿到返回值后刷新自己的展示即可。
+     */
+    async function changePhone(payload: PhoneChangePayload): Promise<ProfileData> {
+        saving.value = true;
+        try {
+            return await http.put<ProfileData, PhoneChangePayload>("/profile/phone", payload, {payloadMode: "json"});
+        } finally {
+            saving.value = false;
+        }
+    }
+
     /** 修改密码。后端会撤销全部历史会话，调用方需在成功后引导重新登录。 */
     async function changePassword(payload: PasswordChangePayload): Promise<void> {
         saving.value = true;
@@ -91,6 +109,7 @@ export const useProfileStore = defineStore("profile", () => {
         load,
         save,
         updateAvatar,
+        changePhone,
         changePassword,
     };
 });

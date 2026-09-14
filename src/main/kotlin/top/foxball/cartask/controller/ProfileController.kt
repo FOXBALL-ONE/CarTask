@@ -34,7 +34,7 @@ class ProfileController(
             .build()
     }
 
-    /** 修改当前登录用户的昵称、手机号、邮箱与性别。 */
+    /** 修改当前登录用户的昵称、邮箱与性别。手机号是登录凭据，必须走 [changePhone]。 */
     @PutMapping
     fun update(
         @AuthenticationPrincipal principal: CurrentUserPrincipal,
@@ -42,6 +42,25 @@ class ProfileController(
     ): ResponseEntity<Response> {
         val rs = profileService.update(principal.userId, command)
         return responseBuilder.ok()
+            .header(HttpHeaders.CACHE_CONTROL, "no-store")
+            .data(rs)
+            .build()
+    }
+
+    /**
+     * 换绑当前登录用户的手机号。
+     *
+     * 验证码由 `POST /api/auth/sms/send`（purpose=CHANGE_PHONE）发到新号码上，本接口只负责校验；
+     * 管理员改他人手机号不走这里，也不需要短信校验。
+     */
+    @PutMapping("/phone")
+    fun changePhone(
+        @AuthenticationPrincipal principal: CurrentUserPrincipal,
+        @RequestBody command: ProfileService.ChangePhoneCommand,
+    ): ResponseEntity<Response> {
+        val rs = profileService.changePhone(principal.userId, command)
+        return responseBuilder.ok()
+            .message("手机号已更新")
             .header(HttpHeaders.CACHE_CONTROL, "no-store")
             .data(rs)
             .build()

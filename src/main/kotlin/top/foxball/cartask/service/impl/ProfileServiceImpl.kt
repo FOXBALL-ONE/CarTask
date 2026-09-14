@@ -8,18 +8,20 @@ import top.foxball.cartask.audit.AuditCommand
 import top.foxball.cartask.audit.AuditService
 import top.foxball.cartask.authentication.RedisTokenSessionRepository
 import top.foxball.cartask.authentication.SecurityRole
+import top.foxball.cartask.authentication.SmsVerificationService
 import top.foxball.cartask.entity.User
 import top.foxball.cartask.repository.UserRepository
 import top.foxball.cartask.service.ProfileService
 import java.time.LocalDateTime
 import java.util.Base64
 
-/** 个人中心服务实现；资料、头像与密码均只作用于当前登录用户自身。 */
+/** 个人中心服务实现；资料、头像、密码与手机号均只作用于当前登录用户自身。 */
 @Service
 class ProfileServiceImpl(
     private val userRepository: UserRepository,
     private val passwordEncoder: PasswordEncoder,
     private val tokenSessionRepository: RedisTokenSessionRepository,
+    private val smsVerificationService: SmsVerificationService,
     private val auditService: AuditService? = null,
 ) : ProfileService {
 
@@ -35,12 +37,6 @@ class ProfileServiceImpl(
             require(name.isNotEmpty()) { "用户名不能为空" }
             require(name.length <= 64) { "用户名长度不能超过 64 个字符" }
             user.nickName = name
-        }
-
-        command.phone?.let { value ->
-            val phone = value.trim()
-            require(phone.isEmpty() || PHONE_PATTERN.matches(phone)) { "手机号格式无效" }
-            user.phone = phone.takeIf(String::isNotEmpty)
         }
 
         // 邮箱在库中非空且唯一，因此只允许改成另一个合法邮箱，不允许清空。
@@ -62,7 +58,40 @@ class ProfileServiceImpl(
                 "user",
                 userId.toString(),
                 targetSummary = mapOf("username" to saved.username),
-                afterData = mapOf("name" to saved.nickName, "phone" to saved.phone, "email" to saved.email, "gender" to saved.gender.name),
+                afterData = mapOf("name" to saved.nickName, "email" to saved.email, "gender" to saved.gender.name),
+            ),
+        )
+        return toData(saved)
+    }
+
+    /**
+     * 换绑手机号。
+     *
+     * 顺序是「先验码、再查重」：反过来的话，拿到一个普通会话就能拿任意号码去试探「这个号是否已被
+     * 注册」，而验码要求先掌握该号码，探测成本直接变成「必须持有该手机卡」。
+     * 手机号同时是短信登录与重置密码的凭据，所以查重不能省：重复绑定会让 findByPhone 直接抛错，
+     * 两个账号谁都登不上。
+     */
+    @Transactional
+    override fun changePhone(userId: Long, command: ProfileService.ChangePhoneCommand): ProfileService.ProfileData {
+        val phone = command.phone.trim()
+        require(PHONE_PATTERN.matches(phone)) { "手机号格式无效" }
+        smsVerificationService.verify(phone, command.code.trim(), SmsVerificationService.Purpose.CHANGE_PHONE)
+        require(!userRepository.existsByPhoneAndIdNot(phone, userId)) { "该手机号已被其他账号绑定" }
+
+        val user = findUser(userId)
+        val previousPhone = user.phone
+        user.phone = phone
+        user.updatedAt = LocalDateTime.now()
+        val saved = userRepository.save(user)
+        auditService?.record(
+            AuditCommand(
+                AuditAction.AUTH_PHONE_CHANGED,
+                "user",
+                userId.toString(),
+                targetSummary = mapOf("username" to saved.username),
+                beforeData = mapOf("phone" to previousPhone),
+                afterData = mapOf("phone" to saved.phone),
             ),
         )
         return toData(saved)

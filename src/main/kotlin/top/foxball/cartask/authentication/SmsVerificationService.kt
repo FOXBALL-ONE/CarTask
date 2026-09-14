@@ -91,7 +91,13 @@ class SmsVerificationService(
 
     private fun cooldownKey(phone: String, purpose: Purpose) = "shopmall:auth:sms:cooldown:${purpose.name.lowercase()}:$phone"
 
-    enum class Purpose { LOGIN, RESET_PASSWORD }
+    enum class Purpose {
+        LOGIN,
+        RESET_PASSWORD,
+
+        /** 自助换绑手机号：验证码发到用户填写的**新**号码上，证明该号码确实由本人掌握。 */
+        CHANGE_PHONE,
+    }
 
     companion object {
         /** 验证码有效期。 */

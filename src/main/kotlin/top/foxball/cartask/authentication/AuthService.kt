@@ -150,6 +150,7 @@ class AuthServiceImpl(
         val purpose = when (val raw = command.purpose?.trim()?.uppercase()) {
             null, "", "LOGIN" -> SmsVerificationService.Purpose.LOGIN
             "RESET_PASSWORD", "RESET" -> SmsVerificationService.Purpose.RESET_PASSWORD
+            "CHANGE_PHONE" -> SmsVerificationService.Purpose.CHANGE_PHONE
             else -> throw IllegalArgumentException("短信验证码用途无效")
         }
         // 图形验证码先于发送校验并一次性作废，未通过校验时不产生任何短信费用。

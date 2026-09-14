@@ -10,6 +10,9 @@ interface UserRepository : JpaRepository<User, Long> {
 
     fun findByPhone(phone: String): User?
 
+    /** 换绑手机号查重用；手机号是短信登录的定位键，重复绑定会让 [findByPhone] 直接抛错。 */
+    fun existsByPhoneAndIdNot(phone: String, id: Long): Boolean
+
     fun existsByUsername(username: String): Boolean
 
     fun findAllByUsernameIn(usernames: Collection<String>): List<User>
