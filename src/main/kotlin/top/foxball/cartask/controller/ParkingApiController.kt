@@ -965,6 +965,7 @@ class ParkingApiController(
                     "users", "depts", "roles", "permissions" -> "用户管理"
                     "files" -> "文件管理"
                     "access-controls", "gate-persons" -> "门禁管理"
+                    "vehicle-inout-requests" -> "车辆进出申请"
                     "access-records", "records" -> "记录管理"
                     "devices", "synchronizations" -> "设备管理"
                     else -> segment
@@ -985,6 +986,7 @@ class ParkingApiController(
                     "users", "depts", "roles", "permissions" -> "用户管理"
                     "files" -> "文件管理"
                     "access-controls", "gate-persons" -> "门禁管理"
+                    "vehicle-inout-requests" -> "车辆进出申请"
                     "access-records", "records" -> "记录管理"
                     "devices", "synchronizations" -> "设备管理"
                     else -> segment

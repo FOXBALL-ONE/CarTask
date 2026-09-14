@@ -30,6 +30,12 @@ object PermissionCatalog {
         Definition("spot:manage", "管理车位"),
         Definition("plate:read", "查看车牌"),
         Definition("plate:manage", "管理车牌"),
+        // 车辆进出申请登记：登记的是「给这个车牌下发月卡」的申请，审批通过后才会写科拓平台。
+        // 登记、审核、下发是三个独立动作：登记的人不该必然能审批，审批的人也不该必然能写外部平台。
+        Definition("vehicle-inout-request:read", "查看车辆进出申请"),
+        Definition("vehicle-inout-request:apply", "登记车辆进出申请"),
+        Definition("vehicle-inout-request:review", "审核车辆进出申请"),
+        Definition("vehicle-inout-request:sync", "下发车辆进出申请到科拓"),
         Definition("device:read", "查看设备"),
         Definition("device:manage", "管理设备"),
         Definition("gate-person:read", "查看门禁人员"),

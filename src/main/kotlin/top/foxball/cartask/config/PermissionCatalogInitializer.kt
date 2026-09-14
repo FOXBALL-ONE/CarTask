@@ -145,6 +145,11 @@ class PermissionCatalogInitializer(
             // 不补授就是一次静默的权限收回。
             "gate-person:review",
             "gate-person:export",
+            // 新功能整族补授：平台管理本来就该有，不补授的话存量环境里页面可见却一步都点不动。
+            "vehicle-inout-request:read",
+            "vehicle-inout-request:apply",
+            "vehicle-inout-request:review",
+            "vehicle-inout-request:sync",
         )
 
         /**
@@ -185,6 +190,11 @@ class PermissionCatalogInitializer(
             // 否则存量环境的部门管理会突然失去审核与导出能力。
             "gate-person:review",
             "gate-person:export",
+            // 车辆进出申请登记在部门维度运营：部门管理需要看、登记、审核与下发自己部门车牌的申请。
+            "vehicle-inout-request:read",
+            "vehicle-inout-request:apply",
+            "vehicle-inout-request:review",
+            "vehicle-inout-request:sync",
         )
 
         /**

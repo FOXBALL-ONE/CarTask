@@ -167,6 +167,10 @@ class AuditServiceImpl(
             // 同步周期改动的摘要。字段名不能用 task_key：SAFE_KEYS 之外还有一道
             // SENSITIVE_KEYS 子串过滤，"key" 会被当成敏感字段整条丢掉。
             "task", "cron", "previous_cron",
+            // 车辆进出申请登记的摘要。同理不能用 apply_key / monthly_card_key。
+            "plate", "owner", "valid_from", "valid_to", "monthly_card", "card_id", "sync_message",
+            // 顺带建档的痕迹：不记下建了哪个账号，事后无从知道这条申请开通了谁的登录权限。
+            "created_account", "created_owner", "created_plate",
         )
     }
 }

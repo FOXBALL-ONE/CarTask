@@ -276,6 +276,12 @@ class GlobalExceptionHandler(
             // 门禁人员的唯一性是先查后存，并发下会落到数据库约束上；不映射就是一句 500。
             "uk_gate_person_code" in detail -> "人员编号已存在"
             "uk_gate_person_id_card" in detail -> "身份证号已存在"
+            // 车主卡号与车牌号同理：登记进出申请时顺带建档走的是同一条先查后存路径。
+            "uk_parking_owner_card_id" in detail -> "车主卡号已存在，请重试或改用已建档车牌登记"
+            "uk_parking_plate_number" in detail -> "车牌号已存在，请改用已建档车牌登记"
+            // 账号唯一性是先查后存，并发下同样会落到数据库约束上。
+            "uk_users_username" in detail -> "用户名已存在"
+            "uk_users_phone" in detail -> "该手机号已被其他账号绑定"
             else -> null
         }
         if (message != null) {
