@@ -9,6 +9,7 @@ import jakarta.persistence.FetchType
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
+import jakarta.persistence.Index
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
@@ -18,7 +19,13 @@ import top.foxball.cartask.entity.type.ViolationType
 /** 违规记录，记录违规主体、违规类型及处理结果。 */
 @Entity
 @EntityListeners(AuditingEntityListener::class)
-@Table(name = "violation_record")
+@Table(
+    name = "violation_record",
+    indexes = [
+        // 删除违规类型前要先确认没有记录引用它。
+        Index(name = "idx_violation_record_type", columnList = "violation_type_id"),
+    ],
+)
 class ViolationRecord {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

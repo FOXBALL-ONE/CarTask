@@ -9,6 +9,7 @@ import jakarta.persistence.FetchType
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
+import jakarta.persistence.Index
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.PrePersist
@@ -25,6 +26,19 @@ import top.foxball.cartask.shared.PlateNumbers
 @EntityListeners(AuditingEntityListener::class)
 @Table(
     name = "access_record",
+    indexes = [
+        // 列表分页固定按 in_and_out_time desc, id desc 排序，也覆盖按日期的范围查询。
+        Index(name = "idx_access_record_in_out_time", columnList = "in_and_out_time,id"),
+        // 同步逐条写回前的去重匹配，见 AccessRecordRepository.findByIdentity 与
+        // findFirstByCarNumberAndInAndOutOrderByInAndOutTimeDesc。
+        Index(name = "idx_access_record_plate_in_out_time", columnList = "car_number,in_and_out,in_and_out_time"),
+        // 数据范围下推：普通用户与部门管理都按归一化车牌过滤后再按时间排序。
+        Index(name = "idx_access_record_norm_in_out_time", columnList = "car_number_normalized,in_and_out_time,id"),
+        // 数据范围下推的另一个分支：部门名快照，抗部门改名。
+        Index(name = "idx_access_record_dept_in_out_time", columnList = "department_name,in_and_out_time,id"),
+        // 抓拍补传每轮扫描待补记录并统计数量。
+        Index(name = "idx_access_record_photo_status", columnList = "photo_sync_status,id"),
+    ],
     uniqueConstraints = [
         UniqueConstraint(name = "uk_access_record_source_record_id", columnNames = ["source_record_id"]),
     ],

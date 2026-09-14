@@ -23,6 +23,10 @@ import java.util.UUID
         Index(name = "idx_audit_event_actor", columnList = "actor_user_id,occurred_at"),
         Index(name = "idx_audit_event_action", columnList = "action,occurred_at"),
         Index(name = "idx_audit_event_target", columnList = "target_type,target_id,occurred_at"),
+        // 审计检索里「结果」和「风险等级」都是低基数里偏稀疏的取值（拒绝、失败、高风险），
+        // 单独建索引比只靠时间范围扫描更省；两者总是与 occurred_at 范围一起用。
+        Index(name = "idx_audit_event_result", columnList = "result,occurred_at"),
+        Index(name = "idx_audit_event_risk_level", columnList = "risk_level,occurred_at"),
         Index(name = "idx_audit_event_request", columnList = "request_id"),
         Index(name = "uk_audit_event_idempotency", columnList = "source_system,action,idempotency_key", unique = true),
         Index(name = "uk_audit_event_partition_sequence", columnList = "partition_key,sequence_no", unique = true),

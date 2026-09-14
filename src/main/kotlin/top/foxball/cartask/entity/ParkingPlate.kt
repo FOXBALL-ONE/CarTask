@@ -6,6 +6,7 @@ import jakarta.persistence.EntityListeners
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
+import jakarta.persistence.Index
 import jakarta.persistence.Table
 import jakarta.persistence.UniqueConstraint
 import java.time.LocalDate
@@ -13,7 +14,15 @@ import java.time.LocalDateTime
 
 @Entity
 @EntityListeners(AuditingEntityListener::class)
-@Table(name = "parking_plate", uniqueConstraints = [UniqueConstraint(name = "uk_parking_plate_number", columnNames = ["plate"])])
+@Table(
+    name = "parking_plate",
+    indexes = [
+        // 数据范围解析每次都按车主查车牌，见 DataScopeResolver.selfScope。
+        Index(name = "idx_parking_plate_owner", columnList = "owner_id"),
+        Index(name = "idx_parking_plate_linked_user", columnList = "linked_user_id"),
+    ],
+    uniqueConstraints = [UniqueConstraint(name = "uk_parking_plate_number", columnNames = ["plate"])],
+)
 class ParkingPlate {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

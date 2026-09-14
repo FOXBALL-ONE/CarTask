@@ -8,6 +8,7 @@ import jakarta.persistence.Enumerated
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
+import jakarta.persistence.Index
 import jakarta.persistence.Table
 import top.foxball.cartask.scope.DepartmentScoped
 import jakarta.persistence.UniqueConstraint
@@ -18,6 +19,10 @@ import java.time.LocalDateTime
 @EntityListeners(AuditingEntityListener::class)
 @Table(
     name = "gate_person",
+    indexes = [
+        // 普通用户的数据范围按手机号找本人的门禁身份，见 DataScopeResolver.selfScope。
+        Index(name = "idx_gate_person_phone", columnList = "phone"),
+    ],
     uniqueConstraints = [
         UniqueConstraint(name = "uk_gate_person_code", columnNames = ["code"]),
         UniqueConstraint(name = "uk_gate_person_id_card", columnNames = ["id_card"]),

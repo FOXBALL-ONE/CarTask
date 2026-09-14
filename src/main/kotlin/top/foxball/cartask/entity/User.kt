@@ -9,6 +9,7 @@ import jakarta.persistence.FetchType
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
+import jakarta.persistence.Index
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.ManyToMany
@@ -19,7 +20,15 @@ import java.time.LocalDateTime
 /** 系统用户及其组织归属信息。 */
 @Entity
 @EntityListeners(AuditingEntityListener::class)
-@Table(name = "users")
+@Table(
+    name = "users",
+    indexes = [
+        // 手机号登录与数据范围解析都按手机号定位账号，见 AuthService、DataScopeResolver。
+        Index(name = "idx_users_phone", columnList = "phone"),
+        // 用户列表按部门分页；PostgreSQL 不会为外键自动建索引。
+        Index(name = "idx_users_department", columnList = "department_id"),
+    ],
+)
 class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

@@ -6,6 +6,7 @@ import jakarta.persistence.EntityListeners
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
+import jakarta.persistence.Index
 import jakarta.persistence.Table
 import top.foxball.cartask.scope.DepartmentScoped
 import jakarta.persistence.UniqueConstraint
@@ -14,7 +15,15 @@ import java.time.LocalDateTime
 
 @Entity
 @EntityListeners(AuditingEntityListener::class)
-@Table(name = "parking_owner", uniqueConstraints = [UniqueConstraint(name = "uk_parking_owner_card_id", columnNames = ["card_id"])])
+@Table(
+    name = "parking_owner",
+    indexes = [
+        // 车主归属解析：手机号命中且未被显式指定给别人时算本人，见 ScopeQuerySupport.ownersOf。
+        Index(name = "idx_parking_owner_phone", columnList = "phone"),
+        Index(name = "idx_parking_owner_linked_user", columnList = "linked_user_id"),
+    ],
+    uniqueConstraints = [UniqueConstraint(name = "uk_parking_owner_card_id", columnNames = ["card_id"])],
+)
 class ParkingOwner : DepartmentScoped {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

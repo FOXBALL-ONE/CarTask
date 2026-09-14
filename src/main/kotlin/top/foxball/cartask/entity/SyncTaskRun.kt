@@ -17,6 +17,8 @@ import java.time.LocalDateTime
     name = "sync_task_run",
     indexes = [
         Index(name = "idx_sync_task_run_task_started", columnList = "task_key,started_at,id"),
+        // 「全部任务」视图不按 task_key 过滤，只按开始时间倒序分页。
+        Index(name = "idx_sync_task_run_started", columnList = "started_at,id"),
         Index(name = "idx_sync_task_run_request", columnList = "request_id"),
     ],
 )

@@ -4,6 +4,7 @@ import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EntityListeners
 import jakarta.persistence.Id
+import jakarta.persistence.Index
 import jakarta.persistence.Table
 import jakarta.persistence.UniqueConstraint
 import java.time.LocalDateTime
@@ -13,6 +14,10 @@ import java.util.UUID
 @EntityListeners(AuditingEntityListener::class)
 @Table(
     name = "stored_files",
+    indexes = [
+        // 业务对象重挂载与解绑按这一对定位文件，见 FileServiceImpl.linkBusiness/relinkBusiness/unlinkBusiness。
+        Index(name = "idx_stored_files_business", columnList = "business_type,business_id"),
+    ],
     uniqueConstraints = [
         UniqueConstraint(name = "uk_stored_files_stored_filename", columnNames = ["stored_filename"]),
         UniqueConstraint(name = "uk_stored_files_relative_path", columnNames = ["relative_path"]),

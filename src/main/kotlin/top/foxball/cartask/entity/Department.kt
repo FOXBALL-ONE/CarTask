@@ -6,13 +6,20 @@ import jakarta.persistence.FetchType
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
+import jakarta.persistence.Index
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 
 /** 组织部门，支持通过 [superior] 建立部门树。 */
 @Entity
-@Table(name = "department")
+@Table(
+    name = "department",
+    indexes = [
+        // 删除部门前要先确认没有下级部门；PostgreSQL 不会为外键自动建索引。
+        Index(name = "idx_department_superior", columnList = "superior_id"),
+    ],
+)
 class Department {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
