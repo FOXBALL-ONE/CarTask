@@ -36,6 +36,8 @@ cartask:
   security:
     cors:
       allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:8090,http://127.0.0.1:8090}
+      # 允许任意来源就填 *，但必须同时把 allow-credentials 置 false：带凭据时全局通配会被
+      # CorsProperties.validate 直接拒绝启动。前端用 Authorization 头而不是浏览器凭据。
       allowed-origin-patterns: ${CORS_ALLOWED_ORIGIN_PATTERNS:}
       allow-credentials: ${CORS_ALLOW_CREDENTIALS:true}
     login-rate-limit:

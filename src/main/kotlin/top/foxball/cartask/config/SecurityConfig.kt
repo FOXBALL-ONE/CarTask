@@ -1,6 +1,7 @@
 package top.foxball.cartask.config
 
 import jakarta.servlet.http.HttpServletResponse
+import org.slf4j.LoggerFactory
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.http.HttpHeaders
@@ -32,6 +33,7 @@ class SecurityConfig(
     private val corsProperties: CorsProperties,
     private val auditService: AuditService,
 ) {
+    private val logger = LoggerFactory.getLogger(javaClass)
 
     @Bean
     fun securityFilterChain(http: HttpSecurity): SecurityFilterChain {
@@ -108,6 +110,11 @@ class SecurityConfig(
     @Bean
     fun corsConfigurationSource(): CorsConfigurationSource {
         corsProperties.validate()
+        if ("*" in corsProperties.origins() || "*" in corsProperties.originPatterns()) {
+            logger.warn(
+                "CORS 已对任意来源开放（cartask.security.cors.allowed-origin-patterns=*）：联调完请收回前端白名单",
+            )
+        }
         val config = CorsConfiguration().apply {
             allowedOrigins = corsProperties.origins()
             allowedOriginPatterns = corsProperties.originPatterns()
