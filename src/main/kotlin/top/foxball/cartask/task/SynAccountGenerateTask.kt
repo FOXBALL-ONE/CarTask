@@ -15,6 +15,7 @@ import top.foxball.cartask.service.SyncTaskHistoryService
 import top.foxball.cartask.service.SyncTaskRunCommand
 import top.foxball.cartask.service.SyncTaskProgressService
 import top.foxball.cartask.service.UserService
+import top.foxball.cartask.shared.InitialCredentials
 import top.foxball.cartask.shared.PlateNumbers
 import java.security.MessageDigest
 import java.time.LocalDateTime
@@ -159,8 +160,8 @@ class SynAccountGenerateTask(
                 userService.create(
                     UserService.CreateCommand(
                         username = phone,
-                        email = "${phone}@auto.local",
-                        credential = INITIAL_PASSWORD,
+                        email = InitialCredentials.placeholderEmail(phone),
+                        credential = InitialCredentials.PASSWORD,
                         phone = phone,
                         departmentId = ensureDepartment(owner.dept, departmentByName)?.id,
                         nickName = nickName,
@@ -232,7 +233,6 @@ class SynAccountGenerateTask(
     companion object {
         const val TASK_KEY = "account.generate"
         const val TASK_NAME = "车辆业主账号生成"
-        const val INITIAL_PASSWORD = "Fqjg20221022"
         const val STATUS_ENABLED = 1
 
         /** 自动创建部门的编码前缀，便于与人工维护的部门编码区分。 */
