@@ -113,6 +113,27 @@ class ScopeGuardTests {
         }
     }
 
+    @Test
+    fun `部门管理只能修改范围内账号`() {
+        assertDoesNotThrow { guard.requireUserInScope(2L, departmentScope) }
+        assertThrows(AccessDeniedException::class.java) { guard.requireUserInScope(99L, departmentScope) }
+    }
+
+    @Test
+    fun `受限范围下没有部门归属的账号也拒绝修改`() {
+        // 范围解析不出归属时的语义是「看不到」，用户账号同样不能例外。
+        assertThrows(AccessDeniedException::class.java) { guard.requireUserInScope(null, departmentScope) }
+        assertThrows(AccessDeniedException::class.java) {
+            guard.requireUserInScope(1L, DataScope.self(7L, "13800138000", setOf("A1"), emptySet(), emptySet()))
+        }
+    }
+
+    @Test
+    fun `不限范围时可以修改任意账号`() {
+        assertDoesNotThrow { guard.requireUserInScope(99L, DataScope.All) }
+        assertDoesNotThrow { guard.requireUserInScope(null, DataScope.All) }
+    }
+
     private fun departmentRows() = listOf(
         top.foxball.cartask.entity.Department().apply {
             id = 2L

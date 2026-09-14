@@ -101,6 +101,25 @@ class ScopeGuard(
     }
 
     /**
+     * 写路径：目标用户必须在当前范围内，否则拒绝。
+     *
+     * 用户表的范围过滤只下推到了列表查询（见 UserServiceImpl.list），而按 ID 更新不经过列表，
+     * 部门管理只要换一个用户 ID 就能改掉别部门账号的手机号——而手机号是短信登录与重置密码的凭据。
+     *
+     * 没有部门的账号在受限范围下一律拒绝：范围解析不出归属时的失败语义是「看不到」，
+     * 这里保持一致，否则一个部门归属为空的账号就成了任何部门管理都能改的口子。
+     */
+    fun requireUserInScope(departmentId: Long?, scope: DataScope) {
+        when (scope.kind) {
+            ScopeKind.ALL -> return
+            ScopeKind.SELF -> throw AccessDeniedException("无权操作其他用户的账号")
+            ScopeKind.DEPARTMENTS -> if (departmentId == null || departmentId !in scope.departmentIds) {
+                throw AccessDeniedException("无权操作其他部门的用户")
+            }
+        }
+    }
+
+    /**
      * 写路径：目标部门编码必须在范围内，否则拒绝。
      *
      * 新建数据时必须校验：否则部门管理可以造出一条自己看不见、但属于别的部门的记录，

@@ -116,11 +116,11 @@
             <label v-if="!editingId" class="field"><span>初始密码 <em>*</em></span><input v-model="form.password" class="input" type="password" required placeholder="请输入初始密码"></label>
             <label class="field"><span>部门 <em>*</em></span><select v-model="form.deptId" class="select" required><option :value="null">请选择部门</option><option v-for="department in departments" :key="department.id" :value="department.id">{{ department.name }}</option></select></label>
             <label class="field"><span>职务</span><input v-model.trim="form.jobTitle" class="input" maxlength="128" placeholder="请输入职务"></label>
-            <label class="field"><span>角色 <em>*</em></span><select v-model="form.roleId" class="select" required><option :value="null">请选择角色</option><option v-for="role in roles" :key="role.id" :value="role.id">{{ role.name }}</option></select></label>
+            <label class="field"><span>角色 <em>*</em></span><select v-model="form.roleId" class="select" required :disabled="editingId !== null && !canManageScope" :title="editingId !== null && !canManageScope ? '只有超级管理员可以分配角色' : ''"><option :value="null">请选择角色</option><option v-for="role in roles" :key="role.id" :value="role.id">{{ role.name }}</option></select></label>
             <label class="field"><span>手机号 <em>*</em></span><input v-model.trim="form.phone" class="input" required placeholder="请输入手机号"></label>
-            <label class="field"><span>状态</span><select v-model.number="form.status" class="select"><option :value="1">正常</option><option :value="0">停用</option></select></label>
+            <label class="field"><span>状态</span><select v-model.number="form.status" class="select" :disabled="editingId !== null && !canDisableUser" :title="editingId !== null && !canDisableUser ? '当前角色不能启停账号' : ''"><option :value="1">正常</option><option :value="0">停用</option></select></label>
           </div>
-          <div v-if="editingId" class="field field--full managed-scope">
+          <div v-if="editingId && canManageScope" class="field field--full managed-scope">
             <span>部门管理范围</span>
             <DepartmentTreePicker v-model="managedDepartments" :departments="departments" />
           </div>
@@ -211,6 +211,15 @@ const DepartmentNode = defineComponent({
 
 const http = useHttp();
 const { can } = usePermission();
+/**
+ * 只有超级管理员能读写别人的部门管理范围。
+ *
+ * 部门管理与平台管理没有 user:role-assign，调 /managed-departments 会 403；保存时若照旧发这一次
+ * 请求，整个编辑都会失败——它们本来能改的姓名、职务、手机号也跟着改不了。
+ */
+const canManageScope = computed(() => can("user:role-assign"));
+/** 启停账号要 user:disable；部门管理没有这一项。新建时状态只是初始值，不受这条约束。 */
+const canDisableUser = computed(() => can("user:disable"));
 const keyword = ref("");
 const status = ref("");
 const selectedDepartment = ref(0);
@@ -300,9 +309,11 @@ function changePageSize() { page.value = 1; void loadUsers(); }
 function openCreate() { editingId.value = null; originalRoleId.value = null; originalStatus.value = 1; managedDepartments.value = []; Object.assign(form, { username: "", name: "", password: "", deptId: departments.value[0]?.id ?? null, jobTitle: "", roleId: roles.value[0]?.id ?? null, phone: "", status: 1 }); formError.value = ""; editorVisible.value = true; }
 function openEdit(user: User) {
   managedDepartments.value = [];
-  void http.get<{ departments: ManagedDepartment[] }>(`/users/${user.id}/managed-departments`)
-    .then((result) => { managedDepartments.value = result.departments || []; })
-    .catch(() => { managedDepartments.value = []; });
+  if (canManageScope.value) {
+    void http.get<{ departments: ManagedDepartment[] }>(`/users/${user.id}/managed-departments`)
+      .then((result) => { managedDepartments.value = result.departments || []; })
+      .catch(() => { managedDepartments.value = []; });
+  }
   editingId.value = user.id; originalRoleId.value = user.roleIds?.[0] ?? null; originalStatus.value = user.status; Object.assign(form, { username: user.username, name: user.name || "", password: "", deptId: user.deptId ?? null, jobTitle: user.jobTitle || "", roleId: user.roleIds?.[0] ?? null, phone: user.phone || "", status: user.status }); formError.value = ""; editorVisible.value = true; }
 
 async function saveUser() {
@@ -316,11 +327,13 @@ async function saveUser() {
   const payload = { username: form.username, name: form.name, password: form.password || undefined, deptId: form.deptId, jobTitle: form.jobTitle, phone: form.phone || undefined, status: form.status, roleIds: form.roleId ? [form.roleId] : [] };
   try {
     if (editingId.value) {
+      // 改手机号只需要 user:update，其余三项各有自己的权限：无权限时控件已置灰，
+      // 这里再挡一次，避免一个可选的越权请求失败把整次编辑一起带崩。
       await http.put(`/users/${editingId.value}`, { ...payload, roleIds: undefined, status: undefined }, { payloadMode: "json" });
       const role = roles.value.find((item) => item.id === form.roleId);
-      if (form.roleId !== originalRoleId.value && role?.code) await http.put(`/users/${editingId.value}/role`, undefined, { params: { role: role.code } });
-      if (form.status !== originalStatus.value) await http.put(`/users/${editingId.value}/account-status`, undefined, { params: { enabled: form.status === 1, status: form.status === 1 ? "Activity" : "BANNED" } });
-      await http.put(`/users/${editingId.value}/managed-departments`, { departments: managedDepartments.value }, { payloadMode: "json" });
+      if (canManageScope.value && form.roleId !== originalRoleId.value && role?.code) await http.put(`/users/${editingId.value}/role`, undefined, { params: { role: role.code } });
+      if (canDisableUser.value && form.status !== originalStatus.value) await http.put(`/users/${editingId.value}/account-status`, undefined, { params: { enabled: form.status === 1, status: form.status === 1 ? "Activity" : "BANNED" } });
+      if (canManageScope.value) await http.put(`/users/${editingId.value}/managed-departments`, { departments: managedDepartments.value }, { payloadMode: "json" });
     }
     else await http.post("/users", { ...payload, email: `${form.username}@local.invalid` }, { payloadMode: "json" });
     editorVisible.value = false;

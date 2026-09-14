@@ -15,6 +15,7 @@ import top.foxball.cartask.repository.DepartmentRepository
 import top.foxball.cartask.repository.PositionRepository
 import top.foxball.cartask.repository.UserRepository
 import top.foxball.cartask.scope.DataScopeResolver
+import top.foxball.cartask.scope.ScopeGuard
 import top.foxball.cartask.scope.ScopeKind
 import top.foxball.cartask.repository.RoleRepository
 import top.foxball.cartask.service.UserService
@@ -33,6 +34,7 @@ class UserServiceImpl(
     private val tokenSessionRepository: RedisTokenSessionRepository,
     private val roleAssignmentPolicy: RoleAssignmentPolicy,
     private val dataScopeResolver: DataScopeResolver,
+    private val scopeGuard: ScopeGuard,
     private val auditService: AuditService? = null,
     private val roleRepository: RoleRepository? = null,
 ) : UserService {
@@ -164,8 +166,23 @@ class UserServiceImpl(
             "至少提供一个待更新字段"
         }
         val users = getBatch(ids).map { findUser(it.id) }
-        val beforeById = users.associate { it.id!! to mapOf("username" to it.username, "role" to it.role, "enabled" to it.enabled, "status" to it.status.name) }
+        // 手机号是短信登录与重置密码的凭据，管理员改他人手机号必须留下改前/改后；
+        // 改密的审计已经是高风险动作，凭据改写不能只有一条「用户资料已更新」。
+        val phoneInCommand = command.phone != null
+        val beforeById = users.associate {
+            it.id!! to buildMap<String, Any?> {
+                put("username", it.username)
+                put("role", it.role)
+                put("enabled", it.enabled)
+                put("status", it.status.name)
+                if (phoneInCommand) put("phone", it.phone)
+            }
+        }
         roleAssignmentPolicy.validateManagement(users.map { it.role })
+        // 范围校验放在服务层：JSON、表单与批量三个更新入口共用本方法，写在一处就不会出现
+        // 「新加的入口忘了加校验」；这里也是手机号唯一的越权改写入口，手机号本身是登录凭据。
+        val scope = dataScopeResolver.current()
+        users.forEach { scopeGuard.requireUserInScope(it.department?.id, scope) }
         requireActiveSuperAdminRemains(users) { user ->
             val role = command.role?.let(SecurityRole::normalize) ?: user.role
             val enabled = command.enabled ?: user.enabled
@@ -237,7 +254,13 @@ class UserServiceImpl(
                     "user",
                     user.id?.toString(),
                     beforeData = beforeById[user.id],
-                    afterData = mapOf("username" to user.username, "role" to user.role, "enabled" to user.enabled, "status" to user.status.name),
+                    afterData = buildMap<String, Any?> {
+                        put("username", user.username)
+                        put("role", user.role)
+                        put("enabled", user.enabled)
+                        put("status", user.status.name)
+                        if (phoneInCommand) put("phone", user.phone)
+                    },
                     targetSummary = mapOf("username" to user.username),
                 ),
             )

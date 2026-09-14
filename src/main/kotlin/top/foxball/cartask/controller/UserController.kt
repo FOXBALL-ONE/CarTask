@@ -74,7 +74,13 @@ class UserController(
         return responseBuilder.created().data(rs).build()
     }
 
-    /** 文档兼容的 JSON 用户更新入口。 */
+    /**
+     * 文档兼容的 JSON 用户更新入口。
+     *
+     * 管理员改手机号走这里，不需要短信校验；能改哪些账号由数据范围决定——超级管理员与平台管理
+     * （未收窄工作部门时）可改任意账号，部门管理只能改自己范围内的账号，见
+     * [top.foxball.cartask.service.impl.UserServiceImpl.updateBatch]。
+     */
     @PutMapping("/{id}", consumes = ["application/json"])
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('user:update')")
     fun updateDocument(@PathVariable id: Long, @RequestBody body: DocumentUserRequest): ResponseEntity<Response> {
