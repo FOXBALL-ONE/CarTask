@@ -67,7 +67,7 @@
             <thead>
               <tr>
                 <th class="checkbox-cell"><input v-model="allChecked" class="checkbox" type="checkbox" aria-label="选择全部用户"></th>
-                <th>编号</th><th>账号</th><th>用户名</th><th>部门</th><th>手机号</th><th>角色</th><th>状态</th><th class="actions-cell">操作</th>
+                <th>编号</th><th>账号</th><th>用户名</th><th>部门</th><th>职务</th><th>手机号</th><th>角色</th><th>状态</th><th class="actions-cell">操作</th>
               </tr>
             </thead>
             <tbody>
@@ -77,6 +77,7 @@
                 <td><strong class="username">{{ user.username }}</strong></td>
                 <td>{{ user.name || "-" }}</td>
                 <td>{{ departmentName(user.deptId) }}</td>
+                <td>{{ user.jobTitle || "-" }}</td>
                 <td>{{ user.phone || "-" }}</td>
                 <td><span class="role-tag">{{ roleName(user) }}</span></td>
                 <td>
@@ -89,7 +90,7 @@
                   <button v-if="can('user:disable')" class="row-action row-action--danger" type="button" title="删除" @click="removeUser(user)"><span class="material-icons-outlined">delete</span></button>
                 </td>
               </tr>
-              <tr v-if="users.length === 0"><td class="empty" colspan="9">暂无数据</td></tr>
+              <tr v-if="users.length === 0"><td class="empty" colspan="10">暂无数据</td></tr>
             </tbody>
           </table>
         </div>
@@ -114,6 +115,7 @@
             <label class="field"><span>用户名 <em>*</em></span><input v-model.trim="form.name" class="input" required placeholder="请输入用户名"></label>
             <label v-if="!editingId" class="field"><span>初始密码 <em>*</em></span><input v-model="form.password" class="input" type="password" required placeholder="请输入初始密码"></label>
             <label class="field"><span>部门 <em>*</em></span><select v-model="form.deptId" class="select" required><option :value="null">请选择部门</option><option v-for="department in departments" :key="department.id" :value="department.id">{{ department.name }}</option></select></label>
+            <label class="field"><span>职务</span><input v-model.trim="form.jobTitle" class="input" maxlength="128" placeholder="请输入职务"></label>
             <label class="field"><span>角色 <em>*</em></span><select v-model="form.roleId" class="select" required><option :value="null">请选择角色</option><option v-for="role in roles" :key="role.id" :value="role.id">{{ role.name }}</option></select></label>
             <label class="field"><span>手机号 <em>*</em></span><input v-model.trim="form.phone" class="input" required placeholder="请输入手机号"></label>
             <label class="field"><span>状态</span><select v-model.number="form.status" class="select"><option :value="1">正常</option><option :value="0">停用</option></select></label>
@@ -136,6 +138,7 @@ interface User {
   username: string;
   name?: string | null;
   deptId?: number | null;
+  jobTitle?: string | null;
   phone?: string | null;
   roleIds?: number[];
   status: number;
@@ -230,7 +233,7 @@ const editingId = ref<number | null>(null);
 const originalRoleId = ref<number | null>(null);
 const originalStatus = ref(1);
 const selectedIds = ref<number[]>([]);
-const form = reactive({ username: "", name: "", password: "", deptId: null as number | null, roleId: null as number | null, phone: "", status: 1 });
+const form = reactive({ username: "", name: "", password: "", deptId: null as number | null, jobTitle: "", roleId: null as number | null, phone: "", status: 1 });
 /** 该用户的部门管理范围；仅编辑已有用户时可配置（接口按用户 ID 整体替换）。 */
 const managedDepartments = ref<ManagedDepartment[]>([]);
 
@@ -294,13 +297,13 @@ function toggleDepartment(id: number) {
 }
 function changePage(nextPage: number) { if (nextPage < 1 || nextPage > totalPages.value) return; page.value = nextPage; void loadUsers(); }
 function changePageSize() { page.value = 1; void loadUsers(); }
-function openCreate() { editingId.value = null; originalRoleId.value = null; originalStatus.value = 1; managedDepartments.value = []; Object.assign(form, { username: "", name: "", password: "", deptId: departments.value[0]?.id ?? null, roleId: roles.value[0]?.id ?? null, phone: "", status: 1 }); formError.value = ""; editorVisible.value = true; }
+function openCreate() { editingId.value = null; originalRoleId.value = null; originalStatus.value = 1; managedDepartments.value = []; Object.assign(form, { username: "", name: "", password: "", deptId: departments.value[0]?.id ?? null, jobTitle: "", roleId: roles.value[0]?.id ?? null, phone: "", status: 1 }); formError.value = ""; editorVisible.value = true; }
 function openEdit(user: User) {
   managedDepartments.value = [];
   void http.get<{ departments: ManagedDepartment[] }>(`/users/${user.id}/managed-departments`)
     .then((result) => { managedDepartments.value = result.departments || []; })
     .catch(() => { managedDepartments.value = []; });
-  editingId.value = user.id; originalRoleId.value = user.roleIds?.[0] ?? null; originalStatus.value = user.status; Object.assign(form, { username: user.username, name: user.name || "", password: "", deptId: user.deptId ?? null, roleId: user.roleIds?.[0] ?? null, phone: user.phone || "", status: user.status }); formError.value = ""; editorVisible.value = true; }
+  editingId.value = user.id; originalRoleId.value = user.roleIds?.[0] ?? null; originalStatus.value = user.status; Object.assign(form, { username: user.username, name: user.name || "", password: "", deptId: user.deptId ?? null, jobTitle: user.jobTitle || "", roleId: user.roleIds?.[0] ?? null, phone: user.phone || "", status: user.status }); formError.value = ""; editorVisible.value = true; }
 
 async function saveUser() {
   saving.value = true;
@@ -310,7 +313,7 @@ async function saveUser() {
     saving.value = false;
     return;
   }
-  const payload = { username: form.username, name: form.name, password: form.password || undefined, deptId: form.deptId, phone: form.phone || undefined, status: form.status, roleIds: form.roleId ? [form.roleId] : [] };
+  const payload = { username: form.username, name: form.name, password: form.password || undefined, deptId: form.deptId, jobTitle: form.jobTitle, phone: form.phone || undefined, status: form.status, roleIds: form.roleId ? [form.roleId] : [] };
   try {
     if (editingId.value) {
       await http.put(`/users/${editingId.value}`, { ...payload, roleIds: undefined, status: undefined }, { payloadMode: "json" });
@@ -344,7 +347,7 @@ async function removeUser(user: User) {
   catch (error) { errorMessage.value = (error as { statusMessage?: string }).statusMessage || "删除失败"; }
 }
 function exportUsers() {
-  const rows = [["编号", "账号", "用户名", "部门", "手机号", "角色", "状态"], ...users.value.map((user) => [user.id, user.username, user.name || "", departmentName(user.deptId), user.phone || "", roleName(user), user.status === 1 ? "正常" : "停用"])];
+  const rows = [["编号", "账号", "用户名", "部门", "职务", "手机号", "角色", "状态"], ...users.value.map((user) => [user.id, user.username, user.name || "", departmentName(user.deptId), user.jobTitle || "", user.phone || "", roleName(user), user.status === 1 ? "正常" : "停用"])]
   const csv = rows.map((row) => row.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(",")).join("\r\n");
   const link = document.createElement("a"); link.href = URL.createObjectURL(new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" })); link.download = "用户列表.csv"; link.click(); URL.revokeObjectURL(link.href);
 }

@@ -69,6 +69,7 @@ class UserServiceImpl(
                 enabled = command.enabled
                 phone = command.phone
                 gender = command.gender
+                jobTitle = command.jobTitle?.trim()?.takeIf(String::isNotEmpty)
                 department = command.departmentId?.let { departmentId ->
                     departmentRepository.findById(departmentId)
                         .orElseThrow { IllegalArgumentException("部门不存在: $departmentId") }
@@ -157,7 +158,7 @@ class UserServiceImpl(
         require(ids.distinct().size == ids.size) { "用户 ID 不能重复" }
         require(
             command.username != null || command.email != null || command.credential != null || command.role != null || command.enabled != null ||
-                    command.phone != null || command.gender != null || command.departmentId != null || command.positionId != null ||
+                    command.phone != null || command.gender != null || command.departmentId != null || command.positionId != null || command.jobTitle != null ||
                     command.status != null || command.nickName != null || command.roleIds != null
         ) {
             "至少提供一个待更新字段"
@@ -210,6 +211,7 @@ class UserServiceImpl(
                 user.position = positionRepository.findById(positionId)
                     .orElseThrow { IllegalArgumentException("职位不存在: $positionId") }
             }
+            command.jobTitle?.let { jobTitle -> user.jobTitle = jobTitle.trim().takeIf(String::isNotEmpty) }
             command.status?.let { user.status = it }
             command.nickName?.let { user.nickName = it.trim().takeIf(String::isNotEmpty) }
             command.roleIds?.let {
@@ -312,6 +314,7 @@ class UserServiceImpl(
         roleIds = user.roles.mapNotNull { it.id }.toList(),
         createdAt = user.createdAt,
         updatedAt = user.updatedAt,
+        jobTitle = user.jobTitle,
     )
 
     private fun resolveRoles(roleIds: List<Long>?): MutableSet<top.foxball.cartask.entity.Role> {

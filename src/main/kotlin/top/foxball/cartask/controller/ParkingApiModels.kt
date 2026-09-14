@@ -9,6 +9,8 @@ data class DocumentUserRequest(
     @param:JsonProperty("password") val password: String? = null,
     @param:JsonProperty("name") val name: String? = null,
     @param:JsonProperty("deptId") val deptId: Long? = null,
+    @param:JsonProperty("positionId") val positionId: Long? = null,
+    @param:JsonProperty("jobTitle") val jobTitle: String? = null,
     @param:JsonProperty("phone") val phone: String? = null,
     @param:JsonProperty("email") val email: String? = null,
     @param:JsonProperty("roleIds") val roleIds: List<Long>? = null,

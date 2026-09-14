@@ -85,6 +85,10 @@ class User {
     @JoinColumn(name = "position_id")
     var position: Position? = null
 
+    /** 用户职务；由用户资料手动填写，不依赖岗位字典。 */
+    @Column(length = 128)
+    var jobTitle: String? = null
+
     /** 文档接口中的角色关联；保留 [role] 作为现有认证系统的主角色编码。 */
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(

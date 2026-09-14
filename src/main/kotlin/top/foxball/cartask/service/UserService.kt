@@ -26,6 +26,7 @@ interface UserService {
          * 不改就成了可被长期冒用的凭据。仅系统预置的演示数据会显式传 false。
          */
         @param:JsonProperty("must_change_password") val mustChangePassword: Boolean = true,
+        @param:JsonProperty("job_title") val jobTitle: String? = null,
     )
 
     /** 用户可变字段命令；未提供的字段保持原值。 */
@@ -42,6 +43,7 @@ interface UserService {
         @param:JsonProperty("status") val status: User.Status? = null,
         @param:JsonProperty("nick_name") val nickName: String? = null,
         @param:JsonProperty("role_ids") val roleIds: List<Long>? = null,
+        @param:JsonProperty("job_title") val jobTitle: String? = null,
     )
 
     /** 对外返回的用户数据，不包含密码哈希和实体关联对象。 */
@@ -60,6 +62,7 @@ interface UserService {
         @param:JsonProperty("updated_at") val updatedAt: LocalDateTime,
         val name: String? = null,
         @param:JsonProperty("role_ids") val roleIds: List<Long> = emptyList(),
+        @param:JsonProperty("job_title") val jobTitle: String? = null,
     )
 
     /** 分页返回数据。 */

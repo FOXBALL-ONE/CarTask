@@ -39,6 +39,8 @@ class UserController(
             val username: String,
             val name: String?,
             @param:JsonProperty("deptId") val deptId: Long?,
+            @param:JsonProperty("positionId") val positionId: Long?,
+            @param:JsonProperty("jobTitle") val jobTitle: String?,
             val phone: String?,
             val email: String,
             @param:JsonProperty("roleIds") val roleIds: List<Long>,
@@ -61,12 +63,14 @@ class UserController(
                 credential = password,
                 phone = phone,
                 departmentId = deptId,
+                positionId = body.positionId,
+                jobTitle = body.jobTitle,
                 status = if (status == 0) User.Status.BANNED else User.Status.Activity,
                 nickName = name,
                 roleIds = roleIds,
             ),
         )
-        val rs = Response(user.id, user.username, user.name, user.departmentId, user.phone, user.email, user.roleIds, if (user.status == User.Status.Activity) 1 else 0, user.createdAt)
+        val rs = Response(user.id, user.username, user.name, user.departmentId, user.positionId, user.jobTitle, user.phone, user.email, user.roleIds, if (user.status == User.Status.Activity) 1 else 0, user.createdAt)
         return responseBuilder.created().data(rs).build()
     }
 
@@ -79,6 +83,8 @@ class UserController(
             val username: String,
             val name: String?,
             @param:JsonProperty("deptId") val deptId: Long?,
+            @param:JsonProperty("positionId") val positionId: Long?,
+            @param:JsonProperty("jobTitle") val jobTitle: String?,
             val phone: String?,
             val email: String,
             @param:JsonProperty("roleIds") val roleIds: List<Long>,
@@ -94,12 +100,14 @@ class UserController(
                 credential = body.password,
                 phone = body.phone,
                 departmentId = body.deptId,
+                positionId = body.positionId,
+                jobTitle = body.jobTitle,
                 status = body.status?.let { if (it == 0) User.Status.BANNED else User.Status.Activity },
                 nickName = body.name,
                 roleIds = body.roleIds,
             ),
         )
-        val rs = Response(user.id, user.username, user.name, user.departmentId, user.phone, user.email, user.roleIds, if (user.status == User.Status.Activity) 1 else 0, user.createdAt)
+        val rs = Response(user.id, user.username, user.name, user.departmentId, user.positionId, user.jobTitle, user.phone, user.email, user.roleIds, if (user.status == User.Status.Activity) 1 else 0, user.createdAt)
         return responseBuilder.ok().data(rs).build()
     }
 
@@ -189,6 +197,7 @@ class UserController(
             val gender: User.Gender,
             @param:JsonProperty("department_id") val departmentId: Long?,
             @param:JsonProperty("position_id") val positionId: Long?,
+            @param:JsonProperty("job_title") val jobTitle: String?,
             val status: User.Status,
             @param:JsonProperty("created_at") val createdAt: LocalDateTime,
             @param:JsonProperty("updated_at") val updatedAt: LocalDateTime,
@@ -229,6 +238,7 @@ class UserController(
                 it.gender,
                 it.departmentId,
                 it.positionId,
+                it.jobTitle,
                 it.status,
                 it.createdAt,
                 it.updatedAt,
@@ -246,6 +256,8 @@ class UserController(
             val username: String,
             val name: String?,
             @param:JsonProperty("deptId") val deptId: Long?,
+            @param:JsonProperty("positionId") val positionId: Long?,
+            @param:JsonProperty("jobTitle") val jobTitle: String?,
             val phone: String?,
             val email: String,
             @param:JsonProperty("roleIds") val roleIds: List<Long>,
@@ -259,6 +271,8 @@ class UserController(
             user.username,
             user.name,
             user.departmentId,
+            user.positionId,
+            user.jobTitle,
             user.phone,
             user.email,
             user.roleIds,
@@ -283,6 +297,8 @@ class UserController(
             val username: String,
             val name: String?,
             @param:JsonProperty("deptId") val deptId: Long?,
+            @param:JsonProperty("positionId") val positionId: Long?,
+            @param:JsonProperty("jobTitle") val jobTitle: String?,
             val phone: String?,
             val email: String,
             @param:JsonProperty("roleIds") val roleIds: List<Long>,
@@ -326,7 +342,7 @@ class UserController(
         val rs = Response(
             users.subList(from, to).map {
                 UserData(
-                    it.id, it.username, it.name, it.departmentId, it.phone, it.email, it.roleIds,
+                    it.id, it.username, it.name, it.departmentId, it.positionId, it.jobTitle, it.phone, it.email, it.roleIds,
                     if (it.status == User.Status.Activity) 1 else 0, it.createdAt,
                 )
             },
@@ -354,6 +370,7 @@ class UserController(
             val gender: User.Gender,
             @param:JsonProperty("department_id") val departmentId: Long?,
             @param:JsonProperty("position_id") val positionId: Long?,
+            @param:JsonProperty("job_title") val jobTitle: String?,
             val status: User.Status,
             @param:JsonProperty("created_at") val createdAt: LocalDateTime,
             @param:JsonProperty("updated_at") val updatedAt: LocalDateTime,
@@ -377,6 +394,7 @@ class UserController(
                 it.gender,
                 it.departmentId,
                 it.positionId,
+                it.jobTitle,
                 it.status,
                 it.createdAt,
                 it.updatedAt,
