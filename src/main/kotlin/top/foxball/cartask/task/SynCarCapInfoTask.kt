@@ -636,6 +636,6 @@ class SynCarCapInfoTask(
         const val TASK_NAME = "车辆进出记录同步"
         const val RECONCILIATION_TASK_KEY = "car_cap_info.reconciliation"
         const val RECONCILIATION_TASK_NAME = "车辆进出记录补偿同步"
-        const val INITIAL_SYNC_DAYS = 30L
+        const val INITIAL_SYNC_DAYS = 1L
     }
 }
