@@ -170,6 +170,7 @@ const navigation: { title: string; items: NavigationItem[] }[] = [
         {label: "车主信息", icon: "person", page: "owners", route: "/owners", permissions: ["owner:read"]},
         {label: "车位信息", icon: "local_parking", page: "spots", route: "/spots", permissions: ["spot:read"]},
         {label: "车牌信息", icon: "pin_drop", page: "plates", route: "/plates", permissions: ["plate:read"]},
+        {label: "进出申请", icon: "assignment_turned_in", page: "vehicle-inout-requests", route: "/vehicle-inout-requests", permissions: ["vehicle-inout-request:read"]},
         {label: "停车区域", icon: "map", page: "zones", route: "/zones", permissions: ["dictionary:read"]},
       ],
     }],

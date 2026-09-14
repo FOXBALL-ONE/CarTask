@@ -17,6 +17,7 @@ const routePermissions: Record<string, string[]> = {
     "/owners": ["owner:read"],
     "/spots": ["spot:read"],
     "/plates": ["plate:read"],
+    "/vehicle-inout-requests": ["vehicle-inout-request:read"],
     "/zones": ["dictionary:read"],
     "/devices": ["device:read"],
     "/gate-persons": ["gate-person:read"],
