@@ -23,7 +23,7 @@ import org.springframework.core.env.ConfigurableEnvironment
  *   `java -jar` 均以项目根目录/启动目录为准）；文件不存在时静默跳过。测试可传入临时文件。
  */
 class DotenvEnvironmentPostProcessor @JvmOverloads constructor(
-    private val dotenvPath: Path = Path.of(".env"),
+    private val dotenvPath: Path = DotenvLoader.defaultPath(),
 ) : EnvironmentPostProcessor {
     override fun postProcessEnvironment(environment: ConfigurableEnvironment, application: SpringApplication) {
         if ("test" in environment.activeProfiles) return

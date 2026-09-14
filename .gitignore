@@ -40,6 +40,9 @@ out/
 ### Kotlin ###
 .kotlin
 /.env
+# 配置引导写出的口令与密钥备份，以及填到一半的引导草稿，都不入库
+/.env.bak.*
+/.setup-draft.json
 /旧版源码/
 /ruoyi-admin.jar
 /ruoyi-admin-sources-export.jar

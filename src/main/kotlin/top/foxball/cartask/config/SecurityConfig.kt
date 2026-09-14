@@ -48,6 +48,8 @@ class SecurityConfig(
                     "/api/auth/login",
                     "/api/auth/captcha",
                     "/api/auth/sms/**",
+                    // 前端要在拿到 token 之前问一句「系统配置好了没有」，据此决定跳引导页还是登录页。
+                    "/api/setup/status",
                     "/error",
                 ).permitAll()
                 it.requestMatchers(HttpMethod.POST, "/api/auth/logout").authenticated()

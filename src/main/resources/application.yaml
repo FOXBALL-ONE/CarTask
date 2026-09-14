@@ -51,6 +51,11 @@ cartask:
       token-storage-encryption-key-id: ${JWT_STORAGE_ENCRYPTION_KEY_ID:local}
 
 app:
+  setup:
+    # 配置引导模式下校验引导页请求的口令；留空时每次启动随机生成并打印在启动横幅里。
+    token: ${SETUP_TOKEN:}
+    # 引导进度草稿，填到一半关掉浏览器也能接着填。
+    draft-file: ${APP_SETUP_DRAFT_FILE:.setup-draft.json}
   sync:
     task-history-limit: ${SYNC_TASK_HISTORY_LIMIT:50}
   dashboard:

@@ -68,7 +68,12 @@
         </encoder>
     </appender>
 
-    <logger name="top.foxball.cartask" level="INFO" additivity="false">
+    <!--
+      本项目的根包是 top.foxball 而不是 top.foxball.cartask：配置引导（top.foxball.setup）是另一个
+      Spring 应用，刻意放在主应用的组件扫描范围之外。日志配置按 top.foxball 收口，否则引导模式的
+      全部日志——包括那份唯一写着配置口令的启动横幅——都会落到 root 的 WARN 上被丢掉。
+    -->
+    <logger name="top.foxball" level="INFO" additivity="false">
         <appender-ref ref="ASYNC_APP"/>
         <appender-ref ref="ASYNC_ERROR"/>
         <appender-ref ref="CONSOLE"/>
