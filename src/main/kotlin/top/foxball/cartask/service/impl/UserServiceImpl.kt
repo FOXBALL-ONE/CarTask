@@ -57,6 +57,10 @@ class UserServiceImpl(
             roleAssignmentPolicy.validateAssignment(command.role)
             require(!userRepository.existsByUsername(command.username)) { "用户名已存在" }
             require(!userRepository.existsByEmail(command.email)) { "邮箱已存在" }
+            // 手机号是短信登录与重置密码的凭据；数据库上另有唯一约束兜底，这里先查一次是为了给出可读提示。
+            command.phone?.trim()?.takeIf(String::isNotEmpty)?.let { phone ->
+                require(!userRepository.existsByPhone(phone)) { "该手机号已被其他账号绑定" }
+            }
         }
         val now = LocalDateTime.now()
         val savedUsers = userRepository.saveAll(commands.map { command ->
@@ -69,7 +73,8 @@ class UserServiceImpl(
                 role = assignedRoles.mapNotNull { SecurityRole.normalizeOrNull(it.name) }.firstOrNull()
                     ?: SecurityRole.normalize(command.role)
                 enabled = command.enabled
-                phone = command.phone
+                // 与更新路径同一口径：去空白、空串存 null。
+                phone = command.phone?.trim()?.takeIf(String::isNotEmpty)
                 gender = command.gender
                 jobTitle = command.jobTitle?.trim()?.takeIf(String::isNotEmpty)
                 department = command.departmentId?.let { departmentId ->
@@ -198,6 +203,16 @@ class UserServiceImpl(
             require(users.all { it.email == email } || !userRepository.existsByEmail(email)) { "邮箱已存在" }
         }
         command.credential?.let { require(it.isNotBlank()) { "凭据不能为空" } }
+        // 手机号是短信登录与重置密码的凭据，重复绑定会让人分不清验证码该发给谁。
+        // 这里按 ID 排除自身，逐个用户查一次；数据库上另有唯一约束兜底并发。
+        command.phone?.let { phone ->
+            val normalized = phone.trim()
+            users.forEach { user ->
+                require(!userRepository.existsByPhoneAndIdNot(normalized, requireNotNull(user.id))) {
+                    "该手机号已被其他账号绑定"
+                }
+            }
+        }
         command.role?.let(roleAssignmentPolicy::validateAssignment)
         if (command.credential != null || command.role != null || command.roleIds != null || command.enabled != null || command.status != null) {
             users.forEach { tokenSessionRepository.incrementTokenVersion(it.id!!) }
@@ -218,7 +233,9 @@ class UserServiceImpl(
                 }
             }
             command.enabled?.let { user.enabled = it }
-            command.phone?.let { user.phone = it }
+            // 去空白后落库：不去的话「 138… 」与「138…」在唯一约束下算两个值，实际却是同一个登录凭据。
+            // 空串一律存 null，避免只允许存在一条的空手机号行。
+            command.phone?.let { user.phone = it.trim().takeIf(String::isNotEmpty) }
             command.gender?.let { user.gender = it }
             command.departmentId?.let { departmentId ->
                 user.department = departmentRepository.findById(departmentId)

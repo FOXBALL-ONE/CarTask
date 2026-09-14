@@ -15,6 +15,7 @@ import jakarta.persistence.ManyToOne
 import jakarta.persistence.ManyToMany
 import jakarta.persistence.JoinTable
 import jakarta.persistence.Table
+import jakarta.persistence.UniqueConstraint
 import java.time.LocalDateTime
 
 /** 系统用户及其组织归属信息。 */
@@ -28,6 +29,14 @@ import java.time.LocalDateTime
         // 用户列表按部门分页；PostgreSQL 不会为外键自动建索引。
         Index(name = "idx_users_department", columnList = "department_id"),
     ],
+    uniqueConstraints = [
+        // 这两个约束一律**显式命名**，不用 @Column(unique = true)：自动生成的约束名是 Hibernate 的
+        // 哈希串，GlobalExceptionHandler 没法按名字映射，并发撞车时就只能给调用方一句 500。
+        UniqueConstraint(name = "uk_users_username", columnNames = ["username"]),
+        // 手机号是短信登录与重置密码的凭据，重复绑定会让人分不清验证码该发给谁。
+        // 可空列在 PostgreSQL/H2 下允许多行 NULL，所以「没有手机号的账号」不受影响。
+        UniqueConstraint(name = "uk_users_phone", columnNames = ["phone"]),
+    ],
 )
 class User {
     @Id
@@ -35,7 +44,7 @@ class User {
     var id: Long? = null
 
     /** 登录用户名。 */
-    @Column(nullable = false, unique = true, length = 64)
+    @Column(nullable = false, length = 64)
     lateinit var username: String
 
 
