@@ -3,7 +3,7 @@ package top.foxball.cartask.config
 import org.springframework.boot.context.properties.ConfigurationProperties
 
 /**
- * 邮件验证码配置（shopmall.mail.verification.*）。
+ * 邮件验证码配置（cartask.mail.verification.*）。
  *
  * - [ttlSeconds] 验证码有效期（默认 300s = 5 分钟）
  * - [codeLength] 验证码位数（默认 6 位纯数字）
@@ -14,7 +14,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties
  * - [from] 发件人地址，默认回退到 spring.mail.username
  * - [subjectPrefix] 邮件主题前缀
  */
-@ConfigurationProperties(prefix = "shopmall.mail.verification")
+@ConfigurationProperties(prefix = "cartask.mail.verification")
 data class MailProperties(
     val ttlSeconds: Long = 300L,
     val codeLength: Int = 6,

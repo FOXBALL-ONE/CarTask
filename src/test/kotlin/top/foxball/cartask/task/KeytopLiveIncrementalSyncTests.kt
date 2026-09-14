@@ -23,8 +23,8 @@ import kotlin.test.assertNotNull
         "spring.task.scheduling.enabled=false",
         "spring.jpa.hibernate.ddl-auto=update",
         "app.mock-data.enabled=false",
-        "shopmall.security.jwt.keys.local=QkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkI=",
-        "shopmall.security.jwt.token-storage-encryption-key=QUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUE=",
+        "cartask.security.jwt.keys.local=QkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkI=",
+        "cartask.security.jwt.token-storage-encryption-key=QUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUE=",
     ],
 )
 class KeytopLiveIncrementalSyncTests(

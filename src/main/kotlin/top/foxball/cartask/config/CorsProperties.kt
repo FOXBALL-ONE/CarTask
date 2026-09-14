@@ -3,7 +3,7 @@ package top.foxball.cartask.config
 import org.springframework.boot.context.properties.ConfigurationProperties
 
 /** 浏览器跨域访问白名单；生产环境通过环境变量覆盖本地开发 Origin。 */
-@ConfigurationProperties(prefix = "shopmall.security.cors")
+@ConfigurationProperties(prefix = "cartask.security.cors")
 data class CorsProperties(
     val allowedOrigins: List<String> = emptyList(),
     val allowedOriginPatterns: List<String> = emptyList(),

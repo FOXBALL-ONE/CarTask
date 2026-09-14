@@ -21,7 +21,7 @@ spring:
       password: ${REDIS_PASSWORD:redis_YH22Ad}
       timeout: ${REDIS_TIMEOUT:2s}
       database: 5
-shopmall:
+cartask:
   sms:
     enabled: ${SMS_ENABLED:false}
     access-key-id: ${SMS_ACCESS_KEY_ID:}

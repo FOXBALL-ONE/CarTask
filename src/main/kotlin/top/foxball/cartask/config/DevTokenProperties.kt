@@ -3,7 +3,7 @@ package top.foxball.cartask.config
 import org.springframework.boot.context.properties.ConfigurationProperties
 
 /**
- * 开发环境固定 JWT 令牌配置（`shopmall.security.jwt.dev.fixed-token.*`）。
+ * 开发环境固定 JWT 令牌配置（`cartask.security.jwt.dev.fixed-token.*`）。
  *
  * 开启后，[DevTokenManager] 会在启动时：
  *  1. 按 [DefaultAdminProperties] 确保一个默认管理员存在；
@@ -22,7 +22,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties
  * @param jti 固定令牌的 jti；生成端与识别端读同一值，是判定"固定令牌"的钥匙。
  * @param ttlSeconds 固定令牌有效期（秒），默认 10 年。
  */
-@ConfigurationProperties(prefix = "shopmall.security.jwt.dev.fixed-token")
+@ConfigurationProperties(prefix = "cartask.security.jwt.dev.fixed-token")
 data class DevTokenProperties(
     val enabled: Boolean = false,
     val jti: String = "00000000-0000-0000-0000-000000000000",

@@ -20,7 +20,7 @@ app:
   logging:
     directory: ${java.io.tmpdir}/cartask-test-logs
 
-shopmall:
+cartask:
   security:
     jwt:
       keys:

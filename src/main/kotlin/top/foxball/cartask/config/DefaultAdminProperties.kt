@@ -3,7 +3,7 @@ package top.foxball.cartask.config
 import org.springframework.boot.context.properties.ConfigurationProperties
 
 /**
- * 开发环境默认管理员配置（`shopmall.security.jwt.dev.default-admin.*`）。
+ * 开发环境默认管理员配置（`cartask.security.jwt.dev.default-admin.*`）。
  *
  * 仅当 [DevTokenProperties.enabled] 为 true 时生效：每次启动按此配置确保一个管理员存在，
  * 供固定 JWT 令牌绑定（见 [top.foxball.shopmall.config.DevTokenManager]）。**生产环境绝不启用**——默认账号/密码可被轻易猜中。
@@ -18,7 +18,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties
  * @param password 明文密码（落库前哈希）。
  * @param email 邮箱（全局唯一；dev 默认 "admin" 并非真实邮箱，仅作占位）。
  */
-@ConfigurationProperties(prefix = "shopmall.security.jwt.dev.default-admin")
+@ConfigurationProperties(prefix = "cartask.security.jwt.dev.default-admin")
 data class DefaultAdminProperties(
     val username: String = "admin",
     val password: String = "admin",

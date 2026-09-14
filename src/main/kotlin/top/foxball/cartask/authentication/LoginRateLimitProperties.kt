@@ -4,7 +4,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 import java.time.Duration
 
 /** 登录失败窗口配置；计数保存在 Redis，避免多实例之间各自放行。 */
-@ConfigurationProperties(prefix = "shopmall.security.login-rate-limit")
+@ConfigurationProperties(prefix = "cartask.security.login-rate-limit")
 data class LoginRateLimitProperties(
     val enabled: Boolean = true,
     val maxAttempts: Long = 5,

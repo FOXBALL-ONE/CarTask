@@ -8,7 +8,7 @@ import tools.jackson.databind.ObjectMapper
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.stereotype.Component
 
-@ConfigurationProperties(prefix = "shopmall.sms")
+@ConfigurationProperties(prefix = "cartask.sms")
 data class SmsProperties(
     val enabled: Boolean = false,
     val accessKeyId: String = "",
