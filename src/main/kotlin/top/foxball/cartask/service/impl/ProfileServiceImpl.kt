@@ -13,7 +13,7 @@ import top.foxball.cartask.entity.User
 import top.foxball.cartask.repository.UserRepository
 import top.foxball.cartask.service.ProfileService
 import java.time.LocalDateTime
-import java.util.Base64
+import java.util.*
 
 /** 个人中心服务实现；资料、头像、密码与手机号均只作用于当前登录用户自身。 */
 @Service
@@ -26,9 +26,26 @@ class ProfileServiceImpl(
 ) : ProfileService {
 
     @Transactional
+    /**
+     * get：查询或读取相关数据。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param userId 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     override fun get(userId: Long): ProfileService.ProfileData = toData(findUser(userId))
 
     @Transactional
+    /**
+     * update：更新业务状态或修改相关配置。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param userId 参与本次处理的输入参数。
+     * @param command 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     override fun update(userId: Long, command: ProfileService.UpdateCommand): ProfileService.ProfileData {
         val user = findUser(userId)
 
@@ -98,6 +115,15 @@ class ProfileServiceImpl(
     }
 
     @Transactional
+    /**
+     * changePassword：更新业务状态或修改相关配置。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param userId 参与本次处理的输入参数。
+     * @param command 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     override fun changePassword(userId: Long, command: ProfileService.ChangePasswordCommand) {
         val user = findUser(userId)
         // 原密码错误属于参数问题而非登录态失效，用 IllegalArgumentException 转 400，
@@ -127,6 +153,15 @@ class ProfileServiceImpl(
     }
 
     @Transactional
+    /**
+     * updateAvatar：更新业务状态或修改相关配置。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param userId 参与本次处理的输入参数。
+     * @param command 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     override fun updateAvatar(userId: Long, command: ProfileService.AvatarCommand): ProfileService.ProfileData {
         val user = findUser(userId)
         user.avatar = normalizeAvatar(command.avatar)
@@ -144,6 +179,14 @@ class ProfileServiceImpl(
     }
 
     @Transactional
+    /**
+     * avatarOf：执行当前模块中的业务操作。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param userId 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     override fun avatarOf(userId: Long): String? = userRepository.findById(userId).orElse(null)?.avatar
 
     /**
@@ -173,16 +216,33 @@ class ProfileServiceImpl(
     /** 按文件头识别真实图片类型，识别不出时返回 null。 */
     private fun detectImageType(bytes: ByteArray): String? = when {
         bytes.size >= 8 && bytes[0] == 0x89.toByte() && bytes[1] == 'P'.code.toByte() &&
-            bytes[2] == 'N'.code.toByte() && bytes[3] == 'G'.code.toByte() -> "png"
+                bytes[2] == 'N'.code.toByte() && bytes[3] == 'G'.code.toByte() -> "png"
+
         bytes.size >= 3 && bytes[0] == 0xFF.toByte() && bytes[1] == 0xD8.toByte() && bytes[2] == 0xFF.toByte() -> "jpeg"
         bytes.size >= 6 && bytes.decodeToString(0, 3) == "GIF" -> "gif"
         bytes.size >= 12 && bytes.decodeToString(0, 4) == "RIFF" && bytes.decodeToString(8, 12) == "WEBP" -> "webp"
         else -> null
     }
 
+    /**
+     * findUser：查询或读取相关数据。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param userId 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun findUser(userId: Long): User = userRepository.findById(userId)
         .orElseThrow { IllegalArgumentException("用户不存在") }
 
+    /**
+     * toData：转换、构建或格式化数据。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param user 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun toData(user: User): ProfileService.ProfileData = ProfileService.ProfileData(
         userId = requireNotNull(user.id) { "用户 ID 缺失" },
         username = user.username,

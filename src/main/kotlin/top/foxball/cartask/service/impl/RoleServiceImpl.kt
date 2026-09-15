@@ -7,6 +7,9 @@ import org.springframework.data.domain.PageRequest
 import org.springframework.security.access.AccessDeniedException
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.stereotype.Service
+import top.foxball.cartask.audit.AuditAction
+import top.foxball.cartask.audit.AuditCommand
+import top.foxball.cartask.audit.AuditService
 import top.foxball.cartask.authentication.RedisTokenSessionRepository
 import top.foxball.cartask.authentication.SecurityPermission
 import top.foxball.cartask.authentication.SecurityRole
@@ -14,10 +17,7 @@ import top.foxball.cartask.entity.Role
 import top.foxball.cartask.repository.RoleRepository
 import top.foxball.cartask.repository.UserRepository
 import top.foxball.cartask.service.RoleService
-import java.util.Locale
-import top.foxball.cartask.audit.AuditAction
-import top.foxball.cartask.audit.AuditCommand
-import top.foxball.cartask.audit.AuditService
+import java.util.*
 
 @Service
 /** 基于 JPA 的角色与权限集合服务。 */
@@ -29,6 +29,14 @@ class RoleServiceImpl(
 ) : RoleService {
     @Transactional
     @PreAuthorize("hasRole('SUPER_ADMIN') and hasAuthority('role:manage')")
+    /**
+     * create：创建、保存或初始化相关数据。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param entity 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     override fun create(entity: Role): Role {
         require(entityId(entity) == null) { "创建记录时不能指定 ID" }
         normalizeRoleName(entity)
@@ -36,12 +44,31 @@ class RoleServiceImpl(
         requireEnabledRole(entity)
         requireSuperAdminGovernance(entity)
         val saved = repository.save(entity)
-        auditService?.record(AuditCommand(AuditAction.ROLE_CHANGED, "role", saved.id?.toString(), afterData = mapOf("name" to saved.name, "enabled" to saved.enabled, "permissions" to saved.permissions.map { it.code }.sorted())))
+        auditService?.record(
+            AuditCommand(
+                AuditAction.ROLE_CHANGED,
+                "role",
+                saved.id?.toString(),
+                afterData = mapOf(
+                    "name" to saved.name,
+                    "enabled" to saved.enabled,
+                    "permissions" to saved.permissions.map { it.code }.sorted()
+                )
+            )
+        )
         return saved
     }
 
     @Transactional
     @PreAuthorize("hasRole('SUPER_ADMIN') and hasAuthority('role:manage')")
+    /**
+     * createBatch：创建、保存或初始化相关数据。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param entities 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     override fun createBatch(entities: List<Role>): List<Role> {
         require(entities.isNotEmpty()) { "创建列表不能为空" }
         require(entities.all { entityId(it) == null }) { "创建记录时不能指定 ID" }
@@ -52,18 +79,45 @@ class RoleServiceImpl(
         }
         val saved = repository.saveAll(entities)
         saved.forEach { role ->
-            auditService?.record(AuditCommand(AuditAction.ROLE_CHANGED, "role", role.id?.toString(), afterData = mapOf("name" to role.name, "enabled" to role.enabled, "permissions" to role.permissions.map { it.code }.sorted())))
+            auditService?.record(
+                AuditCommand(
+                    AuditAction.ROLE_CHANGED,
+                    "role",
+                    role.id?.toString(),
+                    afterData = mapOf(
+                        "name" to role.name,
+                        "enabled" to role.enabled,
+                        "permissions" to role.permissions.map { it.code }.sorted()
+                    )
+                )
+            )
         }
         return saved
     }
 
     @Transactional
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('role:read')")
+    /**
+     * get：查询或读取相关数据。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param id 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     override fun get(id: Long): Role = repository.findById(id)
         .orElseThrow { IllegalArgumentException("记录不存在: $id") }
 
     @Transactional
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('role:read')")
+    /**
+     * getBatch：查询或读取相关数据。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param ids 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     override fun getBatch(ids: List<Long>): List<Role> {
         require(ids.isNotEmpty()) { "ID 列表不能为空" }
         require(ids.all { it > 0 }) { "ID 必须大于 0" }
@@ -76,6 +130,15 @@ class RoleServiceImpl(
 
     @Transactional
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('role:read')")
+    /**
+     * list：查询或读取相关数据。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param page 参与本次处理的输入参数。
+     * @param pageSize 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     override fun list(page: Int, pageSize: Int): Page<Role> {
         require(page >= 1) { "页码必须大于 0" }
         require(pageSize in 1..100) { "每页数量必须在 1 到 100 之间" }
@@ -84,6 +147,15 @@ class RoleServiceImpl(
 
     @Transactional
     @PreAuthorize("hasRole('SUPER_ADMIN') and hasAuthority('role:manage')")
+    /**
+     * update：更新业务状态或修改相关配置。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param id 参与本次处理的输入参数。
+     * @param entity 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     override fun update(id: Long, entity: Role): Role {
         require(id > 0) { "ID 必须大于 0" }
         require(entityId(entity) == id) { "路径 ID 必须与请求体 ID 一致" }
@@ -93,18 +165,42 @@ class RoleServiceImpl(
         if (SecurityRole.normalizeOrNull(current.name) == null) {
             require(!repository.existsByNameIgnoreCaseAndIdNot(entity.name, id)) { "角色编码已存在" }
         }
-        val before = mapOf("name" to current.name, "enabled" to current.enabled, "permissions" to current.permissions.map { it.code }.sorted())
+        val before = mapOf(
+            "name" to current.name,
+            "enabled" to current.enabled,
+            "permissions" to current.permissions.map { it.code }.sorted()
+        )
         copyEditableProperties(entity, current)
         normalizeRoleName(current)
         requireSuperAdminGovernance(current)
         revokeRoleSessions(current.name)
         val saved = repository.save(current)
-        auditService?.record(AuditCommand(AuditAction.ROLE_CHANGED, "role", saved.id?.toString(), beforeData = before, afterData = mapOf("name" to saved.name, "enabled" to saved.enabled, "permissions" to saved.permissions.map { it.code }.sorted())))
+        auditService?.record(
+            AuditCommand(
+                AuditAction.ROLE_CHANGED,
+                "role",
+                saved.id?.toString(),
+                beforeData = before,
+                afterData = mapOf(
+                    "name" to saved.name,
+                    "enabled" to saved.enabled,
+                    "permissions" to saved.permissions.map { it.code }.sorted()
+                )
+            )
+        )
         return saved
     }
 
     @Transactional
     @PreAuthorize("hasRole('SUPER_ADMIN') and hasAuthority('role:manage')")
+    /**
+     * updateBatch：更新业务状态或修改相关配置。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param entities 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     override fun updateBatch(entities: List<Role>): List<Role> {
         require(entities.isNotEmpty()) { "更新列表不能为空" }
         val ids = entities.map { entityId(it) }
@@ -113,7 +209,13 @@ class RoleServiceImpl(
         val currentById = repository.findAllById(ids.filterNotNull()).associateBy { entityId(it) }
         val missingIds = ids.filterNotNull().filterNot(currentById::containsKey)
         require(missingIds.isEmpty()) { "部分记录不存在: ${missingIds.joinToString(",")}" }
-        val beforeById = currentById.mapValues { (_, role) -> mapOf("name" to role.name, "enabled" to role.enabled, "permissions" to role.permissions.map { it.code }.sorted()) }
+        val beforeById = currentById.mapValues { (_, role) ->
+            mapOf(
+                "name" to role.name,
+                "enabled" to role.enabled,
+                "permissions" to role.permissions.map { it.code }.sorted()
+            )
+        }
         val updated = entities.map { incoming ->
             val current = currentById.getValue(entityId(incoming))
             requireStableRole(current, incoming)
@@ -125,13 +227,33 @@ class RoleServiceImpl(
         updated.forEach { revokeRoleSessions(it.name) }
         val saved = repository.saveAll(updated)
         saved.forEach { role ->
-            auditService?.record(AuditCommand(AuditAction.ROLE_CHANGED, "role", role.id?.toString(), beforeData = beforeById[role.id], afterData = mapOf("name" to role.name, "enabled" to role.enabled, "permissions" to role.permissions.map { it.code }.sorted())))
+            auditService?.record(
+                AuditCommand(
+                    AuditAction.ROLE_CHANGED,
+                    "role",
+                    role.id?.toString(),
+                    beforeData = beforeById[role.id],
+                    afterData = mapOf(
+                        "name" to role.name,
+                        "enabled" to role.enabled,
+                        "permissions" to role.permissions.map { it.code }.sorted()
+                    )
+                )
+            )
         }
         return saved
     }
 
     @Transactional
     @PreAuthorize("hasRole('SUPER_ADMIN') and hasAuthority('role:manage')")
+    /**
+     * delete：删除、清理或撤销相关数据。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param id 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     override fun delete(id: Long) {
         require(id > 0) { "ID 必须大于 0" }
         val role = repository.findById(id).orElseThrow { IllegalArgumentException("记录不存在: $id") }
@@ -143,6 +265,14 @@ class RoleServiceImpl(
 
     @Transactional
     @PreAuthorize("hasRole('SUPER_ADMIN') and hasAuthority('role:manage')")
+    /**
+     * deleteBatch：删除、清理或撤销相关数据。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param ids 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     override fun deleteBatch(ids: List<Long>) {
         require(ids.isNotEmpty()) { "ID 列表不能为空" }
         require(ids.all { it > 0 }) { "ID 必须大于 0" }
@@ -157,6 +287,14 @@ class RoleServiceImpl(
         repository.deleteAll(records)
     }
 
+    /**
+     * entityId：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param entity 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun entityId(entity: Role): Long? {
         var type: Class<*>? = entity.javaClass
         while (type != null) {
@@ -171,6 +309,15 @@ class RoleServiceImpl(
         throw IllegalArgumentException("实体缺少 Long 类型的 id 属性")
     }
 
+    /**
+     * copyEditableProperties：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param source 参与本次处理的输入参数。
+     * @param target 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun copyEditableProperties(source: Role, target: Role) {
         val sourceWrapper = BeanWrapperImpl(source)
         val targetWrapper = BeanWrapperImpl(target)
@@ -185,18 +332,43 @@ class RoleServiceImpl(
             }
     }
 
+    /**
+     * normalizeRoleName：转换、构建或格式化数据。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param entity 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun normalizeRoleName(entity: Role) {
         val normalized = entity.name.trim().uppercase(Locale.ROOT).removePrefix("ROLE_")
         require(normalized.isNotBlank()) { "角色编码不能为空" }
         entity.name = normalized
     }
 
+    /**
+     * requireEnabledRole：校验输入、状态或访问条件。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param entity 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun requireEnabledRole(entity: Role) {
         if (SecurityRole.normalizeOrNull(entity.name) != null) {
             require(entity.enabled) { "系统角色必须保持启用" }
         }
     }
 
+    /**
+     * requireStableRole：校验输入、状态或访问条件。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param current 参与本次处理的输入参数。
+     * @param incoming 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun requireStableRole(current: Role, incoming: Role) {
         if (SecurityRole.normalizeOrNull(current.name) != null) {
             val currentName = SecurityRole.normalize(current.name)
@@ -206,6 +378,14 @@ class RoleServiceImpl(
         }
     }
 
+    /**
+     * requireSuperAdminGovernance：校验输入、状态或访问条件。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param role 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun requireSuperAdminGovernance(role: Role) {
         if (SecurityRole.normalizeOrNull(role.name) != "SUPER_ADMIN") return
         val enabledCodes = role.permissions.asSequence()
@@ -217,6 +397,14 @@ class RoleServiceImpl(
         }
     }
 
+    /**
+     * revokeRoleSessions：删除、清理或撤销相关数据。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param role 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun revokeRoleSessions(role: String) {
         val normalized = SecurityRole.normalizeOrNull(role) ?: return
         userRepository.findAllByRoleIn(listOf(normalized))

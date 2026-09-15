@@ -61,6 +61,13 @@ class SystemAboutController(
 ) {
     @GetMapping
     @PreAuthorize("hasAuthority('dashboard:read')")
+            /**
+             * about：执行当前模块中的业务操作。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun about(): ResponseEntity<Response> {
         val runtimeMxBean = ManagementFactory.getRuntimeMXBean()
         val rs = AboutData(
@@ -72,7 +79,10 @@ class SystemAboutController(
                 javaVersion = System.getProperty("java.version") ?: "未知",
                 javaVendor = System.getProperty("java.vendor") ?: "未知",
                 jvmName = System.getProperty("java.vm.name") ?: "未知",
-                startedAt = LocalDateTime.ofInstant(Instant.ofEpochMilli(runtimeMxBean.startTime), ZoneId.systemDefault()),
+                startedAt = LocalDateTime.ofInstant(
+                    Instant.ofEpochMilli(runtimeMxBean.startTime),
+                    ZoneId.systemDefault()
+                ),
                 uptimeMillis = runtimeMxBean.uptime,
                 timeZone = ZoneId.systemDefault().id,
             ),

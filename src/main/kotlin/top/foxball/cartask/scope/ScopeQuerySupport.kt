@@ -2,13 +2,7 @@ package top.foxball.cartask.scope
 
 import org.springframework.data.jpa.domain.Specification
 import org.springframework.stereotype.Component
-import top.foxball.cartask.entity.AccessRecord
-import top.foxball.cartask.entity.ParkingOwner
-import top.foxball.cartask.entity.ParkingPlate
-import top.foxball.cartask.entity.ParkingSpot
-import top.foxball.cartask.entity.PersonAccessRecord
-import top.foxball.cartask.entity.StoredFile
-import top.foxball.cartask.entity.ViolationSubject
+import top.foxball.cartask.entity.*
 import top.foxball.cartask.repository.GatePersonRepository
 import top.foxball.cartask.repository.ParkingOwnerRepository
 import top.foxball.cartask.repository.ParkingPlateRepository
@@ -56,6 +50,7 @@ class ScopeQuerySupport(
             val departments = departmentLinkResolver.snapshot()
             parkingOwnerRepository.findAll().filter { ownerVisibleInDepartments(departments, it, scope) }
         }
+
         ScopeKind.SELF -> ownersOf(requireNotNull(scope.userId), scope.phone)
     }
 
@@ -78,8 +73,8 @@ class ScopeQuerySupport(
     /** 车牌是否可见：显式归属该车牌的账号优先，其次按车主归属。 */
     fun plateVisible(visibleOwnerIds: Set<Long>?, scopeUserId: Long?, plate: ParkingPlate): Boolean =
         visibleOwnerIds == null ||
-            plate.ownerId in visibleOwnerIds ||
-            (scopeUserId != null && plate.linkedUserId == scopeUserId)
+                plate.ownerId in visibleOwnerIds ||
+                (scopeUserId != null && plate.linkedUserId == scopeUserId)
 
     /** 把部门维度范围应用到已加载的实体列表（车主、门禁人员这类只有部门归属的主数据）。 */
     fun <T : DepartmentScoped> visibleInScope(scope: DataScope, rows: List<T>): List<T> =
@@ -165,25 +160,25 @@ class ScopeQuerySupport(
         // 改部门名之后依然有效。
         ScopeKind.DEPARTMENTS ->
             (file.departmentCode != null && file.departmentCode in scope.departmentCodes) ||
-                (
-                    file.businessType == StoredFile.BUSINESS_VEHICLE_PLATE &&
-                        file.businessId != null && file.businessId in plateNumbersInScope(scope)
-                    ) ||
-                (
-                    file.businessType == StoredFile.BUSINESS_GATE_PERSON &&
-                        file.businessId != null && file.businessId in gatePersonCodesInScope(scope)
-                    )
+                    (
+                            file.businessType == StoredFile.BUSINESS_VEHICLE_PLATE &&
+                                    file.businessId != null && file.businessId in plateNumbersInScope(scope)
+                            ) ||
+                    (
+                            file.businessType == StoredFile.BUSINESS_GATE_PERSON &&
+                                    file.businessId != null && file.businessId in gatePersonCodesInScope(scope)
+                            )
 
         ScopeKind.SELF ->
             (scope.userId != null && file.uploadedByUserId == scope.userId) ||
-                (
-                    file.businessType == StoredFile.BUSINESS_VEHICLE_PLATE &&
-                        file.businessId != null && file.businessId in scope.carNumbers
-                    ) ||
-                (
-                    file.businessType == StoredFile.BUSINESS_GATE_PERSON &&
-                        file.businessId != null && file.businessId in scope.gatePersonCodes
-                    )
+                    (
+                            file.businessType == StoredFile.BUSINESS_VEHICLE_PLATE &&
+                                    file.businessId != null && file.businessId in scope.carNumbers
+                            ) ||
+                    (
+                            file.businessType == StoredFile.BUSINESS_GATE_PERSON &&
+                                    file.businessId != null && file.businessId in scope.gatePersonCodes
+                            )
     }
 
     /** 部门范围内可见的门禁人员编号；门禁图片按它判定归属。 */
@@ -211,14 +206,14 @@ class ScopeQuerySupport(
 
         ScopeKind.SELF ->
             (scope.userId != null && subject.linkedUserId == scope.userId) ||
-                (
-                    subject.subjectType == ViolationSubject.SubjectType.VEHICLE &&
-                        PlateNumbers.normalize(subject.subjectNumber) in scope.carNumbers
-                    ) ||
-                (
-                    subject.subjectType == ViolationSubject.SubjectType.PERSON &&
-                        subject.subjectNumber in scope.gatePersonCodes
-                    )
+                    (
+                            subject.subjectType == ViolationSubject.SubjectType.VEHICLE &&
+                                    PlateNumbers.normalize(subject.subjectNumber) in scope.carNumbers
+                            ) ||
+                    (
+                            subject.subjectType == ViolationSubject.SubjectType.PERSON &&
+                                    subject.subjectNumber in scope.gatePersonCodes
+                            )
     }
 
     /**
@@ -237,8 +232,8 @@ class ScopeQuerySupport(
 
                 ScopeKind.SELF ->
                     (scope.userId != null && record.linkedUserId == scope.userId) ||
-                        (record.cardId != null && record.cardId in scope.gatePersonCodes) ||
-                        record.person in scope.gatePersonNames
+                            (record.cardId != null && record.cardId in scope.gatePersonCodes) ||
+                            record.person in scope.gatePersonNames
 
                 ScopeKind.DEPARTMENTS -> {
                     val code = record.departmentCode ?: departments?.toCode(record.dept)

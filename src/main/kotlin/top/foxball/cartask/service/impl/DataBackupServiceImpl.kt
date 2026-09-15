@@ -17,29 +17,18 @@ import java.io.BufferedWriter
 import java.io.OutputStream
 import java.math.BigDecimal
 import java.nio.charset.StandardCharsets
-import java.nio.file.Files
-import java.nio.file.InvalidPathException
-import java.nio.file.LinkOption
-import java.nio.file.Path
-import java.nio.file.StandardOpenOption
+import java.nio.file.*
 import java.sql.Connection
 import java.sql.DatabaseMetaData
 import java.sql.ResultSet
 import java.sql.Timestamp
-import java.time.Instant
-import java.time.LocalDate
-import java.time.LocalDateTime
-import java.time.LocalTime
-import java.time.OffsetDateTime
-import java.time.ZoneOffset
+import java.time.*
 import java.time.format.DateTimeFormatter
-import java.util.HexFormat
-import java.util.UUID
+import java.util.*
 import java.util.concurrent.locks.ReentrantLock
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 import javax.sql.DataSource
-import kotlin.concurrent.withLock
 
 /**
  * 用 JDBC 元数据把整库导出成可直接执行的 SQL 脚本，并按需把登记在 `stored_files` 的附件一起打包。
@@ -68,6 +57,13 @@ class DataBackupServiceImpl(
      */
     private val exportLock = ReentrantLock()
 
+    /**
+     * summary：执行当前模块中的业务操作。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     override fun summary(): DataBackupService.Summary {
         // 先在连接里取完库信息再放回连接池：附件数量走的是仓库自己的连接，
         // 攥着一条连接去要第二条，池子小的时候就是一个必然的死等。
@@ -88,6 +84,14 @@ class DataBackupServiceImpl(
         )
     }
 
+    /**
+     * export：执行数据同步、探测或文件处理。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param includeFiles 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     override fun export(includeFiles: Boolean): DataBackupService.Artifact {
         if (!exportLock.tryLock()) {
             throw BackupInProgressException()
@@ -100,6 +104,14 @@ class DataBackupServiceImpl(
         }
     }
 
+    /**
+     * generateArtifact：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param includeFiles 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun generateArtifact(includeFiles: Boolean): DataBackupService.Artifact {
         val startedAt = System.nanoTime()
         backupProgress.startCounting()
@@ -119,7 +131,13 @@ class DataBackupServiceImpl(
                     filename = archivePath.fileName.toString(),
                     contentType = ZIP_CONTENT_TYPE,
                     cleanupRoot = workDir,
-                    stats = stats(dump, archiveIncluded = true, archiveBytes = archive.bytes, files = archive, startedAt = startedAt),
+                    stats = stats(
+                        dump,
+                        archiveIncluded = true,
+                        archiveBytes = archive.bytes,
+                        files = archive,
+                        startedAt = startedAt
+                    ),
                 )
             } else {
                 DataBackupService.Artifact(
@@ -145,6 +163,18 @@ class DataBackupServiceImpl(
         }
     }
 
+    /**
+     * stats：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param dump 参与本次处理的输入参数。
+     * @param archiveIncluded 参与本次处理的输入参数。
+     * @param archiveBytes 参与本次处理的输入参数。
+     * @param files 参与本次处理的输入参数。
+     * @param startedAt 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun stats(
         dump: DumpOutcome,
         archiveIncluded: Boolean,
@@ -163,6 +193,14 @@ class DataBackupServiceImpl(
         durationMillis = (System.nanoTime() - startedAt) / 1_000_000,
     )
 
+    /**
+     * recordAudit：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param stats 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun recordAudit(stats: DataBackupService.Stats) {
         auditService?.record(
             AuditCommand(
@@ -186,35 +224,53 @@ class DataBackupServiceImpl(
 
     private data class DumpOutcome(val tableCount: Int, val rowCount: Long, val bytes: Long)
 
+    /**
+     * writeSqlDump：创建、保存或初始化相关数据。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param target 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun writeSqlDump(target: Path): DumpOutcome {
         var counts = DumpCounts(0, 0)
-        Files.newBufferedWriter(target, StandardCharsets.UTF_8, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE).use { out ->
-            dataSource.connection.use { connection ->
-                val originalAutoCommit = connection.autoCommit
-                // 关掉自动提交后 PostgreSQL 才会按 fetchSize 用游标逐批取数；开着自动提交时
-                // 驱动会把整张表一次性读进内存，全库备份的第一受害者就是应用自己。
-                // 这条连接只读，结束时回滚即可，不影响脚本里那句文本形式的 BEGIN。
-                runCatching { connection.autoCommit = false }
-                // 再抬一次隔离级别：默认的 READ COMMITTED 每条语句各自取快照，逐表读取时前后两张表
-                // 可能落在不同时间点。闸门只能挡住本实例的写入，挡不住别的实例或直接连库的写入，
-                // 快照隔离才是同一份数据。
-                runCatching { connection.transactionIsolation = Connection.TRANSACTION_REPEATABLE_READ }
-                    .onFailure { log.warn("数据库不支持 REPEATABLE READ，本次按默认隔离级别导出：{}", it.message) }
-                try {
-                    counts = dumpTo(connection, out)
-                } finally {
-                    runCatching {
-                        if (!originalAutoCommit) connection.rollback()
-                        connection.autoCommit = originalAutoCommit
+        Files.newBufferedWriter(target, StandardCharsets.UTF_8, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)
+            .use { out ->
+                dataSource.connection.use { connection ->
+                    val originalAutoCommit = connection.autoCommit
+                    // 关掉自动提交后 PostgreSQL 才会按 fetchSize 用游标逐批取数；开着自动提交时
+                    // 驱动会把整张表一次性读进内存，全库备份的第一受害者就是应用自己。
+                    // 这条连接只读，结束时回滚即可，不影响脚本里那句文本形式的 BEGIN。
+                    runCatching { connection.autoCommit = false }
+                    // 再抬一次隔离级别：默认的 READ COMMITTED 每条语句各自取快照，逐表读取时前后两张表
+                    // 可能落在不同时间点。闸门只能挡住本实例的写入，挡不住别的实例或直接连库的写入，
+                    // 快照隔离才是同一份数据。
+                    runCatching { connection.transactionIsolation = Connection.TRANSACTION_REPEATABLE_READ }
+                        .onFailure { log.warn("数据库不支持 REPEATABLE READ，本次按默认隔离级别导出：{}", it.message) }
+                    try {
+                        counts = dumpTo(connection, out)
+                    } finally {
+                        runCatching {
+                            if (!originalAutoCommit) connection.rollback()
+                            connection.autoCommit = originalAutoCommit
+                        }
                     }
                 }
             }
-        }
         return DumpOutcome(counts.tableCount, counts.rowCount, Files.size(target))
     }
 
     private data class DumpCounts(val tableCount: Int, val rowCount: Long)
 
+    /**
+     * dumpTo：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param connection 参与本次处理的输入参数。
+     * @param out 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun dumpTo(connection: Connection, out: BufferedWriter): DumpCounts {
         val meta = connection.metaData
         val postgres = isPostgres(meta)
@@ -235,7 +291,14 @@ class DataBackupServiceImpl(
         out.write("-- ========== 表结构 ==========\n")
         out.write("-- 表已存在时整段跳过：正常情况下先启动应用让 ddl-auto 建好结构，再执行本脚本。\n\n")
         tables.forEach { table ->
-            out.write(createTableStatement(table, columns.getValue(table), primaryKeys.getValue(table), foreignKeys.getValue(table)))
+            out.write(
+                createTableStatement(
+                    table,
+                    columns.getValue(table),
+                    primaryKeys.getValue(table),
+                    foreignKeys.getValue(table)
+                )
+            )
             out.write("\n")
         }
 
@@ -264,6 +327,16 @@ class DataBackupServiceImpl(
         return DumpCounts(tables.size, rowCount)
     }
 
+    /**
+     * writeHeader：创建、保存或初始化相关数据。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param out 参与本次处理的输入参数。
+     * @param meta 参与本次处理的输入参数。
+     * @param tableCount 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun writeHeader(out: BufferedWriter, meta: DatabaseMetaData, tableCount: Int) {
         out.write("-- carTask 数据备份\n")
         out.write("-- 生成时间: ${LocalDateTime.now().format(HEADER_TIME_FORMATTER)}\n")
@@ -292,6 +365,15 @@ class DataBackupServiceImpl(
         return tables.sortedBy { it.qualifiedName }
     }
 
+    /**
+     * isBusinessTable：校验输入、状态或访问条件。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param schema 参与本次处理的输入参数。
+     * @param name 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun isBusinessTable(schema: String?, name: String): Boolean {
         val normalizedSchema = schema?.lowercase()
         if (normalizedSchema != null && normalizedSchema in SYSTEM_SCHEMAS) return false
@@ -299,6 +381,16 @@ class DataBackupServiceImpl(
         return SYSTEM_TABLE_PREFIXES.none { normalizedName.startsWith(it) }
     }
 
+    /**
+     * readColumns：查询或读取相关数据。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param meta 参与本次处理的输入参数。
+     * @param catalog 参与本次处理的输入参数。
+     * @param table 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun readColumns(meta: DatabaseMetaData, catalog: String?, table: TableRef): List<ColumnMeta> {
         val columns = mutableListOf<ColumnMeta>()
         meta.getColumns(catalog, table.schema, table.name, "%").use { rs ->
@@ -320,6 +412,16 @@ class DataBackupServiceImpl(
         return columns.sortedBy { it.ordinal }
     }
 
+    /**
+     * readPrimaryKey：查询或读取相关数据。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param meta 参与本次处理的输入参数。
+     * @param catalog 参与本次处理的输入参数。
+     * @param table 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun readPrimaryKey(meta: DatabaseMetaData, catalog: String?, table: TableRef): PrimaryKey? {
         val columns = sortedMapOf<Int, String>()
         var name: String? = null
@@ -334,6 +436,17 @@ class DataBackupServiceImpl(
         return PrimaryKey(name?.takeIf { it.isNotBlank() } ?: "pk_${table.name}", columns.values.toList())
     }
 
+    /**
+     * readForeignKeys：查询或读取相关数据。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param meta 参与本次处理的输入参数。
+     * @param catalog 参与本次处理的输入参数。
+     * @param table 参与本次处理的输入参数。
+     * @param known 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun readForeignKeys(
         meta: DatabaseMetaData,
         catalog: String?,
@@ -372,6 +485,14 @@ class DataBackupServiceImpl(
         }
     }
 
+    /**
+     * referentialAction：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param rule 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun referentialAction(rule: Int): String? = when (rule) {
         DatabaseMetaData.importedKeyCascade -> "CASCADE"
         DatabaseMetaData.importedKeySetNull -> "SET NULL"
@@ -380,6 +501,17 @@ class DataBackupServiceImpl(
         else -> null
     }
 
+    /**
+     * createTableStatement：创建、保存或初始化相关数据。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param table 参与本次处理的输入参数。
+     * @param columns 参与本次处理的输入参数。
+     * @param primaryKey 参与本次处理的输入参数。
+     * @param foreignKeys 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun createTableStatement(
         table: TableRef,
         columns: List<ColumnMeta>,
@@ -389,13 +521,35 @@ class DataBackupServiceImpl(
         append("CREATE TABLE IF NOT EXISTS ${table.qualifiedName} (\n")
         val definitions = columns.map { column -> "  ${columnDefinition(column)}" }
         val constraints = buildList {
-            primaryKey?.let { add("  CONSTRAINT ${quoteIdentifier(it.name)} PRIMARY KEY (${it.columns.joinToString(", ") { column -> quoteIdentifier(column) }})") }
+            primaryKey?.let {
+                add(
+                    "  CONSTRAINT ${quoteIdentifier(it.name)} PRIMARY KEY (${
+                        it.columns.joinToString(", ") { column ->
+                            quoteIdentifier(
+                                column
+                            )
+                        }
+                    })"
+                )
+            }
             foreignKeys.forEach { key ->
                 add(
-                    "  CONSTRAINT ${quoteIdentifier(key.name)} FOREIGN KEY (${key.columns.joinToString(", ") { column -> quoteIdentifier(column) }})" +
-                        " REFERENCES ${key.parentTable.qualifiedName} (${key.parentColumns.joinToString(", ") { column -> quoteIdentifier(column) }})" +
-                        (key.onUpdate?.let { " ON UPDATE $it" } ?: "") +
-                        (key.onDelete?.let { " ON DELETE $it" } ?: ""),
+                    "  CONSTRAINT ${quoteIdentifier(key.name)} FOREIGN KEY (${
+                        key.columns.joinToString(", ") { column ->
+                            quoteIdentifier(
+                                column
+                            )
+                        }
+                    })" +
+                            " REFERENCES ${key.parentTable.qualifiedName} (${
+                                key.parentColumns.joinToString(", ") { column ->
+                                    quoteIdentifier(
+                                        column
+                                    )
+                                }
+                            })" +
+                            (key.onUpdate?.let { " ON UPDATE $it" } ?: "") +
+                            (key.onDelete?.let { " ON DELETE $it" } ?: ""),
                 )
             }
         }
@@ -403,6 +557,14 @@ class DataBackupServiceImpl(
         append("\n);\n")
     }
 
+    /**
+     * columnDefinition：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param column 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun columnDefinition(column: ColumnMeta): String = buildString {
         append("${quoteIdentifier(column.name)} ${columnSqlType(column)}")
         if (!column.nullable) append(" NOT NULL")
@@ -414,6 +576,14 @@ class DataBackupServiceImpl(
         }
     }
 
+    /**
+     * columnSqlType：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param column 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun columnSqlType(column: ColumnMeta): String {
         val base = column.typeName.lowercase()
         return when {
@@ -423,6 +593,19 @@ class DataBackupServiceImpl(
         }
     }
 
+    /**
+     * writeInserts：创建、保存或初始化相关数据。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param connection 参与本次处理的输入参数。
+     * @param out 参与本次处理的输入参数。
+     * @param table 参与本次处理的输入参数。
+     * @param columns 参与本次处理的输入参数。
+     * @param postgres 参与本次处理的输入参数。
+     * @param onProgress 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun writeInserts(
         connection: Connection,
         out: BufferedWriter,
@@ -477,11 +660,31 @@ class DataBackupServiceImpl(
         return total
     }
 
+    /**
+     * readValue：查询或读取相关数据。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param rs 参与本次处理的输入参数。
+     * @param index 参与本次处理的输入参数。
+     * @param column 参与本次处理的输入参数。
+     * @param postgres 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun readValue(rs: ResultSet, index: Int, column: ColumnMeta, postgres: Boolean): Any? =
-        // timestamptz 必须按带偏移的类型读，否则驱动会先转成 JVM 默认时区再交出来，
+    // timestamptz 必须按带偏移的类型读，否则驱动会先转成 JVM 默认时区再交出来，
         // 生成的字面量就跟着服务器的时区设置漂移。
         if (postgres && column.timeZoneAware) rs.getObject(index, OffsetDateTime::class.java) else rs.getObject(index)
 
+    /**
+     * literal：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param value 参与本次处理的输入参数。
+     * @param postgres 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun literal(value: Any?, postgres: Boolean): String = when (value) {
         null -> "NULL"
         is Boolean -> if (value) "TRUE" else "FALSE"
@@ -502,7 +705,9 @@ class DataBackupServiceImpl(
         is Timestamp -> quote(value.toLocalDateTime().format(LOCAL_DATE_TIME_FORMATTER))
         is java.sql.Date -> quote(value.toString())
         is java.sql.Time -> quote(value.toString())
-        is java.sql.Array -> (value.array as? Array<*>)?.joinToString(", ", "ARRAY[", "]") { literal(it, postgres) } ?: "NULL"
+        is java.sql.Array -> (value.array as? Array<*>)?.joinToString(", ", "ARRAY[", "]") { literal(it, postgres) }
+            ?: "NULL"
+
         else -> quote(value.toString())
     }
 
@@ -514,16 +719,35 @@ class DataBackupServiceImpl(
      */
     private fun quote(value: String): String = "'${value.replace("'", "''")}'"
 
+    /**
+     * sequenceResetStatement：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param table 参与本次处理的输入参数。
+     * @param column 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun sequenceResetStatement(table: TableRef, column: ColumnMeta): String {
         val tableName = listOfNotNull(table.schema, table.name).joinToString(".")
         return "SELECT setval(pg_get_serial_sequence(${quote(tableName)}, ${quote(column.name)})," +
-            " COALESCE((SELECT MAX(${quoteIdentifier(column.name)}) FROM ${table.qualifiedName}), 0) + 1, false);\n"
+                " COALESCE((SELECT MAX(${quoteIdentifier(column.name)}) FROM ${table.qualifiedName}), 0) + 1, false);\n"
     }
 
     // ---------------------------------------------------------------- 附件打包
 
     private data class ArchiveOutcome(val packed: Int, val bytes: Long, val missing: Int)
 
+    /**
+     * writeArchive：创建、保存或初始化相关数据。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param target 参与本次处理的输入参数。
+     * @param sqlPath 参与本次处理的输入参数。
+     * @param sqlEntryName 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun writeArchive(target: Path, sqlPath: Path, sqlEntryName: String): ArchiveOutcome {
         val stored = storedFileRepository.findAll().sortedBy { it.relativePath }
         var packed = 0
@@ -563,6 +787,16 @@ class DataBackupServiceImpl(
         return ArchiveOutcome(packed, bytes, missing)
     }
 
+    /**
+     * writeManifest：创建、保存或初始化相关数据。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param out 参与本次处理的输入参数。
+     * @param files 参与本次处理的输入参数。
+     * @param statuses 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun writeManifest(out: OutputStream, files: List<StoredFile>, statuses: Map<UUID, String>) {
         // 带 UTF-8 BOM：不带的话 Excel 打开这份清单会把中文文件名显示成乱码。
         out.write(UTF8_BOM)
@@ -587,8 +821,21 @@ class DataBackupServiceImpl(
         }
     }
 
+    /**
+     * csvField：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param value 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun csvField(value: String): String =
-        if (value.any { it == ',' || it == '"' || it == '\n' || it == '\r' }) "\"${value.replace("\"", "\"\"")}\"" else value
+        if (value.any { it == ',' || it == '"' || it == '\n' || it == '\r' }) "\"${
+            value.replace(
+                "\"",
+                "\"\""
+            )
+        }\"" else value
 
     /** 压缩包内的条目名统一用正斜杠；Windows 上拼出来的相对路径会带反斜杠。 */
     private fun zipEntryName(relativePath: String): String = relativePath.replace('\\', '/').trimStart('/')
@@ -615,12 +862,21 @@ class DataBackupServiceImpl(
     private fun isPostgres(meta: DatabaseMetaData): Boolean =
         meta.databaseProductName?.contains("PostgreSQL", ignoreCase = true) == true
 
+    /**
+     * deleteRecursively：删除、清理或撤销相关数据。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param root 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun deleteRecursively(root: Path) {
         runCatching {
             if (!Files.exists(root, LinkOption.NOFOLLOW_LINKS)) return
             Files.walk(root).use { paths ->
                 // 先深后浅：父目录在枚举流里也会出现，顺序反了会因为目录非空而删不掉。
-                paths.sorted { left, right -> right.compareTo(left) }.forEach { path -> runCatching { Files.deleteIfExists(path) } }
+                paths.sorted { left, right -> right.compareTo(left) }
+                    .forEach { path -> runCatching { Files.deleteIfExists(path) } }
             }
         }.onFailure { log.warn("清理备份临时目录失败: {}", root, it) }
     }
@@ -628,7 +884,11 @@ class DataBackupServiceImpl(
     private data class TableRef(val schema: String?, val name: String) {
         /** PostgreSQL 里带上库名（catalog）是非法写法，所以只限定到 schema。 */
         val qualifiedName: String
-            get() = if (schema.isNullOrBlank()) quoteIdentifier(name) else "${quoteIdentifier(schema)}.${quoteIdentifier(name)}"
+            get() = if (schema.isNullOrBlank()) quoteIdentifier(name) else "${quoteIdentifier(schema)}.${
+                quoteIdentifier(
+                    name
+                )
+            }"
     }
 
     private data class ColumnMeta(

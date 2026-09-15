@@ -1,8 +1,8 @@
 package top.foxball.cartask.service
 
-import java.time.LocalDateTime
 import org.springframework.data.domain.Page
 import top.foxball.cartask.entity.VehicleInoutRequest
+import java.time.LocalDateTime
 
 /** 车辆进出申请登记的业务服务。 */
 interface VehicleInoutRequestService {
@@ -56,17 +56,79 @@ interface VehicleInoutRequestService {
         val cardId: Long?,
     )
 
+    /**
+     * list：查询或读取相关数据。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param filter 参与本次处理的输入参数。
+     * @param page 参与本次处理的输入参数。
+     * @param pageSize 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     fun list(filter: ListFilter, page: Int, pageSize: Int): Page<VehicleInoutRequest>
 
+    /**
+     * get：查询或读取相关数据。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param id 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     fun get(id: Long): VehicleInoutRequest
 
+    /**
+     * create：创建、保存或初始化相关数据。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param command 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     fun create(command: CreateCommand): VehicleInoutRequest
 
+    /**
+     * update：更新业务状态或修改相关配置。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param id 参与本次处理的输入参数。
+     * @param command 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     fun update(id: Long, command: UpdateCommand): VehicleInoutRequest
 
+    /**
+     * review：执行当前模块中的业务操作。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param id 参与本次处理的输入参数。
+     * @param approved 参与本次处理的输入参数。
+     * @param reason 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     fun review(id: Long, approved: Boolean, reason: String?): VehicleInoutRequest
 
+    /**
+     * cancel：校验输入、状态或访问条件。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param id 参与本次处理的输入参数。
+     * @param reason 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     fun cancel(id: Long, reason: String?): VehicleInoutRequest
 
+    /**
+     * synchronize：执行数据同步、探测或文件处理。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param id 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     fun synchronize(id: Long): SyncOutcome
 }

@@ -2,15 +2,7 @@ package top.foxball.cartask.controller
 
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
-import org.springframework.web.bind.annotation.DeleteMapping
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.PathVariable
-import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.PutMapping
-import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RequestParam
-import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.bind.annotation.*
 import top.foxball.cartask.entity.AccessControl
 import top.foxball.cartask.service.AccessControlService
 import top.foxball.cartask.shared.Response
@@ -69,6 +61,16 @@ class AccessControlController(
 
     @PostMapping("/{id}/review")
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('access-control:review')")
+            /**
+             * review：执行当前模块中的业务操作。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param id 参与本次处理的输入参数。
+             * @param approved 参与本次处理的输入参数。
+             * @param reason 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun review(
         @PathVariable id: Long,
         @RequestParam approved: Boolean,
@@ -77,6 +79,14 @@ class AccessControlController(
 
     @PostMapping("/{id}/sync")
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('access-control:sync')")
+            /**
+             * synchronize：执行数据同步、探测或文件处理。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param id 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun synchronize(@PathVariable id: Long): ResponseEntity<Response> =
         responseBuilder.ok().data(service.synchronize(id)).build()
 

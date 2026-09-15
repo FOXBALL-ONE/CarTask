@@ -7,6 +7,7 @@ import tools.jackson.databind.JsonNode
 import tools.jackson.databind.ObjectMapper
 import top.foxball.cartask.audit.AuditRequestContext
 import top.foxball.cartask.entity.AccessRecord
+import top.foxball.cartask.entity.StoredFile
 import top.foxball.cartask.entity.SyncCheckpoint
 import top.foxball.cartask.entity.SyncTaskRun
 import top.foxball.cartask.handler.VehicleAccessRecordSyncInProgressException
@@ -14,13 +15,12 @@ import top.foxball.cartask.keytop.KeytopProperties
 import top.foxball.cartask.keytop.KeytopService
 import top.foxball.cartask.repository.AccessRecordRepository
 import top.foxball.cartask.repository.ParkingPlateRepository
-import top.foxball.cartask.entity.StoredFile
 import top.foxball.cartask.repository.SyncCheckpointRepository
-import top.foxball.cartask.shared.PlateNumbers
 import top.foxball.cartask.service.FileService
 import top.foxball.cartask.service.SyncTaskHistoryService
-import top.foxball.cartask.service.SyncTaskRunCommand
 import top.foxball.cartask.service.SyncTaskProgressService
+import top.foxball.cartask.service.SyncTaskRunCommand
+import top.foxball.cartask.shared.PlateNumbers
 import java.math.BigDecimal
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -93,6 +93,14 @@ class SynCarCapInfoTask(
         }
     }
 
+    /**
+     * executeIncremental：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param trigger 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun executeIncremental(trigger: SyncTaskRun.Trigger): CarCapInfoSyncResult = execute(
         trigger = trigger,
         taskKey = TASK_KEY,
@@ -100,6 +108,14 @@ class SynCarCapInfoTask(
         synchronization = ::synchronizeIncrementally,
     )
 
+    /**
+     * executeReconciliation：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param trigger 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun executeReconciliation(trigger: SyncTaskRun.Trigger): CarCapInfoSyncResult = execute(
         trigger = trigger,
         taskKey = RECONCILIATION_TASK_KEY,
@@ -129,7 +145,7 @@ class SynCarCapInfoTask(
             syncTaskProgressService.finish(taskKey, startedAt)
         }
     }
-    
+
     /** 只读取待同步总数和时间范围，供手动同步确认前展示。 */
     @Transactional(readOnly = true)
     fun previewSynchronization(): CarCapInfoSyncPreview {
@@ -163,7 +179,14 @@ class SynCarCapInfoTask(
             executionLock.unlock()
         }
     }
-    
+
+    /**
+     * synchronizeIncrementally：执行数据同步、探测或文件处理。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun synchronizeIncrementally(): CarCapInfoSyncResult {
         if (!executionLock.tryLock()) {
             throw VehicleAccessRecordSyncInProgressException()
@@ -186,7 +209,12 @@ class SynCarCapInfoTask(
             checkpoint.lastSuccessAt = LocalDateTime.now()
             checkpoint.lastError = null
             syncCheckpointRepository.save(checkpoint)
-            logger.info("车辆进出记录同步完成：处理 {} 条，查询区间：{} 至 {}", result.processedCount, startTime, syncEndTime)
+            logger.info(
+                "车辆进出记录同步完成：处理 {} 条，查询区间：{} 至 {}",
+                result.processedCount,
+                startTime,
+                syncEndTime
+            )
             return CarCapInfoSyncResult(
                 processedCount = result.processedCount,
                 localPhotoCount = result.localPhotoCount,
@@ -221,7 +249,12 @@ class SynCarCapInfoTask(
                 syncCheckpointRepository.save(SyncCheckpoint().apply { syncKey = SYNC_KEY })
             }
             val result = synchronizeRange(startTime, syncEndTime, RECONCILIATION_TASK_KEY)
-            logger.info("车辆进出记录补偿同步完成：处理 {} 条，查询区间：{} 至 {}", result.processedCount, startTime, syncEndTime)
+            logger.info(
+                "车辆进出记录补偿同步完成：处理 {} 条，查询区间：{} 至 {}",
+                result.processedCount,
+                startTime,
+                syncEndTime
+            )
             return CarCapInfoSyncResult(
                 processedCount = result.processedCount,
                 localPhotoCount = result.localPhotoCount,
@@ -282,16 +315,46 @@ class SynCarCapInfoTask(
         return ProcessResult(synchronizedCount, localPhotoCount, failedPhotoCount)
     }
 
+    /**
+     * incrementalStartTime：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param checkpointTime 参与本次处理的输入参数。
+     * @param syncEndTime 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun incrementalStartTime(checkpointTime: LocalDateTime?, syncEndTime: LocalDateTime): LocalDateTime =
         checkpointTime?.minus(keytopProperties.carCapInfoOverlapWindow)
             ?: syncEndTime.minusDays(INITIAL_SYNC_DAYS)
 
+    /**
+     * validateSynchronizationConfiguration：校验输入、状态或访问条件。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun validateSynchronizationConfiguration() {
         require(keytopProperties.carCapInfoPageSize in 1..1000) {
             "车辆进出记录同步分页大小必须在 1 到 1000 之间"
         }
     }
-    
+
+    /**
+     * recordHistory：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param taskKey 参与本次处理的输入参数。
+     * @param taskName 参与本次处理的输入参数。
+     * @param trigger 参与本次处理的输入参数。
+     * @param status 参与本次处理的输入参数。
+     * @param startedAt 参与本次处理的输入参数。
+     * @param result 参与本次处理的输入参数。
+     * @param exception 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun recordHistory(
         taskKey: String,
         taskName: String,
@@ -326,6 +389,15 @@ class SynCarCapInfoTask(
         }
     }
 
+    /**
+     * processRecords：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param records 参与本次处理的输入参数。
+     * @param seen 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun processRecords(
         records: List<JsonNode>,
         seen: MutableMap<String, AccessRecord>,
@@ -387,7 +459,15 @@ class SynCarCapInfoTask(
         }
         return ProcessResult(processed, localPhotoCount, failedPhotoCount)
     }
-    
+
+    /**
+     * parseRecord：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param node 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun parseRecord(node: JsonNode): AccessRecord? {
         val time = firstText(node, "capTime", "cap_time", "inAndOutTime", "in_and_out_time", "captureTime", "time")
             ?.let(::parseTime)
@@ -469,7 +549,15 @@ class SynCarCapInfoTask(
             recordStatus = firstText(node, "status", "recordStatus", "record_status") ?: "正常"
         }
     }
-    
+
+    /**
+     * parseDirection：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param node 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun parseDirection(node: JsonNode): AccessRecord.InAndOut? {
         val raw = firstText(node, "inAndOut", "in_and_out", "direction", "capFlag", "cap_flag", "type")
             ?.trim()?.lowercase() ?: return null
@@ -484,15 +572,23 @@ class SynCarCapInfoTask(
                 "出场"
             ) || raw.contains("出场") || raw.contains("出口") ->
                 AccessRecord.InAndOut.OUT
-            
+
             raw in setOf("in", "entry", "enter", "0", "抓拍", "capture", "3", "入", "入场") ||
                     raw.contains("入场") || raw.contains("入口") || raw.contains("抓拍") ->
                 AccessRecord.InAndOut.IN
-            
+
             else -> null
         }
     }
-    
+
+    /**
+     * parsePassType：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param node 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun parsePassType(node: JsonNode): String? {
         val raw = firstText(node, "passType", "pass_type", "releaseType", "release_type")
             ?.trim() ?: return null
@@ -508,7 +604,7 @@ class SynCarCapInfoTask(
     private fun parseVehicleTypeName(node: JsonNode): String? = AccessRecord.displayVehicleTypeName(
         firstText(node, "vehicleType", "vehicle_type", "carTypeName", "car_type_name", "carType", "car_type")?.trim(),
     )
-    
+
     /**
      * Keytop 的 trafficId 标识一次车辆通行，不标识单次抓拍；同一次通行的进场、出场会复用它。
      * 因此必须合并方向、抓拍时间、设备流水和节点，才能作为本地幂等键。
@@ -529,7 +625,14 @@ class SynCarCapInfoTask(
         carSerial?.trim().orEmpty(),
         nodeId?.trim().orEmpty(),
     ).joinToString("|")
-    
+
+    /**
+     * retryFailedPhotos：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun retryFailedPhotos() {
         accessRecordRepository.findTop100ByPhotoSyncStatusOrderByIdAsc(AccessRecord.PhotoSyncStatus.FAILED)
             .forEach { record ->
@@ -537,7 +640,15 @@ class SynCarCapInfoTask(
                 accessRecordRepository.save(record)
             }
     }
-    
+
+    /**
+     * importPhoto：执行数据同步、探测或文件处理。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param record 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun importPhoto(record: AccessRecord): PhotoImportResult {
         val url = record.sourcePhotoUrl?.trim()
         if (url.isNullOrBlank()) {
@@ -571,13 +682,30 @@ class SynCarCapInfoTask(
                 )
             }
     }
-    
+
+    /**
+     * applyPhoto：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param record 参与本次处理的输入参数。
+     * @param photo 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun applyPhoto(record: AccessRecord, photo: PhotoImportResult) {
         record.photoUrl = photo.localOrFallbackUrl
         record.photoSyncStatus = photo.status
         record.photoSyncError = photo.error
     }
-    
+
+    /**
+     * parseReleaseChannel：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param node 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun parseReleaseChannel(node: JsonNode): AccessRecord.ReleaseChannel? {
         val raw = firstText(node, "passType", "pass_type", "releaseChannel", "release_channel")
             ?.trim()?.lowercase() ?: return null
@@ -588,7 +716,15 @@ class SynCarCapInfoTask(
             else -> AccessRecord.ReleaseChannel.UNKNOWN
         }
     }
-    
+
+    /**
+     * parseTime：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param raw 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun parseTime(raw: String): LocalDateTime? {
         val value = raw.trim()
         return try {
@@ -601,12 +737,29 @@ class SynCarCapInfoTask(
             }
         }
     }
-    
+
+    /**
+     * firstText：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param node 参与本次处理的输入参数。
+     * @param names 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun firstText(node: JsonNode, vararg names: String): String? = names.asSequence()
         .mapNotNull { node.get(it) }
         .firstOrNull { !it.isNull && !it.isMissingNode && it.asString().isNotBlank() }
         ?.asString()
-    
+
+    /**
+     * parseData：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param data 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun parseData(data: JsonNode?): ParsedData {
         if (data == null || data.isNull) return ParsedData(emptyList(), 0)
         var container = if (data.isTextual) objectMapper.readTree(data.asString()) else data
@@ -625,21 +778,21 @@ class SynCarCapInfoTask(
         val totalCount = firstText(container, "totalCount", "total_count", "total", "count")?.toIntOrNull()
         return ParsedData(records, totalCount)
     }
-    
+
     private data class ParsedData(val records: List<JsonNode>, val totalCount: Int?)
-    
+
     private data class ProcessResult(
         val processedCount: Int,
         val localPhotoCount: Int,
         val failedPhotoCount: Int,
     )
-    
+
     private data class PhotoImportResult(
         val localOrFallbackUrl: String?,
         val status: AccessRecord.PhotoSyncStatus,
         val error: String?,
     )
-    
+
     companion object {
         val logger = LoggerFactory.getLogger(SynCarCapInfoTask::class.java)
         val executionLock = ReentrantLock()

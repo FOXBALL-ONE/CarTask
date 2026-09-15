@@ -1,7 +1,5 @@
 package top.foxball.cartask.service.impl
 
-import java.time.LocalDate
-import java.time.LocalDateTime
 import org.slf4j.LoggerFactory
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageImpl
@@ -10,18 +8,14 @@ import org.springframework.security.access.AccessDeniedException
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import tools.jackson.databind.JsonNode
 import top.foxball.cartask.audit.AuditAction
 import top.foxball.cartask.audit.AuditCommand
 import top.foxball.cartask.audit.AuditService
 import top.foxball.cartask.authentication.CurrentUserPrincipal
 import top.foxball.cartask.entity.ParkingPlate
 import top.foxball.cartask.entity.VehicleInoutRequest
-import top.foxball.cartask.keytop.KeytopCarLot
-import top.foxball.cartask.keytop.KeytopCardInfo
-import top.foxball.cartask.keytop.KeytopPayCarCardFeeRequest
-import top.foxball.cartask.keytop.KeytopPlateNo
-import top.foxball.cartask.keytop.KeytopResponse
-import top.foxball.cartask.keytop.KeytopService
+import top.foxball.cartask.keytop.*
 import top.foxball.cartask.repository.ParkingOwnerRepository
 import top.foxball.cartask.repository.ParkingPlateRepository
 import top.foxball.cartask.repository.VehicleInoutRequestRepository
@@ -34,7 +28,8 @@ import top.foxball.cartask.service.VehicleInoutRequestService
 import top.foxball.cartask.service.VehicleInoutRequestStateWriter
 import top.foxball.cartask.shared.PlateNumbers
 import top.foxball.cartask.shared.SerialNumbers
-import tools.jackson.databind.JsonNode
+import java.time.LocalDate
+import java.time.LocalDateTime
 
 @Service
 class VehicleInoutRequestServiceImpl(
@@ -52,7 +47,21 @@ class VehicleInoutRequestServiceImpl(
 ) : VehicleInoutRequestService {
 
     @Transactional(readOnly = true)
-    override fun list(filter: VehicleInoutRequestService.ListFilter, page: Int, pageSize: Int): Page<VehicleInoutRequest> {
+    /**
+     * list：查询或读取相关数据。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param filter 参与本次处理的输入参数。
+     * @param page 参与本次处理的输入参数。
+     * @param pageSize 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
+    override fun list(
+        filter: VehicleInoutRequestService.ListFilter,
+        page: Int,
+        pageSize: Int
+    ): Page<VehicleInoutRequest> {
         require(page >= 1) { "页码必须大于 0" }
         require(pageSize in 1..100) { "每页数量必须在 1 到 100 之间" }
         val scope = scopeGuard.currentScope()
@@ -61,9 +70,9 @@ class VehicleInoutRequestServiceImpl(
         val filtered = scopeQuerySupport.visibleInScope(scope, repository.findAll())
             .filter { request ->
                 (filter.keyword.isNullOrBlank() || matchesKeyword(request, filter.keyword)) &&
-                    (filter.status == null || request.status == filter.status) &&
-                    (filter.syncStatus == null || request.syncStatus == filter.syncStatus) &&
-                    inDateRange(request.applyTime, filter.startDate, filter.endDate)
+                        (filter.status == null || request.status == filter.status) &&
+                        (filter.syncStatus == null || request.syncStatus == filter.syncStatus) &&
+                        inDateRange(request.applyTime, filter.startDate, filter.endDate)
             }
             .sortedByDescending { it.applyTime }
         val from = ((page - 1) * pageSize).coerceAtMost(filtered.size)
@@ -72,9 +81,25 @@ class VehicleInoutRequestServiceImpl(
     }
 
     @Transactional(readOnly = true)
+    /**
+     * get：查询或读取相关数据。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param id 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     override fun get(id: Long): VehicleInoutRequest = requireVisible(id)
 
     @Transactional
+    /**
+     * create：创建、保存或初始化相关数据。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param command 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     override fun create(command: VehicleInoutRequestService.CreateCommand): VehicleInoutRequest {
         val scope = scopeGuard.currentScope()
         // 带 newOwner 时车牌本来就不该存在，先建档再走正常流程；不带时车牌必须已建档。
@@ -104,7 +129,7 @@ class VehicleInoutRequestServiceImpl(
                 targetId = saved.id?.toString(),
                 // 顺带建了账号就一并记下：否则事后无从知道这条申请开通了谁的登录权限。
                 targetSummary = targetSummaryOf(saved) +
-                    (archives?.let { mapOf("created_account" to it.accountUsername) } ?: emptyMap()),
+                        (archives?.let { mapOf("created_account" to it.accountUsername) } ?: emptyMap()),
                 afterData = mapOf(
                     "review_status" to saved.status.value(),
                     "synchronized" to false,
@@ -117,6 +142,15 @@ class VehicleInoutRequestServiceImpl(
     }
 
     @Transactional
+    /**
+     * update：更新业务状态或修改相关配置。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param id 参与本次处理的输入参数。
+     * @param command 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     override fun update(id: Long, command: VehicleInoutRequestService.UpdateCommand): VehicleInoutRequest {
         val scope = scopeGuard.currentScope()
         val request = requireVisible(id, scope)
@@ -129,7 +163,13 @@ class VehicleInoutRequestServiceImpl(
             val plate = requirePlateInScope(incoming, scope)
             // 按归一化车牌比较：把「京A12345」重填成「京A·12345」只是写法不同，不该重绑车主、清空区域。
             if (keytopPlateOf(plate.plate) != keytopPlateOf(request.plate)) {
-                require(!repository.existsByPlateNormalizedAndStatusInAndIdNot(keytopPlateOf(plate.plate), OPEN_STATUSES, id)) {
+                require(
+                    !repository.existsByPlateNormalizedAndStatusInAndIdNot(
+                        keytopPlateOf(plate.plate),
+                        OPEN_STATUSES,
+                        id
+                    )
+                ) {
                     "该车牌已有待处理的进出申请"
                 }
                 request.bindOwner(plate)
@@ -182,6 +222,16 @@ class VehicleInoutRequestServiceImpl(
     }
 
     @Transactional
+    /**
+     * review：执行当前模块中的业务操作。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param id 参与本次处理的输入参数。
+     * @param approved 参与本次处理的输入参数。
+     * @param reason 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     override fun review(id: Long, approved: Boolean, reason: String?): VehicleInoutRequest {
         val request = requireVisible(id)
         require(request.status == VehicleInoutRequest.Status.PENDING) { "该申请当前状态不允许审核" }
@@ -210,6 +260,15 @@ class VehicleInoutRequestServiceImpl(
     }
 
     @Transactional
+    /**
+     * cancel：校验输入、状态或访问条件。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param id 参与本次处理的输入参数。
+     * @param reason 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     override fun cancel(id: Long, reason: String?): VehicleInoutRequest {
         val request = requireVisible(id)
         // 已下发的申请单撤销后科拓侧仍持有月卡，本地标记撤销只会造成两边不一致，因此不允许。
@@ -257,7 +316,14 @@ class VehicleInoutRequestServiceImpl(
             val existingCardId = resolveCardId(request)
             val cardId = existingCardId ?: issueMonthlyCard(request, userName)
             payMonthlyCard(request, userName, cardId, cardExisted = existingCardId != null)
-            stateWriter.recordOutcome(id, synced = true, message = null, cardId = cardId, cardIssued = true, occurredAt = LocalDateTime.now())
+            stateWriter.recordOutcome(
+                id,
+                synced = true,
+                message = null,
+                cardId = cardId,
+                cardIssued = true,
+                occurredAt = LocalDateTime.now()
+            )
             auditOutcome(id, synced = true, message = null)
             return VehicleInoutRequestService.SyncOutcome(synced = true, message = "月卡已下发", cardId = cardId)
         } catch (exception: RuntimeException) {
@@ -339,7 +405,11 @@ class VehicleInoutRequestServiceImpl(
                     cardInfo = cardInfoOf(request).copy(cardId = cardId),
                     carLotList = carLotsOf(request),
                     plateNoInfo = listOf(
-                        KeytopPlateNo(plateNo = keytopPlateOf(request.plate), id = cardId, plateState = PLATE_STATE_ENABLED),
+                        KeytopPlateNo(
+                            plateNo = keytopPlateOf(request.plate),
+                            id = cardId,
+                            plateState = PLATE_STATE_ENABLED
+                        ),
                     ),
                 ),
                 "月卡修改",
@@ -369,6 +439,14 @@ class VehicleInoutRequestServiceImpl(
      */
     private fun keytopPlateOf(plate: String): String = PlateNumbers.normalize(plate) ?: plate
 
+    /**
+     * cardInfoOf：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param request 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun cardInfoOf(request: VehicleInoutRequest): KeytopCardInfo = KeytopCardInfo(
         cardName = request.cardName,
         useName = request.owner,
@@ -377,6 +455,14 @@ class VehicleInoutRequestServiceImpl(
         remak = "车辆进出申请登记 #${request.id}",
     )
 
+    /**
+     * carLotsOf：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param request 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun carLotsOf(request: VehicleInoutRequest): List<KeytopCarLot> {
         val areaName = request.areaName ?: return emptyList()
         return listOf(
@@ -427,6 +513,14 @@ class VehicleInoutRequestServiceImpl(
         departmentCode = owner.departmentCode ?: scopeQuerySupport.stampDepartmentCode(owner.dept, null)
     }
 
+    /**
+     * applyArea：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param areaCode 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun VehicleInoutRequest.applyArea(areaCode: String?) {
         this.areaCode = areaCode?.trim()?.takeIf(String::isNotEmpty)
         areaName = this.areaCode?.let(::requireAreaName)
@@ -442,19 +536,47 @@ class VehicleInoutRequestServiceImpl(
         zoneTypeRepository.findByZoneCode(areaCode)?.zoneName
             ?: throw IllegalArgumentException("停车区域 $areaCode 不在停车区域字典中，请先在停车区域页面同步")
 
+    /**
+     * requireValidity：校验输入、状态或访问条件。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param validFrom 参与本次处理的输入参数。
+     * @param validTo 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun requireValidity(validFrom: LocalDateTime, validTo: LocalDateTime) {
         require(!validTo.isBefore(validFrom)) { "有效期结束时间不能早于开始时间" }
     }
 
+    /**
+     * inDateRange：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param value 参与本次处理的输入参数。
+     * @param startDate 参与本次处理的输入参数。
+     * @param endDate 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun inDateRange(value: LocalDateTime, startDate: LocalDate?, endDate: LocalDate?): Boolean =
         (startDate == null || !value.toLocalDate().isBefore(startDate)) &&
-            (endDate == null || !value.toLocalDate().isAfter(endDate))
+                (endDate == null || !value.toLocalDate().isAfter(endDate))
 
+    /**
+     * matchesKeyword：校验输入、状态或访问条件。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param request 参与本次处理的输入参数。
+     * @param keyword 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun matchesKeyword(request: VehicleInoutRequest, keyword: String): Boolean =
         SerialNumbers.matches(request.id, keyword) ||
-            request.plate.contains(keyword, true) ||
-            request.owner.contains(keyword, true) ||
-            request.phone.contains(keyword, true)
+                request.plate.contains(keyword, true) ||
+                request.owner.contains(keyword, true) ||
+                request.phone.contains(keyword, true)
 
     /**
      * 车牌必须已存在于车牌档案且在调用方范围内。
@@ -472,8 +594,25 @@ class VehicleInoutRequestServiceImpl(
         return scopeGuard.requireVisiblePlate(plate, scope, "车牌不存在")
     }
 
+    /**
+     * requireVisible：校验输入、状态或访问条件。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param id 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun requireVisible(id: Long): VehicleInoutRequest = requireVisible(id, scopeGuard.currentScope())
 
+    /**
+     * requireVisible：校验输入、状态或访问条件。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param id 参与本次处理的输入参数。
+     * @param scope 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun requireVisible(id: Long, scope: DataScope): VehicleInoutRequest =
         scopeGuard.requireVisibleRow(repository.findById(id).orElse(null), scope, "申请单不存在")
 
@@ -493,6 +632,13 @@ class VehicleInoutRequestServiceImpl(
         "monthly_card" to request.cardName,
     )
 
+    /**
+     * actorName：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun actorName(): String =
         (SecurityContextHolder.getContext().authentication?.principal as? CurrentUserPrincipal)?.username
             ?: throw AccessDeniedException("缺少有效的操作人上下文")

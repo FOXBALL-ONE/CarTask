@@ -1,25 +1,10 @@
 package top.foxball.cartask.entity
 
-import jakarta.persistence.Column
-import jakarta.persistence.Entity
-import jakarta.persistence.EntityListeners
-import jakarta.persistence.EnumType
-import jakarta.persistence.Enumerated
-import jakarta.persistence.FetchType
-import jakarta.persistence.GeneratedValue
-import jakarta.persistence.GenerationType
-import jakarta.persistence.Id
-import jakarta.persistence.Index
-import jakarta.persistence.JoinColumn
-import jakarta.persistence.ManyToOne
-import jakarta.persistence.PrePersist
-import jakarta.persistence.PreUpdate
-import jakarta.persistence.Table
-import jakarta.persistence.UniqueConstraint
-import java.time.LocalDateTime
-import java.math.BigDecimal
+import jakarta.persistence.*
 import top.foxball.cartask.entity.type.CarType
 import top.foxball.cartask.shared.PlateNumbers
+import java.math.BigDecimal
+import java.time.LocalDateTime
 
 /** 车辆进出门禁的流水记录。 */
 @Entity

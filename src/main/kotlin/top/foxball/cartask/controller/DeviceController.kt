@@ -1,22 +1,14 @@
 package top.foxball.cartask.controller
 
 import com.fasterxml.jackson.annotation.JsonProperty
-import java.time.LocalDate
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
-import org.springframework.web.bind.annotation.DeleteMapping
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.PathVariable
-import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.PutMapping
-import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RequestParam
-import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.bind.annotation.*
 import top.foxball.cartask.entity.Device
 import top.foxball.cartask.service.DeviceService
 import top.foxball.cartask.shared.Response
 import top.foxball.cartask.shared.ResponseBuilder
+import java.time.LocalDate
 
 @RestController
 @RequestMapping("/api/devices")
@@ -51,7 +43,8 @@ class DeviceController(
             location = requireNotNull(body.location) { "设备安装位置不能为空" }
             ip = requireNotNull(body.ip) { "设备 IP 地址不能为空" }
             installDate = requireNotNull(body.installDate) { "设备安装日期不能为空" }.also { LocalDate.parse(it) }
-            status = requireNotNull(body.status) { "设备状态不能为空" }.let { value -> require(value == 0 || value == 1) { "状态必须为 0 或 1" }; if (value == 0) Device.Status.BANNED else Device.Status.Activity }
+            status =
+                requireNotNull(body.status) { "设备状态不能为空" }.let { value -> require(value == 0 || value == 1) { "状态必须为 0 或 1" }; if (value == 0) Device.Status.BANNED else Device.Status.Activity }
         }
         val saved = service.create(device)
         val savedId = requireNotNull(saved.id)
@@ -92,7 +85,8 @@ class DeviceController(
             ip = body.ip ?: current.ip
             installDate = body.installDate?.also { LocalDate.parse(it) } ?: current.installDate
             orderNumber = current.orderNumber
-            status = body.status?.let { if (it == 0) Device.Status.BANNED else Device.Status.Activity } ?: current.status
+            status =
+                body.status?.let { if (it == 0) Device.Status.BANNED else Device.Status.Activity } ?: current.status
         }
         val saved = service.update(id, device)
         val rs = Response(
@@ -124,6 +118,7 @@ class DeviceController(
             val status: Int,
             @param:JsonProperty("installDate") val installDate: String?,
         )
+
         data class Response(
             val items: List<DeviceData>,
             val total: Int,
@@ -141,7 +136,12 @@ class DeviceController(
             sourcePage++
         } while (allDevices.size < sourceTotal)
         val filtered = allDevices.asSequence()
-            .filter { keyword.isNullOrBlank() || it.deviceCode?.contains(keyword, true) == true || it.deviceName?.contains(keyword, true) == true }
+            .filter {
+                keyword.isNullOrBlank() || it.deviceCode?.contains(
+                    keyword,
+                    true
+                ) == true || it.deviceName?.contains(keyword, true) == true
+            }
             .filter { type.isNullOrBlank() || it.deviceType == type }
             .filter { status == null || (if (it.status == Device.Status.Activity) 1 else 0) == status }
             .map {

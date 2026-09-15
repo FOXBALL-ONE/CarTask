@@ -1,5 +1,8 @@
 package top.foxball.setup
 
+import org.slf4j.LoggerFactory
+import org.springframework.stereotype.Component
+import top.foxball.cartask.config.DotenvLoader
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
@@ -7,10 +10,7 @@ import java.nio.file.StandardCopyOption
 import java.security.SecureRandom
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-import java.util.Base64
-import org.slf4j.LoggerFactory
-import org.springframework.stereotype.Component
-import top.foxball.cartask.config.DotenvLoader
+import java.util.*
 
 /**
  * 把引导结果渲染成 `.env`。
@@ -26,6 +26,17 @@ object SetupEnvTemplate {
     private const val SESSION_TTL = "2h"
     private const val CLOCK_SKEW = "30s"
 
+    /**
+     * render：转换、构建或格式化数据。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param values 参与本次处理的输入参数。
+     * @param existing 参与本次处理的输入参数。
+     * @param frontendOrigin 参与本次处理的输入参数。
+     * @param generatedAt 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     fun render(
         values: Map<String, String>,
         existing: Map<String, String>,
@@ -127,6 +138,13 @@ object SetupEnvTemplate {
             .joinToString(",")
     }
 
+    /**
+     * randomBase64Key：转换、构建或格式化数据。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun randomBase64Key(): String {
         val bytes = ByteArray(32)
         SecureRandom().nextBytes(bytes)
@@ -173,10 +191,24 @@ class SetupEnvFile(
                 java.nio.file.attribute.PosixFilePermissions.fromString("rw-------"),
             )
         }
-        logger.info("配置已写入 {}（{} 字节，备份: {}）", path, content.toByteArray(StandardCharsets.UTF_8).size, backup ?: "无")
+        logger.info(
+            "配置已写入 {}（{} 字节，备份: {}）",
+            path,
+            content.toByteArray(StandardCharsets.UTF_8).size,
+            backup ?: "无"
+        )
         return backup
     }
 
+    /**
+     * backup：执行数据同步、探测或文件处理。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param path 参与本次处理的输入参数。
+     * @param now 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun backup(path: Path, now: LocalDateTime): Path? {
         if (!Files.exists(path)) return null
         val stamp = now.format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"))

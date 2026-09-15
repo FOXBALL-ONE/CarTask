@@ -1,9 +1,9 @@
 package top.foxball.setup
 
-import java.nio.file.Path
-import java.time.LocalDateTime
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
+import java.nio.file.Path
+import java.time.LocalDateTime
 
 data class CompletionResult(
     val envPath: Path,
@@ -26,6 +26,14 @@ class SetupCompletion(
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
 
+    /**
+     * complete：执行当前模块中的业务操作。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param frontendOrigin 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     fun complete(frontendOrigin: String?): CompletionResult {
         val draft = draftStore.read()
 

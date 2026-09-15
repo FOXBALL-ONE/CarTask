@@ -1,8 +1,8 @@
 package top.foxball.setup
 
 import org.springframework.boot.context.properties.ConfigurationProperties
-import java.nio.file.Path
 import top.foxball.cartask.config.DotenvLoader
+import java.nio.file.Path
 
 /**
  * 配置引导模式的可调项。

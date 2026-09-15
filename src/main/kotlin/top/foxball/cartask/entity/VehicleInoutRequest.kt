@@ -1,21 +1,10 @@
 package top.foxball.cartask.entity
 
 import com.fasterxml.jackson.annotation.JsonValue
-import jakarta.persistence.Column
-import jakarta.persistence.Entity
-import jakarta.persistence.EntityListeners
-import jakarta.persistence.EnumType
-import jakarta.persistence.Enumerated
-import jakarta.persistence.GeneratedValue
-import jakarta.persistence.GenerationType
-import jakarta.persistence.Id
-import jakarta.persistence.Index
-import jakarta.persistence.PrePersist
-import jakarta.persistence.PreUpdate
-import jakarta.persistence.Table
-import java.time.LocalDateTime
+import jakarta.persistence.*
 import top.foxball.cartask.scope.DepartmentScoped
 import top.foxball.cartask.shared.PlateNumbers
+import java.time.LocalDateTime
 
 /**
  * 车辆进出申请登记单：为某个车牌申请下发科拓月卡。
@@ -177,7 +166,8 @@ class VehicleInoutRequest : DepartmentScoped {
         PENDING, APPROVED, REJECTED, CANCELLED;
 
         /** 展示文案由后端统一给，避免各端各写一套映射。 */
-        @JsonValue fun value(): String = when (this) {
+        @JsonValue
+        fun value(): String = when (this) {
             PENDING -> "待审核"
             APPROVED -> "已通过"
             REJECTED -> "已驳回"
@@ -188,7 +178,8 @@ class VehicleInoutRequest : DepartmentScoped {
     enum class SyncStatus {
         NOT_SYNCED, SYNCED, FAILED;
 
-        @JsonValue fun value(): String = when (this) {
+        @JsonValue
+        fun value(): String = when (this) {
             NOT_SYNCED -> "未下发"
             SYNCED -> "已下发"
             FAILED -> "下发失败"

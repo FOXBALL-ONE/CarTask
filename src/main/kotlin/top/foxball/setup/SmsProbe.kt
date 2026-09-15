@@ -26,6 +26,19 @@ data class SmsProbeResult(
 class SmsProbe(
     private val objectMapper: ObjectMapper,
 ) {
+    /**
+     * probe：执行数据同步、探测或文件处理。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param accessKeyId 参与本次处理的输入参数。
+     * @param accessKeySecret 参与本次处理的输入参数。
+     * @param endpoint 参与本次处理的输入参数。
+     * @param signName 参与本次处理的输入参数。
+     * @param templateCode 参与本次处理的输入参数。
+     * @param phone 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     fun probe(
         accessKeyId: String,
         accessKeySecret: String,
@@ -64,19 +77,28 @@ class SmsProbe(
         if (body?.responseCode != SUCCESS_CODE) {
             throw SetupException(
                 "短信发送失败：${body?.responseDescription ?: "平台未返回原因"}" +
-                    "（代码 ${body?.responseCode ?: "未知"}），请核对 AccessKey、签名与模板的可用性",
+                        "（代码 ${body?.responseCode ?: "未知"}），请核对 AccessKey、签名与模板的可用性",
             )
         }
         return SmsProbeResult(phone = normalized, code = TEST_CODE)
     }
 
+    /**
+     * describe：转换、构建或格式化数据。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param exception 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun describe(exception: Exception): String {
         val raw = generateSequence(exception as Throwable) { it.cause }
             .mapNotNull { it.message }
             .joinToString("；")
         val hint = when {
             raw.contains("InvalidAccessKeyId", ignoreCase = true) ||
-                raw.contains("SignatureDoesNotMatch", ignoreCase = true) -> "AccessKey ID 或 Secret 不正确"
+                    raw.contains("SignatureDoesNotMatch", ignoreCase = true) -> "AccessKey ID 或 Secret 不正确"
+
             raw.contains("UnknownHost", ignoreCase = true) -> "短信接口域名无法解析，请检查网络与 DNS"
             raw.contains("timeout", ignoreCase = true) -> "请求超时，请检查服务器出口网络"
             else -> "请检查 AccessKey 与网络可达性"

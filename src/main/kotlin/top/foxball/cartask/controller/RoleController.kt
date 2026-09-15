@@ -3,18 +3,10 @@ package top.foxball.cartask.controller
 import com.fasterxml.jackson.annotation.JsonProperty
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
-import org.springframework.web.bind.annotation.DeleteMapping
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.PathVariable
-import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.PutMapping
-import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RequestParam
-import org.springframework.web.bind.annotation.RestController
-import top.foxball.cartask.entity.Role
-import top.foxball.cartask.authentication.SecurityRole
+import org.springframework.web.bind.annotation.*
 import top.foxball.cartask.authentication.SecurityPermission
+import top.foxball.cartask.authentication.SecurityRole
+import top.foxball.cartask.entity.Role
 import top.foxball.cartask.repository.PermissionRepository
 import top.foxball.cartask.repository.RoleRepository
 import top.foxball.cartask.service.RoleService
@@ -65,7 +57,14 @@ class RoleController(
             }
         }
         val saved = service.create(role)
-        val rs = Response(requireNotNull(saved.id), name, saved.name, saved.documentSort ?: 0, if (saved.enabled) 1 else 0, saved.documentRemark)
+        val rs = Response(
+            requireNotNull(saved.id),
+            name,
+            saved.name,
+            saved.documentSort ?: 0,
+            if (saved.enabled) 1 else 0,
+            saved.documentRemark
+        )
         return responseBuilder.created().data(rs).build()
     }
 
@@ -88,9 +87,18 @@ class RoleController(
             val remark: String?,
             @param:JsonProperty("permission_codes") val permissionCodes: List<String>,
         )
+
         val role = roleRepository.findById(id).orElseThrow { IllegalArgumentException("角色不存在") }
         val loadedRole = roleRepository.findByNameIgnoreCase(role.name) ?: role
-        val rs = Response(requireNotNull(loadedRole.id), loadedRole.description ?: loadedRole.name, loadedRole.documentCode ?: loadedRole.name, loadedRole.documentSort ?: 0, loadedRole.documentStatus ?: if (loadedRole.enabled) 1 else 0, loadedRole.documentRemark, loadedRole.permissions.map { it.code }.sorted())
+        val rs = Response(
+            requireNotNull(loadedRole.id),
+            loadedRole.description ?: loadedRole.name,
+            loadedRole.documentCode ?: loadedRole.name,
+            loadedRole.documentSort ?: 0,
+            loadedRole.documentStatus ?: if (loadedRole.enabled) 1 else 0,
+            loadedRole.documentRemark,
+            loadedRole.permissions.map { it.code }.sorted()
+        )
         return responseBuilder.ok().data(rs).build()
     }
 
@@ -115,6 +123,7 @@ class RoleController(
             val status: Int,
             val remark: String?,
         )
+
         data class Response(val items: List<RoleData>, val total: Int)
 
         require(page >= 1) { "页码必须大于 0" }
@@ -182,7 +191,14 @@ class RoleController(
             }
         }
         val saved = service.update(id, role)
-        val rs = Response(id, saved.description ?: saved.name, saved.name, saved.documentSort ?: 0, if (saved.enabled) 1 else 0, saved.documentRemark)
+        val rs = Response(
+            id,
+            saved.description ?: saved.name,
+            saved.name,
+            saved.documentSort ?: 0,
+            if (saved.enabled) 1 else 0,
+            saved.documentRemark
+        )
         return responseBuilder.ok().data(rs).build()
     }
 

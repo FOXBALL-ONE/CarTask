@@ -48,10 +48,21 @@ data class BackupProgress(
             // 没有附件时打包只剩写清单，没有可推进的量，直接算到位而不是停在 80。
             BackupPhase.ARCHIVING -> if (filesTotal == 0) 100
             else DUMPING_CEILING + ratio(filesDone.toLong(), filesTotal.toLong(), 100 - DUMPING_CEILING)
+
             BackupPhase.FINISHED -> 100
             BackupPhase.FAILED -> 0
         }
 
+    /**
+     * ratio：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param done 参与本次处理的输入参数。
+     * @param total 参与本次处理的输入参数。
+     * @param span 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun ratio(done: Long, total: Long, span: Int): Int =
         if (total <= 0) 0 else (done * span / total).toInt().coerceIn(0, span)
 
@@ -60,6 +71,13 @@ data class BackupProgress(
         private const val COUNTING_CEILING = 5
         private const val DUMPING_CEILING = 80
 
+        /**
+         * idle：执行当前模块中的业务操作。
+         *
+         * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+         * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+         * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+         */
         fun idle(): BackupProgress = BackupProgress(
             phase = BackupPhase.IDLE,
             label = "空闲",
@@ -89,14 +107,31 @@ data class BackupProgress(
 class BackupProgressService {
     private val current = AtomicReference(BackupProgress.idle())
 
+    /**
+     * snapshot：执行当前模块中的业务操作。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     fun snapshot(): BackupProgress = current.get()
 
+    /**
+     * startCounting：执行当前模块中的业务操作。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param startedAt 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     fun startCounting(startedAt: LocalDateTime = LocalDateTime.now()) {
-        current.set(BackupProgress.idle().copy(
-            phase = BackupPhase.COUNTING,
-            label = "统计备份范围",
-            startedAt = startedAt,
-        ))
+        current.set(
+            BackupProgress.idle().copy(
+                phase = BackupPhase.COUNTING,
+                label = "统计备份范围",
+                startedAt = startedAt,
+            )
+        )
     }
 
     /** 统计阶段每数完一张表报一次，让前端看到它在往前走。 */
@@ -104,6 +139,15 @@ class BackupProgressService {
         current.updateAndGet { it.copy(tablesDone = tablesDone, tablesTotal = tablesTotal) }
     }
 
+    /**
+     * startDumping：执行当前模块中的业务操作。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param tablesTotal 参与本次处理的输入参数。
+     * @param rowsTotal 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     fun startDumping(tablesTotal: Int, rowsTotal: Long) {
         current.updateAndGet {
             it.copy(
@@ -117,26 +161,66 @@ class BackupProgressService {
         }
     }
 
+    /**
+     * dumping：执行当前模块中的业务操作。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param tablesDone 参与本次处理的输入参数。
+     * @param rowsDone 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     fun dumping(tablesDone: Int, rowsDone: Long) {
         current.updateAndGet { it.copy(tablesDone = tablesDone, rowsDone = rowsDone) }
     }
 
+    /**
+     * startArchiving：执行当前模块中的业务操作。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param filesTotal 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     fun startArchiving(filesTotal: Int) {
         current.updateAndGet {
             it.copy(phase = BackupPhase.ARCHIVING, label = "打包附件", filesDone = 0, filesTotal = filesTotal)
         }
     }
 
+    /**
+     * archiving：执行当前模块中的业务操作。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param filesDone 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     fun archiving(filesDone: Int) {
         current.updateAndGet { it.copy(filesDone = filesDone) }
     }
 
+    /**
+     * finish：执行当前模块中的业务操作。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     fun finish() {
         current.updateAndGet {
             it.copy(phase = BackupPhase.FINISHED, label = "备份完成", finishedAt = LocalDateTime.now())
         }
     }
 
+    /**
+     * fail：执行当前模块中的业务操作。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param reason 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     fun fail(reason: String) {
         current.updateAndGet {
             it.copy(

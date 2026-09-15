@@ -2,15 +2,6 @@ package top.foxball.cartask.controller
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.zaxxer.hikari.HikariDataSource
-import java.io.File
-import java.lang.management.ManagementFactory
-import java.net.InetAddress
-import java.nio.charset.StandardCharsets
-import java.nio.file.Files
-import java.time.Instant
-import java.time.LocalDateTime
-import java.time.ZoneId
-import javax.sql.DataSource
 import org.springframework.data.redis.core.StringRedisTemplate
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
@@ -20,6 +11,15 @@ import org.springframework.web.bind.annotation.RestController
 import top.foxball.cartask.authentication.PermissionCatalog
 import top.foxball.cartask.shared.Response
 import top.foxball.cartask.shared.ResponseBuilder
+import java.io.File
+import java.lang.management.ManagementFactory
+import java.net.InetAddress
+import java.nio.charset.StandardCharsets
+import java.nio.file.Files
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.ZoneId
+import javax.sql.DataSource
 
 @RestController
 @RequestMapping("/api/system-monitor")
@@ -30,6 +30,13 @@ class SystemMonitorController(
 ) {
     @GetMapping
     @PreAuthorize("hasAuthority('${PermissionCatalog.SYSTEM_MONITOR_READ}')")
+            /**
+             * getSnapshot：查询或读取相关数据。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun getSnapshot(): ResponseEntity<Response> {
         data class UsageData(val used: Long, val committed: Long, val max: Long)
         data class DiskData(
@@ -39,6 +46,7 @@ class SystemMonitorController(
             @param:JsonProperty("usable_bytes") val usableBytes: Long,
             @param:JsonProperty("used_bytes") val usedBytes: Long,
         )
+
         data class SystemData(
             @param:JsonProperty("host_name") val hostName: String,
             @param:JsonProperty("host_address") val hostAddress: String,
@@ -50,6 +58,7 @@ class SystemMonitorController(
             @param:JsonProperty("physical_memory") val physicalMemory: UsageData,
             val disks: List<DiskData>,
         )
+
         data class JvmData(
             val name: String,
             val vendor: String,
@@ -61,11 +70,13 @@ class SystemMonitorController(
             @param:JsonProperty("thread_count") val threadCount: Int,
             @param:JsonProperty("peak_thread_count") val peakThreadCount: Int,
         )
+
         data class GcData(
             val name: String,
             @param:JsonProperty("collection_count") val collectionCount: Long,
             @param:JsonProperty("collection_time_millis") val collectionTimeMillis: Long,
         )
+
         data class DatabaseData(
             val status: String,
             val product: String?,
@@ -78,6 +89,7 @@ class SystemMonitorController(
             @param:JsonProperty("max_connections") val maxConnections: Int?,
             @param:JsonProperty("waiting_threads") val waitingThreads: Int?,
         )
+
         data class RedisData(
             val status: String,
             val version: String?,
@@ -92,6 +104,7 @@ class SystemMonitorController(
             @param:JsonProperty("keyspace_hits") val keyspaceHits: Long?,
             @param:JsonProperty("keyspace_misses") val keyspaceMisses: Long?,
         )
+
         data class Response(
             @param:JsonProperty("captured_at") val capturedAt: LocalDateTime,
             val system: SystemData,
@@ -112,7 +125,13 @@ class SystemMonitorController(
                 val fileStore = Files.getFileStore(root.toPath())
                 val totalBytes = fileStore.totalSpace
                 val usableBytes = fileStore.usableSpace
-                DiskData(root.absolutePath, fileStore.type(), totalBytes, usableBytes, (totalBytes - usableBytes).coerceAtLeast(0))
+                DiskData(
+                    root.absolutePath,
+                    fileStore.type(),
+                    totalBytes,
+                    usableBytes,
+                    (totalBytes - usableBytes).coerceAtLeast(0)
+                )
             }.getOrNull()
         }
         val heap = memory.heapMemoryUsage
@@ -142,7 +161,18 @@ class SystemMonitorController(
                 )
             }
         }.getOrElse {
-            DatabaseData("DOWN", null, null, null, null, pool?.activeConnections, pool?.idleConnections, pool?.totalConnections, hikari?.maximumPoolSize, pool?.threadsAwaitingConnection)
+            DatabaseData(
+                "DOWN",
+                null,
+                null,
+                null,
+                null,
+                pool?.activeConnections,
+                pool?.idleConnections,
+                pool?.totalConnections,
+                hikari?.maximumPoolSize,
+                pool?.threadsAwaitingConnection
+            )
         }
         val redis = runCatching {
             val rawInfo = redisTemplate.execute<String> { connection ->
@@ -194,7 +224,8 @@ class SystemMonitorController(
                 name = System.getProperty("java.vm.name", "unknown"),
                 vendor = System.getProperty("java.vendor", "unknown"),
                 version = System.getProperty("java.version", "unknown"),
-                startTime = Instant.ofEpochMilli(ManagementFactory.getRuntimeMXBean().startTime).atZone(ZoneId.systemDefault()).toLocalDateTime(),
+                startTime = Instant.ofEpochMilli(ManagementFactory.getRuntimeMXBean().startTime)
+                    .atZone(ZoneId.systemDefault()).toLocalDateTime(),
                 uptimeMillis = ManagementFactory.getRuntimeMXBean().uptime,
                 heapMemory = UsageData(heap.used, heap.committed, heap.max),
                 nonHeapMemory = UsageData(nonHeap.used, nonHeap.committed, nonHeap.max),

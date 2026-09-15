@@ -2,23 +2,16 @@ package top.foxball.cartask.controller
 
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonProperty
-import java.time.LocalDate
-import java.time.LocalDateTime
-import java.time.OffsetDateTime
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.PathVariable
-import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.PutMapping
-import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RequestParam
-import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.bind.annotation.*
 import top.foxball.cartask.entity.VehicleInoutRequest
 import top.foxball.cartask.service.VehicleInoutRequestService
 import top.foxball.cartask.shared.Response
 import top.foxball.cartask.shared.ResponseBuilder
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.OffsetDateTime
 
 /**
  * 登记申请时顺带新建的车主与账号。
@@ -127,6 +120,7 @@ class VehicleInoutRequestController(
             @param:JsonProperty("review_reason") val reviewReason: String?,
             @param:JsonProperty("synced_at") val syncedAt: LocalDateTime?,
         )
+
         data class PageData(val items: List<RequestData>, val total: Int)
 
         val result = service.list(
@@ -340,6 +334,14 @@ class VehicleInoutRequestController(
             .build()
     }
 
+    /**
+     * parseStatus：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param raw 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun parseStatus(raw: String?): VehicleInoutRequest.Status? {
         val value = raw?.trim()?.takeIf(String::isNotEmpty) ?: return null
         // 前端传的是界面上的中文文案，也接受枚举名，避免调用方被迫知道后端枚举。
@@ -347,6 +349,14 @@ class VehicleInoutRequestController(
             ?: throw IllegalArgumentException("不支持的申请状态：$value")
     }
 
+    /**
+     * parseSyncStatus：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param raw 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun parseSyncStatus(raw: String?): VehicleInoutRequest.SyncStatus? {
         val value = raw?.trim()?.takeIf(String::isNotEmpty) ?: return null
         return VehicleInoutRequest.SyncStatus.entries.firstOrNull { it.name == value || it.value() == value }
@@ -366,6 +376,14 @@ class VehicleInoutRequestController(
         return parseDateTime(value) ?: throw IllegalArgumentException("${label}格式不正确：$raw")
     }
 
+    /**
+     * parseDateTime：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param value 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun parseDateTime(value: String): LocalDateTime? {
         runCatching { LocalDateTime.parse(value) }.getOrNull()?.let { return it }
         runCatching { OffsetDateTime.parse(value).toLocalDateTime() }.getOrNull()?.let { return it }

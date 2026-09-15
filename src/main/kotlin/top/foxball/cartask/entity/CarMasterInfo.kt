@@ -1,22 +1,9 @@
 package top.foxball.cartask.entity
 
-import jakarta.persistence.CollectionTable
-import jakarta.persistence.Column
-import jakarta.persistence.ElementCollection
-import jakarta.persistence.Embeddable
-import jakarta.persistence.Entity
-import jakarta.persistence.EntityListeners
-import jakarta.persistence.FetchType
-import jakarta.persistence.GeneratedValue
-import jakarta.persistence.GenerationType
-import jakarta.persistence.Id
-import jakarta.persistence.JoinColumn
-import jakarta.persistence.ManyToOne
-import jakarta.persistence.OrderColumn
-import jakarta.persistence.Table
-import java.time.LocalDateTime
+import jakarta.persistence.*
 import top.foxball.cartask.entity.type.CarType
 import top.foxball.cartask.entity.type.LicensePlateType
+import java.time.LocalDateTime
 
 /** 车辆主档，保存车辆联系人、归属和通行卡等基础信息。 */
 @Entity

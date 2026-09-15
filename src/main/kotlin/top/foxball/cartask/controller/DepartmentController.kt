@@ -3,14 +3,7 @@ package top.foxball.cartask.controller
 import com.fasterxml.jackson.annotation.JsonProperty
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
-import org.springframework.web.bind.annotation.DeleteMapping
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.PathVariable
-import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.PutMapping
-import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RequestParam
-import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.bind.annotation.*
 import top.foxball.cartask.service.DepartmentService
 import top.foxball.cartask.shared.Response
 import top.foxball.cartask.shared.ResponseBuilder
@@ -78,6 +71,7 @@ class DepartmentController(
             val director: String?,
             @param:JsonProperty("contact_phone") val contactPhone: String?,
         )
+
         data class Response(val departments: List<DepartmentData>)
 
         require(name.isNotEmpty()) { "部门列表不能为空" }
@@ -130,6 +124,7 @@ class DepartmentController(
             val director: String?,
             @param:JsonProperty("contact_phone") val contactPhone: String?,
         )
+
         data class Response(val departments: List<DepartmentData>)
 
         require(name.isNotEmpty()) { "下级部门列表不能为空" }
@@ -174,6 +169,7 @@ class DepartmentController(
             val director: String?,
             @param:JsonProperty("contact_phone") val contactPhone: String?,
         )
+
         data class Response(
             val departments: List<DepartmentData>,
             val total: Int,
@@ -234,6 +230,7 @@ class DepartmentController(
             val director: String?,
             @param:JsonProperty("contact_phone") val contactPhone: String?,
         )
+
         data class Response(val departments: List<DepartmentData>)
 
         val departments = departmentService.getBatch(id)

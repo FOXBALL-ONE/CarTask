@@ -1,7 +1,7 @@
 package top.foxball.setup
 
-import java.nio.file.Path
 import top.foxball.cartask.config.DotenvLoader
+import java.nio.file.Path
 
 /**
  * 判定这次启动进「配置引导模式」还是正常运行。

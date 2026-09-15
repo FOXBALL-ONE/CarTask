@@ -4,15 +4,8 @@ import org.slf4j.LoggerFactory
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import top.foxball.cartask.repository.AccessRecordRepository
-import top.foxball.cartask.repository.GatePersonRepository
-import top.foxball.cartask.repository.ParkingOwnerRepository
-import top.foxball.cartask.repository.ParkingSpotRepository
-import top.foxball.cartask.repository.ParkingPlateRepository
-import top.foxball.cartask.repository.PersonAccessRecordRepository
-import top.foxball.cartask.repository.ViolationSubjectRepository
+import top.foxball.cartask.repository.*
 import top.foxball.cartask.shared.PlateNumbers
-import top.foxball.cartask.repository.UserRepository
 
 /** 单个资源的回填/未解析统计。 */
 data class BackfillCount(val scanned: Int, val resolved: Int, val unresolved: Int)
@@ -57,6 +50,13 @@ class DepartmentLinkBackfillService(
     private val violationSubjectRepository: ViolationSubjectRepository,
 ) {
     @Transactional
+            /**
+             * backfill：执行当前模块中的业务操作。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun backfill(): BackfillSummary {
         // 本次回填统一复用一份部门快照。
         val departments = departmentLinkResolver.snapshot()
@@ -193,9 +193,12 @@ class DepartmentLinkBackfillService(
     fun unlinkedSummary(): UnlinkedSummary {
         val departments = departmentLinkResolver.snapshot()
         return UnlinkedSummary(
-            owners = parkingOwnerRepository.findAll().count { (it.departmentCode ?: departments.toCode(it.dept)) == null },
-            gatePersons = gatePersonRepository.findAll().count { (it.departmentCode ?: departments.toCode(it.dept)) == null },
-            personRecords = personAccessRecordRepository.findAll().count { (it.departmentCode ?: departments.toCode(it.dept)) == null },
+            owners = parkingOwnerRepository.findAll()
+                .count { (it.departmentCode ?: departments.toCode(it.dept)) == null },
+            gatePersons = gatePersonRepository.findAll()
+                .count { (it.departmentCode ?: departments.toCode(it.dept)) == null },
+            personRecords = personAccessRecordRepository.findAll()
+                .count { (it.departmentCode ?: departments.toCode(it.dept)) == null },
             spots = parkingSpotRepository.findAll().count { it.ownerCode == null },
             violationSubjects = violationSubjectRepository.findAll()
                 .count { (it.departmentCode ?: departments.toCode(it.subjectName)) == null },

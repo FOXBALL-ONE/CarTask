@@ -1,17 +1,9 @@
 package top.foxball.cartask.entity
 
-import jakarta.persistence.Column
-import jakarta.persistence.Entity
-import jakarta.persistence.EntityListeners
-import jakarta.persistence.EnumType
-import jakarta.persistence.Enumerated
-import jakarta.persistence.GeneratedValue
-import jakarta.persistence.GenerationType
-import jakarta.persistence.Id
-import jakarta.persistence.Table
 import com.fasterxml.jackson.annotation.JsonValue
-import java.time.LocalDateTime
+import jakarta.persistence.*
 import top.foxball.cartask.scope.DepartmentScoped
+import java.time.LocalDateTime
 
 @Entity
 @EntityListeners(AuditingEntityListener::class)
@@ -67,6 +59,10 @@ class GateDeleteRequest : DepartmentScoped {
 
     enum class Status {
         PENDING, APPROVED, REJECTED;
-        @JsonValue fun value(): String = when (this) { PENDING -> "待处理"; APPROVED -> "已同意"; REJECTED -> "已拒绝" }
+
+        @JsonValue
+        fun value(): String = when (this) {
+            PENDING -> "待处理"; APPROVED -> "已同意"; REJECTED -> "已拒绝"
+        }
     }
 }

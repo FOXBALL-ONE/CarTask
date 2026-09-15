@@ -1,18 +1,8 @@
 package top.foxball.cartask.entity
 
-import jakarta.persistence.Column
-import jakarta.persistence.Entity
-import jakarta.persistence.EntityListeners
-import jakarta.persistence.EnumType
-import jakarta.persistence.Enumerated
-import jakarta.persistence.GeneratedValue
-import jakarta.persistence.GenerationType
-import jakarta.persistence.Id
-import jakarta.persistence.Index
-import jakarta.persistence.Table
-import top.foxball.cartask.scope.DepartmentScoped
-import jakarta.persistence.UniqueConstraint
 import com.fasterxml.jackson.annotation.JsonValue
+import jakarta.persistence.*
+import top.foxball.cartask.scope.DepartmentScoped
 import java.time.LocalDateTime
 
 @Entity
@@ -75,10 +65,17 @@ class GatePerson : DepartmentScoped {
 
     enum class ApproveStatus {
         PENDING, APPROVED, REJECTED;
-        @JsonValue fun value(): String = when (this) { PENDING -> "审核中"; APPROVED -> "通过"; REJECTED -> "拒绝" }
+
+        @JsonValue
+        fun value(): String = when (this) {
+            PENDING -> "审核中"; APPROVED -> "通过"; REJECTED -> "拒绝"
+        }
     }
+
     enum class SyncStatus {
         SYNCED, NOT_SYNCED;
-        @JsonValue fun value(): String = if (this == SYNCED) "已同步" else "未同步"
+
+        @JsonValue
+        fun value(): String = if (this == SYNCED) "已同步" else "未同步"
     }
 }

@@ -1,16 +1,8 @@
 package top.foxball.cartask.entity
 
-import jakarta.persistence.Column
-import jakarta.persistence.Entity
-import jakarta.persistence.EnumType
-import jakarta.persistence.Enumerated
-import jakarta.persistence.GeneratedValue
-import jakarta.persistence.GenerationType
-import jakarta.persistence.Id
-import jakarta.persistence.Index
-import jakarta.persistence.Table
+import jakarta.persistence.*
 import java.time.LocalDateTime
-import java.util.UUID
+import java.util.*
 
 /** 追加式业务与安全审计事件；应用代码不提供更新和删除接口。 */
 @Entity
@@ -144,6 +136,7 @@ class AuditEvent {
         CONFIGURATION,
         DATA_EXPORT,
     }
+
     enum class RiskLevel { LOW, MEDIUM, HIGH, CRITICAL }
     enum class Result { SUCCESS, DENIED, FAILED }
 }

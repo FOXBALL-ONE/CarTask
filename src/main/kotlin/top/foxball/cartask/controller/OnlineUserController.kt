@@ -6,8 +6,8 @@ import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
-import top.foxball.cartask.repository.UserRepository
 import top.foxball.cartask.entity.User
+import top.foxball.cartask.repository.UserRepository
 import top.foxball.cartask.service.OnlinePresenceService
 import top.foxball.cartask.shared.Response
 import top.foxball.cartask.shared.ResponseBuilder
@@ -31,6 +31,7 @@ class OnlineUserController(
             val role: String,
             @param:JsonProperty("last_seen") val lastSeen: LocalDateTime,
         )
+
         data class Response(
             val items: List<UserData>,
             val total: Int,

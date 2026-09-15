@@ -4,18 +4,8 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import org.springframework.http.HttpHeaders
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.PutMapping
-import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RequestParam
-import org.springframework.web.bind.annotation.RestController
-import top.foxball.cartask.authentication.AccessTokenValue
-import top.foxball.cartask.authentication.AuthService
-import top.foxball.cartask.authentication.CaptchaService
-import top.foxball.cartask.authentication.CurrentUserPrincipal
-import top.foxball.cartask.authentication.SmsVerificationService
+import org.springframework.web.bind.annotation.*
+import top.foxball.cartask.authentication.*
 import top.foxball.cartask.scope.WorkingDepartmentService
 import top.foxball.cartask.scope.WorkingDepartmentState
 import top.foxball.cartask.service.ProfileService
@@ -44,6 +34,14 @@ class AuthController(
     }
 
     @PostMapping("/login")
+            /**
+             * login：完成身份认证、令牌或验证码处理。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param command 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun login(@RequestBody command: AuthService.LoginCommand): ResponseEntity<Response> {
         data class Response(
             @param:JsonProperty("access_token") val accessToken: AccessTokenValue,
@@ -88,13 +86,23 @@ class AuthController(
     }
 
     @PostMapping("/sms/login")
+            /**
+             * smsLogin：执行当前模块中的业务操作。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param command 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun smsLogin(@RequestBody command: AuthService.SmsLoginCommand): ResponseEntity<Response> {
         val result = authService.loginBySms(command)
+
         data class LoginResponse(
             @param:JsonProperty("access_token") val accessToken: AccessTokenValue,
             @param:JsonProperty("expires_at") val expiresAt: LocalDateTime,
             val user: SessionUser,
         )
+
         val rs = LoginResponse(result.accessToken, result.expiresAt, result.toSessionUser())
         return responseBuilder.ok()
             .header(HttpHeaders.AUTHORIZATION, "Bearer ${result.accessToken}")
@@ -105,12 +113,28 @@ class AuthController(
     }
 
     @PostMapping("/sms/reset-password")
+            /**
+             * resetPassword：更新业务状态或修改相关配置。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param command 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun resetPassword(@RequestBody command: AuthService.ResetPasswordCommand): ResponseEntity<Response> {
         authService.resetPassword(command)
         return responseBuilder.ok().data(mapOf("reset" to true)).build()
     }
 
     @GetMapping("/session")
+            /**
+             * session：执行当前模块中的业务操作。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param principal 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun session(@AuthenticationPrincipal principal: CurrentUserPrincipal): ResponseEntity<Response> {
         // 会话中的改密标记以 principal 为准（过滤器也按它拦截），头像需回库读取。
         val rs = sessionUserOf(
@@ -156,11 +180,19 @@ class AuthController(
             .data(state.toData())
             .build()
     }
-    
+
     @PostMapping("/logout")
+            /**
+             * logout：删除、清理或撤销相关数据。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param principal 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun logout(@AuthenticationPrincipal principal: CurrentUserPrincipal): ResponseEntity<Response> {
         data class Response(@param:JsonProperty("logged_out") val loggedOut: Boolean)
-        
+
         authService.logout(principal.tokenId)
         val rs = Response(true)
         return responseBuilder.ok()
@@ -176,31 +208,38 @@ class AuthController(
      */
     private data class SessionUser(
         @param:JsonProperty("user_id") val userId: Long,
-        val username: kotlin.String,
-        val role: kotlin.String,
-        val permissions: List<kotlin.String>,
+        val username: String,
+        val role: String,
+        val permissions: List<String>,
         @param:JsonProperty("must_change_password") val mustChangePassword: Boolean,
-        val avatar: kotlin.String?,
+        val avatar: String?,
         /** ALL / DEPARTMENT / SELF。 */
-        val scope: kotlin.String,
+        val scope: String,
         @param:JsonProperty("working_department_id") val workingDepartmentId: Long?,
-        @param:JsonProperty("working_department_name") val workingDepartmentName: kotlin.String?,
+        @param:JsonProperty("working_department_name") val workingDepartmentName: String?,
         @param:JsonProperty("working_department_options") val workingDepartmentOptions: List<DepartmentOptionData>,
     )
 
     private data class DepartmentOptionData(
         val id: Long,
-        val name: kotlin.String,
+        val name: String,
         val selected: Boolean,
     )
 
     private data class WorkingDepartmentData(
         @param:JsonProperty("current_id") val currentId: Long?,
-        @param:JsonProperty("current_name") val currentName: kotlin.String?,
-        val scope: kotlin.String,
+        @param:JsonProperty("current_name") val currentName: String?,
+        val scope: String,
         val options: List<DepartmentOptionData>,
     )
 
+    /**
+     * toData：转换、构建或格式化数据。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun WorkingDepartmentState.toData(): WorkingDepartmentData = WorkingDepartmentData(
         currentId,
         currentName,
@@ -211,11 +250,11 @@ class AuthController(
     /** 登录响应与会话查询必须给出完全相同的结构，否则刷新页面后前端状态会漂移。 */
     private fun sessionUserOf(
         userId: Long,
-        username: kotlin.String,
-        role: kotlin.String,
-        permissions: List<kotlin.String>,
+        username: String,
+        role: String,
+        permissions: List<String>,
         mustChangePassword: Boolean,
-        avatar: kotlin.String?,
+        avatar: String?,
         workingDepartmentId: Long?,
     ): SessionUser {
         val state = workingDepartmentService.stateOf(userId, role, workingDepartmentId)
@@ -233,6 +272,13 @@ class AuthController(
         )
     }
 
+    /**
+     * toSessionUser：转换、构建或格式化数据。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun AuthService.LoginData.toSessionUser(): SessionUser = sessionUserOf(
         userId,
         username,

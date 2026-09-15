@@ -1,13 +1,13 @@
 package top.foxball.setup
 
-import java.net.Inet4Address
-import java.net.NetworkInterface
 import org.slf4j.LoggerFactory
 import org.springframework.boot.ApplicationArguments
 import org.springframework.boot.ApplicationRunner
 import org.springframework.boot.web.server.context.WebServerApplicationContext
 import org.springframework.context.ApplicationContext
 import org.springframework.stereotype.Component
+import java.net.Inet4Address
+import java.net.NetworkInterface
 
 /**
  * 启动横幅：把「现在是配置模式、口令是什么、配置会写到哪」一次性说清楚。
@@ -26,6 +26,14 @@ class SetupBanner(
 ) : ApplicationRunner {
     private val logger = LoggerFactory.getLogger(javaClass)
 
+    /**
+     * run：执行当前模块中的业务操作。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param args 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     override fun run(args: ApplicationArguments) {
         val port = (applicationContext as? WebServerApplicationContext)?.webServer?.port ?: DEFAULT_PORT
         logger.info(
@@ -64,6 +72,13 @@ class SetupBanner(
         return "http://localhost:$FRONTEND_PORT/setup $suffix"
     }
 
+    /**
+     * localAddresses：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun localAddresses(): List<String> = runCatching {
         NetworkInterface.getNetworkInterfaces().asSequence()
             .filter { it.isUp && !it.isLoopback }

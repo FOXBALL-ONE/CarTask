@@ -3,62 +3,32 @@ package top.foxball.cartask.controller
 import com.fasterxml.jackson.annotation.JsonProperty
 import jakarta.persistence.criteria.Predicate
 import jakarta.transaction.Transactional
-import java.math.BigDecimal
-import java.time.LocalDate
-import java.time.LocalDateTime
-import java.util.Locale
-import org.springframework.http.ResponseEntity
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
 import org.springframework.data.jpa.domain.Specification
+import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
-import org.springframework.web.bind.annotation.DeleteMapping
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.PathVariable
-import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.PutMapping
-import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestPart
-import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RequestParam
-import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.bind.annotation.*
 import org.springframework.web.multipart.MultipartFile
 import tools.jackson.databind.ObjectMapper
-import top.foxball.cartask.entity.AccessRecord
-import top.foxball.cartask.entity.GateDeleteRequest
-import top.foxball.cartask.entity.GatePerson
-import top.foxball.cartask.entity.ParkingOwner
-import top.foxball.cartask.entity.ParkingPlate
-import top.foxball.cartask.entity.ParkingSpot
-import top.foxball.cartask.entity.Position
-import top.foxball.cartask.entity.StoredFile
 import top.foxball.cartask.audit.AuditAction
 import top.foxball.cartask.audit.AuditCommand
 import top.foxball.cartask.audit.AuditService
+import top.foxball.cartask.entity.*
 import top.foxball.cartask.logging.LogVisibilityService
-import top.foxball.cartask.repository.AccessRecordRepository
-import top.foxball.cartask.repository.GateDeleteRequestRepository
-import top.foxball.cartask.repository.GatePersonRepository
-import top.foxball.cartask.repository.ParkingOwnerRepository
-import top.foxball.cartask.repository.ParkingPlateRepository
-import top.foxball.cartask.repository.ParkingSpotRepository
-import top.foxball.cartask.repository.PersonAccessRecordRepository
-import top.foxball.cartask.repository.AuditEventRepository
-import top.foxball.cartask.repository.OperationLogRepository
-import top.foxball.cartask.entity.OperationLog
-import top.foxball.cartask.repository.ViolationRecordRepository
+import top.foxball.cartask.repository.*
 import top.foxball.cartask.scope.DataScopeResolver
 import top.foxball.cartask.scope.ScopeGuard
 import top.foxball.cartask.scope.ScopeQuerySupport
 import top.foxball.cartask.service.DashboardSpotStatsService
 import top.foxball.cartask.service.DepartmentService
-import top.foxball.cartask.service.PositionService
 import top.foxball.cartask.service.FileService
-import top.foxball.cartask.shared.GatePersonFields
-import top.foxball.cartask.shared.Response
-import top.foxball.cartask.shared.ResponseBuilder
-import top.foxball.cartask.shared.SerialNumbers
-import top.foxball.cartask.shared.VehicleInspection
+import top.foxball.cartask.service.PositionService
+import top.foxball.cartask.shared.*
+import java.math.BigDecimal
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.util.*
 
 /** 文档 v1 前端接口的兼容层。缺少独立领域表的展示资源在此保持进程内状态。 */
 @RestController
@@ -88,6 +58,13 @@ class ParkingApiController(
 ) {
     @GetMapping("/depts")
     @PreAuthorize("hasAuthority('department:read')")
+            /**
+             * listDepartments：查询或读取相关数据。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun listDepartments(): ResponseEntity<Response> {
         data class DepartmentData(
             val id: Long,
@@ -99,41 +76,102 @@ class ParkingApiController(
             val phone: String?,
             val status: Int,
         )
+
         val rs = departmentService.listAll().map {
-            DepartmentData(requireNotNull(it.id), it.name, it.departmentNumber, it.superior?.id, it.sortOrder, it.director, it.contactPhone, it.status)
+            DepartmentData(
+                requireNotNull(it.id),
+                it.name,
+                it.departmentNumber,
+                it.superior?.id,
+                it.sortOrder,
+                it.director,
+                it.contactPhone,
+                it.status
+            )
         }
         return responseBuilder.ok().data(rs).build()
     }
 
     @PostMapping("/depts")
     @PreAuthorize("hasAuthority('department:manage')")
+            /**
+             * createDepartment：创建、保存或初始化相关数据。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param body 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun createDepartment(@RequestBody body: DocumentDepartmentRequest): ResponseEntity<Response> {
         require(body.status == 0 || body.status == 1) { "状态必须为 0 或 1" }
-        val department = departmentService.create(DepartmentService.CreateCommand(
-            requireNotNull(body.name), requireNotNull(body.code), body.parent, requireNotNull(body.sort) { "排序不能为空" }, body.leader, body.phone, requireNotNull(body.status) { "状态不能为空" }.also { require(it == 0 || it == 1) { "状态必须为 0 或 1" } },
-        ))
-        return responseBuilder.created().data(mapOf(
-            "id" to department.id, "name" to department.name, "code" to department.departmentNumber,
-            "parent" to department.superior?.id, "sort" to department.sortOrder, "leader" to department.director,
-            "phone" to department.contactPhone, "status" to department.status,
-        )).build()
+        val department = departmentService.create(
+            DepartmentService.CreateCommand(
+                requireNotNull(body.name),
+                requireNotNull(body.code),
+                body.parent,
+                requireNotNull(body.sort) { "排序不能为空" },
+                body.leader,
+                body.phone,
+                requireNotNull(body.status) { "状态不能为空" }.also { require(it == 0 || it == 1) { "状态必须为 0 或 1" } },
+            )
+        )
+        return responseBuilder.created().data(
+            mapOf(
+                "id" to department.id, "name" to department.name, "code" to department.departmentNumber,
+                "parent" to department.superior?.id, "sort" to department.sortOrder, "leader" to department.director,
+                "phone" to department.contactPhone, "status" to department.status,
+            )
+        ).build()
     }
 
     @PutMapping("/depts/{id}")
     @PreAuthorize("hasAuthority('department:manage')")
-    fun updateDepartment(@PathVariable id: Long, @RequestBody body: DocumentDepartmentRequest): ResponseEntity<Response> {
+            /**
+             * updateDepartment：更新业务状态或修改相关配置。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param id 参与本次处理的输入参数。
+             * @param body 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
+    fun updateDepartment(
+        @PathVariable id: Long,
+        @RequestBody body: DocumentDepartmentRequest
+    ): ResponseEntity<Response> {
         require(body.status == null || body.status == 0 || body.status == 1) { "状态必须为 0 或 1" }
         val parentId = if (body.parentProvided) body.parent ?: 0L else null
-        val department = departmentService.update(id, DepartmentService.UpdateCommand(body.name, body.code, parentId, body.sort, body.leader, body.phone, body.status))
-        return responseBuilder.ok().data(mapOf(
-            "id" to department.id, "name" to department.name, "code" to department.departmentNumber,
-            "parent" to department.superior?.id, "sort" to department.sortOrder, "leader" to department.director,
-            "phone" to department.contactPhone, "status" to department.status,
-        )).build()
+        val department = departmentService.update(
+            id,
+            DepartmentService.UpdateCommand(
+                body.name,
+                body.code,
+                parentId,
+                body.sort,
+                body.leader,
+                body.phone,
+                body.status
+            )
+        )
+        return responseBuilder.ok().data(
+            mapOf(
+                "id" to department.id, "name" to department.name, "code" to department.departmentNumber,
+                "parent" to department.superior?.id, "sort" to department.sortOrder, "leader" to department.director,
+                "phone" to department.contactPhone, "status" to department.status,
+            )
+        ).build()
     }
 
     @DeleteMapping("/depts/{id}")
     @PreAuthorize("hasAuthority('department:manage')")
+            /**
+             * deleteDepartment：删除、清理或撤销相关数据。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param id 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun deleteDepartment(@PathVariable id: Long): ResponseEntity<Response> {
         departmentService.deleteDepartment(id)
         return responseBuilder.ok().message("删除成功").data(mapOf("id" to id)).build()
@@ -141,8 +179,23 @@ class ParkingApiController(
 
     @GetMapping("/posts")
     @PreAuthorize("hasAuthority('position:read')")
+            /**
+             * listPosts：查询或读取相关数据。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun listPosts(): ResponseEntity<Response> {
-        data class PostData(val id: Long, val name: String, val code: String, val sort: Int, val status: Int, val remark: String?)
+        data class PostData(
+            val id: Long,
+            val name: String,
+            val code: String,
+            val sort: Int,
+            val status: Int,
+            val remark: String?
+        )
+
         val allPosts = mutableListOf<Position>()
         var sourcePage = 1
         var sourceTotal = 0L
@@ -152,27 +205,63 @@ class ParkingApiController(
             sourceTotal = source.totalElements
             sourcePage++
         } while (allPosts.size < sourceTotal)
-        val rs = allPosts.map { PostData(requireNotNull(it.id), it.name, it.codeNumber, it.orderNumber, if (it.status == Position.Status.Activity) 1 else 0, it.remark) }
+        val rs = allPosts.map {
+            PostData(
+                requireNotNull(it.id),
+                it.name,
+                it.codeNumber,
+                it.orderNumber,
+                if (it.status == Position.Status.Activity) 1 else 0,
+                it.remark
+            )
+        }
         return responseBuilder.ok().data(rs).build()
     }
 
     @PostMapping("/posts")
     @PreAuthorize("hasAuthority('position:manage')")
+            /**
+             * createPost：创建、保存或初始化相关数据。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param body 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun createPost(@RequestBody body: DocumentPostRequest): ResponseEntity<Response> {
         require(body.status == 0 || body.status == 1) { "状态必须为 0 或 1" }
         val position = Position().apply {
             name = requireNotNull(body.name)
             codeNumber = requireNotNull(body.code)
             orderNumber = requireNotNull(body.sort) { "排序不能为空" }
-            status = if (requireNotNull(body.status) { "状态不能为空" } == 0) Position.Status.BANNED else Position.Status.Activity
+            status =
+                if (requireNotNull(body.status) { "状态不能为空" } == 0) Position.Status.BANNED else Position.Status.Activity
             remark = body.remark
         }
         val saved = positionService.create(position)
-        return responseBuilder.created().data(mapOf("id" to saved.id, "name" to saved.name, "code" to saved.codeNumber, "sort" to saved.orderNumber, "status" to if (saved.status == Position.Status.Activity) 1 else 0, "remark" to body.remark)).build()
+        return responseBuilder.created().data(
+            mapOf(
+                "id" to saved.id,
+                "name" to saved.name,
+                "code" to saved.codeNumber,
+                "sort" to saved.orderNumber,
+                "status" to if (saved.status == Position.Status.Activity) 1 else 0,
+                "remark" to body.remark
+            )
+        ).build()
     }
 
     @PutMapping("/posts/{id}")
     @PreAuthorize("hasAuthority('position:manage')")
+            /**
+             * updatePost：更新业务状态或修改相关配置。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param id 参与本次处理的输入参数。
+             * @param body 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun updatePost(@PathVariable id: Long, @RequestBody body: DocumentPostRequest): ResponseEntity<Response> {
         require(body.status == null || body.status == 0 || body.status == 1) { "状态必须为 0 或 1" }
         val current = positionService.get(id)
@@ -181,15 +270,33 @@ class ParkingApiController(
             name = body.name ?: current.name
             codeNumber = body.code ?: current.codeNumber
             orderNumber = body.sort ?: current.orderNumber
-            status = body.status?.let { if (it == 0) Position.Status.BANNED else Position.Status.Activity } ?: current.status
+            status =
+                body.status?.let { if (it == 0) Position.Status.BANNED else Position.Status.Activity } ?: current.status
             remark = body.remark ?: current.remark
         }
         val saved = positionService.update(id, position)
-        return responseBuilder.ok().data(mapOf("id" to saved.id, "name" to saved.name, "code" to saved.codeNumber, "sort" to saved.orderNumber, "status" to if (saved.status == Position.Status.Activity) 1 else 0, "remark" to saved.remark)).build()
+        return responseBuilder.ok().data(
+            mapOf(
+                "id" to saved.id,
+                "name" to saved.name,
+                "code" to saved.codeNumber,
+                "sort" to saved.orderNumber,
+                "status" to if (saved.status == Position.Status.Activity) 1 else 0,
+                "remark" to saved.remark
+            )
+        ).build()
     }
 
     @DeleteMapping("/posts/{id}")
     @PreAuthorize("hasAuthority('position:manage')")
+            /**
+             * deletePost：删除、清理或撤销相关数据。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param id 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun deletePost(@PathVariable id: Long): ResponseEntity<Response> {
         positionService.delete(id)
         return responseBuilder.ok().message("删除成功").data(mapOf("id" to id)).build()
@@ -197,6 +304,18 @@ class ParkingApiController(
 
     @GetMapping("/owners")
     @PreAuthorize("hasAuthority('owner:read')")
+            /**
+             * listOwners：查询或读取相关数据。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param keyword 参与本次处理的输入参数。
+             * @param dept 参与本次处理的输入参数。
+             * @param status 参与本次处理的输入参数。
+             * @param page 参与本次处理的输入参数。
+             * @param pageSize 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun listOwners(
         @RequestParam(required = false) keyword: String?,
         @RequestParam(required = false) dept: String?,
@@ -206,15 +325,36 @@ class ParkingApiController(
     ): ResponseEntity<Response> {
         require(page >= 1) { "页码必须大于 0" }
         require(pageSize in 1..100) { "每页数量必须在 1 到 100 之间" }
-        data class PageData(val items: List<StoredOwner>, val total: Int, val page: Int, @param:JsonProperty("pageSize") val pageSizeValue: Int)
+        data class PageData(
+            val items: List<StoredOwner>,
+            val total: Int,
+            val page: Int,
+            @param:JsonProperty("pageSize") val pageSizeValue: Int
+        )
+
         val scope = dataScopeResolver.current()
         // 范围谓词始终参与：客户端传的 dept 只能在此基础上继续收窄，不可能放宽范围。
         val visibleOwnerIds = if (scope.unrestricted) null else scopeQuerySupport.ownerIdsInScope(scope)
         val filtered = ownerRepository.findAll().filter {
             (visibleOwnerIds == null || requireNotNull(it.id) in visibleOwnerIds) &&
-                (keyword.isNullOrBlank() || it.cardId.contains(keyword, true) || it.name.contains(keyword, true) || it.phone.contains(keyword, true)) &&
-                (dept.isNullOrBlank() || it.dept == dept) && (status == null || it.status == status)
-        }.sortedBy { it.id }.map { StoredOwner(requireNotNull(it.id), it.cardId, it.name, it.dept, it.phone, it.spotCount, it.plateCount, it.balance, it.status) }
+                    (keyword.isNullOrBlank() || it.cardId.contains(keyword, true) || it.name.contains(
+                        keyword,
+                        true
+                    ) || it.phone.contains(keyword, true)) &&
+                    (dept.isNullOrBlank() || it.dept == dept) && (status == null || it.status == status)
+        }.sortedBy { it.id }.map {
+            StoredOwner(
+                requireNotNull(it.id),
+                it.cardId,
+                it.name,
+                it.dept,
+                it.phone,
+                it.spotCount,
+                it.plateCount,
+                it.balance,
+                it.status
+            )
+        }
         val from = ((page - 1).coerceAtLeast(0) * pageSize.coerceAtLeast(1)).coerceAtMost(filtered.size)
         val to = (from + pageSize.coerceAtLeast(1)).coerceAtMost(filtered.size)
         return responseBuilder.ok().data(PageData(filtered.subList(from, to), filtered.size, page, pageSize)).build()
@@ -222,6 +362,14 @@ class ParkingApiController(
 
     @PostMapping("/owners")
     @PreAuthorize("hasAuthority('owner:manage')")
+            /**
+             * createOwner：创建、保存或初始化相关数据。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param body 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun createOwner(@RequestBody body: OwnerRequest): ResponseEntity<Response> {
         val cardId = requireNotNull(body.cardId) { "车主卡号不能为空" }
         require(!ownerRepository.existsByCardId(cardId)) { "车主卡号已存在" }
@@ -245,16 +393,39 @@ class ParkingApiController(
         require(owner.balance >= BigDecimal.ZERO) { "余额不能为负数" }
         require(owner.status == 0 || owner.status == 1) { "状态必须为 0 或 1" }
         val saved = ownerRepository.save(owner)
-        return responseBuilder.created().data(StoredOwner(requireNotNull(saved.id), saved.cardId, saved.name, saved.dept, saved.phone, saved.spotCount, saved.plateCount, saved.balance, saved.status)).build()
+        return responseBuilder.created().data(
+            StoredOwner(
+                requireNotNull(saved.id),
+                saved.cardId,
+                saved.name,
+                saved.dept,
+                saved.phone,
+                saved.spotCount,
+                saved.plateCount,
+                saved.balance,
+                saved.status
+            )
+        ).build()
     }
 
     @PutMapping("/owners/{id}")
     @PreAuthorize("hasAuthority('owner:manage')")
+            /**
+             * updateOwner：更新业务状态或修改相关配置。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param id 参与本次处理的输入参数。
+             * @param body 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun updateOwner(@PathVariable id: Long, @RequestBody body: OwnerRequest): ResponseEntity<Response> {
         val scope = scopeGuard.currentScope()
         val owner = scopeGuard.requireVisibleRow(ownerRepository.findById(id).orElse(null), scope, "车主不存在")
         val previousName = owner.name
-        body.cardId?.let { require(!ownerRepository.existsByCardIdAndIdNot(it, id)) { "车主卡号已存在" }; owner.cardId = it }
+        body.cardId?.let {
+            require(!ownerRepository.existsByCardIdAndIdNot(it, id)) { "车主卡号已存在" }; owner.cardId = it
+        }
         body.name?.let { owner.name = it }
         body.dept?.let {
             val newCode = scopeQuerySupport.stampDepartmentCode(it, owner.departmentCode)
@@ -278,18 +449,39 @@ class ParkingApiController(
             plateRepository.flush()
         }
         val saved = ownerRepository.save(owner)
-        return responseBuilder.ok().data(StoredOwner(requireNotNull(saved.id), saved.cardId, saved.name, saved.dept, saved.phone, saved.spotCount, saved.plateCount, saved.balance, saved.status)).build()
+        return responseBuilder.ok().data(
+            StoredOwner(
+                requireNotNull(saved.id),
+                saved.cardId,
+                saved.name,
+                saved.dept,
+                saved.phone,
+                saved.spotCount,
+                saved.plateCount,
+                saved.balance,
+                saved.status
+            )
+        ).build()
     }
 
     @DeleteMapping("/owners/{id}")
     @PreAuthorize("hasAuthority('owner:manage')")
+            /**
+             * deleteOwner：删除、清理或撤销相关数据。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param id 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun deleteOwner(@PathVariable id: Long): ResponseEntity<Response> {
         val owner = scopeGuard.requireVisibleRow(
             ownerRepository.findById(id).orElse(null),
             scopeGuard.currentScope(),
             "车主不存在",
         )
-        require(plateRepository.findAll().none { it.ownerId == id } && spotRepository.findAll().none { it.owner == owner.name }) {
+        require(plateRepository.findAll().none { it.ownerId == id } && spotRepository.findAll()
+            .none { it.owner == owner.name }) {
             "车主仍有关联车位或车牌"
         }
         ownerRepository.deleteById(id)
@@ -298,6 +490,15 @@ class ParkingApiController(
 
     @PostMapping("/owners/{id}/recharge")
     @PreAuthorize("hasAuthority('owner:manage')")
+            /**
+             * rechargeOwner：执行当前模块中的业务操作。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param id 参与本次处理的输入参数。
+             * @param body 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun rechargeOwner(@PathVariable id: Long, @RequestBody body: RechargeRequest): ResponseEntity<Response> {
         val old = scopeGuard.requireVisibleRow(
             ownerRepository.findById(id).orElse(null),
@@ -313,6 +514,19 @@ class ParkingApiController(
 
     @GetMapping("/spots")
     @PreAuthorize("hasAuthority('spot:read')")
+            /**
+             * listSpots：查询或读取相关数据。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param keyword 参与本次处理的输入参数。
+             * @param area 参与本次处理的输入参数。
+             * @param type 参与本次处理的输入参数。
+             * @param status 参与本次处理的输入参数。
+             * @param page 参与本次处理的输入参数。
+             * @param pageSize 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun listSpots(
         @RequestParam(required = false) keyword: String?, @RequestParam(required = false) area: String?,
         @RequestParam(required = false) type: String?, @RequestParam(required = false) status: Int?,
@@ -321,9 +535,19 @@ class ParkingApiController(
         require(page >= 1) { "页码必须大于 0" }
         require(pageSize in 1..100) { "每页数量必须在 1 到 100 之间" }
         data class PageData(val items: List<StoredSpot>, val total: Int)
+
         val scope = dataScopeResolver.current()
         val visibleOwnerCodes = if (scope.unrestricted) null else scopeQuerySupport.ownerCardIdsInScope(scope)
-        val filtered = spotRepository.findAll().filter { scopeQuerySupport.spotVisible(visibleOwnerCodes, it.ownerCode) && (keyword.isNullOrBlank() || it.code.contains(keyword, true)) && (area.isNullOrBlank() || it.area == area) && (type.isNullOrBlank() || it.type == type) && (status == null || it.status == status) }.sortedBy { it.id }.map { StoredSpot(requireNotNull(it.id), it.code, it.area, it.type, it.owner, it.status, it.remark) }
+        val filtered = spotRepository.findAll().filter {
+            scopeQuerySupport.spotVisible(
+                visibleOwnerCodes,
+                it.ownerCode
+            ) && (keyword.isNullOrBlank() || it.code.contains(
+                keyword,
+                true
+            )) && (area.isNullOrBlank() || it.area == area) && (type.isNullOrBlank() || it.type == type) && (status == null || it.status == status)
+        }.sortedBy { it.id }
+            .map { StoredSpot(requireNotNull(it.id), it.code, it.area, it.type, it.owner, it.status, it.remark) }
         val from = ((page - 1).coerceAtLeast(0) * pageSize.coerceAtLeast(1)).coerceAtMost(filtered.size)
         val to = (from + pageSize.coerceAtLeast(1)).coerceAtMost(filtered.size)
         return responseBuilder.ok().data(PageData(filtered.subList(from, to), filtered.size)).build()
@@ -331,21 +555,52 @@ class ParkingApiController(
 
     @PostMapping("/spots")
     @PreAuthorize("hasAuthority('spot:manage')")
+            /**
+             * createSpot：创建、保存或初始化相关数据。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param body 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun createSpot(@RequestBody body: SpotRequest): ResponseEntity<Response> {
         val code = requireNotNull(body.code) { "车位编号不能为空" }
         require(!spotRepository.existsByCode(code)) { "车位编号已存在" }
         val ownerCode = scopeQuerySupport.stampOwnerCode(body.owner, null)
         // 车位没有自己的部门字段，归属完全靠车主；目标车主不在范围内就不允许建。
         scopeGuard.requireOwnerCodeAllowed(ownerCode, scopeGuard.currentScope())
-        val spot = ParkingSpot().apply { this.code = code; area = requireNotNull(body.area); type = requireNotNull(body.type); owner = body.owner; this.ownerCode = ownerCode; status = requireNotNull(body.status) { "状态不能为空" }; remark = body.remark }
+        val spot = ParkingSpot().apply {
+            this.code = code; area = requireNotNull(body.area); type = requireNotNull(body.type); owner =
+            body.owner; this.ownerCode = ownerCode; status = requireNotNull(body.status) { "状态不能为空" }; remark =
+            body.remark
+        }
         require(spot.status == 0 || spot.status == 1) { "状态必须为 0 或 1" }
         val saved = spotRepository.save(spot)
         refreshOwnerCounts()
-        return responseBuilder.created().data(StoredSpot(requireNotNull(saved.id), saved.code, saved.area, saved.type, saved.owner, saved.status, saved.remark)).build()
+        return responseBuilder.created().data(
+            StoredSpot(
+                requireNotNull(saved.id),
+                saved.code,
+                saved.area,
+                saved.type,
+                saved.owner,
+                saved.status,
+                saved.remark
+            )
+        ).build()
     }
 
     @PutMapping("/spots/{id}")
     @PreAuthorize("hasAuthority('spot:manage')")
+            /**
+             * updateSpot：更新业务状态或修改相关配置。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param id 参与本次处理的输入参数。
+             * @param body 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun updateSpot(@PathVariable id: Long, @RequestBody body: SpotRequest): ResponseEntity<Response> {
         val scope = scopeGuard.currentScope()
         val spot = scopeGuard.requireVisibleSpot(spotRepository.findById(id).orElse(null), scope, "车位不存在")
@@ -361,11 +616,29 @@ class ParkingApiController(
         require(spot.status == 0 || spot.status == 1) { "状态必须为 0 或 1" }
         val saved = spotRepository.save(spot)
         refreshOwnerCounts()
-        return responseBuilder.ok().data(StoredSpot(requireNotNull(saved.id), saved.code, saved.area, saved.type, saved.owner, saved.status, saved.remark)).build()
+        return responseBuilder.ok().data(
+            StoredSpot(
+                requireNotNull(saved.id),
+                saved.code,
+                saved.area,
+                saved.type,
+                saved.owner,
+                saved.status,
+                saved.remark
+            )
+        ).build()
     }
 
     @DeleteMapping("/spots/{id}")
     @PreAuthorize("hasAuthority('spot:manage')")
+            /**
+             * deleteSpot：删除、清理或撤销相关数据。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param id 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun deleteSpot(@PathVariable id: Long): ResponseEntity<Response> {
         scopeGuard.requireVisibleSpot(spotRepository.findById(id).orElse(null), scopeGuard.currentScope(), "车位不存在")
         spotRepository.deleteById(id); refreshOwnerCounts()
@@ -374,21 +647,79 @@ class ParkingApiController(
 
     @GetMapping("/plates")
     @PreAuthorize("hasAuthority('plate:read')")
-    fun listPlates(@RequestParam(required = false) keyword: String?, @RequestParam(required = false) status: Int?, @RequestParam(name = "inspectionStatus", required = false) inspectionStatus: String?, @RequestParam(defaultValue = "1") page: Int, @RequestParam(name = "pageSize", defaultValue = "8") pageSize: Int): ResponseEntity<Response> {
+            /**
+             * listPlates：查询或读取相关数据。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param keyword 参与本次处理的输入参数。
+             * @param status 参与本次处理的输入参数。
+             * @param inspectionStatus 参与本次处理的输入参数。
+             * @param page 参与本次处理的输入参数。
+             * @param pageSize 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
+    fun listPlates(
+        @RequestParam(required = false) keyword: String?,
+        @RequestParam(required = false) status: Int?,
+        @RequestParam(name = "inspectionStatus", required = false) inspectionStatus: String?,
+        @RequestParam(defaultValue = "1") page: Int,
+        @RequestParam(name = "pageSize", defaultValue = "8") pageSize: Int
+    ): ResponseEntity<Response> {
         require(page >= 1) { "页码必须大于 0" }
         require(pageSize in 1..100) { "每页数量必须在 1 到 100 之间" }
         data class PageData(val items: List<StoredPlate>, val total: Int)
+
         val scope = dataScopeResolver.current()
         val visibleOwnerIds = if (scope.unrestricted) null else scopeQuerySupport.ownerIdsInScope(scope)
         // 年检状态按当天判定：一次请求里取一个日期，避免跨零点时同一页出现两种判定。
         val today = LocalDate.now()
-        val filtered = plateRepository.findAll().filter { scopeQuerySupport.plateVisible(visibleOwnerIds, scope.userId, it) && (keyword.isNullOrBlank() || SerialNumbers.matches(it.id, keyword) || it.plate.contains(keyword, true) || it.owner.contains(keyword, true)) && (status == null || it.status == status) && (inspectionStatus.isNullOrBlank() || VehicleInspection.status(it.inspectionDate, it.inspectionValidUntil, today) == inspectionStatus) }.sortedBy { it.id }.map { StoredPlate(requireNotNull(it.id), it.plate, it.owner, it.ownerId, it.status, it.regDate.toString(), it.carBrand, it.inspectionDate?.toString(), it.inspectionValidUntil?.toString(), VehicleInspection.status(it.inspectionDate, it.inspectionValidUntil, today), it.inspectionRemark) }
-        val from = ((page - 1).coerceAtLeast(0) * pageSize.coerceAtLeast(1)).coerceAtMost(filtered.size); val to = (from + pageSize.coerceAtLeast(1)).coerceAtMost(filtered.size)
+        val filtered = plateRepository.findAll().filter {
+            scopeQuerySupport.plateVisible(
+                visibleOwnerIds,
+                scope.userId,
+                it
+            ) && (keyword.isNullOrBlank() || SerialNumbers.matches(it.id, keyword) || it.plate.contains(
+                keyword,
+                true
+            ) || it.owner.contains(
+                keyword,
+                true
+            )) && (status == null || it.status == status) && (inspectionStatus.isNullOrBlank() || VehicleInspection.status(
+                it.inspectionDate,
+                it.inspectionValidUntil,
+                today
+            ) == inspectionStatus)
+        }.sortedBy { it.id }.map {
+            StoredPlate(
+                requireNotNull(it.id),
+                it.plate,
+                it.owner,
+                it.ownerId,
+                it.status,
+                it.regDate.toString(),
+                it.carBrand,
+                it.inspectionDate?.toString(),
+                it.inspectionValidUntil?.toString(),
+                VehicleInspection.status(it.inspectionDate, it.inspectionValidUntil, today),
+                it.inspectionRemark
+            )
+        }
+        val from = ((page - 1).coerceAtLeast(0) * pageSize.coerceAtLeast(1)).coerceAtMost(filtered.size)
+        val to = (from + pageSize.coerceAtLeast(1)).coerceAtMost(filtered.size)
         return responseBuilder.ok().data(PageData(filtered.subList(from, to), filtered.size)).build()
     }
 
     @PostMapping("/plates")
     @PreAuthorize("hasAuthority('plate:manage')")
+            /**
+             * createPlate：创建、保存或初始化相关数据。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param body 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun createPlate(@RequestBody body: PlateRequest): ResponseEntity<Response> {
         val plateNumber = requireNotNull(body.plate) { "车牌号不能为空" }
         require(!plateRepository.existsByPlate(plateNumber)) { "车牌号已存在" }
@@ -409,11 +740,34 @@ class ParkingApiController(
         applyInspection(plate, body)
         val saved = plateRepository.save(plate)
         refreshOwnerCounts()
-        return responseBuilder.created().data(StoredPlate(requireNotNull(saved.id), saved.plate, saved.owner, saved.ownerId, saved.status, saved.regDate.toString(), saved.carBrand, saved.inspectionDate?.toString(), saved.inspectionValidUntil?.toString(), VehicleInspection.status(saved.inspectionDate, saved.inspectionValidUntil, LocalDate.now()), saved.inspectionRemark)).build()
+        return responseBuilder.created().data(
+            StoredPlate(
+                requireNotNull(saved.id),
+                saved.plate,
+                saved.owner,
+                saved.ownerId,
+                saved.status,
+                saved.regDate.toString(),
+                saved.carBrand,
+                saved.inspectionDate?.toString(),
+                saved.inspectionValidUntil?.toString(),
+                VehicleInspection.status(saved.inspectionDate, saved.inspectionValidUntil, LocalDate.now()),
+                saved.inspectionRemark
+            )
+        ).build()
     }
 
     @PutMapping("/plates/{id}")
     @PreAuthorize("hasAuthority('plate:manage')")
+            /**
+             * updatePlate：更新业务状态或修改相关配置。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param id 参与本次处理的输入参数。
+             * @param body 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun updatePlate(@PathVariable id: Long, @RequestBody body: PlateRequest): ResponseEntity<Response> {
         val scope = scopeGuard.currentScope()
         val plate = scopeGuard.requireVisiblePlate(plateRepository.findById(id).orElse(null), scope, "车牌不存在")
@@ -434,51 +788,149 @@ class ParkingApiController(
         applyInspection(plate, body)
         val saved = plateRepository.save(plate)
         refreshOwnerCounts()
-        return responseBuilder.ok().data(StoredPlate(requireNotNull(saved.id), saved.plate, saved.owner, saved.ownerId, saved.status, saved.regDate.toString(), saved.carBrand, saved.inspectionDate?.toString(), saved.inspectionValidUntil?.toString(), VehicleInspection.status(saved.inspectionDate, saved.inspectionValidUntil, LocalDate.now()), saved.inspectionRemark)).build()
+        return responseBuilder.ok().data(
+            StoredPlate(
+                requireNotNull(saved.id),
+                saved.plate,
+                saved.owner,
+                saved.ownerId,
+                saved.status,
+                saved.regDate.toString(),
+                saved.carBrand,
+                saved.inspectionDate?.toString(),
+                saved.inspectionValidUntil?.toString(),
+                VehicleInspection.status(saved.inspectionDate, saved.inspectionValidUntil, LocalDate.now()),
+                saved.inspectionRemark
+            )
+        ).build()
     }
 
     @DeleteMapping("/plates/{id}")
     @PreAuthorize("hasAuthority('plate:manage')")
+            /**
+             * deletePlate：删除、清理或撤销相关数据。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param id 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun deletePlate(@PathVariable id: Long): ResponseEntity<Response> {
-        scopeGuard.requireVisiblePlate(plateRepository.findById(id).orElse(null), scopeGuard.currentScope(), "车牌不存在")
+        scopeGuard.requireVisiblePlate(
+            plateRepository.findById(id).orElse(null),
+            scopeGuard.currentScope(),
+            "车牌不存在"
+        )
         plateRepository.deleteById(id); refreshOwnerCounts()
         return responseBuilder.ok().message("删除成功").data(mapOf("id" to id)).build()
     }
 
     @GetMapping("/gate-persons")
     @PreAuthorize("hasAuthority('gate-person:read')")
-    fun listGatePersons(@RequestParam(required = false) keyword: String?, @RequestParam(required = false) dept: String?, @RequestParam(name = "approveStatus", required = false) approveStatus: String?, @RequestParam(name = "syncStatus", required = false) syncStatus: String?, @RequestParam(defaultValue = "1") page: Int, @RequestParam(name = "pageSize", defaultValue = "8") pageSize: Int): ResponseEntity<Response> {
+            /**
+             * listGatePersons：查询或读取相关数据。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param keyword 参与本次处理的输入参数。
+             * @param dept 参与本次处理的输入参数。
+             * @param approveStatus 参与本次处理的输入参数。
+             * @param syncStatus 参与本次处理的输入参数。
+             * @param page 参与本次处理的输入参数。
+             * @param pageSize 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
+    fun listGatePersons(
+        @RequestParam(required = false) keyword: String?,
+        @RequestParam(required = false) dept: String?,
+        @RequestParam(name = "approveStatus", required = false) approveStatus: String?,
+        @RequestParam(name = "syncStatus", required = false) syncStatus: String?,
+        @RequestParam(defaultValue = "1") page: Int,
+        @RequestParam(name = "pageSize", defaultValue = "8") pageSize: Int
+    ): ResponseEntity<Response> {
         require(page >= 1) { "页码必须大于 0" }
         require(pageSize in 1..100) { "每页数量必须在 1 到 100 之间" }
         data class PageData(val items: List<StoredGatePerson>, val total: Int)
+
         val filtered = scopeQuerySupport.visibleInScope(dataScopeResolver.current(), gatePersonRepository.findAll())
             .filter { person ->
-                (keyword.isNullOrBlank() || listOf(person.code, person.name, person.phone, person.idCard).any { value -> value.contains(keyword, true) }) &&
-                    (dept.isNullOrBlank() || person.dept == dept) &&
-                    (approveStatus.isNullOrBlank() || approveStatus == person.approveStatus.name || approveStatus == person.approveStatus.value()) &&
-                    (syncStatus.isNullOrBlank() || syncStatus == person.syncStatus.name || syncStatus == person.syncStatus.value())
+                (keyword.isNullOrBlank() || listOf(
+                    person.code,
+                    person.name,
+                    person.phone,
+                    person.idCard
+                ).any { value -> value.contains(keyword, true) }) &&
+                        (dept.isNullOrBlank() || person.dept == dept) &&
+                        (approveStatus.isNullOrBlank() || approveStatus == person.approveStatus.name || approveStatus == person.approveStatus.value()) &&
+                        (syncStatus.isNullOrBlank() || syncStatus == person.syncStatus.name || syncStatus == person.syncStatus.value())
             }
             .sortedBy { it.id }
-            .map { StoredGatePerson(requireNotNull(it.id), it.code, it.dept, it.name, it.phone, it.idCard, it.face, it.createTime.toString(), it.approveStatus.value(), it.syncStatus.value()) }
-        val from = ((page - 1).coerceAtLeast(0) * pageSize.coerceAtLeast(1)).coerceAtMost(filtered.size); val to = (from + pageSize.coerceAtLeast(1)).coerceAtMost(filtered.size)
+            .map {
+                StoredGatePerson(
+                    requireNotNull(it.id),
+                    it.code,
+                    it.dept,
+                    it.name,
+                    it.phone,
+                    it.idCard,
+                    it.face,
+                    it.createTime.toString(),
+                    it.approveStatus.value(),
+                    it.syncStatus.value()
+                )
+            }
+        val from = ((page - 1).coerceAtLeast(0) * pageSize.coerceAtLeast(1)).coerceAtMost(filtered.size)
+        val to = (from + pageSize.coerceAtLeast(1)).coerceAtMost(filtered.size)
         return responseBuilder.ok().data(PageData(filtered.subList(from, to), filtered.size)).build()
     }
 
     @GetMapping("/gate-persons/{id}")
     @PreAuthorize("hasAuthority('gate-person:read')")
+            /**
+             * getGatePerson：查询或读取相关数据。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param id 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun getGatePerson(@PathVariable id: Long): ResponseEntity<Response> {
         val person = scopeGuard.requireVisibleRow(
             gatePersonRepository.findById(id).orElse(null),
             scopeGuard.currentScope(),
             "人员不存在",
         )
-        val data = StoredGatePerson(requireNotNull(person.id), person.code, person.dept, person.name, person.phone, person.idCard, person.face, person.createTime.toString(), person.approveStatus.value(), person.syncStatus.value())
+        val data = StoredGatePerson(
+            requireNotNull(person.id),
+            person.code,
+            person.dept,
+            person.name,
+            person.phone,
+            person.idCard,
+            person.face,
+            person.createTime.toString(),
+            person.approveStatus.value(),
+            person.syncStatus.value()
+        )
         return responseBuilder.ok().data(data).build()
     }
 
     @PostMapping("/gate-persons", consumes = ["multipart/form-data"])
     @PreAuthorize("hasAuthority('gate-person:manage')")
     @Transactional
+            /**
+             * createGatePersonMultipart：创建、保存或初始化相关数据。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param code 参与本次处理的输入参数。
+             * @param dept 参与本次处理的输入参数。
+             * @param name 参与本次处理的输入参数。
+             * @param phone 参与本次处理的输入参数。
+             * @param idCard 参与本次处理的输入参数。
+             * @param face 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun createGatePersonMultipart(
         @RequestPart("code") code: String,
         @RequestPart("dept") dept: String,
@@ -520,16 +972,44 @@ class ParkingApiController(
                 "gate_person",
                 saved.id?.toString(),
                 targetSummary = mapOf("code" to saved.code, "department_code" to saved.departmentCode),
-                afterData = mapOf("review_status" to saved.approveStatus.value(), "synchronized" to (saved.syncStatus == GatePerson.SyncStatus.SYNCED)),
+                afterData = mapOf(
+                    "review_status" to saved.approveStatus.value(),
+                    "synchronized" to (saved.syncStatus == GatePerson.SyncStatus.SYNCED)
+                ),
             ),
         )
-        val data = StoredGatePerson(requireNotNull(saved.id), saved.code, saved.dept, saved.name, saved.phone, saved.idCard, saved.face, saved.createTime.toString(), saved.approveStatus.value(), saved.syncStatus.value())
+        val data = StoredGatePerson(
+            requireNotNull(saved.id),
+            saved.code,
+            saved.dept,
+            saved.name,
+            saved.phone,
+            saved.idCard,
+            saved.face,
+            saved.createTime.toString(),
+            saved.approveStatus.value(),
+            saved.syncStatus.value()
+        )
         return responseBuilder.created().data(data).build()
     }
 
     @PutMapping("/gate-persons/{id}", consumes = ["multipart/form-data"])
     @PreAuthorize("hasAuthority('gate-person:manage')")
     @Transactional
+            /**
+             * updateGatePersonMultipart：更新业务状态或修改相关配置。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param id 参与本次处理的输入参数。
+             * @param code 参与本次处理的输入参数。
+             * @param dept 参与本次处理的输入参数。
+             * @param name 参与本次处理的输入参数。
+             * @param phone 参与本次处理的输入参数。
+             * @param idCard 参与本次处理的输入参数。
+             * @param face 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun updateGatePersonMultipart(
         @PathVariable id: Long,
         @RequestPart("code", required = false) code: String?,
@@ -551,7 +1031,9 @@ class ParkingApiController(
         code?.let {
             val validatedCode = GatePersonFields.requireCode(it)
             require(!gatePersonRepository.existsByCodeAndIdNot(validatedCode, id)) { "人员编号已存在" }
-            if (validatedCode != person.code) { person.code = validatedCode; changed = true }
+            if (validatedCode != person.code) {
+                person.code = validatedCode; changed = true
+            }
         }
         dept?.let {
             val validatedDept = GatePersonFields.requireDept(it)
@@ -566,12 +1048,22 @@ class ParkingApiController(
             // 否则前端原样提交一条已通过的历史记录就会把它打回待审核。
             if (newCode != person.departmentCode) person.departmentCode = newCode
         }
-        name?.let { val validatedName = GatePersonFields.requireName(it); if (validatedName != person.name) { person.name = validatedName; changed = true } }
-        phone?.let { val validatedPhone = GatePersonFields.requirePhone(it); if (validatedPhone != person.phone) { person.phone = validatedPhone; changed = true } }
+        name?.let {
+            val validatedName = GatePersonFields.requireName(it); if (validatedName != person.name) {
+            person.name = validatedName; changed = true
+        }
+        }
+        phone?.let {
+            val validatedPhone = GatePersonFields.requirePhone(it); if (validatedPhone != person.phone) {
+            person.phone = validatedPhone; changed = true
+        }
+        }
         idCard?.let {
             val validatedIdCard = GatePersonFields.requireIdCard(it)
             require(!gatePersonRepository.existsByIdCardAndIdNot(validatedIdCard, id)) { "身份证号已存在" }
-            if (validatedIdCard != person.idCard) { person.idCard = validatedIdCard; changed = true }
+            if (validatedIdCard != person.idCard) {
+                person.idCard = validatedIdCard; changed = true
+            }
         }
         val uploadedFace = face?.let { fileService.upload(it) }
         uploadedFace?.let { person.face = it.downloadUrl; changed = true }
@@ -594,29 +1086,72 @@ class ParkingApiController(
                     "gate_person",
                     id.toString(),
                     targetSummary = mapOf("code" to saved.code, "department_code" to saved.departmentCode),
-                    beforeData = mapOf("review_status" to previousStatus.value(), "synchronized" to (previousSyncStatus == GatePerson.SyncStatus.SYNCED)),
-                    afterData = mapOf("review_status" to saved.approveStatus.value(), "synchronized" to (saved.syncStatus == GatePerson.SyncStatus.SYNCED)),
+                    beforeData = mapOf(
+                        "review_status" to previousStatus.value(),
+                        "synchronized" to (previousSyncStatus == GatePerson.SyncStatus.SYNCED)
+                    ),
+                    afterData = mapOf(
+                        "review_status" to saved.approveStatus.value(),
+                        "synchronized" to (saved.syncStatus == GatePerson.SyncStatus.SYNCED)
+                    ),
                 ),
             )
         }
-        val data = StoredGatePerson(requireNotNull(saved.id), saved.code, saved.dept, saved.name, saved.phone, saved.idCard, saved.face, saved.createTime.toString(), saved.approveStatus.value(), saved.syncStatus.value())
+        val data = StoredGatePerson(
+            requireNotNull(saved.id),
+            saved.code,
+            saved.dept,
+            saved.name,
+            saved.phone,
+            saved.idCard,
+            saved.face,
+            saved.createTime.toString(),
+            saved.approveStatus.value(),
+            saved.syncStatus.value()
+        )
         return responseBuilder.ok().data(data).build()
     }
 
     @PutMapping("/gate-persons/{id}/approve")
     @PreAuthorize("hasAuthority('gate-person:review')")
     @Transactional
-    fun approveGatePerson(@PathVariable id: Long, @RequestParam(required = false) reason: String?): ResponseEntity<Response> {
+            /**
+             * approveGatePerson：执行当前模块中的业务操作。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param id 参与本次处理的输入参数。
+             * @param reason 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
+    fun approveGatePerson(
+        @PathVariable id: Long,
+        @RequestParam(required = false) reason: String?
+    ): ResponseEntity<Response> {
         val saved = reviewGatePerson(requireVisibleGatePerson(id), approved = true, reason = reason)
-        return responseBuilder.ok().message("审批通过").data(mapOf("id" to saved.id, "approveStatus" to saved.approveStatus.value())).build()
+        return responseBuilder.ok().message("审批通过")
+            .data(mapOf("id" to saved.id, "approveStatus" to saved.approveStatus.value())).build()
     }
 
     @PutMapping("/gate-persons/{id}/reject")
     @PreAuthorize("hasAuthority('gate-person:review')")
     @Transactional
-    fun rejectGatePerson(@PathVariable id: Long, @RequestParam(required = false) reason: String?): ResponseEntity<Response> {
+            /**
+             * rejectGatePerson：执行当前模块中的业务操作。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param id 参与本次处理的输入参数。
+             * @param reason 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
+    fun rejectGatePerson(
+        @PathVariable id: Long,
+        @RequestParam(required = false) reason: String?
+    ): ResponseEntity<Response> {
         val saved = reviewGatePerson(requireVisibleGatePerson(id), approved = false, reason = reason)
-        return responseBuilder.ok().message("审批拒绝").data(mapOf("id" to saved.id, "approveStatus" to saved.approveStatus.value())).build()
+        return responseBuilder.ok().message("审批拒绝")
+            .data(mapOf("id" to saved.id, "approveStatus" to saved.approveStatus.value())).build()
     }
 
     /**
@@ -641,7 +1176,8 @@ class ParkingApiController(
         val reviewed = ids.map { id ->
             reviewGatePerson(scopeGuard.requireVisibleRow(byId[id], scope, "人员不存在"), approved, body.reason)
         }
-        return responseBuilder.ok().message("已审核 ${reviewed.size} 人").data(mapOf("reviewed" to reviewed.size)).build()
+        return responseBuilder.ok().message("已审核 ${reviewed.size} 人").data(mapOf("reviewed" to reviewed.size))
+            .build()
     }
 
     /**
@@ -653,15 +1189,32 @@ class ParkingApiController(
     @DeleteMapping("/gate-persons/{id}")
     @PreAuthorize("denyAll()")
     fun deleteGatePerson(@PathVariable id: Long): ResponseEntity<Response> {
-        scopeGuard.requireVisibleRow(gatePersonRepository.findById(id).orElse(null), scopeGuard.currentScope(), "人员不存在")
+        scopeGuard.requireVisibleRow(
+            gatePersonRepository.findById(id).orElse(null),
+            scopeGuard.currentScope(),
+            "人员不存在"
+        )
         gatePersonRepository.deleteById(id)
         return responseBuilder.ok().message("删除成功").data(mapOf("id" to id)).build()
     }
 
     @PostMapping("/gate-persons/{id}/delete-requests")
     @PreAuthorize("hasAuthority('gate-person:manage')")
+            /**
+             * createDeleteRequest：创建、保存或初始化相关数据。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param id 参与本次处理的输入参数。
+             * @param body 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun createDeleteRequest(@PathVariable id: Long, @RequestBody body: DeleteRequestBody): ResponseEntity<Response> {
-        val person = scopeGuard.requireVisibleRow(gatePersonRepository.findById(id).orElse(null), scopeGuard.currentScope(), "人员不存在")
+        val person = scopeGuard.requireVisibleRow(
+            gatePersonRepository.findById(id).orElse(null),
+            scopeGuard.currentScope(),
+            "人员不存在"
+        )
         val request = GateDeleteRequest().apply {
             personId = id
             code = person.code
@@ -681,7 +1234,11 @@ class ParkingApiController(
                 "gate_delete_request",
                 saved.id?.toString(),
                 reason = saved.reason,
-                targetSummary = mapOf("person_id" to id, "code" to saved.code, "department_code" to saved.departmentCode),
+                targetSummary = mapOf(
+                    "person_id" to id,
+                    "code" to saved.code,
+                    "department_code" to saved.departmentCode
+                ),
                 afterData = mapOf("status" to saved.status.value()),
             ),
         )
@@ -694,6 +1251,17 @@ class ParkingApiController(
 
     @GetMapping("/gate-persons/delete-requests")
     @PreAuthorize("hasAuthority('gate-person:read')")
+            /**
+             * listDeleteRequests：查询或读取相关数据。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param keyword 参与本次处理的输入参数。
+             * @param status 参与本次处理的输入参数。
+             * @param page 参与本次处理的输入参数。
+             * @param pageSize 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun listDeleteRequests(
         @RequestParam(required = false) keyword: String?,
         @RequestParam(required = false) status: String?,
@@ -704,13 +1272,33 @@ class ParkingApiController(
         require(page >= 1) { "页码必须大于 0" }
         require(pageSize in 1..100) { "每页数量必须在 1 到 100 之间" }
         // 删除申请带姓名、手机号与身份证快照，必须和门禁人员本身一样按工作部门裁剪。
-        val requests = scopeQuerySupport.visibleInScope(dataScopeResolver.current(), gateDeleteRequestRepository.findAll())
-            .filter { request ->
-                (keyword.isNullOrBlank() || listOf(request.code, request.name, request.phone, request.idCard).any { it.contains(keyword, true) }) &&
-                    (status.isNullOrBlank() || request.status.name == status || request.status.value() == status)
-            }
-            .sortedByDescending { it.applyTime }
-            .map { StoredDeleteRequest(requireNotNull(it.id), it.personId, it.code, it.dept, it.name, it.phone, it.idCard, it.face, it.reason, it.applyTime.toString(), it.status.value()) }
+        val requests =
+            scopeQuerySupport.visibleInScope(dataScopeResolver.current(), gateDeleteRequestRepository.findAll())
+                .filter { request ->
+                    (keyword.isNullOrBlank() || listOf(
+                        request.code,
+                        request.name,
+                        request.phone,
+                        request.idCard
+                    ).any { it.contains(keyword, true) }) &&
+                            (status.isNullOrBlank() || request.status.name == status || request.status.value() == status)
+                }
+                .sortedByDescending { it.applyTime }
+                .map {
+                    StoredDeleteRequest(
+                        requireNotNull(it.id),
+                        it.personId,
+                        it.code,
+                        it.dept,
+                        it.name,
+                        it.phone,
+                        it.idCard,
+                        it.face,
+                        it.reason,
+                        it.applyTime.toString(),
+                        it.status.value()
+                    )
+                }
         val from = ((page - 1) * pageSize).coerceAtMost(requests.size)
         val to = (from + pageSize).coerceAtMost(requests.size)
         val rs = Response(requests.subList(from, to), requests.size)
@@ -720,12 +1308,25 @@ class ParkingApiController(
     @Transactional
     @PutMapping("/gate-persons/delete-requests/{id}/approve")
     @PreAuthorize("hasAuthority('gate-person:review')")
+            /**
+             * approveDeleteRequest：执行当前模块中的业务操作。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param id 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun approveDeleteRequest(@PathVariable id: Long): ResponseEntity<Response> {
         val scope = scopeGuard.currentScope()
-        val request = scopeGuard.requireVisibleRow(gateDeleteRequestRepository.findById(id).orElse(null), scope, "删除申请不存在")
+        val request =
+            scopeGuard.requireVisibleRow(gateDeleteRequestRepository.findById(id).orElse(null), scope, "删除申请不存在")
         require(request.status == GateDeleteRequest.Status.PENDING) { "删除申请已处理" }
         // 真正被删的是人员，范围校验必须落在人员上：申请单本身的可见性不构成删除授权。
-        val person = scopeGuard.requireVisibleRow(gatePersonRepository.findById(request.personId).orElse(null), scope, "人员不存在")
+        val person = scopeGuard.requireVisibleRow(
+            gatePersonRepository.findById(request.personId).orElse(null),
+            scope,
+            "人员不存在"
+        )
         gatePersonRepository.deleteById(requireNotNull(person.id))
         // 人脸是敏感生物特征，人员已删除就不能再按它的编号被反查下载。
         fileService.unlinkBusiness(StoredFile.BUSINESS_GATE_PERSON, person.code)
@@ -749,7 +1350,11 @@ class ParkingApiController(
                 "gate_person",
                 person.id?.toString(),
                 reason = request.reason,
-                targetSummary = mapOf("code" to person.code, "department_code" to person.departmentCode, "person_id" to person.id),
+                targetSummary = mapOf(
+                    "code" to person.code,
+                    "department_code" to person.departmentCode,
+                    "person_id" to person.id
+                ),
                 afterData = mapOf("deleted" to true),
             ),
         )
@@ -758,8 +1363,20 @@ class ParkingApiController(
 
     @PutMapping("/gate-persons/delete-requests/{id}/reject")
     @PreAuthorize("hasAuthority('gate-person:review')")
+            /**
+             * rejectDeleteRequest：执行当前模块中的业务操作。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param id 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun rejectDeleteRequest(@PathVariable id: Long): ResponseEntity<Response> {
-        val request = scopeGuard.requireVisibleRow(gateDeleteRequestRepository.findById(id).orElse(null), scopeGuard.currentScope(), "删除申请不存在")
+        val request = scopeGuard.requireVisibleRow(
+            gateDeleteRequestRepository.findById(id).orElse(null),
+            scopeGuard.currentScope(),
+            "删除申请不存在"
+        )
         require(request.status == GateDeleteRequest.Status.PENDING) { "删除申请已处理" }
         request.status = GateDeleteRequest.Status.REJECTED
         gateDeleteRequestRepository.save(request)
@@ -779,6 +1396,22 @@ class ParkingApiController(
 
     @GetMapping("/person-records")
     @PreAuthorize("hasAuthority('person-record:read')")
+            /**
+             * personRecords：执行当前模块中的业务操作。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param keyword 参与本次处理的输入参数。
+             * @param direction 参与本次处理的输入参数。
+             * @param gate 参与本次处理的输入参数。
+             * @param passType 参与本次处理的输入参数。
+             * @param recordStatus 参与本次处理的输入参数。
+             * @param startDate 参与本次处理的输入参数。
+             * @param endDate 参与本次处理的输入参数。
+             * @param page 参与本次处理的输入参数。
+             * @param pageSize 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun personRecords(
         @RequestParam(required = false) keyword: String?,
         @RequestParam(required = false) direction: String?,
@@ -792,24 +1425,67 @@ class ParkingApiController(
     ): ResponseEntity<Response> {
         require(page >= 1) { "页码必须大于 0" }
         require(pageSize in 1..100) { "每页数量必须在 1 到 100 之间" }
-        data class PersonRecordData(val id: Long, val person: String, @param:JsonProperty("cardId") val cardId: String?, val dept: String?, val time: String, val direction: String, val gate: String?, val method: String?, val status: String, val photo: String?)
+        data class PersonRecordData(
+            val id: Long,
+            val person: String,
+            @param:JsonProperty("cardId") val cardId: String?,
+            val dept: String?,
+            val time: String,
+            val direction: String,
+            val gate: String?,
+            val method: String?,
+            val status: String,
+            val photo: String?
+        )
+
         data class PageData(val items: List<PersonRecordData>, val total: Int)
+
         val scope = dataScopeResolver.current()
         val filtered = scopeQuerySupport.personRecordsInScope(scope, personAccessRecordRepository.findAll()).filter {
-            (keyword.isNullOrBlank() || it.person.contains(keyword, true) || it.cardId.orEmpty().contains(keyword, true)) &&
-                (direction.isNullOrBlank() || it.direction == direction) && (gate.isNullOrBlank() || it.gate == gate) &&
-                (passType.isNullOrBlank() || it.method == passType) && (recordStatus.isNullOrBlank() || it.status == recordStatus) && (startDate == null || !it.time.toLocalDate().isBefore(startDate)) &&
-                (endDate == null || !it.time.toLocalDate().isAfter(endDate))
+            (keyword.isNullOrBlank() || it.person.contains(keyword, true) || it.cardId.orEmpty()
+                .contains(keyword, true)) &&
+                    (direction.isNullOrBlank() || it.direction == direction) && (gate.isNullOrBlank() || it.gate == gate) &&
+                    (passType.isNullOrBlank() || it.method == passType) && (recordStatus.isNullOrBlank() || it.status == recordStatus) && (startDate == null || !it.time.toLocalDate()
+                .isBefore(startDate)) &&
+                    (endDate == null || !it.time.toLocalDate().isAfter(endDate))
         }.sortedByDescending { it.time }
         val from = ((page - 1).coerceAtLeast(0) * pageSize.coerceAtLeast(1)).coerceAtMost(filtered.size)
         val to = (from + pageSize.coerceAtLeast(1)).coerceAtMost(filtered.size)
-        val items = filtered.subList(from, to).map { PersonRecordData(requireNotNull(it.id), it.person, it.cardId, it.dept, it.time.toString(), it.direction, it.gate, it.method, it.status, it.photo) }
+        val items = filtered.subList(from, to).map {
+            PersonRecordData(
+                requireNotNull(it.id),
+                it.person,
+                it.cardId,
+                it.dept,
+                it.time.toString(),
+                it.direction,
+                it.gate,
+                it.method,
+                it.status,
+                it.photo
+            )
+        }
         return responseBuilder.ok().data(PageData(items, filtered.size)).build()
     }
 
     @Transactional
     @GetMapping("/vehicle-records")
     @PreAuthorize("hasAuthority('vehicle-record:read')")
+            /**
+             * vehicleRecords：执行当前模块中的业务操作。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param keyword 参与本次处理的输入参数。
+             * @param direction 参与本次处理的输入参数。
+             * @param gate 参与本次处理的输入参数。
+             * @param passType 参与本次处理的输入参数。
+             * @param startDate 参与本次处理的输入参数。
+             * @param endDate 参与本次处理的输入参数。
+             * @param page 参与本次处理的输入参数。
+             * @param pageSize 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun vehicleRecords(
         @RequestParam(required = false) keyword: String?,
         @RequestParam(required = false) direction: String?,
@@ -836,17 +1512,29 @@ class ParkingApiController(
             val status: String,
             val photo: String?,
         )
+
         data class PageData(val items: List<VehicleRecord>, val total: Int)
+
         val directionFilter = when (direction) {
             "进" -> AccessRecord.InAndOut.IN
             "出" -> AccessRecord.InAndOut.OUT
             else -> null
         }
-        val spec = vehicleRecordSpec(keyword?.trim()?.ifBlank { null }, directionFilter, gate?.ifBlank { null }, passType?.ifBlank { null }, startDate, endDate)
+        val spec = vehicleRecordSpec(
+            keyword?.trim()?.ifBlank { null },
+            directionFilter,
+            gate?.ifBlank { null },
+            passType?.ifBlank { null },
+            startDate,
+            endDate
+        )
             // 范围必须下推到 SQL：本接口是数据库分页并直接返回 totalElements 的，事后过滤会让
             // 总数失真，甚至出现「总数大于 0 但当前页为空」。
             .and(scopeQuerySupport.accessRecordSpec(dataScopeResolver.current()))
-        val records = accessRecordRepository.findAll(spec, PageRequest.of(page - 1, pageSize, Sort.by(Sort.Direction.DESC, "inAndOutTime", "id")))
+        val records = accessRecordRepository.findAll(
+            spec,
+            PageRequest.of(page - 1, pageSize, Sort.by(Sort.Direction.DESC, "inAndOutTime", "id"))
+        )
         val items = records.content.map {
             VehicleRecord(
                 requireNotNull(it.id),
@@ -872,6 +1560,19 @@ class ParkingApiController(
 
     @GetMapping("/login-logs")
     @PreAuthorize("hasAuthority('audit:read')")
+            /**
+             * loginLogs：完成身份认证、令牌或验证码处理。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param keyword 参与本次处理的输入参数。
+             * @param status 参与本次处理的输入参数。
+             * @param startDate 参与本次处理的输入参数。
+             * @param endDate 参与本次处理的输入参数。
+             * @param page 参与本次处理的输入参数。
+             * @param pageSize 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun loginLogs(
         @RequestParam(required = false) keyword: String?,
         @RequestParam(required = false) status: String?,
@@ -882,16 +1583,31 @@ class ParkingApiController(
     ): ResponseEntity<Response> {
         require(page >= 1) { "页码必须大于 0" }
         require(pageSize in 1..100) { "每页数量必须在 1 到 100 之间" }
-        data class LogData(val id: Long, @param:JsonProperty("user") val user: String, val ip: String?, val location: String?, val browser: String?, val os: String?, val status: String, val time: String, val message: String?)
+        data class LogData(
+            val id: Long,
+            @param:JsonProperty("user") val user: String,
+            val ip: String?,
+            val location: String?,
+            val browser: String?,
+            val os: String?,
+            val status: String,
+            val time: String,
+            val message: String?
+        )
+
         data class PageData(val items: List<LogData>, val total: Int)
+
         val visibleAfter = logVisibilityService.visibleAfter(LogVisibilityService.Type.LOGIN)
         val logs = auditEventRepository.findAll().filter {
-            val targetUsername = runCatching { objectMapper.readTree(it.targetSummary ?: "{}").get("username")?.asString() }.getOrNull()
+            val targetUsername =
+                runCatching { objectMapper.readTree(it.targetSummary ?: "{}").get("username")?.asString() }.getOrNull()
             it.category.name == "AUTHENTICATION" && (it.action == "AUTH_LOGIN_SUCCEEDED" || it.action == "AUTH_LOGIN_FAILED") &&
-                (keyword.isNullOrBlank() || it.actorUsername.contains(keyword, true) || it.sourceIp.orEmpty().contains(keyword, true) || targetUsername?.contains(keyword, true) == true) &&
-                (status.isNullOrBlank() || (status == "成功" && it.result.name == "SUCCESS") || (status == "失败" && it.result.name != "SUCCESS")) &&
-                (visibleAfter == null || it.occurredAt.isAfter(visibleAfter)) &&
-                (startDate == null || !it.occurredAt.toLocalDate().isBefore(startDate)) && (endDate == null || !it.occurredAt.toLocalDate().isAfter(endDate))
+                    (keyword.isNullOrBlank() || it.actorUsername.contains(keyword, true) || it.sourceIp.orEmpty()
+                        .contains(keyword, true) || targetUsername?.contains(keyword, true) == true) &&
+                    (status.isNullOrBlank() || (status == "成功" && it.result.name == "SUCCESS") || (status == "失败" && it.result.name != "SUCCESS")) &&
+                    (visibleAfter == null || it.occurredAt.isAfter(visibleAfter)) &&
+                    (startDate == null || !it.occurredAt.toLocalDate()
+                        .isBefore(startDate)) && (endDate == null || !it.occurredAt.toLocalDate().isAfter(endDate))
         }.sortedByDescending { it.occurredAt }
         val from = ((page - 1).coerceAtLeast(0) * pageSize.coerceAtLeast(1)).coerceAtMost(logs.size)
         val to = (from + pageSize.coerceAtLeast(1)).coerceAtMost(logs.size)
@@ -914,7 +1630,7 @@ class ParkingApiController(
             }
             val location = it.sourceIp?.let { ip ->
                 val privateNetwork = ip == "127.0.0.1" || ip == "::1" || ip.startsWith("10.") ||
-                    ip.startsWith("192.168.") || Regex("^172\\.(1[6-9]|2[0-9]|3[0-1])\\.").containsMatchIn(ip)
+                        ip.startsWith("192.168.") || Regex("^172\\.(1[6-9]|2[0-9]|3[0-1])\\.").containsMatchIn(ip)
                 if (privateNetwork) "内网" else "外网"
             }
             val message = when (it.action) {
@@ -922,15 +1638,33 @@ class ParkingApiController(
                 "AUTH_LOGIN_FAILED" -> "登录失败"
                 else -> it.reason ?: it.action
             }
-            LogData(requireNotNull(it.id), it.actorUsername, it.sourceIp, location, browser, os, if (it.result.name == "SUCCESS") "成功" else "失败", it.occurredAt.toString(), message)
+            LogData(
+                requireNotNull(it.id),
+                it.actorUsername,
+                it.sourceIp,
+                location,
+                browser,
+                os,
+                if (it.result.name == "SUCCESS") "成功" else "失败",
+                it.occurredAt.toString(),
+                message
+            )
         }
         return responseBuilder.ok().data(PageData(items, logs.size)).build()
     }
 
     @DeleteMapping("/login-logs")
     @PreAuthorize("hasRole('SUPER_ADMIN') and hasAuthority('audit:delete')")
+            /**
+             * clearLoginLogs：删除、清理或撤销相关数据。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun clearLoginLogs(): ResponseEntity<Response> {
         data class Response(@param:JsonProperty("cleared_at") val clearedAt: String)
+
         val clearedAt = logVisibilityService.clear(LogVisibilityService.Type.LOGIN)
         auditService.record(
             AuditCommand(
@@ -945,6 +1679,20 @@ class ParkingApiController(
 
     @GetMapping("/operation-logs")
     @PreAuthorize("hasAuthority('audit:read')")
+            /**
+             * operationLogs：执行当前模块中的业务操作。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param keyword 参与本次处理的输入参数。
+             * @param module 参与本次处理的输入参数。
+             * @param status 参与本次处理的输入参数。
+             * @param startDate 参与本次处理的输入参数。
+             * @param endDate 参与本次处理的输入参数。
+             * @param page 参与本次处理的输入参数。
+             * @param pageSize 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun operationLogs(
         @RequestParam(required = false) keyword: String?,
         @RequestParam(required = false) module: String?,
@@ -956,8 +1704,20 @@ class ParkingApiController(
     ): ResponseEntity<Response> {
         require(page >= 1) { "页码必须大于 0" }
         require(pageSize in 1..100) { "每页数量必须在 1 到 100 之间" }
-        data class LogData(val id: Long, val user: String, val module: String, val action: String, @param:JsonProperty("desc") val description: String, val ip: String?, val status: String, val time: String, val cost: String?)
+        data class LogData(
+            val id: Long,
+            val user: String,
+            val module: String,
+            val action: String,
+            @param:JsonProperty("desc") val description: String,
+            val ip: String?,
+            val status: String,
+            val time: String,
+            val cost: String?
+        )
+
         data class PageData(val items: List<LogData>, val total: Int)
+
         val visibleAfter = logVisibilityService.visibleAfter(LogVisibilityService.Type.OPERATION)
         val logs = operationLogRepository.findAll().filter {
             val moduleName = it.path.trim('/').split('/').drop(1).firstOrNull()?.let { segment ->
@@ -972,11 +1732,15 @@ class ParkingApiController(
                 }
             } ?: "系统"
             !it.path.startsWith("/api/auth/") &&
-                (keyword.isNullOrBlank() || it.actorUsername.contains(keyword, true) || it.path.contains(keyword, true) || it.method.contains(keyword, true)) &&
-                (module.isNullOrBlank() || moduleName.equals(module, true)) &&
-                (status.isNullOrBlank() || (status == "成功" && it.result == OperationLog.Result.SUCCESS) || (status == "失败" && it.result != OperationLog.Result.SUCCESS)) &&
-                (visibleAfter == null || it.occurredAt.isAfter(visibleAfter)) &&
-                (startDate == null || !it.occurredAt.toLocalDate().isBefore(startDate)) && (endDate == null || !it.occurredAt.toLocalDate().isAfter(endDate))
+                    (keyword.isNullOrBlank() || it.actorUsername.contains(keyword, true) || it.path.contains(
+                        keyword,
+                        true
+                    ) || it.method.contains(keyword, true)) &&
+                    (module.isNullOrBlank() || moduleName.equals(module, true)) &&
+                    (status.isNullOrBlank() || (status == "成功" && it.result == OperationLog.Result.SUCCESS) || (status == "失败" && it.result != OperationLog.Result.SUCCESS)) &&
+                    (visibleAfter == null || it.occurredAt.isAfter(visibleAfter)) &&
+                    (startDate == null || !it.occurredAt.toLocalDate()
+                        .isBefore(startDate)) && (endDate == null || !it.occurredAt.toLocalDate().isAfter(endDate))
         }.sortedByDescending { it.occurredAt }
         val from = ((page - 1).coerceAtLeast(0) * pageSize.coerceAtLeast(1)).coerceAtMost(logs.size)
         val to = (from + pageSize.coerceAtLeast(1)).coerceAtMost(logs.size)
@@ -999,15 +1763,33 @@ class ParkingApiController(
                 else -> "查询"
             }
             val description = "${it.method.uppercase()} ${it.path}"
-            LogData(requireNotNull(it.id), it.actorUsername, moduleName, actionName, description, it.sourceIp, if (it.result == OperationLog.Result.SUCCESS) "成功" else "失败", it.occurredAt.toString(), "${it.durationMs}ms")
+            LogData(
+                requireNotNull(it.id),
+                it.actorUsername,
+                moduleName,
+                actionName,
+                description,
+                it.sourceIp,
+                if (it.result == OperationLog.Result.SUCCESS) "成功" else "失败",
+                it.occurredAt.toString(),
+                "${it.durationMs}ms"
+            )
         }
         return responseBuilder.ok().data(PageData(items, logs.size)).build()
     }
 
     @DeleteMapping("/operation-logs")
     @PreAuthorize("hasRole('SUPER_ADMIN') and hasAuthority('audit:delete')")
+            /**
+             * clearOperationLogs：删除、清理或撤销相关数据。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun clearOperationLogs(): ResponseEntity<Response> {
         data class Response(@param:JsonProperty("cleared_at") val clearedAt: String)
+
         val clearedAt = logVisibilityService.clear(LogVisibilityService.Type.OPERATION)
         auditService.record(
             AuditCommand(
@@ -1022,22 +1804,46 @@ class ParkingApiController(
 
     @GetMapping("/dashboard")
     @PreAuthorize("hasAuthority('dashboard:read')")
+            /**
+             * dashboard：执行当前模块中的业务操作。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun dashboard(): ResponseEntity<Response> {
         data class Stat(val label: String, val value: Int, val delta: String, val trend: String, val color: String)
         data class Parking(val area: String, val total: Int, val used: Int)
         data class Series(val name: String, val data: List<Int>, val color: String)
         data class Trend(val labels: List<String>, val series: List<Series>)
-        data class Dashboard(val stats: List<Stat>, val parking: List<Parking>, @param:JsonProperty("violationTypes") val violationTypes: List<Map<String, Any>>, @param:JsonProperty("violationTrend") val violationTrend: Trend, @param:JsonProperty("inoutTrend") val inoutTrend: Trend)
+        data class Dashboard(
+            val stats: List<Stat>,
+            val parking: List<Parking>,
+            @param:JsonProperty("violationTypes") val violationTypes: List<Map<String, Any>>,
+            @param:JsonProperty("violationTrend") val violationTrend: Trend,
+            @param:JsonProperty("inoutTrend") val inoutTrend: Trend
+        )
+
         val scope = dataScopeResolver.current()
         // 车位指标按配置的车场/区域统计：总数取科拓同步的区域容量，已分配取本地已登记且启用的车位数。
         val spotStats = dashboardSpotStatsService.currentStats(scope)
         val violations = violationRecordRepository.findAllWithViolationType()
             .filter { scopeQuerySupport.violationSubjectVisible(scope, it.subject) }
-        val violationTypes = violations.groupingBy { it.violationType.violationName ?: "未分类" }.eachCount().entries.map { mapOf<String, Any>("name" to it.key, "value" to it.value, "color" to "#3B6DFF") }
+        val violationTypes = violations.groupingBy { it.violationType.violationName ?: "未分类" }
+            .eachCount().entries.map { mapOf<String, Any>("name" to it.key, "value" to it.value, "color" to "#3B6DFF") }
         val violationDates = (0..6).map { LocalDate.now().minusDays((6 - it).toLong()) }
         val weekLabels = listOf("周一", "周二", "周三", "周四", "周五", "周六", "周日")
         val violationLabels = violationDates.map { weekLabels[it.dayOfWeek.value - 1] }
-        val violationTrend = Trend(violationLabels, listOf(Series("违规次数", violationDates.map { day -> violations.count { it.violationTime.toLocalDate() == day } }, "#E9A568")))
+        val violationTrend = Trend(
+            violationLabels,
+            listOf(
+                Series(
+                    "违规次数",
+                    violationDates.map { day -> violations.count { it.violationTime.toLocalDate() == day } },
+                    "#E9A568"
+                )
+            )
+        )
         val todayStart = LocalDate.now().atStartOfDay()
         val todaySpec = Specification<AccessRecord> { root, _, cb ->
             cb.and(
@@ -1049,12 +1855,33 @@ class ParkingApiController(
             Specification.where(scopeQuerySupport.accessRecordSpec(scope)).and(todaySpec),
         )
         val inoutLabels = listOf("00:00", "04:00", "08:00", "12:00", "16:00", "20:00")
-        val inoutTrend = Trend(inoutLabels, listOf(
-            Series("进场", inoutLabels.mapIndexed { index, _ -> accessRecords.count { it.inAndOut == AccessRecord.InAndOut.IN && it.inAndOutTime.hour / 4 == index } }, "#38BDF8"),
-            Series("出场", inoutLabels.mapIndexed { index, _ -> accessRecords.count { it.inAndOut == AccessRecord.InAndOut.OUT && it.inAndOutTime.hour / 4 == index } }, "#6EE7B7"),
-        ))
+        val inoutTrend = Trend(
+            inoutLabels, listOf(
+                Series(
+                    "进场",
+                    inoutLabels.mapIndexed { index, _ -> accessRecords.count { it.inAndOut == AccessRecord.InAndOut.IN && it.inAndOutTime.hour / 4 == index } },
+                    "#38BDF8"
+                ),
+                Series(
+                    "出场",
+                    inoutLabels.mapIndexed { index, _ -> accessRecords.count { it.inAndOut == AccessRecord.InAndOut.OUT && it.inAndOutTime.hour / 4 == index } },
+                    "#6EE7B7"
+                ),
+            )
+        )
         val rs = Dashboard(
-            listOf(Stat("车位总数", spotStats.total, "0%", "flat", "blue"), Stat("已分配", spotStats.used, "0%", "flat", "green"), Stat("空闲车位", (spotStats.total - spotStats.used).coerceAtLeast(0), "0%", "flat", "orange"), Stat("今日违规", violations.count { it.violationTime.toLocalDate() == java.time.LocalDate.now() }, "0%", "flat", "red")),
+            listOf(
+                Stat("车位总数", spotStats.total, "0%", "flat", "blue"),
+                Stat("已分配", spotStats.used, "0%", "flat", "green"),
+                Stat("空闲车位", (spotStats.total - spotStats.used).coerceAtLeast(0), "0%", "flat", "orange"),
+                Stat(
+                    "今日违规",
+                    violations.count { it.violationTime.toLocalDate() == LocalDate.now() },
+                    "0%",
+                    "flat",
+                    "red"
+                )
+            ),
             spotStats.zones.map { Parking(it.zoneName, it.total, it.used) }, violationTypes, violationTrend, inoutTrend,
         )
         return responseBuilder.ok().data(rs).build()
@@ -1079,7 +1906,8 @@ class ParkingApiController(
         }
         if (body.inspected == true) {
             val inspectedOn = body.inspectionDate?.let(LocalDate::parse) ?: LocalDate.now()
-            val validUntil = body.inspectionValidUntil?.let(LocalDate::parse) ?: VehicleInspection.defaultValidUntil(inspectedOn)
+            val validUntil =
+                body.inspectionValidUntil?.let(LocalDate::parse) ?: VehicleInspection.defaultValidUntil(inspectedOn)
             require(!validUntil.isBefore(inspectedOn)) { "年检有效期不能早于年检日期" }
             plate.inspectionDate = inspectedOn
             plate.inspectionValidUntil = validUntil
@@ -1094,6 +1922,13 @@ class ParkingApiController(
         require(inspectedOn == null || validUntil == null || !validUntil.isBefore(inspectedOn)) { "年检有效期不能早于年检日期" }
     }
 
+    /**
+     * refreshOwnerCounts：更新业务状态或修改相关配置。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun refreshOwnerCounts() {
         val owners = ownerRepository.findAll()
         val spots = spotRepository.findAll()
@@ -1157,8 +1992,20 @@ class ParkingApiController(
 
     /** 按 ID 取范围内人员；不存在与范围外共用同一个错误，避免用响应差异探测别的部门。 */
     private fun requireVisibleGatePerson(id: Long): GatePerson =
-        scopeGuard.requireVisibleRow(gatePersonRepository.findById(id).orElse(null), scopeGuard.currentScope(), "人员不存在")
+        scopeGuard.requireVisibleRow(
+            gatePersonRepository.findById(id).orElse(null),
+            scopeGuard.currentScope(),
+            "人员不存在"
+        )
 
+    /**
+     * requireImageUpload：校验输入、状态或访问条件。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param file 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun requireImageUpload(file: MultipartFile) {
         require(file.size <= FACE_PHOTO_MAX_BYTES) { "人脸照片不能超过 2MB" }
         require(file.contentType?.startsWith("image/", ignoreCase = true) == true) { "人脸照片必须为图片格式" }
@@ -1180,13 +2027,28 @@ class ParkingApiController(
         val header = ByteArray(IMAGE_HEADER_BYTES)
         val size = file.inputStream.use { it.read(header) }
         if (size < 4) return false
+        /**
+         * matches：校验输入、状态或访问条件。
+         *
+         * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+         * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+         * @param offset 参与本次处理的输入参数。
+         * @param expected 参与本次处理的输入参数。
+         * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+         */
         fun matches(offset: Int, vararg expected: Int): Boolean =
             size >= offset + expected.size && expected.indices.all { header[offset + it] == expected[it].toByte() }
         return matches(0, 0xFF, 0xD8, 0xFF) || // JPEG
-            matches(0, 0x89, 'P'.code, 'N'.code, 'G'.code) || // PNG
-            matches(0, 'G'.code, 'I'.code, 'F'.code) || // GIF
-            matches(0, 'B'.code, 'M'.code) || // BMP
-            (matches(0, 'R'.code, 'I'.code, 'F'.code, 'F'.code) && matches(8, 'W'.code, 'E'.code, 'B'.code, 'P'.code)) // WebP
+                matches(0, 0x89, 'P'.code, 'N'.code, 'G'.code) || // PNG
+                matches(0, 'G'.code, 'I'.code, 'F'.code) || // GIF
+                matches(0, 'B'.code, 'M'.code) || // BMP
+                (matches(0, 'R'.code, 'I'.code, 'F'.code, 'F'.code) && matches(
+                    8,
+                    'W'.code,
+                    'E'.code,
+                    'B'.code,
+                    'P'.code
+                )) // WebP
     }
 
     private companion object {

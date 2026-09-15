@@ -1,18 +1,14 @@
 package top.foxball.cartask.entity
 
-import jakarta.persistence.Column
-import jakarta.persistence.Entity
-import jakarta.persistence.EntityListeners
-import jakarta.persistence.GeneratedValue
-import jakarta.persistence.GenerationType
-import jakarta.persistence.Id
-import jakarta.persistence.Table
-import jakarta.persistence.UniqueConstraint
+import jakarta.persistence.*
 import java.time.LocalDateTime
 
 @Entity
 @EntityListeners(AuditingEntityListener::class)
-@Table(name = "parking_spot", uniqueConstraints = [UniqueConstraint(name = "uk_parking_spot_code", columnNames = ["code"])])
+@Table(
+    name = "parking_spot",
+    uniqueConstraints = [UniqueConstraint(name = "uk_parking_spot_code", columnNames = ["code"])]
+)
 class ParkingSpot {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

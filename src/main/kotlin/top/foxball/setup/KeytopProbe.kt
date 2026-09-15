@@ -1,15 +1,15 @@
 package top.foxball.setup
 
+import org.springframework.stereotype.Component
+import tools.jackson.databind.ObjectMapper
+import top.foxball.cartask.keytop.KeytopSignature
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.nio.charset.StandardCharsets
 import java.time.Duration
-import java.util.UUID
-import org.springframework.stereotype.Component
-import tools.jackson.databind.ObjectMapper
-import top.foxball.cartask.keytop.KeytopSignature
+import java.util.*
 
 data class KeytopProbeResult(
     val message: String,
@@ -31,6 +31,17 @@ data class KeytopProbeResult(
 class KeytopProbe(
     private val objectMapper: ObjectMapper,
 ) {
+    /**
+     * probe：执行数据同步、探测或文件处理。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param baseUrl 参与本次处理的输入参数。
+     * @param appId 参与本次处理的输入参数。
+     * @param parkId 参与本次处理的输入参数。
+     * @param appSecret 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     fun probe(baseUrl: String, appId: String, parkId: String, appSecret: String): KeytopProbeResult {
         val base = baseUrl.trim().trimEnd('/')
         if (!base.startsWith("http://") && !base.startsWith("https://")) {
@@ -81,7 +92,7 @@ class KeytopProbe(
         } catch (exception: RuntimeException) {
             throw SetupException("科拓接口返回的不是 JSON，请确认接口地址是否正确（当前：$base）", exception)
         }
-        if (!json.isObject()) {
+        if (!json.isObject) {
             throw SetupException("科拓接口返回的不是 JSON 对象，请确认接口地址是否正确（当前：$base）")
         }
 
@@ -92,7 +103,7 @@ class KeytopProbe(
         }
         return KeytopProbeResult(
             message = message.ifBlank { "调用成功" },
-            areas = json.get("data")?.takeIf { it.isArray() }?.size(),
+            areas = json.get("data")?.takeIf { it.isArray }?.size(),
         )
     }
 
@@ -101,14 +112,24 @@ class KeytopProbe(
         val hint = when {
             message.contains("签名", ignoreCase = true) || message.contains("sign", ignoreCase = true) ->
                 "appSecret 不正确"
+
             message.contains("appId", ignoreCase = true) -> "appId 不正确或未开通该接口权限"
             message.contains("车场", ignoreCase = true) || message.contains("park", ignoreCase = true) ->
                 "parkId 不正确，或该车场不属于这个 appId"
+
             else -> "请核对 appId、parkId 与 appSecret"
         }
         return "科拓接口返回失败：${message.ifBlank { "code=${code ?: "未知"}" }}（$hint）"
     }
 
+    /**
+     * describeTransport：转换、构建或格式化数据。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param exception 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun describeTransport(exception: Exception): String {
         val raw = generateSequence(exception as Throwable) { it.cause }
             .mapNotNull { it.message }
@@ -118,6 +139,7 @@ class KeytopProbe(
             raw.contains("Connection refused", ignoreCase = true) -> "目标地址拒绝连接"
             raw.contains("timed out", ignoreCase = true) || raw.contains("timeout", ignoreCase = true) ->
                 "请求超时，请检查网络与出口策略"
+
             else -> "请检查网络与接口地址"
         }
         return "无法访问科拓接口：$hint。${raw.ifBlank { "（未返回原因）" }}"

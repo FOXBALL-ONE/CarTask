@@ -3,7 +3,7 @@ package top.foxball.cartask.repository
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
 import top.foxball.cartask.entity.StoredFile
-import java.util.UUID
+import java.util.*
 
 interface StoredFileRepository : JpaRepository<StoredFile, UUID> {
     /** 按业务关联取文件；同一业务对象可有多个（例如换过多次人脸照片）。 */

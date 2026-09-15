@@ -3,14 +3,7 @@ package top.foxball.cartask.controller
 import com.fasterxml.jackson.annotation.JsonProperty
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.PathVariable
-import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.PutMapping
-import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RequestParam
-import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.bind.annotation.*
 import top.foxball.cartask.handler.ParamErrorException
 import top.foxball.cartask.service.SyncScheduleService
 import top.foxball.cartask.service.SyncTaskHistoryService
@@ -57,6 +50,13 @@ class SynchronizationController(
 ) {
     @GetMapping("/progress")
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAnyAuthority('dictionary:sync', 'vehicle-record:sync', 'owner:sync', 'account:sync')")
+            /**
+             * syncProgress：执行数据同步、探测或文件处理。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun syncProgress(): ResponseEntity<Response> {
         data class TaskData(
             @param:JsonProperty("task_key") val taskKey: String,
@@ -66,9 +66,12 @@ class SynchronizationController(
             @param:JsonProperty("total_count") val totalCount: Int?,
             @param:JsonProperty("started_at") val startedAt: LocalDateTime?,
         )
-        val rs = syncTaskProgressService.snapshot().map { TaskData(it.taskKey, it.taskName, it.running, it.processedCount, it.totalCount, it.startedAt) }
+
+        val rs = syncTaskProgressService.snapshot()
+            .map { TaskData(it.taskKey, it.taskName, it.running, it.processedCount, it.totalCount, it.startedAt) }
         return responseBuilder.ok().data(rs).build()
     }
+
     /** 从科拓拉取一次停车区域，并将结果幂等写入本地区域字典。 */
     @PostMapping("/parking-areas")
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('dictionary:sync')")
@@ -125,6 +128,13 @@ class SynchronizationController(
 
     @PostMapping("/access-records")
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('vehicle-record:sync')")
+            /**
+             * synchronizeAccessRecords：执行数据同步、探测或文件处理。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun synchronizeAccessRecords(): ResponseEntity<Response> {
         data class Response(
             @param:JsonProperty("processed_count") val processedCount: Int,
@@ -223,6 +233,7 @@ class SynchronizationController(
             val summary: String?,
             val error: String?,
         )
+
         data class Response(
             val runs: List<RunData>,
             val page: Int,
@@ -286,6 +297,14 @@ class SynchronizationController(
             .build()
     }
 
+    /**
+     * toScheduleData：转换、构建或格式化数据。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param schedule 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun toScheduleData(schedule: SyncScheduleService.ScheduleView): ScheduleData = ScheduleData(
         taskKey = schedule.taskKey,
         taskName = schedule.taskName,

@@ -1,13 +1,13 @@
 package top.foxball.setup
 
 import com.fasterxml.jackson.annotation.JsonInclude
-import java.nio.file.Files
-import java.nio.file.Path
-import java.nio.file.StandardCopyOption
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import tools.jackson.databind.ObjectMapper
 import top.foxball.cartask.config.DotenvLoader
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.StandardCopyOption
 
 /**
  * 引导草稿：向导每一步验证通过后落盘的环境变量片段。
@@ -32,6 +32,13 @@ class SetupDraftStore(
 
     private var cached: SetupDraft? = null
 
+    /**
+     * read：查询或读取相关数据。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     fun read(): SetupDraft = synchronized(lock) { loaded() }
 
     /**
@@ -47,14 +54,35 @@ class SetupDraftStore(
         persist(drafted)
     }
 
+    /**
+     * delete：删除、清理或撤销相关数据。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     fun delete() = synchronized(lock) {
         cached = SetupDraft()
         Files.deleteIfExists(properties.draftPath())
         Unit
     }
 
+    /**
+     * loaded：查询或读取相关数据。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun loaded(): SetupDraft = cached ?: loadFromDisk().also { cached = it }
 
+    /**
+     * loadFromDisk：查询或读取相关数据。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun loadFromDisk(): SetupDraft {
         val path = properties.draftPath()
         val fromDisk = if (Files.exists(path)) {
@@ -75,6 +103,14 @@ class SetupDraftStore(
         return seeded
     }
 
+    /**
+     * persist：创建、保存或初始化相关数据。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param draft 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun persist(draft: SetupDraft) {
         val path = properties.draftPath()
         writeAtomically(path, objectMapper.writeValueAsString(draft))
@@ -89,6 +125,15 @@ class SetupDraftStore(
         }
     }
 
+    /**
+     * writeAtomically：创建、保存或初始化相关数据。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param path 参与本次处理的输入参数。
+     * @param content 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun writeAtomically(path: Path, content: String) {
         path.parent?.let { Files.createDirectories(it) }
         val temporary = path.resolveSibling("${path.fileName}.tmp")

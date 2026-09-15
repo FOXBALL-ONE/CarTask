@@ -1,19 +1,8 @@
 package top.foxball.cartask.entity
 
-import jakarta.persistence.Column
-import jakarta.persistence.Entity
-import jakarta.persistence.EntityListeners
-import jakarta.persistence.EnumType
-import jakarta.persistence.Enumerated
-import jakarta.persistence.FetchType
-import jakarta.persistence.GeneratedValue
-import jakarta.persistence.GenerationType
-import jakarta.persistence.Id
-import jakarta.persistence.JoinColumn
-import jakarta.persistence.ManyToOne
-import jakarta.persistence.Table
-import java.time.LocalDateTime
+import jakarta.persistence.*
 import top.foxball.cartask.entity.type.AccessControlType
+import java.time.LocalDateTime
 
 /** 门禁授权记录，描述人员在指定时间范围内的通行权限。 */
 @Entity

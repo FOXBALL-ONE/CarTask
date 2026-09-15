@@ -1,14 +1,6 @@
 package top.foxball.cartask.entity.type
 
-import jakarta.persistence.Column
-import jakarta.persistence.Entity
-import jakarta.persistence.EntityListeners
-import jakarta.persistence.EnumType
-import jakarta.persistence.Enumerated
-import jakarta.persistence.GeneratedValue
-import jakarta.persistence.GenerationType
-import jakarta.persistence.Id
-import jakarta.persistence.Table
+import jakarta.persistence.*
 import top.foxball.cartask.entity.AuditingEntityListener
 import java.time.LocalDateTime
 
@@ -44,7 +36,7 @@ class ViolationType {
     /** 创建时间。 */
     @Column(nullable = false, updatable = false)
     lateinit var createdAt: LocalDateTime
-    
+
     /** 最后更新时间。 */
     @Column(nullable = false)
     lateinit var updatedAt: LocalDateTime

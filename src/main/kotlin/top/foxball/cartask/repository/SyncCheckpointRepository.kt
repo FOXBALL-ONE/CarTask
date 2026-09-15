@@ -1,13 +1,29 @@
 package top.foxball.cartask.repository
 
+import jakarta.persistence.LockModeType
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Lock
 import top.foxball.cartask.entity.SyncCheckpoint
-import jakarta.persistence.LockModeType
 
 interface SyncCheckpointRepository : JpaRepository<SyncCheckpoint, Long> {
+    /**
+     * findFirstBySyncKey：查询或读取相关数据。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param syncKey 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     fun findFirstBySyncKey(syncKey: String): SyncCheckpoint?
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
+            /**
+             * findBySyncKey：查询或读取相关数据。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param syncKey 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun findBySyncKey(syncKey: String): SyncCheckpoint?
 }

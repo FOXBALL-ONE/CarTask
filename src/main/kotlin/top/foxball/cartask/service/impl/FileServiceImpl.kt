@@ -5,6 +5,9 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.support.TransactionOperations
 import org.springframework.web.multipart.MultipartFile
 import org.springframework.web.util.UriComponentsBuilder
+import top.foxball.cartask.audit.AuditAction
+import top.foxball.cartask.audit.AuditCommand
+import top.foxball.cartask.audit.AuditService
 import top.foxball.cartask.authentication.CurrentUserPrincipal
 import top.foxball.cartask.config.FileProperties
 import top.foxball.cartask.entity.StoredFile
@@ -15,26 +18,16 @@ import top.foxball.cartask.scope.DataScopeResolver
 import top.foxball.cartask.scope.DepartmentLinkResolver
 import top.foxball.cartask.scope.ScopeQuerySupport
 import top.foxball.cartask.service.FileService
-import top.foxball.cartask.audit.AuditAction
-import top.foxball.cartask.audit.AuditCommand
-import top.foxball.cartask.audit.AuditService
-import java.nio.file.AtomicMoveNotSupportedException
-import java.nio.file.Files
-import java.nio.file.InvalidPathException
-import java.nio.file.LinkOption
-import java.nio.file.Path
-import java.nio.file.StandardCopyOption
-import java.nio.file.StandardOpenOption
-import java.security.MessageDigest
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
+import java.nio.file.*
+import java.security.MessageDigest
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-import java.util.HexFormat
-import java.util.UUID
+import java.util.*
 
 @Service
 /** 将上传文件写入本地存储并维护元数据的一致性。 */
@@ -65,7 +58,11 @@ class FileServiceImpl(
                         AuditAction.FILE_UPLOADED,
                         "stored_file",
                         persisted.id.toString(),
-                        targetSummary = mapOf("original_filename" to persisted.originalFilename, "size_bytes" to persisted.sizeBytes, "content_type" to persisted.contentType),
+                        targetSummary = mapOf(
+                            "original_filename" to persisted.originalFilename,
+                            "size_bytes" to persisted.sizeBytes,
+                            "content_type" to persisted.contentType
+                        ),
                     ),
                 )
                 persisted
@@ -77,6 +74,15 @@ class FileServiceImpl(
         }
     }
 
+    /**
+     * importRemote：执行数据同步、探测或文件处理。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param url 参与本次处理的输入参数。
+     * @param origin 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     override fun importRemote(url: String, origin: FileService.FileOrigin?): FileService.FileData {
         val uri = try {
             URI.create(url.trim())
@@ -125,7 +131,12 @@ class FileServiceImpl(
                         AuditAction.FILE_UPLOADED,
                         "stored_file",
                         persisted.id.toString(),
-                        targetSummary = mapOf("original_filename" to persisted.originalFilename, "size_bytes" to persisted.sizeBytes, "content_type" to persisted.contentType, "source_url" to url),
+                        targetSummary = mapOf(
+                            "original_filename" to persisted.originalFilename,
+                            "size_bytes" to persisted.sizeBytes,
+                            "content_type" to persisted.contentType,
+                            "source_url" to url
+                        ),
                     ),
                 )
                 persisted
@@ -139,6 +150,7 @@ class FileServiceImpl(
 
     /** 将已存储的元数据转换为对外返回数据。 */
     override fun get(id: UUID): FileService.FileData = fileData(findVisibleFile(id))
+
     /** 验证记录和文件均存在后，返回下载资源描述。 */
     override fun openDownload(id: UUID): FileService.DownloadData {
         val storedFile = findVisibleFile(id)
@@ -151,7 +163,10 @@ class FileServiceImpl(
                 AuditAction.FILE_DOWNLOADED,
                 "stored_file",
                 id.toString(),
-                targetSummary = mapOf("original_filename" to storedFile.originalFilename, "size_bytes" to storedFile.sizeBytes),
+                targetSummary = mapOf(
+                    "original_filename" to storedFile.originalFilename,
+                    "size_bytes" to storedFile.sizeBytes
+                ),
             ),
         )
         return FileService.DownloadData(
@@ -170,7 +185,21 @@ class FileServiceImpl(
         }
     }
 
-    private fun storeContent(input: java.io.InputStream, safeFilename: SafeFilename, contentType: String?): StoredUpload {
+    /**
+     * storeContent：创建、保存或初始化相关数据。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param input 参与本次处理的输入参数。
+     * @param safeFilename 参与本次处理的输入参数。
+     * @param contentType 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
+    private fun storeContent(
+        input: java.io.InputStream,
+        safeFilename: SafeFilename,
+        contentType: String?
+    ): StoredUpload {
         val date = LocalDate.now()
         val datePath = date.format(DATE_PATH_FORMATTER)
         val directory = properties.rootPath.resolve(datePath)
@@ -267,12 +296,31 @@ class FileServiceImpl(
             ?.let { metadata.departmentCode = it }
     }
 
+    /**
+     * applyOrigin：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param metadata 参与本次处理的输入参数。
+     * @param origin 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun applyOrigin(metadata: StoredFile, origin: FileService.FileOrigin) {
         origin.departmentCode?.let { metadata.departmentCode = it }
         origin.businessType?.let { metadata.businessType = it }
         origin.businessId?.let { metadata.businessId = it }
     }
 
+    /**
+     * linkBusiness：执行当前模块中的业务操作。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param id 参与本次处理的输入参数。
+     * @param businessType 参与本次处理的输入参数。
+     * @param businessId 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     override fun linkBusiness(id: UUID, businessType: String, businessId: String) {
         val storedFile = findFile(id)
         storedFile.businessType = businessType
@@ -280,7 +328,23 @@ class FileServiceImpl(
         fileRepository.save(storedFile)
     }
 
-    override fun relinkBusiness(businessType: String, fromBusinessId: String, toBusinessId: String, departmentCode: String?) {
+    /**
+     * relinkBusiness：执行当前模块中的业务操作。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param businessType 参与本次处理的输入参数。
+     * @param fromBusinessId 参与本次处理的输入参数。
+     * @param toBusinessId 参与本次处理的输入参数。
+     * @param departmentCode 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
+    override fun relinkBusiness(
+        businessType: String,
+        fromBusinessId: String,
+        toBusinessId: String,
+        departmentCode: String?
+    ) {
         transactionOperations.executeWithoutResult {
             fileRepository.findByBusinessTypeAndBusinessId(businessType, fromBusinessId).forEach {
                 it.businessId = toBusinessId
@@ -289,6 +353,15 @@ class FileServiceImpl(
         }
     }
 
+    /**
+     * unlinkBusiness：执行当前模块中的业务操作。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param businessType 参与本次处理的输入参数。
+     * @param businessId 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     override fun unlinkBusiness(businessType: String, businessId: String) {
         transactionOperations.executeWithoutResult {
             fileRepository.findByBusinessTypeAndBusinessId(businessType, businessId).forEach {

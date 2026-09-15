@@ -12,8 +12,8 @@ import top.foxball.cartask.repository.DepartmentRepository
 import top.foxball.cartask.repository.ParkingOwnerRepository
 import top.foxball.cartask.repository.ParkingPlateRepository
 import top.foxball.cartask.service.SyncTaskHistoryService
-import top.foxball.cartask.service.SyncTaskRunCommand
 import top.foxball.cartask.service.SyncTaskProgressService
+import top.foxball.cartask.service.SyncTaskRunCommand
 import top.foxball.cartask.service.UserService
 import top.foxball.cartask.shared.InitialCredentials
 import top.foxball.cartask.shared.PlateNumbers
@@ -69,6 +69,14 @@ class SynAccountGenerateTask(
     @Transactional(noRollbackFor = [RuntimeException::class])
     fun generate(): AccountGenerateResult = generate(SyncTaskRun.Trigger.MANUAL)
 
+    /**
+     * generate：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param trigger 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun generate(trigger: SyncTaskRun.Trigger): AccountGenerateResult {
         if (!executionLock.tryLock()) {
             throw AccountGenerateInProgressException()
@@ -92,6 +100,14 @@ class SynAccountGenerateTask(
         }
     }
 
+    /**
+     * generateInternal：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param startedAt 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun generateInternal(startedAt: LocalDateTime): AccountGenerateResult {
         var createdCount = 0
         var skippedCount = 0
@@ -203,6 +219,18 @@ class SynAccountGenerateTask(
         }
     }
 
+    /**
+     * recordHistory：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param trigger 参与本次处理的输入参数。
+     * @param status 参与本次处理的输入参数。
+     * @param startedAt 参与本次处理的输入参数。
+     * @param result 参与本次处理的输入参数。
+     * @param summary 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun recordHistory(
         trigger: SyncTaskRun.Trigger,
         status: SyncTaskRun.Status,

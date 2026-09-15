@@ -3,15 +3,7 @@ package top.foxball.cartask.controller
 import com.fasterxml.jackson.annotation.JsonProperty
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
-import org.springframework.web.bind.annotation.DeleteMapping
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.PathVariable
-import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.PutMapping
-import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestParam
-import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.bind.annotation.*
 import top.foxball.cartask.entity.User
 import top.foxball.cartask.scope.ManagedDepartmentInput
 import top.foxball.cartask.scope.ScopeGuard
@@ -47,6 +39,7 @@ class UserController(
             val status: Int,
             @param:JsonProperty("createTime") val createTime: LocalDateTime,
         )
+
         val username = requireNotNull(body.username) { "用户名不能为空" }
         val password = requireNotNull(body.password) { "密码不能为空" }
         val name = requireNotNull(body.name) { "姓名不能为空" }
@@ -70,7 +63,19 @@ class UserController(
                 roleIds = roleIds,
             ),
         )
-        val rs = Response(user.id, user.username, user.name, user.departmentId, user.positionId, user.jobTitle, user.phone, user.email, user.roleIds, if (user.status == User.Status.Activity) 1 else 0, user.createdAt)
+        val rs = Response(
+            user.id,
+            user.username,
+            user.name,
+            user.departmentId,
+            user.positionId,
+            user.jobTitle,
+            user.phone,
+            user.email,
+            user.roleIds,
+            if (user.status == User.Status.Activity) 1 else 0,
+            user.createdAt
+        )
         return responseBuilder.created().data(rs).build()
     }
 
@@ -113,7 +118,19 @@ class UserController(
                 roleIds = body.roleIds,
             ),
         )
-        val rs = Response(user.id, user.username, user.name, user.departmentId, user.positionId, user.jobTitle, user.phone, user.email, user.roleIds, if (user.status == User.Status.Activity) 1 else 0, user.createdAt)
+        val rs = Response(
+            user.id,
+            user.username,
+            user.name,
+            user.departmentId,
+            user.positionId,
+            user.jobTitle,
+            user.phone,
+            user.email,
+            user.roleIds,
+            if (user.status == User.Status.Activity) 1 else 0,
+            user.createdAt
+        )
         return responseBuilder.ok().data(rs).build()
     }
 
@@ -208,6 +225,7 @@ class UserController(
             @param:JsonProperty("created_at") val createdAt: LocalDateTime,
             @param:JsonProperty("updated_at") val updatedAt: LocalDateTime,
         )
+
         data class Response(val users: List<UserData>)
 
         require(username.isNotEmpty()) { "用户列表不能为空" }
@@ -311,6 +329,7 @@ class UserController(
             val status: Int,
             @param:JsonProperty("createTime") val createTime: LocalDateTime,
         )
+
         data class Response(
             val items: List<UserData>,
             val total: Int,
@@ -339,17 +358,27 @@ class UserController(
         // 范围本身已经由 UserServiceImpl.list 下推到 SQL（导出用户走的是同一条路径），
         // 这里只负责把客户端过滤参数与它叠加。
         val users = allUsers.filter {
-            (keyword.isNullOrBlank() || it.username.contains(keyword, true) || it.name.orEmpty().contains(keyword, true) || it.phone.orEmpty().contains(keyword, true)) &&
-                (status == null || (if (it.status == User.Status.Activity) 1 else 0) == status) &&
-                (requestedFilter.departmentId == null || it.departmentId == requestedFilter.departmentId)
+            (keyword.isNullOrBlank() || it.username.contains(keyword, true) || it.name.orEmpty()
+                .contains(keyword, true) || it.phone.orEmpty().contains(keyword, true)) &&
+                    (status == null || (if (it.status == User.Status.Activity) 1 else 0) == status) &&
+                    (requestedFilter.departmentId == null || it.departmentId == requestedFilter.departmentId)
         }
         val from = ((page - 1) * pageSize).coerceAtMost(users.size)
         val to = (from + pageSize).coerceAtMost(users.size)
         val rs = Response(
             users.subList(from, to).map {
                 UserData(
-                    it.id, it.username, it.name, it.departmentId, it.positionId, it.jobTitle, it.phone, it.email, it.roleIds,
-                    if (it.status == User.Status.Activity) 1 else 0, it.createdAt,
+                    it.id,
+                    it.username,
+                    it.name,
+                    it.departmentId,
+                    it.positionId,
+                    it.jobTitle,
+                    it.phone,
+                    it.email,
+                    it.roleIds,
+                    if (it.status == User.Status.Activity) 1 else 0,
+                    it.createdAt,
                 )
             },
             users.size,
@@ -381,6 +410,7 @@ class UserController(
             @param:JsonProperty("created_at") val createdAt: LocalDateTime,
             @param:JsonProperty("updated_at") val updatedAt: LocalDateTime,
         )
+
         data class Response(
             val users: List<UserData>,
             val page: Int,
@@ -427,6 +457,7 @@ class UserController(
             @param:JsonProperty("created_at") val createdAt: LocalDateTime,
             @param:JsonProperty("updated_at") val updatedAt: LocalDateTime,
         )
+
         data class Response(val users: List<UserData>)
 
         val users = userService.getBatch(id)
@@ -481,7 +512,18 @@ class UserController(
         require(role == null && enabled == null && status == null) { "角色和账号状态必须使用专用接口更新" }
         val user = userService.update(
             id,
-            UserService.UpdateCommand(username, email, credential, role, enabled, phone, gender, departmentId, positionId, status),
+            UserService.UpdateCommand(
+                username,
+                email,
+                credential,
+                role,
+                enabled,
+                phone,
+                gender,
+                departmentId,
+                positionId,
+                status
+            ),
         )
         val rs = Response(
             user.id,
@@ -518,7 +560,18 @@ class UserController(
         require(role == null && enabled == null && status == null) { "角色和账号状态必须使用专用接口更新" }
         userService.updateBatch(
             id,
-            UserService.UpdateCommand(username, email, credential, role, enabled, phone, gender, departmentId, positionId, status),
+            UserService.UpdateCommand(
+                username,
+                email,
+                credential,
+                role,
+                enabled,
+                phone,
+                gender,
+                departmentId,
+                positionId,
+                status
+            ),
         )
         val rs = Response(id)
         return responseBuilder.ok().data(rs).build()
@@ -586,6 +639,7 @@ class UserController(
             @param:JsonProperty("department_name") val departmentName: String,
             @param:JsonProperty("include_descendants") val includeDescendants: Boolean,
         )
+
         data class Response(val departments: List<DepartmentData>)
 
         val rs = Response(
@@ -608,6 +662,7 @@ class UserController(
             @param:JsonProperty("department_name") val departmentName: String,
             @param:JsonProperty("include_descendants") val includeDescendants: Boolean,
         )
+
         data class Response(val departments: List<DepartmentData>)
 
         val items = body.departments.orEmpty().map { item ->

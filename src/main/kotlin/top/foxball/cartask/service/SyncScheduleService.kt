@@ -49,10 +49,23 @@ class SyncScheduleService(
     )
 
     @Transactional(readOnly = true)
+            /**
+             * list：查询或读取相关数据。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun list(): List<ScheduleView> {
         val overrides = repository.findAll().associateBy { it.taskKey }
         return catalog.definitions.map { definition ->
-            view(definition.key, definition.name, definition.description, definition.defaultCron, overrides[definition.key])
+            view(
+                definition.key,
+                definition.name,
+                definition.description,
+                definition.defaultCron,
+                overrides[definition.key]
+            )
         }
     }
 
@@ -67,7 +80,12 @@ class SyncScheduleService(
         val override = repository.findById(taskKey).orElse(null) ?: return definition.defaultCron
         val expression = parseOrNull(override.cronExpression)
         if (expression == null) {
-            log.error("同步任务 {} 的周期 {} 无法解析，本次改用默认值 {}", taskKey, override.cronExpression, definition.defaultCron)
+            log.error(
+                "同步任务 {} 的周期 {} 无法解析，本次改用默认值 {}",
+                taskKey,
+                override.cronExpression,
+                definition.defaultCron
+            )
             return definition.defaultCron
         }
         return override.cronExpression.trim()
@@ -77,9 +95,26 @@ class SyncScheduleService(
     fun nextRunAt(taskKey: String): LocalDateTime? =
         parseOrNull(cronFor(taskKey))?.next(LocalDateTime.now(SyncScheduleCatalog.ZONE))
 
+    /**
+     * taskName：执行当前模块中的业务操作。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param taskKey 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     fun taskName(taskKey: String): String? = catalog.find(taskKey)?.name
 
     @Transactional
+            /**
+             * update：更新业务状态或修改相关配置。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param taskKey 参与本次处理的输入参数。
+             * @param cron 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun update(taskKey: String, cron: String): ScheduleView {
         val definition = catalog.find(taskKey) ?: throw ResourceNotFoundException("同步任务不存在")
         val normalized = cron.trim()
@@ -125,6 +160,18 @@ class SyncScheduleService(
         return view(taskKey, definition.name, definition.description, definition.defaultCron, current)
     }
 
+    /**
+     * view：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param taskKey 参与本次处理的输入参数。
+     * @param taskName 参与本次处理的输入参数。
+     * @param description 参与本次处理的输入参数。
+     * @param defaultCron 参与本次处理的输入参数。
+     * @param override 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun view(
         taskKey: String,
         taskName: String,
@@ -147,7 +194,8 @@ class SyncScheduleService(
     }
 
     /** Spring 的六段式解析器；五段式 Unix cron 会被拒，错误信息统一收敛成一句中文提示。 */
-    private fun parseOrNull(cron: String): CronExpression? = runCatching { CronExpression.parse(cron.trim()) }.getOrNull()
+    private fun parseOrNull(cron: String): CronExpression? =
+        runCatching { CronExpression.parse(cron.trim()) }.getOrNull()
 
     private companion object {
         const val MAX_CRON_LENGTH = 128

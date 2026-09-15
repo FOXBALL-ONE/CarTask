@@ -4,24 +4,24 @@ import jakarta.transaction.Transactional
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.PageRequest
-import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.security.access.AccessDeniedException
+import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
+import top.foxball.cartask.audit.AuditAction
+import top.foxball.cartask.audit.AuditCommand
+import top.foxball.cartask.audit.AuditService
 import top.foxball.cartask.authentication.RedisTokenSessionRepository
 import top.foxball.cartask.authentication.RoleAssignmentPolicy
 import top.foxball.cartask.authentication.SecurityRole
 import top.foxball.cartask.entity.User
 import top.foxball.cartask.repository.DepartmentRepository
 import top.foxball.cartask.repository.PositionRepository
+import top.foxball.cartask.repository.RoleRepository
 import top.foxball.cartask.repository.UserRepository
 import top.foxball.cartask.scope.DataScopeResolver
 import top.foxball.cartask.scope.ScopeGuard
 import top.foxball.cartask.scope.ScopeKind
-import top.foxball.cartask.repository.RoleRepository
 import top.foxball.cartask.service.UserService
-import top.foxball.cartask.audit.AuditAction
-import top.foxball.cartask.audit.AuditCommand
-import top.foxball.cartask.audit.AuditService
 import java.time.LocalDateTime
 
 @Service
@@ -98,7 +98,11 @@ class UserServiceImpl(
                     AuditAction.USER_CREATED,
                     "user",
                     user.id?.toString(),
-                    targetSummary = mapOf("username" to user.username, "role" to user.role, "department_id" to user.department?.id),
+                    targetSummary = mapOf(
+                        "username" to user.username,
+                        "role" to user.role,
+                        "department_id" to user.department?.id
+                    ),
                     afterData = mapOf("enabled" to user.enabled, "status" to user.status.name),
                 ),
             )
@@ -251,10 +255,11 @@ class UserServiceImpl(
             command.roleIds?.let {
                 val assignedRoles = resolveRoles(it)
                 user.roles = assignedRoles
-                assignedRoles.mapNotNull { role -> SecurityRole.normalizeOrNull(role.name) }.firstOrNull()?.let { role ->
-                    roleAssignmentPolicy.validateAssignment(role)
-                    user.role = role
-                }
+                assignedRoles.mapNotNull { role -> SecurityRole.normalizeOrNull(role.name) }.firstOrNull()
+                    ?.let { role ->
+                        roleAssignmentPolicy.validateAssignment(role)
+                        user.role = role
+                    }
             }
             user.updatedAt = now
         }
@@ -312,9 +317,25 @@ class UserServiceImpl(
     }
 
     @Transactional
+    /**
+     * existsByUsername：查询或读取相关数据。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param username 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     override fun existsByUsername(username: String): Boolean = userRepository.existsByUsername(username)
 
     @Transactional
+    /**
+     * findExistingUsernames：查询或读取相关数据。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param usernames 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     override fun findExistingUsernames(usernames: Collection<String>): Set<String> {
         if (usernames.isEmpty()) return emptySet()
         return userRepository.findAllByUsernameIn(usernames).map { it.username }.toSet()
@@ -324,12 +345,23 @@ class UserServiceImpl(
     private fun findUser(id: Long): User = userRepository.findById(id)
         .orElseThrow { IllegalArgumentException("用户不存在: $id") }
 
+    /**
+     * requireActiveSuperAdminRemains：校验输入、状态或访问条件。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param users 参与本次处理的输入参数。
+     * @param remainsActiveSuperAdmin 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun requireActiveSuperAdminRemains(
         users: Collection<User>,
         remainsActiveSuperAdmin: (User) -> Boolean,
     ) {
         val removedCount = users.count { user ->
-            user.role == "SUPER_ADMIN" && user.enabled && user.status == User.Status.Activity && !remainsActiveSuperAdmin(user)
+            user.role == "SUPER_ADMIN" && user.enabled && user.status == User.Status.Activity && !remainsActiveSuperAdmin(
+                user
+            )
         }
         if (removedCount == 0) return
         val activeCount = userRepository.countByRoleAndEnabledTrueAndStatus("SUPER_ADMIN", User.Status.Activity)
@@ -357,6 +389,14 @@ class UserServiceImpl(
         jobTitle = user.jobTitle,
     )
 
+    /**
+     * resolveRoles：转换、构建或格式化数据。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param roleIds 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun resolveRoles(roleIds: List<Long>?): MutableSet<top.foxball.cartask.entity.Role> {
         if (roleIds == null) return linkedSetOf()
         require(roleIds.distinct().size == roleIds.size) { "角色 ID 不能重复" }

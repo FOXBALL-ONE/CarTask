@@ -1,7 +1,5 @@
 package top.foxball.cartask.service
 
-import java.time.LocalDate
-import java.time.LocalDateTime
 import org.springframework.security.access.AccessDeniedException
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.stereotype.Service
@@ -16,6 +14,8 @@ import top.foxball.cartask.scope.ScopeGuard
 import top.foxball.cartask.shared.GatePersonFields
 import top.foxball.cartask.shared.InitialCredentials
 import top.foxball.cartask.shared.PlateNumbers
+import java.time.LocalDate
+import java.time.LocalDateTime
 
 /**
  * 为一条进出申请顺带建立车主档案、平台账号与车牌档案。
@@ -60,9 +60,13 @@ class VehicleInoutArchiveService(
         require(plateNumber.length <= PLATE_MAX) { "车牌号长度不能超过 $PLATE_MAX 个字符" }
         val plateKey = requireNotNull(PlateNumbers.normalize(plateNumber)) { "车牌号不能为空" }
 
-        val department = requireNotNull(departmentRepository.findById(requireNotNull(input.departmentId) { "部门不能为空" }).orElse(null)) {
-            "部门不存在"
-        }
+        val department =
+            requireNotNull(
+                departmentRepository.findById(requireNotNull(input.departmentId) { "部门不能为空" })
+                .orElse(null)
+            ) {
+                "部门不存在"
+            }
         // 写路径必须按范围校验：否则部门管理能在这里造出属于别的部门的车主与账号。
         scopeGuard.requireDepartmentAllowed(department.id, scope)
         scopeGuard.requireDepartmentCodeAllowed(department.departmentNumber, scope)
