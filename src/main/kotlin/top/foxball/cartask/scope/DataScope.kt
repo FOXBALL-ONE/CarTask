@@ -60,9 +60,31 @@ data class DataScope(
         /** 不受限范围，仅用于后台任务与超级管理员显式的全局查询。 */
         val All = DataScope(ScopeKind.ALL)
 
+        /**
+         * departments：执行当前模块中的业务操作。
+         *
+         * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+         * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+         * @param ids 参与本次处理的输入参数。
+         * @param codes 参与本次处理的输入参数。
+         * @param names 参与本次处理的输入参数。
+         * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+         */
         fun departments(ids: Set<Long>, codes: Set<String>, names: Set<String>): DataScope =
             DataScope(ScopeKind.DEPARTMENTS, departmentIds = ids, departmentCodes = codes, departmentNames = names)
 
+        /**
+         * self：执行当前模块中的业务操作。
+         *
+         * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+         * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+         * @param userId 参与本次处理的输入参数。
+         * @param phone 参与本次处理的输入参数。
+         * @param carNumbers 参与本次处理的输入参数。
+         * @param gatePersonCodes 参与本次处理的输入参数。
+         * @param gatePersonNames 参与本次处理的输入参数。
+         * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+         */
         fun self(
             userId: Long,
             phone: String?,

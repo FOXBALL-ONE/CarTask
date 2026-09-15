@@ -43,6 +43,14 @@ class DataScopeResolver(
     )
 
     @Transactional(readOnly = true)
+            /**
+             * forPrincipal：执行当前模块中的业务操作。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param principal 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun forPrincipal(principal: CurrentUserPrincipal): DataScope {
         // 部门快照一次请求取一份，同一请求内所有解析复用。
         val departments = departmentLinkResolver.snapshot()
@@ -69,6 +77,16 @@ class DataScopeResolver(
         }
     }
 
+    /**
+     * departmentScope：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param departments 参与本次处理的输入参数。
+     * @param departmentIds 参与本次处理的输入参数。
+     * @param expandDescendants 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun departmentScope(
         departments: DepartmentSnapshot,
         departmentIds: Set<Long>,
@@ -98,6 +116,14 @@ class DataScopeResolver(
         return setOfNotNull(userRepository.findById(userId).orElse(null)?.department?.id)
     }
 
+    /**
+     * selfScope：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param userId 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun selfScope(userId: Long): DataScope {
         val phone = userRepository.findById(userId).orElse(null)?.phone?.trim()?.takeIf(String::isNotEmpty)
 

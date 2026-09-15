@@ -71,8 +71,22 @@ class ExcelResourcePolicy(
     fun forcedImportRole(): String? =
         if (currentPrincipal()?.role == SecurityRole.DEPT_ADMIN) SecurityRole.USER else null
 
+    /**
+     * currentWorkingDepartmentId：查询或读取相关数据。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun currentWorkingDepartmentId(): Long? = currentPrincipal()?.workingDepartmentId
 
+    /**
+     * currentPrincipal：查询或读取相关数据。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun currentPrincipal(): CurrentUserPrincipal? =
         SecurityContextHolder.getContext().authentication?.principal as? CurrentUserPrincipal
 }

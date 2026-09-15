@@ -28,5 +28,6 @@ fun <T : DepartmentScoped> List<T>.scoped(scope: DataScope, departments: Departm
             val code = row.scopeDeptCode ?: departments.toCode(row.scopeDeptFreeText)
             code != null && code in scope.departmentCodes
         }
+
         ScopeKind.SELF -> emptyList()
     }

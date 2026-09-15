@@ -18,6 +18,16 @@ import org.springframework.web.filter.OncePerRequestFilter
 @Component
 class PasswordChangeRequiredFilter : OncePerRequestFilter() {
 
+    /**
+     * doFilterInternal：处理请求、事件或异常流程。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param request 参与本次处理的输入参数。
+     * @param response 参与本次处理的输入参数。
+     * @param filterChain 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     override fun doFilterInternal(
         request: HttpServletRequest,
         response: HttpServletResponse,
@@ -36,6 +46,14 @@ class PasswordChangeRequiredFilter : OncePerRequestFilter() {
         )
     }
 
+    /**
+     * isAllowed：校验输入、状态或访问条件。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param request 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun isAllowed(request: HttpServletRequest): Boolean {
         if (request.method.equals(HttpMethod.OPTIONS.name(), ignoreCase = true)) {
             return true

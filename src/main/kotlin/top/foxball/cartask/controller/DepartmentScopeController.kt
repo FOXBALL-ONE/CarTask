@@ -33,6 +33,7 @@ class DepartmentScopeController(
             val resolved: Int,
             val unresolved: Int,
         )
+
         data class Response(
             val owners: CountData,
             @param:JsonProperty("gate_persons") val gatePersons: CountData,

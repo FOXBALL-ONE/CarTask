@@ -13,6 +13,14 @@ import java.time.LocalDateTime
  */
 class AuditingEntityListener {
     @PrePersist
+            /**
+             * onPrePersist：处理请求、事件或异常流程。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param entity 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun onPrePersist(entity: Any) {
         val now = LocalDateTime.now()
         setIfPresent(entity, "createdAt", now, onlyWhenNull = true)
@@ -23,12 +31,31 @@ class AuditingEntityListener {
     }
 
     @PreUpdate
+            /**
+             * onPreUpdate：处理请求、事件或异常流程。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param entity 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun onPreUpdate(entity: Any) {
         val now = LocalDateTime.now()
         setIfPresent(entity, "updatedAt", now, onlyWhenNull = false)
         setIfPresent(entity, "updateTime", now, onlyWhenNull = false)
     }
 
+    /**
+     * setIfPresent：创建、保存或初始化相关数据。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param entity 参与本次处理的输入参数。
+     * @param propertyName 参与本次处理的输入参数。
+     * @param value 参与本次处理的输入参数。
+     * @param onlyWhenNull 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun setIfPresent(entity: Any, propertyName: String, value: LocalDateTime, onlyWhenNull: Boolean) {
         val field = findField(entity.javaClass, propertyName) ?: return
         field.isAccessible = true
@@ -37,6 +64,15 @@ class AuditingEntityListener {
         }
     }
 
+    /**
+     * findField：查询或读取相关数据。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param type 参与本次处理的输入参数。
+     * @param propertyName 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun findField(type: Class<*>, propertyName: String): Field? {
         var current: Class<*>? = type
         while (current != null) {
