@@ -946,8 +946,8 @@ class ParkingApiController(
         val validatedPhone = GatePersonFields.requirePhone(phone)
         val validatedIdCard = GatePersonFields.requireIdCard(idCard)
         // 唯一性必须先于上传：先传文件再报唯一性冲突，文件已经独立落库，会永久留在存储里。
-        require(!gatePersonRepository.existsByCode(validatedCode)) { "人员编号已存在" }
-        require(!gatePersonRepository.existsByIdCard(validatedIdCard)) { "身份证号已存在" }
+        require(!gatePersonRepository.existsByCode(validatedCode)) { GatePersonFields.CODE_EXISTS_MESSAGE }
+        require(!gatePersonRepository.existsByIdCard(validatedIdCard)) { GatePersonFields.ID_CARD_EXISTS_MESSAGE }
         val gatePersonDepartmentCode = scopeQuerySupport.stampDepartmentCode(validatedDept, null)
         // 与车主一致：不允许在范围外的部门下新建门禁人员。
         scopeGuard.requireDepartmentCodeAllowed(gatePersonDepartmentCode, scopeGuard.currentScope())
@@ -1030,7 +1030,7 @@ class ParkingApiController(
         var changed = false
         code?.let {
             val validatedCode = GatePersonFields.requireCode(it)
-            require(!gatePersonRepository.existsByCodeAndIdNot(validatedCode, id)) { "人员编号已存在" }
+            require(!gatePersonRepository.existsByCodeAndIdNot(validatedCode, id)) { GatePersonFields.CODE_EXISTS_MESSAGE }
             if (validatedCode != person.code) {
                 person.code = validatedCode; changed = true
             }
@@ -1060,7 +1060,7 @@ class ParkingApiController(
         }
         idCard?.let {
             val validatedIdCard = GatePersonFields.requireIdCard(it)
-            require(!gatePersonRepository.existsByIdCardAndIdNot(validatedIdCard, id)) { "身份证号已存在" }
+            require(!gatePersonRepository.existsByIdCardAndIdNot(validatedIdCard, id)) { GatePersonFields.ID_CARD_EXISTS_MESSAGE }
             if (validatedIdCard != person.idCard) {
                 person.idCard = validatedIdCard; changed = true
             }

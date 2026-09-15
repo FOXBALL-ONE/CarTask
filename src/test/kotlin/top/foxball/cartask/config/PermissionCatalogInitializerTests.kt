@@ -204,7 +204,12 @@ class PermissionCatalogInitializerTests {
 
         val granted = user.permissions.map { it.code }.toSet()
         // 普通用户要能看到自己的进出记录；这些接口本身按本人范围过滤，所以给读权限不越权。
-        assertTrue(granted.containsAll(listOf("dashboard:read", "vehicle-record:read", "person-record:read")))
+        // file:read 同理：不给的话「看到自己的人脸照片/抓拍图」这条设计意图永远落不了地。
+        assertTrue(
+            granted.containsAll(
+                listOf("dashboard:read", "vehicle-record:read", "person-record:read", "file:read")
+            )
+        )
         assertTrue(
             granted.none { it.endsWith(":manage") || it.endsWith(":create") || it.endsWith(":update") || it.endsWith(":disable") },
             "普通用户不应获得任何管理类权限，实际：$granted",

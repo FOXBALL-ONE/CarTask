@@ -34,6 +34,7 @@ import top.foxball.cartask.repository.StoredFileRepository
 import top.foxball.cartask.repository.UserManagedDepartmentRepository
 import top.foxball.cartask.repository.UserRepository
 import top.foxball.cartask.scope.WithCurrentUser
+import top.foxball.cartask.shared.GatePersonFields
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.ObjectMapper
 import kotlin.test.assertEquals
@@ -352,6 +353,44 @@ class GatePersonReviewIntegrationTests(
         assertEquals(scope.departmentCode, imported.departmentCode)
         // 样表不带人脸照片，导入记录的人脸为空是明确行为，不是漏赋值。
         assertNull(imported.face)
+    }
+
+    /**
+     * G4 回归：编号与身份证号是**全局**唯一（`uk_gate_person_code` / `uk_gate_person_id_card`），
+     * 撞到的记录可能属于别的部门。单条录入、Excel 导入、以及并发下落到底层唯一约束这三条路径
+     * 必须共用同一句提示——只要哪条路径的措辞不一样，就多出一个能用来猜
+     * 「别的部门存在哪些编号」的差异点。
+     *
+     * 注意这只锁住「不额外暴露归属部门」，**并不等于关掉了侧信道**：唯一约束是全局的，
+     * 「创建失败」本身就已经说明该编号在库中存在。要真正关掉得把唯一性收窄到部门。
+     */
+    @Test
+    fun `跨部门撞号与本部门撞号的提示完全一致`() {
+        val scope = departmentAdminScope()
+        authenticate(scope.userId, "DEPT_ADMIN", setOf("gate-person:manage", "gate-person:read"))
+
+        val inside = savePerson("GP-DUP-IN", scope.departmentCode)
+        val outside = savePerson("GP-DUP-OUT", DEFAULT_DEPARTMENT_CODE)
+
+        assertEquals(
+            GatePersonFields.CODE_EXISTS_MESSAGE,
+            createError(inside.code, "13800000021", "110101199001010021"),
+        )
+        assertEquals(
+            createError(inside.code, "13800000022", "110101199001010022"),
+            createError(outside.code, "13800000023", "110101199001010023"),
+            "范围外编号与本部门编号的冲突提示必须完全一致",
+        )
+
+        assertEquals(
+            GatePersonFields.ID_CARD_EXISTS_MESSAGE,
+            createError(uniqueCode("GP-DUP-IDC-IN"), "13800000024", inside.idCard),
+        )
+        assertEquals(
+            createError(uniqueCode("GP-DUP-IDC-IN"), "13800000025", inside.idCard),
+            createError(uniqueCode("GP-DUP-IDC-OUT"), "13800000026", outside.idCard),
+            "范围外身份证号与本部门身份证号的冲突提示必须完全一致",
+        )
     }
 
     private data class DepartmentAdminScope(val userId: Long, val departmentCode: String, val departmentName: String)

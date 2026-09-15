@@ -3,6 +3,7 @@ package top.foxball.cartask.handler
 import com.fasterxml.jackson.annotation.JsonProperty
 import jakarta.servlet.http.HttpServletRequest
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.core.annotation.Order
 import org.springframework.dao.DataAccessException
 import org.springframework.dao.DataIntegrityViolationException
@@ -31,6 +32,7 @@ import top.foxball.cartask.audit.AuditRequestContext
 import top.foxball.cartask.audit.AuditService
 import top.foxball.cartask.authentication.AuthenticationInfrastructureException
 import top.foxball.cartask.authentication.LoginRateLimitException
+import top.foxball.cartask.shared.GatePersonFields
 import top.foxball.cartask.shared.Response
 import top.foxball.cartask.shared.ResponseBuilder
 
@@ -40,9 +42,16 @@ import top.foxball.cartask.shared.ResponseBuilder
 @RestControllerAdvice
 class GlobalExceptionHandler(
     private val auditService: AuditService,
+    /** 容器层面的上传上限；用于把 413 的提示写清楚，避免和业务里的上限说法对不上。 */
+    @param:Value("\${spring.servlet.multipart.max-file-size:5MB}") private val maxUploadSize: String,
 ) {
     private val log = LoggerFactory.getLogger(this.javaClass)
     private val builder = ResponseBuilder()
+
+    private companion object {
+        /** 方法级安全被拒时，Spring 的 AuthorizationDeniedException 固定带这句英文文案。 */
+        const val SPRING_DENIED_MESSAGE = "Access Denied"
+    }
 
     @ExceptionHandler(HomeRecommendationVersionConflictException::class)
             /**
@@ -181,9 +190,13 @@ class GlobalExceptionHandler(
                 ),
             )
         }.onFailure { log.error("写入授权拒绝审计事件失败", it) }
+        // 方法级安全拒绝抛的是 Spring 的 AuthorizationDeniedException，message 固定为英文
+        // 「Access Denied」；只有业务主动抛的 AccessDeniedException 才带中文说明。
+        // 这里统一兜底成中文，否则前端只能把一句英文原样弹给用户。
+        val message = ex.message?.takeIf { it.isNotBlank() && it != SPRING_DENIED_MESSAGE } ?: "没有操作权限"
         return builder.forbidden()
             .header("Cache-Control", "no-store")
-            .message(ex.message ?: "禁止访问")
+            .message(message)
             .build()
     }
 
@@ -243,7 +256,7 @@ class GlobalExceptionHandler(
              */
     fun onHttpRequestMethodNotSupportedException(ex: HttpRequestMethodNotSupportedException): ResponseEntity<Response> {
         return builder.badRequest()
-            .message("Method \"${ex.method}\" is not supported on this endpoint.")
+            .message("该接口不支持 ${ex.method} 方法")
             .build()
     }
 
@@ -270,7 +283,7 @@ class GlobalExceptionHandler(
              */
     fun onMissingServletRequestParameterException(ex: MissingServletRequestParameterException): ResponseEntity<Response> {
         return builder.badRequest()
-            .message("Required parameter \"${ex.parameterName}\" is not provided!")
+            .message("缺少必需的参数：${ex.parameterName}")
             .build()
     }
 
@@ -285,7 +298,7 @@ class GlobalExceptionHandler(
              */
     fun onMissingServletRequestPartException(ex: MissingServletRequestPartException): ResponseEntity<Response> {
         return builder.badRequest()
-            .message("Required request part \"${ex.requestPartName}\" is not provided!")
+            .message("缺少必需的请求部分：${ex.requestPartName}")
             .build()
     }
 
@@ -300,7 +313,7 @@ class GlobalExceptionHandler(
              */
     fun onMissingRequestHeaderException(ex: MissingRequestHeaderException): ResponseEntity<Response> {
         return builder.badRequest()
-            .message("Required request header \"${ex.headerName}\" is not provided!")
+            .message("缺少必需的请求头：${ex.headerName}")
             .build()
     }
 
@@ -315,7 +328,7 @@ class GlobalExceptionHandler(
              */
     fun onMethodArgumentTypeMismatchException(ex: MethodArgumentTypeMismatchException): ResponseEntity<Response> {
         return builder.badRequest()
-            .message("Parameter \"${ex.parameter.parameterName}\" type mismatch. Expected ${ex.requiredType}.")
+            .message("参数「${ex.parameter.parameterName}」格式不正确")
             .build()
     }
 
@@ -383,7 +396,7 @@ class GlobalExceptionHandler(
              */
     fun onMaxUploadSizeExceededException(): ResponseEntity<Response> {
         return builder.status(HttpStatus.PAYLOAD_TOO_LARGE)
-            .message("Uploaded file exceeds the configured size limit.")
+            .message("上传文件超过大小限制（单个文件最大 $maxUploadSize）")
             .build()
     }
 
@@ -457,8 +470,8 @@ class GlobalExceptionHandler(
             "uk_order_idempotency" in detail -> "下单幂等键冲突，请重试查询原订单"
             "fk_support_ticket_message_attachment_file" in detail -> "工单消息使用中的附件不能删除"
             // 门禁人员的唯一性是先查后存，并发下会落到数据库约束上；不映射就是一句 500。
-            "uk_gate_person_code" in detail -> "人员编号已存在"
-            "uk_gate_person_id_card" in detail -> "身份证号已存在"
+            "uk_gate_person_code" in detail -> GatePersonFields.CODE_EXISTS_MESSAGE
+            "uk_gate_person_id_card" in detail -> GatePersonFields.ID_CARD_EXISTS_MESSAGE
             // 车主卡号与车牌号同理：登记进出申请时顺带建档走的是同一条先查后存路径。
             "uk_parking_owner_card_id" in detail -> "车主卡号已存在，请重试或改用已建档车牌登记"
             "uk_parking_plate_number" in detail -> "车牌号已存在，请改用已建档车牌登记"

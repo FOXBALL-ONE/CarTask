@@ -1,0 +1,132 @@
+[
+  {
+    "id": "TC-AUDIT-01",
+    "actor": "S1",
+    "expect": "200",
+    "http": 200,
+    "api_status": 200,
+    "message": "操作成功",
+    "data": {
+      "GATE_PERSON_CREATED": 15,
+      "GATE_PERSON_UPDATED": 5,
+      "GATE_PERSON_REVIEWED": 100,
+      "GATE_DELETE_REQUESTED": 4,
+      "GATE_DELETE_REQUEST_REVIEWED": 2,
+      "GATE_PERSON_DELETED": 1
+    },
+    "note": "逐一统计各动作的审计条数（>0 即留痕成功）",
+    "verdict": "PASS"
+  },
+  {
+    "id": "TC-AUDIT-02",
+    "actor": "S1",
+    "expect": "200",
+    "http": 200,
+    "api_status": 200,
+    "message": "操作成功",
+    "data": {
+      "risk_level": [
+        "CRITICAL"
+      ]
+    },
+    "note": "人员物理删除须为 CRITICAL",
+    "verdict": "PASS"
+  },
+  {
+    "id": "TC-AUDIT-03",
+    "actor": "S1",
+    "expect": "200",
+    "http": 200,
+    "api_status": 200,
+    "message": "操作成功",
+    "data": {
+      "risk_level": [
+        "HIGH"
+      ]
+    },
+    "note": "新建须为 HIGH",
+    "verdict": "PASS"
+  },
+  {
+    "id": "TC-AUDIT-04",
+    "actor": "A1(ADMIN)",
+    "expect": "403",
+    "http": 403,
+    "api_status": 403,
+    "message": "Access Denied",
+    "data": null,
+    "note": "要求 hasRole('SUPER_ADMIN')，ADMIN 也不行",
+    "verdict": "PASS"
+  },
+  {
+    "id": "TC-AUDIT-05",
+    "actor": "S1",
+    "expect": "200",
+    "http": 200,
+    "api_status": 200,
+    "message": "操作成功",
+    "data": null,
+    "note": "",
+    "verdict": "PASS"
+  },
+  {
+    "id": "TC-AUDIT-05b",
+    "actor": "S1",
+    "expect": "200",
+    "http": 404,
+    "api_status": 404,
+    "message": "Not Found",
+    "data": {
+      "path": "/api/audit-events"
+    },
+    "note": "方案里写的路径实际是 404，真实路径是 /admin/api/audit-events",
+    "verdict": "INFO"
+  },
+  {
+    "id": "TC-AUDIT-06",
+    "actor": "B1",
+    "expect": "403",
+    "http": 403,
+    "api_status": 403,
+    "message": "Access Denied",
+    "data": {
+      "before": 48,
+      "after": 49
+    },
+    "note": "越权被方法级安全拒绝后应新增 AUTHORIZATION_DENIED",
+    "verdict": "PASS"
+  },
+  {
+    "id": "TC-AUDIT-07",
+    "actor": "B1",
+    "expect": "200",
+    "http": 200,
+    "api_status": 200,
+    "message": "操作成功",
+    "data": {
+      "before": 2,
+      "after": 2
+    },
+    "note": "原样提交不应新增 GATE_PERSON_UPDATED（target_id=2）",
+    "verdict": "PASS"
+  },
+  {
+    "id": "TC-AUDIT-08",
+    "actor": "S1",
+    "expect": "200",
+    "http": 200,
+    "api_status": 200,
+    "message": "操作成功",
+    "data": {
+      "批量导入审计条数": 1,
+      "各批 record_count": [
+        "200"
+      ],
+      "sample 长度": [
+        20
+      ]
+    },
+    "note": "批量导入应只落 1 条 CREATED，sample_codes ≤ 20",
+    "verdict": "PASS"
+  }
+]

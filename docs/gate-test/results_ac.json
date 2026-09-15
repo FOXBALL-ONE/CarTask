@@ -1,0 +1,120 @@
+[
+  {
+    "id": "TC-AC-01",
+    "actor": "B1",
+    "expect": "",
+    "http": 500,
+    "api_status": 500,
+    "message": "Internal Server Error",
+    "data": {
+      "http": 500,
+      "message": "Internal Server Error",
+      "落库后的 id": 5
+    },
+    "note": "接口返回 500，但记录已落库（先提交事务、再序列化响应时炸）",
+    "verdict": "INFO"
+  },
+  {
+    "id": "TC-AC-05",
+    "actor": "B1",
+    "expect": "400,msg:审核原因不能为空",
+    "http": 400,
+    "api_status": 400,
+    "message": "审核原因不能为空",
+    "data": null,
+    "note": "",
+    "verdict": "PASS"
+  },
+  {
+    "id": "TC-AC-04",
+    "actor": "B1",
+    "expect": "",
+    "http": 200,
+    "api_status": 200,
+    "message": "操作成功",
+    "data": {
+      "http": 200,
+      "message": "操作成功"
+    },
+    "note": "审核是否能正常返回（同样可能撞上序列化问题）",
+    "verdict": "INFO"
+  },
+  {
+    "id": "TC-AC-02",
+    "actor": "B1",
+    "expect": "",
+    "http": 500,
+    "api_status": 500,
+    "message": "Internal Server Error",
+    "data": {
+      "http": 500,
+      "message": "Internal Server Error"
+    },
+    "note": "方案预期 500（IllegalStateException 无专用处理器）",
+    "verdict": "INFO"
+  },
+  {
+    "id": "TC-AC-03",
+    "actor": "B1",
+    "expect": "403",
+    "http": 403,
+    "api_status": 403,
+    "message": "Access Denied",
+    "data": null,
+    "note": "denyAll()",
+    "verdict": "PASS"
+  },
+  {
+    "id": "TC-AC-03b",
+    "actor": "S1",
+    "expect": "403",
+    "http": 403,
+    "api_status": 403,
+    "message": "Access Denied",
+    "data": null,
+    "note": "denyAll()",
+    "verdict": "PASS"
+  },
+  {
+    "id": "TC-AC-06a",
+    "actor": "B1",
+    "expect": "",
+    "http": 200,
+    "api_status": 200,
+    "message": "操作成功",
+    "data": {
+      "http": 200,
+      "name": "门禁授权D2"
+    },
+    "note": "方案预期 400 记录不存在",
+    "verdict": "INFO"
+  },
+  {
+    "id": "TC-AC-06b",
+    "actor": "B1",
+    "expect": "200",
+    "http": 200,
+    "api_status": 200,
+    "message": "操作成功",
+    "data": {
+      "total": null,
+      "列表含 D2 的授权": true
+    },
+    "note": "列表是否按部门范围裁剪（B1 只应看到 D1）",
+    "verdict": "INFO"
+  },
+  {
+    "id": "TC-AC-06c",
+    "actor": "B1",
+    "expect": "",
+    "http": 200,
+    "api_status": 200,
+    "message": "操作成功",
+    "data": {
+      "http": 200,
+      "message": "操作成功"
+    },
+    "note": "B1(D1) 审核 D2 的授权：方案预期 400 记录不存在",
+    "verdict": "INFO"
+  }
+]

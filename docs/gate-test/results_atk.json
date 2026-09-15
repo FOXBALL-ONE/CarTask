@@ -1,0 +1,137 @@
+[
+  {
+    "id": "TC-ATK-01",
+    "actor": "B1",
+    "expect": "400,msg:人员不存在",
+    "http": 400,
+    "api_status": 400,
+    "message": "人员不存在",
+    "data": null,
+    "note": "跨部门按 ID 直读",
+    "verdict": "PASS"
+  },
+  {
+    "id": "TC-ATK-19",
+    "actor": "B1",
+    "expect": "400",
+    "http": 400,
+    "api_status": 400,
+    "message": "人员不存在",
+    "data": {
+      "样本数": 20,
+      "不同的响应形态": 1,
+      "响应": "{\"status\":400,\"message\":\"人员不存在\",\"success\":false}"
+    },
+    "note": "40 次探测只允许出现一种响应",
+    "verdict": "PASS"
+  },
+  {
+    "id": "TC-ATK-14",
+    "actor": "U1",
+    "expect": "400,msg:该手机号已被其他账号绑定",
+    "http": 400,
+    "api_status": 400,
+    "message": "该手机号已被其他账号绑定",
+    "data": null,
+    "note": "短信验证临时关闭，这是唯一防线",
+    "verdict": "PASS"
+  },
+  {
+    "id": "TC-ATK-14b",
+    "actor": "U1",
+    "expect": "200",
+    "http": 200,
+    "api_status": 200,
+    "message": "操作成功",
+    "data": {
+      "U1 手机号未被改": true
+    },
+    "note": "确认换绑确实没生效",
+    "verdict": "PASS"
+  },
+  {
+    "id": "TC-ATK-15",
+    "actor": "B1",
+    "expect": "403",
+    "http": 403,
+    "api_status": 403,
+    "message": "只有超级管理员可以管理管理员角色",
+    "data": null,
+    "note": "roleIds=[2] 即平台管理",
+    "verdict": "PASS"
+  },
+  {
+    "id": "TC-ATK-16",
+    "actor": "B1",
+    "expect": "403",
+    "http": 403,
+    "api_status": 403,
+    "message": "Access Denied",
+    "data": null,
+    "note": "改自己的范围以扩权",
+    "verdict": "PASS"
+  },
+  {
+    "id": "TC-ATK-17",
+    "actor": "B1",
+    "expect": "403,msg:无权操作其他部门的用户",
+    "http": 403,
+    "api_status": 403,
+    "message": "无权操作其他部门的用户",
+    "data": null,
+    "note": "目标是 D2 的普通用户，B1 只有 D1",
+    "verdict": "PASS"
+  },
+  {
+    "id": "TC-ATK-20a",
+    "actor": "匿名",
+    "expect": "401",
+    "http": 401,
+    "api_status": 401,
+    "message": "请输入验证码",
+    "data": {
+      "message": "请输入验证码"
+    },
+    "note": "不带 captchaToken",
+    "verdict": "PASS"
+  },
+  {
+    "id": "TC-ATK-20b",
+    "actor": "匿名",
+    "expect": "401",
+    "http": 401,
+    "api_status": 401,
+    "message": "验证码错误次数过多，请刷新",
+    "data": {
+      "每轮响应": [
+        [
+          1,
+          401,
+          "验证码错误"
+        ],
+        [
+          2,
+          401,
+          "验证码错误"
+        ],
+        [
+          3,
+          401,
+          "验证码错误"
+        ],
+        [
+          4,
+          401,
+          "验证码错误"
+        ],
+        [
+          5,
+          401,
+          "验证码错误次数过多，请刷新"
+        ]
+      ]
+    },
+    "note": "同一个 captchaToken 连续答错，观察第几次触发「验证码错误次数过多」",
+    "verdict": "PASS"
+  }
+]

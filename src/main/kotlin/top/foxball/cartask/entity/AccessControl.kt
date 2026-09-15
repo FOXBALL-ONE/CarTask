@@ -7,7 +7,14 @@ import java.time.LocalDateTime
 /** 门禁授权记录，描述人员在指定时间范围内的通行权限。 */
 @Entity
 @EntityListeners(AuditingEntityListener::class)
-@Table(name = "access_control")
+@Table(
+    name = "access_control",
+    indexes = [
+        // 列表按当前工作部门过滤（findByDepartment_IdIn），而 PostgreSQL 不会为外键自动建索引；
+        // 不显式声明的话每次部门管理翻页都会顺序扫描整张表。
+        Index(name = "idx_access_control_department", columnList = "department_id"),
+    ],
+)
 class AccessControl {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

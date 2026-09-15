@@ -1,0 +1,168 @@
+[
+  {
+    "id": "TC-AUTH-01",
+    "actor": "S1",
+    "expect": "200,msg:操作成功",
+    "http": 200,
+    "api_status": 200,
+    "message": "操作成功",
+    "data": {
+      "role": "SUPER_ADMIN",
+      "scope": "ALL",
+      "working_department_id": null,
+      "working_department_name": null
+    },
+    "note": "options=[1, 2]（期望含 1,2）",
+    "verdict": "PASS"
+  },
+  {
+    "id": "TC-AUTH-02",
+    "actor": "A1",
+    "expect": "200",
+    "http": 200,
+    "api_status": 200,
+    "message": "操作成功",
+    "data": {
+      "role": "ADMIN",
+      "scope": "ALL",
+      "working_department_id": null,
+      "working_department_name": null
+    },
+    "note": "",
+    "verdict": "PASS"
+  },
+  {
+    "id": "TC-AUTH-03",
+    "actor": "B1",
+    "expect": "200",
+    "http": 200,
+    "api_status": 200,
+    "message": "操作成功",
+    "data": {
+      "role": "DEPT_ADMIN",
+      "scope": "DEPARTMENT",
+      "working_department_id": 1,
+      "working_department_name": "同步车主"
+    },
+    "note": "期望默认落在 D1=1",
+    "verdict": "PASS"
+  },
+  {
+    "id": "TC-AUTH-04",
+    "actor": "B1",
+    "expect": "403,msg:无权切换到该部门",
+    "http": 403,
+    "api_status": 403,
+    "message": "无权切换到该部门",
+    "data": null,
+    "note": "",
+    "verdict": "PASS"
+  },
+  {
+    "id": "TC-AUTH-05",
+    "actor": "B1",
+    "expect": "403,msg:必须选择一个工作部门",
+    "http": 403,
+    "api_status": 403,
+    "message": "必须选择一个工作部门",
+    "data": null,
+    "note": "",
+    "verdict": "PASS"
+  },
+  {
+    "id": "TC-AUTH-06",
+    "actor": "A1",
+    "expect": "200,msg:工作部门已切换",
+    "http": 200,
+    "api_status": 200,
+    "message": "工作部门已切换",
+    "data": {
+      "role": null,
+      "scope": "DEPARTMENT",
+      "working_department_id": null,
+      "working_department_name": null
+    },
+    "note": "",
+    "verdict": "PASS"
+  },
+  {
+    "id": "TC-AUTH-06b",
+    "actor": "A1",
+    "expect": "200",
+    "http": 200,
+    "api_status": 200,
+    "message": "操作成功",
+    "data": {
+      "role": "ADMIN",
+      "scope": "ALL",
+      "working_department_id": null,
+      "working_department_name": null
+    },
+    "note": "切 D1 后会话应收窄为 DEPARTMENT —— 实测未生效，见 F1",
+    "verdict": "FAIL"
+  },
+  {
+    "id": "TC-AUTH-06c",
+    "actor": "A1",
+    "expect": "200",
+    "http": 200,
+    "api_status": 200,
+    "message": "操作成功",
+    "data": {
+      "role": "ADMIN",
+      "scope": "DEPARTMENT",
+      "working_department_id": 1,
+      "working_department_name": "同步车主"
+    },
+    "note": "用 Redis 直写会话绕过 F1，验证收窄后的语义确实生效",
+    "verdict": "PASS"
+  },
+  {
+    "id": "TC-AUTH-07",
+    "actor": "U1",
+    "expect": "403,msg:普通用户没有工作部门",
+    "http": 403,
+    "api_status": 403,
+    "message": "普通用户没有工作部门",
+    "data": null,
+    "note": "",
+    "verdict": "PASS"
+  },
+  {
+    "id": "TC-AUTH-08",
+    "actor": "t_first_login",
+    "expect": "403,msg:首次登录必须先修改密码",
+    "http": 403,
+    "api_status": 403,
+    "message": "首次登录必须先修改密码",
+    "data": {
+      "_keys": [
+        "password_change_required"
+      ]
+    },
+    "note": "未改密账号访问业务接口",
+    "verdict": "PASS"
+  },
+  {
+    "id": "TC-AUTH-09",
+    "actor": "U1",
+    "expect": "403,notmsg:首次登录必须先修改密码",
+    "http": 403,
+    "api_status": 403,
+    "message": "Access Denied",
+    "data": null,
+    "note": "已改密但仍无 gate-person:read",
+    "verdict": "PASS"
+  },
+  {
+    "id": "TC-AUTH-10",
+    "actor": "S1",
+    "expect": "400,msg:部门不存在",
+    "http": 400,
+    "api_status": 400,
+    "message": "部门不存在",
+    "data": null,
+    "note": "",
+    "verdict": "PASS"
+  }
+]

@@ -4,6 +4,7 @@ import org.springframework.security.access.AccessDeniedException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import top.foxball.cartask.authentication.CurrentUserPrincipal
+import top.foxball.cartask.authentication.JwtAuthenticationException
 import top.foxball.cartask.authentication.RedisTokenSessionRepository
 import top.foxball.cartask.authentication.SecurityRole
 import top.foxball.cartask.entity.UserManagedDepartment
@@ -96,7 +97,11 @@ class WorkingDepartmentService(
             if (departmentId !in allowed) throw AccessDeniedException("无权切换到该部门")
         }
 
-        sessionRepository.updateWorkingDepartment(principal.tokenId, departmentId)
+        // 会话不存在或已过期时更新会返回 false。必须把失败暴露出去：返回的 state 是按**入参**
+        // departmentId 算的，丢掉这个 false 就会「明明没写进去，却告诉用户切换成功了」。
+        if (!sessionRepository.updateWorkingDepartment(principal.tokenId, departmentId)) {
+            throw JwtAuthenticationException("登录状态已失效，请重新登录")
+        }
         return stateOf(principal.userId, principal.role, departmentId)
     }
 
@@ -146,6 +151,11 @@ class WorkingDepartmentService(
         }
 
         userManagedDepartmentRepository.deleteByUserId(userId)
+        // 必须显式落一次删除：Hibernate 的 flush 顺序是「INSERT 先于 DELETE」，同一个事务里
+        // 删了再插同一组 (user_id, department_id)，INSERT 会先执行并撞上
+        // uk_user_managed_department，接口直接 500。而「把同一份范围再保存一次」是常规操作
+        // （前端原样提交、脚本重复执行都会走到这里），不能被唯一约束挡住。
+        userManagedDepartmentRepository.flush()
         userManagedDepartmentRepository.saveAll(
             items.map { item ->
                 UserManagedDepartment().apply {

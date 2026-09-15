@@ -1163,8 +1163,8 @@ class ExcelController(
                     val idCards = entities.map { it.idCard }
                     require(codes.distinct().size == codes.size) { "导入文件中的人员编号不能重复" }
                     require(idCards.distinct().size == idCards.size) { "导入文件中的身份证号不能重复" }
-                    require(codes.none { gatePersonRepository.existsByCode(it) }) { "导入文件中包含已存在的人员编号" }
-                    require(idCards.none { gatePersonRepository.existsByIdCard(it) }) { "导入文件中包含已存在的身份证号" }
+                    require(codes.none { gatePersonRepository.existsByCode(it) }) { GatePersonFields.CODE_EXISTS_MESSAGE }
+                    require(idCards.none { gatePersonRepository.existsByIdCard(it) }) { GatePersonFields.ID_CARD_EXISTS_MESSAGE }
                     val imported = gatePersonRepository.saveAll(entities)
                     counts[currentResource] = imported.size
                     // 批量录入同样要留痕；编号只采样前 20 个，避免一次导入上万行把审计记录撑爆。

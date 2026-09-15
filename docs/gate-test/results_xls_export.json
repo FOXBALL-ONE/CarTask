@@ -1,0 +1,169 @@
+[
+  {
+    "id": "TC-XLS-01",
+    "actor": "B1",
+    "expect": "200",
+    "http": 200,
+    "api_status": null,
+    "message": null,
+    "data": {
+      "sheet": "数据",
+      "header": [
+        "人员编号",
+        "部门",
+        "姓名",
+        "手机号",
+        "身份证号"
+      ]
+    },
+    "note": "表头须含 人员编号/部门/姓名/手机号/身份证号",
+    "verdict": "PASS"
+  },
+  {
+    "id": "TC-XLS-02",
+    "actor": "U1",
+    "expect": "403",
+    "http": 403,
+    "api_status": 403,
+    "message": "Access Denied",
+    "data": null,
+    "note": "USER 无 gate-person:read",
+    "verdict": "PASS"
+  },
+  {
+    "id": "TC-XLS-02",
+    "actor": "U3",
+    "expect": "403",
+    "http": 403,
+    "api_status": 403,
+    "message": "Access Denied",
+    "data": null,
+    "note": "USER 无 gate-person:read",
+    "verdict": "PASS"
+  },
+  {
+    "id": "TC-XLS-03",
+    "actor": "B1(D1)",
+    "expect": "200",
+    "http": 200,
+    "api_status": null,
+    "message": null,
+    "data": {
+      "rows": 3,
+      "codes": [
+        "GP-D1-001",
+        "GP-D1-002",
+        "GP-D1-003"
+      ]
+    },
+    "note": "按范围裁剪：只含 D1",
+    "verdict": "PASS"
+  },
+  {
+    "id": "TC-XLS-04",
+    "actor": "B2(D2)",
+    "expect": "200",
+    "http": 200,
+    "api_status": null,
+    "message": null,
+    "data": {
+      "rows": 1,
+      "codes": [
+        "GP-D2-001"
+      ]
+    },
+    "note": "只含 D2；与 03 行数不同即证明裁剪生效",
+    "verdict": "PASS"
+  },
+  {
+    "id": "TC-XLS-05",
+    "actor": "A1(未切)",
+    "expect": "200",
+    "http": 200,
+    "api_status": null,
+    "message": null,
+    "data": {
+      "rows": 5,
+      "codes": [
+        "GP-D1-001",
+        "GP-D1-002",
+        "GP-D1-003",
+        "GP-D2-001",
+        "GP-ORPHAN"
+      ]
+    },
+    "note": "全局",
+    "verdict": "PASS"
+  },
+  {
+    "id": "TC-XLS-06",
+    "actor": "A2(切 D1)",
+    "expect": "200",
+    "http": 200,
+    "api_status": null,
+    "message": null,
+    "data": {
+      "rows": 3,
+      "codes": [
+        "GP-D1-001",
+        "GP-D1-002",
+        "GP-D1-003"
+      ]
+    },
+    "note": "同 B1",
+    "verdict": "PASS"
+  },
+  {
+    "id": "TC-XLS-07",
+    "actor": "S1",
+    "expect": "200",
+    "http": 200,
+    "api_status": null,
+    "message": null,
+    "data": {
+      "rows": 5,
+      "codes": [
+        "GP-D1-001",
+        "GP-D1-002",
+        "GP-D1-003",
+        "GP-D2-001",
+        "GP-ORPHAN"
+      ]
+    },
+    "note": "全局",
+    "verdict": "PASS"
+  },
+  {
+    "id": "TC-XLS-17a",
+    "actor": "U1",
+    "expect": "403",
+    "http": 403,
+    "api_status": 403,
+    "message": "Access Denied",
+    "data": null,
+    "note": "USER 无 gate-person:manage",
+    "verdict": "PASS"
+  },
+  {
+    "id": "TC-XLS-17b",
+    "actor": "U1",
+    "expect": "403",
+    "http": 403,
+    "api_status": 403,
+    "message": "Access Denied",
+    "data": null,
+    "note": "USER 无 gate-person:export",
+    "verdict": "PASS"
+  },
+  {
+    "id": "TC-XLS-18",
+    "actor": "B1",
+    "expect": "403",
+    "http": 403,
+    "api_status": 403,
+    "message": "Access Denied",
+    "data": null,
+    "note": "需要一串 manage，DEPT_ADMIN 被排除",
+    "verdict": "PASS"
+  }
+]

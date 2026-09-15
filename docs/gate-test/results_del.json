@@ -1,0 +1,180 @@
+[
+  {
+    "id": "TC-DEL-01",
+    "actor": "B1",
+    "expect": "403",
+    "http": 403,
+    "api_status": 403,
+    "message": "Access Denied",
+    "data": null,
+    "note": "@PreAuthorize(denyAll())",
+    "verdict": "PASS"
+  },
+  {
+    "id": "TC-DEL-02",
+    "actor": "S1",
+    "expect": "403",
+    "http": 403,
+    "api_status": 403,
+    "message": "Access Denied",
+    "data": null,
+    "note": "确认没有「超管后门」",
+    "verdict": "PASS"
+  },
+  {
+    "id": "TC-DEL-04",
+    "actor": "B1",
+    "expect": "400,msg:删除原因不能为空",
+    "http": 400,
+    "api_status": 400,
+    "message": "删除原因不能为空",
+    "data": null,
+    "note": "",
+    "verdict": "PASS"
+  },
+  {
+    "id": "TC-DEL-05",
+    "actor": "B1",
+    "expect": "400,msg:人员不存在",
+    "http": 400,
+    "api_status": 400,
+    "message": "人员不存在",
+    "data": null,
+    "note": "",
+    "verdict": "PASS"
+  },
+  {
+    "id": "TC-DEL-15",
+    "actor": "U3",
+    "expect": "403",
+    "http": 403,
+    "api_status": 403,
+    "message": "Access Denied",
+    "data": null,
+    "note": "",
+    "verdict": "PASS"
+  },
+  {
+    "id": "TC-DEL-03",
+    "actor": "B1",
+    "expect": "201",
+    "http": 201,
+    "api_status": 201,
+    "message": "操作成功",
+    "data": {
+      "status": "待处理"
+    },
+    "note": "",
+    "verdict": "PASS"
+  },
+  {
+    "id": "TC-DEL-06",
+    "actor": "B1",
+    "expect": "200",
+    "http": 200,
+    "api_status": 200,
+    "message": "操作成功",
+    "data": {
+      "total": 7
+    },
+    "note": "应含 6，不含 D2 的 8",
+    "verdict": "PASS"
+  },
+  {
+    "id": "TC-DEL-07",
+    "actor": "B2",
+    "expect": "200",
+    "http": 200,
+    "api_status": 200,
+    "message": "操作成功",
+    "data": {
+      "total": 2
+    },
+    "note": "不得含 D1 的 6",
+    "verdict": "PASS"
+  },
+  {
+    "id": "TC-DEL-08",
+    "actor": "U1",
+    "expect": "403",
+    "http": 403,
+    "api_status": 403,
+    "message": "Access Denied",
+    "data": null,
+    "note": "",
+    "verdict": "PASS"
+  },
+  {
+    "id": "TC-DEL-12",
+    "actor": "B1",
+    "expect": "400,msg:删除申请不存在",
+    "http": 400,
+    "api_status": 400,
+    "message": "删除申请不存在",
+    "data": null,
+    "note": "D2 的申请单",
+    "verdict": "PASS"
+  },
+  {
+    "id": "TC-DEL-14",
+    "actor": "B2",
+    "expect": "400,msg:删除申请不存在",
+    "http": 400,
+    "api_status": 400,
+    "message": "删除申请不存在",
+    "data": null,
+    "note": "D1 的申请单",
+    "verdict": "PASS"
+  },
+  {
+    "id": "TC-DEL-13",
+    "actor": "B1",
+    "expect": "400,msg:人员不存在",
+    "http": 400,
+    "api_status": 400,
+    "message": "人员不存在",
+    "data": {
+      "申请单状态": "待处理"
+    },
+    "note": "申请单可见性不构成删除授权；状态须保持待处理",
+    "verdict": "PASS"
+  },
+  {
+    "id": "TC-DEL-11",
+    "actor": "B1",
+    "expect": "200",
+    "http": 200,
+    "api_status": 200,
+    "message": "已拒绝删除申请",
+    "data": {
+      "人员仍在": true
+    },
+    "note": "驳回不删人",
+    "verdict": "PASS"
+  },
+  {
+    "id": "TC-DEL-09",
+    "actor": "B1",
+    "expect": "200,msg:已同意删除申请",
+    "http": 200,
+    "api_status": 200,
+    "message": "已同意删除申请",
+    "data": {
+      "删除后再取人员": 400,
+      "message": "人员不存在"
+    },
+    "note": "人员须物理删除（再取为 400 人员不存在）",
+    "verdict": "PASS"
+  },
+  {
+    "id": "TC-DEL-10",
+    "actor": "B1",
+    "expect": "400,msg:删除申请已处理",
+    "http": 400,
+    "api_status": 400,
+    "message": "删除申请已处理",
+    "data": null,
+    "note": "",
+    "verdict": "PASS"
+  }
+]

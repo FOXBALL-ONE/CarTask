@@ -3,6 +3,15 @@ server:
 spring:
   application:
     name: carTask
+  servlet:
+    multipart:
+      # 容器这道限制只是**兜底**，必须比业务上限大：Spring Boot 默认单文件 1MB，
+      # 比业务常量 FACE_PHOTO_MAX_BYTES（2MB）还小，请求在进 Controller 之前就被容器
+      # 拦成 413，业务里那句「人脸照片不能超过 2MB」永远执行不到，用户看到的还是英文提示。
+      # 设成 5MB 之后：2~5MB 的照片会走到业务校验，得到中文的「人脸照片不能超过 2MB」；
+      # 超过 5MB 才由容器兜底拒绝。
+      max-file-size: ${MULTIPART_MAX_FILE_SIZE:5MB}
+      max-request-size: ${MULTIPART_MAX_REQUEST_SIZE:12MB}
   output:
     ansi:
       enabled: ALWAYS

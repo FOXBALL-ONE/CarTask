@@ -2,6 +2,7 @@ package top.foxball.cartask.scope
 
 import org.springframework.security.access.AccessDeniedException
 import org.springframework.stereotype.Component
+import top.foxball.cartask.entity.AccessControl
 import top.foxball.cartask.entity.ParkingPlate
 import top.foxball.cartask.entity.ParkingSpot
 
@@ -94,6 +95,28 @@ class ScopeGuard(
     fun <T : DepartmentScoped> requireVisibleRow(row: T?, scope: DataScope, notFoundMessage: String): T {
         if (row == null || !visibleInScope(row, scope)) throw IllegalArgumentException(notFoundMessage)
         return row
+    }
+
+    /**
+     * 门禁授权（`access_control`）的范围校验。
+     *
+     * 这张表存的是真正的 `department_id` 外键，而不是像门禁人员那样的部门快照 + 自由文本回退，
+     * 所以判定直接比对外键，不走 [DepartmentScoped] 那套编码解析。
+     *
+     * 只读 `department.id`：它是外键列，Hibernate 代理无需初始化就能取到；读 name/code 会触发
+     * 懒加载，在纯粹判可见性的地方没有必要。部门为空的记录对受限角色一律不可见（fail closed），
+     * 与其它表保持一致。
+     */
+    fun requireVisibleAccessControl(row: AccessControl?, scope: DataScope, notFoundMessage: String): AccessControl {
+        if (row == null || !accessControlVisible(row, scope)) throw IllegalArgumentException(notFoundMessage)
+        return row
+    }
+
+    /** 见 [requireVisibleAccessControl] 的可见性口径。 */
+    fun accessControlVisible(row: AccessControl, scope: DataScope): Boolean = when (scope.kind) {
+        ScopeKind.ALL -> true
+        ScopeKind.SELF -> false
+        ScopeKind.DEPARTMENTS -> row.department?.id?.let { it in scope.departmentIds } == true
     }
 
     private fun <T : DepartmentScoped> visibleInScope(row: T, scope: DataScope): Boolean = when (scope.kind) {

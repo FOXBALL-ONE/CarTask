@@ -214,6 +214,11 @@ class PermissionCatalogInitializer(
             "dashboard:read",
             "vehicle-record:read",
             "person-record:read",
+            // 人脸照片/抓拍图要走 /api/files/{id}/download，而它要求 file:read。
+            // 不给的话 ScopeQuerySupport.fileVisible 里那条 SELF 分支永远走不到——
+            // 「本人范围能取到自己的门禁图片」这个设计意图就落空了。
+            // 该接口按 SELF 范围过滤（上传者本人、本人车牌、本人门禁编码），不构成越权。
+            "file:read",
         )
     }
 }

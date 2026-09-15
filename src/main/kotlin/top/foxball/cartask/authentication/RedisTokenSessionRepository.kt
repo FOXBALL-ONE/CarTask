@@ -8,7 +8,6 @@ import org.springframework.data.redis.core.script.DefaultRedisScript
 import org.springframework.stereotype.Repository
 import tools.jackson.databind.ObjectMapper
 import java.time.Duration
-import java.time.LocalDateTime
 
 /** Redis 是 JWT 有效会话的唯一在线状态来源。 */
 @Repository
@@ -111,7 +110,7 @@ class RedisTokenSessionRepository(
      *
      * 用 WATCH/MULTI/EXEC 而不是 Lua 重新编码：会话正文里是 AES-GCM 密文和布尔值，
      * 用 cjson 重编码整个对象有静默损坏的风险，而这里复用同一个 ObjectMapper 与同一个
-     * [RedisTokenSession]，序列化形状与 [save] 完全一致。TTL 由会话自带的 expiresAt 重算，
+     * [RedisTokenSession]，序列化形状与 [save] 完全一致。TTL 取 key 当前的剩余有效期，
      * 不依赖 Redis 6 的 KEEPTTL。
      */
     fun updateWorkingDepartment(tokenId: String, departmentId: Long?): Boolean = guarded("更新 JWT 会话工作部门") {
@@ -139,11 +138,16 @@ class RedisTokenSessionRepository(
                     return false
                 }
                 val session = readSession(sessionText)
-                val ttl = Duration.between(LocalDateTime.now(), session.expiresAt)
-                if (ttl.isZero || ttl.isNegative) {
+                // 剩余有效期以 Redis key 自己的 TTL 为准，而不是拿会话里的 expiresAt 和本机时钟相减：
+                // expiresAt 是按 UTC 写入的（见 JwtTokenService），在 UTC+8 的主机上相减恒为负数，
+                // 每次更新都会被误判成「会话已过期」而静默跳过——工作部门切换就是这样一直是坏的。
+                // Redis 的 TTL 没有时区口径问题，且与 key 上真实的过期时刻严格一致。
+                val remainingSeconds = ops.getExpire(key)
+                if (remainingSeconds == null || remainingSeconds <= 0) {
                     ops.unwatch()
                     return false
                 }
+                val ttl = Duration.ofSeconds(remainingSeconds)
                 ops.multi()
                 ops.opsForValue().set(
                     key,
