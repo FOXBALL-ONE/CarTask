@@ -13,7 +13,7 @@
         <h2>{{ systemName }}</h2>
         <p>智慧停车管理系统 · {{ about?.application.version || "读取中..." }}</p>
       </div>
-      <span v-if="about" class="state-badge" :class="{ 'state-badge--error': loadError }">
+      <span v-if="about" :class="{ 'state-badge--error': loadError }" class="state-badge">
         {{ loadError ? "运行环境读取失败" : "运行中" }}
       </span>
     </section>
@@ -22,28 +22,38 @@
       <article class="card">
         <h3><span class="material-icons-outlined">memory</span>运行环境</h3>
         <dl>
-          <dt>Java</dt><dd>{{ about?.runtime.java_version || "—" }}</dd>
-          <dt>JVM</dt><dd>{{ about?.runtime.jvm_name || "—" }}</dd>
-          <dt>运行厂商</dt><dd>{{ about?.runtime.java_vendor || "—" }}</dd>
-          <dt>Spring Boot</dt><dd>{{ about?.framework.spring_boot_version || "—" }}</dd>
-          <dt>时区</dt><dd>{{ about?.runtime.time_zone || "—" }}</dd>
+          <dt>Java</dt>
+          <dd>{{ about?.runtime.java_version || "—" }}</dd>
+          <dt>JVM</dt>
+          <dd>{{ about?.runtime.jvm_name || "—" }}</dd>
+          <dt>运行厂商</dt>
+          <dd>{{ about?.runtime.java_vendor || "—" }}</dd>
+          <dt>Spring Boot</dt>
+          <dd>{{ about?.framework.spring_boot_version || "—" }}</dd>
+          <dt>时区</dt>
+          <dd>{{ about?.runtime.time_zone || "—" }}</dd>
         </dl>
       </article>
 
       <article class="card">
         <h3><span class="material-icons-outlined">storage</span>数据存储</h3>
         <dl>
-          <dt>数据库</dt><dd>{{ about?.database.product || "—" }}</dd>
-          <dt>版本</dt><dd>{{ about?.database.version || "—" }}</dd>
-          <dt>缓存</dt><dd>Redis</dd>
+          <dt>数据库</dt>
+          <dd>{{ about?.database.product || "—" }}</dd>
+          <dt>版本</dt>
+          <dd>{{ about?.database.version || "—" }}</dd>
+          <dt>缓存</dt>
+          <dd>Redis</dd>
         </dl>
       </article>
 
       <article class="card">
         <h3><span class="material-icons-outlined">schedule</span>本次运行</h3>
         <dl>
-          <dt>启动时间</dt><dd>{{ about ? formatDateTime(about.runtime.started_at) : "—" }}</dd>
-          <dt>已运行</dt><dd>{{ uptimeText }}</dd>
+          <dt>启动时间</dt>
+          <dd>{{ about ? formatDateTime(about.runtime.started_at) : "—" }}</dd>
+          <dt>已运行</dt>
+          <dd>{{ uptimeText }}</dd>
         </dl>
       </article>
     </section>
@@ -61,11 +71,11 @@
       </p>
     </section>
 
-    <p v-if="loadError" role="alert" class="feedback error">{{ loadError }}</p>
+    <p v-if="loadError" class="feedback error" role="alert">{{ loadError }}</p>
   </section>
 </template>
 
-<script setup lang="ts">
+<script lang="ts" setup>
 interface AboutData {
   application: { name: string; version: string };
   runtime: {
@@ -108,10 +118,10 @@ function formatDuration(millis: number) {
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
   return days > 0
-    ? `${days} 天 ${hours} 小时 ${minutes} 分`
-    : hours > 0
-      ? `${hours} 小时 ${minutes} 分 ${seconds} 秒`
-      : `${minutes} 分 ${seconds} 秒`;
+      ? `${days} 天 ${hours} 小时 ${minutes} 分`
+      : hours > 0
+          ? `${hours} 小时 ${minutes} 分 ${seconds} 秒`
+          : `${minutes} 分 ${seconds} 秒`;
 }
 
 function formatDateTime(value: string) {
@@ -126,7 +136,9 @@ onMounted(async () => {
     uptimeBaseMillis.value = about.value.runtime.uptime_millis;
     uptimeFetchedAt.value = Date.now();
     uptimeNow.value = uptimeFetchedAt.value;
-    tickTimer = setInterval(() => { uptimeNow.value = Date.now(); }, 1000);
+    tickTimer = setInterval(() => {
+      uptimeNow.value = Date.now();
+    }, 1000);
   } catch (error) {
     loadError.value = (error as { statusMessage?: string }).statusMessage || "运行环境读取失败";
   }
@@ -138,33 +150,196 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.page { min-height: 100%; padding: 24px; }
-.page__header { margin-bottom: 20px; }
-.page__title { color: var(--text); font-size: 18px; font-weight: 600; margin: 0; }
-.page__desc { color: var(--text-sub); margin: 4px 0 0; }
-.hero { align-items: center; background: var(--card); border: 1px solid var(--border-strong); border-radius: 10px; display: flex; gap: 16px; padding: 22px 24px; }
-.hero__mark { align-items: center; background: var(--primary); border-radius: 12px; color: #fff; display: flex; flex: 0 0 52px; font-size: 24px; font-weight: 700; height: 52px; justify-content: center; }
-.hero__body { flex: 1; min-width: 0; }
-.hero__body h2 { color: var(--text); font-size: 17px; font-weight: 650; margin: 0; }
-.hero__body p { color: var(--text-sub); margin: 5px 0 0; }
-.state-badge { background: color-mix(in srgb, #059669 12%, var(--card)); border: 1px solid transparent; border-radius: 4px; color: #059669; font-size: 11px; padding: 3px 9px; }
-.state-badge--error { background: color-mix(in srgb, var(--red) 10%, var(--card)); color: var(--red); }
-.grid { display: grid; gap: 16px; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 16px; }
-.card { background: var(--card); border: 1px solid var(--border-strong); border-radius: 8px; padding: 18px; }
-.card h3 { align-items: center; color: var(--text); display: flex; font-size: 14px; font-weight: 600; gap: 7px; margin: 0 0 12px; }
-.card h3 .material-icons-outlined { color: var(--primary); font-size: 18px; }
-.card dl { display: grid; gap: 8px 12px; grid-template-columns: auto minmax(0, 1fr); margin: 0; }
-.card dt { color: var(--text-mute); font-size: 12px; white-space: nowrap; }
-.card dd { color: var(--text); font-size: 12px; margin: 0; overflow-wrap: anywhere; }
-.notice-panel { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text-sub); margin-top: 18px; padding: 16px 18px; }
-.notice-panel__title { align-items: center; color: var(--text); display: flex; font-weight: 600; gap: 6px; }
-.notice-panel__title .material-icons-outlined { color: var(--primary); font-size: 18px; }
-.notice-panel ul { line-height: 1.8; margin: 8px 0 0; padding-left: 20px; }
-.notice-panel strong { color: var(--text); }
-.notice-panel__foot { margin: 12px 0 0; }
-.notice-panel code { background: var(--card); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-size: 12px; padding: 1px 5px; }
-.feedback { margin: 14px 0 0; }
-.feedback.error { color: var(--red); }
-@media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
-@media (max-width: 700px) { .page { padding: 16px; }.hero { flex-wrap: wrap; } }
+.page {
+  min-height: 100%;
+  padding: 24px;
+}
+
+.page__header {
+  margin-bottom: 20px;
+}
+
+.page__title {
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.page__desc {
+  color: var(--text-sub);
+  margin: 4px 0 0;
+}
+
+.hero {
+  align-items: center;
+  background: var(--card);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  display: flex;
+  gap: 16px;
+  padding: 22px 24px;
+}
+
+.hero__mark {
+  align-items: center;
+  background: var(--primary);
+  border-radius: 12px;
+  color: #fff;
+  display: flex;
+  flex: 0 0 52px;
+  font-size: 24px;
+  font-weight: 700;
+  height: 52px;
+  justify-content: center;
+}
+
+.hero__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.hero__body h2 {
+  color: var(--text);
+  font-size: 17px;
+  font-weight: 650;
+  margin: 0;
+}
+
+.hero__body p {
+  color: var(--text-sub);
+  margin: 5px 0 0;
+}
+
+.state-badge {
+  background: color-mix(in srgb, #059669 12%, var(--card));
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: #059669;
+  font-size: 11px;
+  padding: 3px 9px;
+}
+
+.state-badge--error {
+  background: color-mix(in srgb, var(--red) 10%, var(--card));
+  color: var(--red);
+}
+
+.grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 16px;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 18px;
+}
+
+.card h3 {
+  align-items: center;
+  color: var(--text);
+  display: flex;
+  font-size: 14px;
+  font-weight: 600;
+  gap: 7px;
+  margin: 0 0 12px;
+}
+
+.card h3 .material-icons-outlined {
+  color: var(--primary);
+  font-size: 18px;
+}
+
+.card dl {
+  display: grid;
+  gap: 8px 12px;
+  grid-template-columns: auto minmax(0, 1fr);
+  margin: 0;
+}
+
+.card dt {
+  color: var(--text-mute);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.card dd {
+  color: var(--text);
+  font-size: 12px;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.notice-panel {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-sub);
+  margin-top: 18px;
+  padding: 16px 18px;
+}
+
+.notice-panel__title {
+  align-items: center;
+  color: var(--text);
+  display: flex;
+  font-weight: 600;
+  gap: 6px;
+}
+
+.notice-panel__title .material-icons-outlined {
+  color: var(--primary);
+  font-size: 18px;
+}
+
+.notice-panel ul {
+  line-height: 1.8;
+  margin: 8px 0 0;
+  padding-left: 20px;
+}
+
+.notice-panel strong {
+  color: var(--text);
+}
+
+.notice-panel__foot {
+  margin: 12px 0 0;
+}
+
+.notice-panel code {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 12px;
+  padding: 1px 5px;
+}
+
+.feedback {
+  margin: 14px 0 0;
+}
+
+.feedback.error {
+  color: var(--red);
+}
+
+@media (max-width: 900px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 700px) {
+  .page {
+    padding: 16px;
+  }
+
+  .hero {
+    flex-wrap: wrap;
+  }
+}
 </style>
