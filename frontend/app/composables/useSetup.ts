@@ -60,7 +60,7 @@ export interface CompletionResult {
 interface RequestFailure {
     statusCode?: number;
     statusMessage?: string;
-    data?: {transport_failure?: boolean};
+    data?: { transport_failure?: boolean };
     message?: string;
 }
 
@@ -111,9 +111,9 @@ export const useSetup = () => {
         describeFailure,
         status,
         draft,
-        verifyDatabase: (params: {url: string; username: string; password: string}) =>
+        verifyDatabase: (params: { url: string; username: string; password: string }) =>
             http.post<DatabaseProbeResult>("/setup/database/verify", params, {headers: setupHeaders()}),
-        verifyRedis: (params: {host: string; port: string; password: string}) =>
+        verifyRedis: (params: { host: string; port: string; password: string }) =>
             http.post<RedisProbeResult>("/setup/redis/verify", params, {headers: setupHeaders()}),
         verifyKeytop: (params: {
             base_url: string;
@@ -122,7 +122,7 @@ export const useSetup = () => {
             park_name: string;
             app_secret: string;
         }) => http.post<KeytopProbeResult>("/setup/keytop/verify", params, {headers: setupHeaders()}),
-        verifyStorage: (params: {storage_root: string; base_url: string}) =>
+        verifyStorage: (params: { storage_root: string; base_url: string }) =>
             http.post<StorageProbeResult>("/setup/storage/verify", params, {headers: setupHeaders()}),
         verifySms: (params: {
             access_key_id: string;
@@ -132,9 +132,9 @@ export const useSetup = () => {
             phone: string;
             endpoint: string;
         }) => http.post<SmsProbeResult>("/setup/sms/verify", params, {headers: setupHeaders()}),
-        skipSms: () => http.post<{enabled: boolean}>("/setup/sms/skip", undefined, {headers: setupHeaders()}),
-        saveAdministrator: (params: {username: string; password: string; confirm_password: string}) =>
-            http.post<{username: string}>("/setup/administrator/save", params, {headers: setupHeaders()}),
+        skipSms: () => http.post<{ enabled: boolean }>("/setup/sms/skip", undefined, {headers: setupHeaders()}),
+        saveAdministrator: (params: { username: string; password: string; confirm_password: string }) =>
+            http.post<{ username: string }>("/setup/administrator/save", params, {headers: setupHeaders()}),
         complete: (frontendOrigin: string) =>
             http.post<CompletionResult>(
                 "/setup/complete",

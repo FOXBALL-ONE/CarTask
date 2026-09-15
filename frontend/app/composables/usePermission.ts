@@ -21,5 +21,5 @@ export function usePermission() {
         return canAny(permission);
     }
 
-    return { can, canAny };
+    return {can, canAny};
 }

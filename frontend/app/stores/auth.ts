@@ -103,7 +103,7 @@ export const useAuthStore = defineStore("auth", () => {
         if (!user.value) {
             return;
         }
-        user.value = { ...user.value, ...patch };
+        user.value = {...user.value, ...patch};
         if (!import.meta.client) {
             return;
         }
@@ -114,7 +114,7 @@ export const useAuthStore = defineStore("auth", () => {
         try {
             const data = JSON.parse(stored) as Partial<LoginResponse>;
             if (data.user) {
-                data.user = { ...data.user, ...patch };
+                data.user = {...data.user, ...patch};
                 sessionStorage.setItem("loginUser", JSON.stringify(data));
             }
         } catch {
@@ -124,12 +124,12 @@ export const useAuthStore = defineStore("auth", () => {
 
     /** 改头像后同步顶栏显示。 */
     function setAvatar(value: string | null) {
-        patchCurrentUser({ avatar: value });
+        patchCurrentUser({avatar: value});
     }
 
     /** 改密成功后本端会话已失效，同步清掉本地「必须改密」标记。 */
     function markPasswordChanged() {
-        patchCurrentUser({ must_change_password: false });
+        patchCurrentUser({must_change_password: false});
     }
 
     async function refreshCaptcha() {
@@ -227,7 +227,7 @@ export const useAuthStore = defineStore("auth", () => {
                 ...payload,
                 purpose: payload.purpose ?? "LOGIN",
                 captchaToken: captchaToken.value,
-            }, { payloadMode: "json" });
+            }, {payloadMode: "json"});
         } catch (error: unknown) {
             errorMessage.value = describeError(error, "验证码发送失败");
             throw error;
@@ -297,7 +297,7 @@ export const useAuthStore = defineStore("auth", () => {
             current_name: string | null;
             scope: "ALL" | "DEPARTMENT" | "SELF";
             options: WorkingDepartmentOption[];
-        }>("/auth/working-department", { department_id: departmentId });
+        }>("/auth/working-department", {department_id: departmentId});
         if (user.value) {
             user.value = {
                 ...user.value,

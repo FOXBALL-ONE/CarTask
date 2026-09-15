@@ -1,34 +1,486 @@
 <template>
   <section class="page">
-    <header class="page__header"><div><h1 class="page__title">车位信息</h1><p class="page__desc">管理停车位和分配状态</p></div><button v-if="can('spot:manage')" class="button button--primary" type="button" @click="openCreate"><span class="material-icons-outlined">add</span>新增车位</button></header>
+    <header class="page__header">
+      <div><h1 class="page__title">车位信息</h1>
+        <p class="page__desc">管理停车位和分配状态</p></div>
+      <button v-if="can('spot:manage')" class="button button--primary" type="button" @click="openCreate"><span
+          class="material-icons-outlined">add</span>新增车位
+      </button>
+    </header>
     <section class="card">
       <div class="toolbar">
-        <input v-model="keyword" class="input" type="search" placeholder="车位号 / 车主" @keyup.enter="search">
-        <select v-model="area" class="select" aria-label="车位区域"><option value="">全部区域</option><option v-for="item in areas" :key="item" :value="item">{{ item }}</option></select>
-        <select v-model="status" class="select" aria-label="车位状态"><option value="">全部状态</option><option value="1">正常</option><option value="0">停用</option></select>
-        <div class="toolbar__right"><button class="button button--soft" type="button" @click="search"><span class="material-icons-outlined">search</span>搜索</button><button class="button button--ghost" type="button" @click="resetFilters"><span class="material-icons-outlined">restart_alt</span>重置</button></div>
+        <input v-model="keyword" class="input" placeholder="车位号 / 车主" type="search" @keyup.enter="search">
+        <select v-model="area" aria-label="车位区域" class="select">
+          <option value="">全部区域</option>
+          <option v-for="item in areas" :key="item" :value="item">{{ item }}</option>
+        </select>
+        <select v-model="status" aria-label="车位状态" class="select">
+          <option value="">全部状态</option>
+          <option value="1">正常</option>
+          <option value="0">停用</option>
+        </select>
+        <div class="toolbar__right">
+          <button class="button button--soft" type="button" @click="search"><span
+              class="material-icons-outlined">search</span>搜索
+          </button>
+          <button class="button button--ghost" type="button" @click="resetFilters"><span
+              class="material-icons-outlined">restart_alt</span>重置
+          </button>
+        </div>
       </div>
-      <div v-if="loading" class="state">正在加载车位数据...</div><div v-else-if="errorMessage" class="state state--error">{{ errorMessage }}</div>
-      <div v-else class="table-wrap"><table class="table"><thead><tr><th>编号</th><th>车位号</th><th>区域</th><th>类型</th><th>车主</th><th>状态</th><th>备注</th><th>操作</th></tr></thead><tbody><tr v-for="spot in spots" :key="spot.id"><td>{{ String(spot.id).padStart(4, "0") }}</td><td><strong class="primary-text">{{ spot.code }}</strong></td><td>{{ spot.area }}</td><td>{{ spot.type }}</td><td>{{ spot.owner || "-" }}</td><td><span class="tag" :class="spot.status === 1 ? 'tag--green' : 'tag--red'">{{ spot.status === 1 ? "正常" : "停用" }}</span></td><td class="muted">{{ spot.remark || "-" }}</td><td><button v-if="can('spot:manage')" class="row-action" type="button" title="编辑" @click="openEdit(spot)"><span class="material-icons-outlined">edit</span></button><button v-if="can('spot:manage')" class="row-action row-action--danger" type="button" title="删除" @click="removeSpot(spot)"><span class="material-icons-outlined">delete</span></button></td></tr><tr v-if="spots.length === 0"><td colspan="8" class="empty">暂无数据</td></tr></tbody></table></div>
-      <footer v-if="!loading && !errorMessage" class="pagination"><span class="pagination__info">共 {{ total }} 条</span><button type="button" :disabled="page <= 1" aria-label="上一页" @click="changePage(page - 1)"><span class="material-icons-outlined">chevron_left</span></button><button v-for="pageNumber in pageNumbers" :key="pageNumber" type="button" :class="{ active: pageNumber === page }" @click="changePage(pageNumber)">{{ pageNumber }}</button><button type="button" :disabled="page >= totalPages" aria-label="下一页" @click="changePage(page + 1)"><span class="material-icons-outlined">chevron_right</span></button></footer>
-</section>
-    <div v-if="editorVisible" class="modal-mask" @click.self="editorVisible = false"><form class="modal" @submit.prevent="saveSpot"><header class="modal__head"><h2>{{ editingId ? "编辑车位" : "新增车位" }}</h2><button class="icon-button" type="button" @click="editorVisible = false"><span class="material-icons-outlined">close</span></button></header><div class="modal__body"><div class="form-grid"><label class="field"><span>车位号</span><input v-model.trim="form.code" class="input" required></label><label class="field"><span>区域</span><input v-model.trim="form.area" class="input" required></label><label class="field"><span>类型</span><input v-model.trim="form.type" class="input" required></label><label class="field"><span>车主</span><input v-model.trim="form.owner" class="input" placeholder="可留空"></label><label class="field"><span>状态</span><select v-model.number="form.status" class="select"><option :value="1">正常</option><option :value="0">停用</option></select></label><label class="field"><span>备注</span><input v-model.trim="form.remark" class="input"></label></div><p v-if="formError" class="form-error">{{ formError }}</p></div><footer class="modal__foot"><button class="button button--ghost" type="button" @click="editorVisible = false">取消</button><button class="button button--primary" type="submit">保存</button></footer></form></div>
+      <div v-if="loading" class="state">正在加载车位数据...</div>
+      <div v-else-if="errorMessage" class="state state--error">{{ errorMessage }}</div>
+      <div v-else class="table-wrap">
+        <table class="table">
+          <thead>
+          <tr>
+            <th>编号</th>
+            <th>车位号</th>
+            <th>区域</th>
+            <th>类型</th>
+            <th>车主</th>
+            <th>状态</th>
+            <th>备注</th>
+            <th>操作</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr v-for="spot in spots" :key="spot.id">
+            <td>{{ String(spot.id).padStart(4, "0") }}</td>
+            <td><strong class="primary-text">{{ spot.code }}</strong></td>
+            <td>{{ spot.area }}</td>
+            <td>{{ spot.type }}</td>
+            <td>{{ spot.owner || "-" }}</td>
+            <td><span :class="spot.status === 1 ? 'tag--green' : 'tag--red'" class="tag">{{
+                spot.status === 1 ? "正常" : "停用"
+              }}</span></td>
+            <td class="muted">{{ spot.remark || "-" }}</td>
+            <td>
+              <button v-if="can('spot:manage')" class="row-action" title="编辑" type="button" @click="openEdit(spot)">
+                <span class="material-icons-outlined">edit</span></button>
+              <button v-if="can('spot:manage')" class="row-action row-action--danger" title="删除" type="button"
+                      @click="removeSpot(spot)"><span class="material-icons-outlined">delete</span></button>
+            </td>
+          </tr>
+          <tr v-if="spots.length === 0">
+            <td class="empty" colspan="8">暂无数据</td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+      <footer v-if="!loading && !errorMessage" class="pagination"><span class="pagination__info">共 {{
+          total
+        }} 条</span>
+        <button :disabled="page <= 1" aria-label="上一页" type="button" @click="changePage(page - 1)"><span
+            class="material-icons-outlined">chevron_left</span></button>
+        <button v-for="pageNumber in pageNumbers" :key="pageNumber" :class="{ active: pageNumber === page }"
+                type="button" @click="changePage(pageNumber)">{{ pageNumber }}
+        </button>
+        <button :disabled="page >= totalPages" aria-label="下一页" type="button" @click="changePage(page + 1)"><span
+            class="material-icons-outlined">chevron_right</span></button>
+      </footer>
+    </section>
+    <div v-if="editorVisible" class="modal-mask" @click.self="editorVisible = false">
+      <form class="modal" @submit.prevent="saveSpot">
+        <header class="modal__head"><h2>{{ editingId ? "编辑车位" : "新增车位" }}</h2>
+          <button class="icon-button" type="button" @click="editorVisible = false"><span
+              class="material-icons-outlined">close</span></button>
+        </header>
+        <div class="modal__body">
+          <div class="form-grid"><label class="field"><span>车位号</span><input v-model.trim="form.code" class="input"
+                                                                                required></label><label
+              class="field"><span>区域</span><input v-model.trim="form.area" class="input" required></label><label
+              class="field"><span>类型</span><input v-model.trim="form.type" class="input" required></label><label
+              class="field"><span>车主</span><input v-model.trim="form.owner" class="input"
+                                                    placeholder="可留空"></label><label
+              class="field"><span>状态</span><select v-model.number="form.status" class="select">
+            <option :value="1">正常</option>
+            <option :value="0">停用</option>
+          </select></label><label class="field"><span>备注</span><input v-model.trim="form.remark"
+                                                                        class="input"></label></div>
+          <p v-if="formError" class="form-error">{{ formError }}</p></div>
+        <footer class="modal__foot">
+          <button class="button button--ghost" type="button" @click="editorVisible = false">取消</button>
+          <button class="button button--primary" type="submit">保存</button>
+        </footer>
+      </form>
+    </div>
   </section>
 </template>
 
-<script setup lang="ts">
-interface Spot { id: number; code: string; area: string; type: string; owner?: string | null; status: number; remark?: string | null }
-interface SpotList { items: Spot[]; total: number }
+<script lang="ts" setup>
+interface Spot {
+  id: number;
+  code: string;
+  area: string;
+  type: string;
+  owner?: string | null;
+  status: number;
+  remark?: string | null
+}
+
+interface SpotList {
+  items: Spot[];
+  total: number
+}
+
 const http = useHttp();
-const { can } = usePermission(); const keyword = ref(""); const area = ref(""); const status = ref(""); const page = ref(1); const pageSize = 8; const spots = ref<Spot[]>([]); const total = ref(0); const areas = ref<string[]>([]); const loading = ref(true); const errorMessage = ref(""); const editorVisible = ref(false); const editingId = ref<number | null>(null); const formError = ref(""); const form = reactive({ code: "", area: "", type: "标准车位", owner: "", status: 1, remark: "" });
-const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize))); const pageNumbers = computed(() => Array.from({ length: totalPages.value }, (_, index) => index + 1).slice(Math.max(0, page.value - 3), page.value + 2));
-async function loadSpots() { loading.value = true; errorMessage.value = ""; try { const result = await http.get<SpotList>("/spots", { keyword: keyword.value || undefined, area: area.value || undefined, status: status.value || undefined, page: page.value, pageSize }); spots.value = result.items || []; total.value = result.total || 0; if (!areas.value.length) { const all = await http.get<SpotList>("/spots", { page: 1, pageSize: 100 }); areas.value = [...new Set((all.items || []).map((spot) => spot.area))]; } } catch (error) { errorMessage.value = (error as { statusMessage?: string }).statusMessage || "车位数据加载失败"; } finally { loading.value = false; } }
-function search() { page.value = 1; void loadSpots(); } function resetFilters() { keyword.value = ""; area.value = ""; status.value = ""; page.value = 1; void loadSpots(); } function changePage(nextPage: number) { if (nextPage < 1 || nextPage > totalPages.value) return; page.value = nextPage; void loadSpots(); } onMounted(loadSpots);
-function openCreate() { editingId.value = null; Object.assign(form, { code: "", area: areas.value[0] || "", type: "标准车位", owner: "", status: 1, remark: "" }); formError.value = ""; editorVisible.value = true; } function openEdit(spot: Spot) { editingId.value = spot.id; Object.assign(form, { code: spot.code, area: spot.area, type: spot.type, owner: spot.owner || "", status: spot.status, remark: spot.remark || "" }); formError.value = ""; editorVisible.value = true; }
-async function saveSpot() { formError.value = ""; try { const payload = { code: form.code, area: form.area, type: form.type, owner: form.owner || undefined, status: form.status, remark: form.remark || undefined }; if (editingId.value) await http.put(`/spots/${editingId.value}`, payload, { payloadMode: "json" }); else await http.post("/spots", payload, { payloadMode: "json" }); editorVisible.value = false; await loadSpots(); } catch (error) { formError.value = (error as { statusMessage?: string }).statusMessage || "保存失败"; } }
-async function removeSpot(spot: Spot) { if (!window.confirm(`确认删除车位“${spot.code}”？`)) return; try { await http.delete(`/spots/${spot.id}`); await loadSpots(); } catch (error) { errorMessage.value = (error as { statusMessage?: string }).statusMessage || "删除失败"; } }
+const {can} = usePermission();
+const keyword = ref("");
+const area = ref("");
+const status = ref("");
+const page = ref(1);
+const pageSize = 8;
+const spots = ref<Spot[]>([]);
+const total = ref(0);
+const areas = ref<string[]>([]);
+const loading = ref(true);
+const errorMessage = ref("");
+const editorVisible = ref(false);
+const editingId = ref<number | null>(null);
+const formError = ref("");
+const form = reactive({code: "", area: "", type: "标准车位", owner: "", status: 1, remark: ""});
+const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize)));
+const pageNumbers = computed(() => Array.from({length: totalPages.value}, (_, index) => index + 1).slice(Math.max(0, page.value - 3), page.value + 2));
+
+async function loadSpots() {
+  loading.value = true;
+  errorMessage.value = "";
+  try {
+    const result = await http.get<SpotList>("/spots", {
+      keyword: keyword.value || undefined,
+      area: area.value || undefined,
+      status: status.value || undefined,
+      page: page.value,
+      pageSize
+    });
+    spots.value = result.items || [];
+    total.value = result.total || 0;
+    if (!areas.value.length) {
+      const all = await http.get<SpotList>("/spots", {page: 1, pageSize: 100});
+      areas.value = [...new Set((all.items || []).map((spot) => spot.area))];
+    }
+  } catch (error) {
+    errorMessage.value = (error as { statusMessage?: string }).statusMessage || "车位数据加载失败";
+  } finally {
+    loading.value = false;
+  }
+}
+
+function search() {
+  page.value = 1;
+  void loadSpots();
+}
+
+function resetFilters() {
+  keyword.value = "";
+  area.value = "";
+  status.value = "";
+  page.value = 1;
+  void loadSpots();
+}
+
+function changePage(nextPage: number) {
+  if (nextPage < 1 || nextPage > totalPages.value) return;
+  page.value = nextPage;
+  void loadSpots();
+}
+
+onMounted(loadSpots);
+
+function openCreate() {
+  editingId.value = null;
+  Object.assign(form, {code: "", area: areas.value[0] || "", type: "标准车位", owner: "", status: 1, remark: ""});
+  formError.value = "";
+  editorVisible.value = true;
+}
+
+function openEdit(spot: Spot) {
+  editingId.value = spot.id;
+  Object.assign(form, {
+    code: spot.code,
+    area: spot.area,
+    type: spot.type,
+    owner: spot.owner || "",
+    status: spot.status,
+    remark: spot.remark || ""
+  });
+  formError.value = "";
+  editorVisible.value = true;
+}
+
+async function saveSpot() {
+  formError.value = "";
+  try {
+    const payload = {
+      code: form.code,
+      area: form.area,
+      type: form.type,
+      owner: form.owner || undefined,
+      status: form.status,
+      remark: form.remark || undefined
+    };
+    if (editingId.value) await http.put(`/spots/${editingId.value}`, payload, {payloadMode: "json"}); else await http.post("/spots", payload, {payloadMode: "json"});
+    editorVisible.value = false;
+    await loadSpots();
+  } catch (error) {
+    formError.value = (error as { statusMessage?: string }).statusMessage || "保存失败";
+  }
+}
+
+async function removeSpot(spot: Spot) {
+  if (!window.confirm(`确认删除车位“${spot.code}”？`)) return;
+  try {
+    await http.delete(`/spots/${spot.id}`);
+    await loadSpots();
+  } catch (error) {
+    errorMessage.value = (error as { statusMessage?: string }).statusMessage || "删除失败";
+  }
+}
 </script>
 
 <style scoped>
-.page { min-height: 100%; padding: 24px; }.page__header { align-items: center; display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; margin-bottom: 20px; }.page__title { color: var(--text); font-size: 18px; font-weight: 600; margin: 0; }.page__desc { color: var(--text-sub); font-size: 13px; margin: 2px 0 0; }.card { background: var(--card); border: 1px solid var(--border-strong); border-radius: 8px; overflow: hidden; }.toolbar { align-items: center; display: flex; flex-wrap: wrap; gap: 10px; padding: 18px; }.toolbar__right { display: flex; gap: 6px; margin-left: auto; }.input, .select { background: var(--card); border: 1px solid var(--border-strong); border-radius: 6px; box-sizing: border-box; color: var(--text); font: inherit; height: 34px; outline: none; padding: 0 10px; }.toolbar .input { min-width: 220px; }.toolbar .select { min-width: 120px; }.input:focus, .select:focus { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-soft); }.button { align-items: center; border: 1px solid transparent; border-radius: 6px; cursor: pointer; display: inline-flex; font: inherit; gap: 5px; height: 32px; justify-content: center; padding: 0 12px; white-space: nowrap; }.button--soft { background: var(--primary-soft); color: var(--primary); }.button--ghost { background: var(--card); border-color: var(--border-strong); color: var(--text-sub); }.button .material-icons-outlined { font-size: 16px; }.table-wrap { overflow-x: auto; }.table { border-collapse: collapse; font-size: 13px; min-width: 760px; width: 100%; }.table th { background: var(--bg); border-bottom: 1px solid var(--border); color: var(--text-mute); font-size: 12px; font-weight: 500; padding: 10px 14px; text-align: left; white-space: nowrap; }.table td { border-bottom: 1px solid var(--border); color: var(--text); padding: 11px 14px; white-space: nowrap; }.table tbody tr:hover { background: var(--bg); }.primary-text { color: var(--primary); }.muted { color: var(--text-sub) !important; }.tag { align-items: center; border-radius: 4px; display: inline-flex; font-size: 12px; gap: 4px; line-height: 1.5; padding: 2px 8px; }.tag::before { background: currentColor; border-radius: 50%; content: ""; height: 5px; width: 5px; }.tag--green { background: var(--green-soft, #dcfce7); color: var(--green, #15803d); }.tag--red { background: var(--red-soft, #fee2e2); color: var(--red); }.state, .empty { color: var(--text-mute); padding: 48px; text-align: center; }.state--error { color: var(--red); }.pagination { align-items: center; border-top: 1px solid var(--border); color: var(--text-sub); display: flex; gap: 4px; justify-content: flex-end; padding: 12px 16px; }.pagination__info { margin-right: auto; font-size: 12px; }.pagination button { align-items: center; background: transparent; border: 1px solid transparent; border-radius: 5px; color: var(--text-sub); cursor: pointer; display: inline-flex; height: 28px; justify-content: center; min-width: 28px; }.pagination button:hover:not(:disabled), .pagination button.active { background: var(--primary-soft); color: var(--primary); }.pagination button:disabled { cursor: not-allowed; opacity: .4; }.pagination .material-icons-outlined { font-size: 18px; }@media (max-width: 600px) { .page { padding: 16px; }.toolbar { align-items: stretch; flex-direction: column; }.toolbar .input, .toolbar .select { min-width: 0; width: 100%; }.toolbar__right { justify-content: flex-end; margin-left: 0; } }
+.page {
+  min-height: 100%;
+  padding: 24px;
+}
+
+.page__header {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.page__title {
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.page__desc {
+  color: var(--text-sub);
+  font-size: 13px;
+  margin: 2px 0 0;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.toolbar {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 18px;
+}
+
+.toolbar__right {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.input, .select {
+  background: var(--card);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  box-sizing: border-box;
+  color: var(--text);
+  font: inherit;
+  height: 34px;
+  outline: none;
+  padding: 0 10px;
+}
+
+.toolbar .input {
+  min-width: 220px;
+}
+
+.toolbar .select {
+  min-width: 120px;
+}
+
+.input:focus, .select:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-soft);
+}
+
+.button {
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  gap: 5px;
+  height: 32px;
+  justify-content: center;
+  padding: 0 12px;
+  white-space: nowrap;
+}
+
+.button--soft {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.button--ghost {
+  background: var(--card);
+  border-color: var(--border-strong);
+  color: var(--text-sub);
+}
+
+.button .material-icons-outlined {
+  font-size: 16px;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.table {
+  border-collapse: collapse;
+  font-size: 13px;
+  min-width: 760px;
+  width: 100%;
+}
+
+.table th {
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  color: var(--text-mute);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 10px 14px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.table td {
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  padding: 11px 14px;
+  white-space: nowrap;
+}
+
+.table tbody tr:hover {
+  background: var(--bg);
+}
+
+.primary-text {
+  color: var(--primary);
+}
+
+.muted {
+  color: var(--text-sub) !important;
+}
+
+.tag {
+  align-items: center;
+  border-radius: 4px;
+  display: inline-flex;
+  font-size: 12px;
+  gap: 4px;
+  line-height: 1.5;
+  padding: 2px 8px;
+}
+
+.tag::before {
+  background: currentColor;
+  border-radius: 50%;
+  content: "";
+  height: 5px;
+  width: 5px;
+}
+
+.tag--green {
+  background: var(--green-soft, #dcfce7);
+  color: var(--green, #15803d);
+}
+
+.tag--red {
+  background: var(--red-soft, #fee2e2);
+  color: var(--red);
+}
+
+.state, .empty {
+  color: var(--text-mute);
+  padding: 48px;
+  text-align: center;
+}
+
+.state--error {
+  color: var(--red);
+}
+
+.pagination {
+  align-items: center;
+  border-top: 1px solid var(--border);
+  color: var(--text-sub);
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+  padding: 12px 16px;
+}
+
+.pagination__info {
+  margin-right: auto;
+  font-size: 12px;
+}
+
+.pagination button {
+  align-items: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  color: var(--text-sub);
+  cursor: pointer;
+  display: inline-flex;
+  height: 28px;
+  justify-content: center;
+  min-width: 28px;
+}
+
+.pagination button:hover:not(:disabled), .pagination button.active {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.pagination button:disabled {
+  cursor: not-allowed;
+  opacity: .4;
+}
+
+.pagination .material-icons-outlined {
+  font-size: 18px;
+}
+
+@media (max-width: 600px) {
+  .page {
+    padding: 16px;
+  }
+
+  .toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .toolbar .input, .toolbar .select {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .toolbar__right {
+    justify-content: flex-end;
+    margin-left: 0;
+  }
+}
 </style>

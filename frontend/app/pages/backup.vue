@@ -5,8 +5,11 @@
         <h1 class="page__title">数据备份</h1>
         <p class="page__desc">导出数据库 SQL 脚本，并可一并打包系统中登记的全部附件</p>
       </div>
-      <button class="button button--primary page__action" type="button" :disabled="busy || !loaded || !canBackup" @click="runBackup">
-        <span class="material-icons-outlined">archive</span>{{ busy ? "备份生成中..." : includeFiles ? "生成备份压缩包" : "生成 SQL 备份" }}
+      <button :disabled="busy || !loaded || !canBackup" class="button button--primary page__action" type="button"
+              @click="runBackup">
+        <span class="material-icons-outlined">archive</span>{{
+          busy ? "备份生成中..." : includeFiles ? "生成备份压缩包" : "生成 SQL 备份"
+        }}
       </button>
     </header>
 
@@ -31,7 +34,9 @@
         <span class="material-icons-outlined">folder_open</span>
         <div>
           <div class="overview__label">附件存储目录</div>
-          <div class="overview__value overview__value--path" :title="summary?.storage_root || ''">{{ summary?.storage_root || "—" }}</div>
+          <div :title="summary?.storage_root || ''" class="overview__value overview__value--path">
+            {{ summary?.storage_root || "—" }}
+          </div>
           <div class="overview__hint">以服务器上的实际路径为准</div>
         </div>
       </article>
@@ -40,7 +45,7 @@
     <section class="notice-panel">
       <div class="notice-panel__title">备份内容</div>
       <label class="option">
-        <input v-model="includeFiles" type="checkbox" :disabled="busy">
+        <input v-model="includeFiles" :disabled="busy" type="checkbox">
         <span>
           <strong>同时打包已登记的文件</strong>
           <em>勾选后下载的是压缩包，内含 SQL 脚本（database.sql）、全部附件和附件清单（manifest.csv）；不勾选则只下载 SQL 脚本。</em>
@@ -51,7 +56,7 @@
       </p>
     </section>
 
-    <section v-if="progress" class="progress-panel" role="status" aria-live="polite">
+    <section v-if="progress" aria-live="polite" class="progress-panel" role="status">
       <header class="progress-panel__head">
         <div>
           <div class="progress-panel__label">{{ progress.label }}</div>
@@ -59,27 +64,36 @@
         </div>
         <span class="progress-panel__percent">{{ progress.percent }}%</span>
       </header>
-      <div class="progress-bar"><div class="progress-bar__fill" :style="{ width: `${progress.percent}%` }" /></div>
+      <div class="progress-bar">
+        <div :style="{ width: `${progress.percent}%` }" class="progress-bar__fill"/>
+      </div>
       <p v-if="progress.message" class="progress-panel__message">{{ progress.message }}</p>
     </section>
 
     <section class="notice-panel">
       <div class="notice-panel__title"><span class="material-icons-outlined">info</span>备份说明</div>
       <ul>
-        <li>SQL 脚本包含当前 schema 下全部业务表的结构与数据（系统表除外）。恢复时请先启动应用让表结构就绪，再用 <code>psql -f</code> 执行脚本。</li>
+        <li>SQL 脚本包含当前 schema 下全部业务表的结构与数据（系统表除外）。恢复时请先启动应用让表结构就绪，再用 <code>psql
+          -f</code> 执行脚本。
+        </li>
         <li>脚本不会做任何清理，请确认目标库为空或已确认可以覆盖同主键数据后再执行。</li>
-        <li>压缩包里的附件按相对路径存放；元数据仍在、物理文件已丢失的条目会在清单里标成 <code>MISSING</code>，不会静默少一个。</li>
-        <li>生成期间系统进入静默：除本页与健康检查外的请求都会返回 503，定时同步跳过本次执行，已经在跑的同步会让备份等它结束再开始。这是为了让导出的数据停在同一时刻，而不是半个批次。</li>
-        <li>产物只落在服务器临时目录里，下载写出后立即删除，服务器上不留档。备份包含账号口令散列与生物特征照片，请妥善保管下载到的文件。</li>
+        <li>压缩包里的附件按相对路径存放；元数据仍在、物理文件已丢失的条目会在清单里标成 <code>MISSING</code>，不会静默少一个。
+        </li>
+        <li>生成期间系统进入静默：除本页与健康检查外的请求都会返回
+          503，定时同步跳过本次执行，已经在跑的同步会让备份等它结束再开始。这是为了让导出的数据停在同一时刻，而不是半个批次。
+        </li>
+        <li>
+          产物只落在服务器临时目录里，下载写出后立即删除，服务器上不留档。备份包含账号口令散列与生物特征照片，请妥善保管下载到的文件。
+        </li>
         <li>同一时刻只允许执行一次备份，重复点击会提示已有任务在执行。</li>
       </ul>
     </section>
 
-    <p v-if="message" role="status" class="feedback" :class="{ error: feedbackType === 'error' }">{{ message }}</p>
+    <p v-if="message" :class="{ error: feedbackType === 'error' }" class="feedback" role="status">{{ message }}</p>
   </section>
 </template>
 
-<script setup lang="ts">
+<script lang="ts" setup>
 interface BackupSummary {
   database_product: string;
   table_count: number;
@@ -101,7 +115,7 @@ interface BackupProgress {
   message: string | null;
 }
 
-const { can } = usePermission();
+const {can} = usePermission();
 const runtimeConfig = useRuntimeConfig();
 const token = useCookie<string | null>("cartask_auth_token");
 const canBackup = computed(() => can("backup:manage"));
@@ -135,7 +149,7 @@ function baseUrl() {
 }
 
 function authorization() {
-  return token.value ? { Authorization: /^Bearer\s/i.test(token.value) ? token.value : `Bearer ${token.value}` } : {};
+  return token.value ? {Authorization: /^Bearer\s/i.test(token.value) ? token.value : `Bearer ${token.value}`} : {};
 }
 
 function formatBytes(bytes: number) {
@@ -153,7 +167,7 @@ async function loadSummary() {
     return;
   }
   try {
-    const response = await fetch(`${baseUrl()}/backup/summary`, { headers: authorization() });
+    const response = await fetch(`${baseUrl()}/backup/summary`, {headers: authorization()});
     const body = await response.json().catch(() => ({})) as { data?: BackupSummary; message?: string };
     if (!response.ok) throw new Error(body.message || `读取备份概览失败（${response.status}）`);
     summary.value = body.data ?? null;
@@ -166,7 +180,7 @@ async function loadSummary() {
 
 async function loadProgress() {
   try {
-    const response = await fetch(`${baseUrl()}/backup/progress`, { headers: authorization() });
+    const response = await fetch(`${baseUrl()}/backup/progress`, {headers: authorization()});
     if (!response.ok) return;
     const body = await response.json() as { data?: BackupProgress };
     progress.value = body.data ?? null;
@@ -193,7 +207,7 @@ async function runBackup() {
   message.value = "";
   startProgressPolling();
   try {
-    const response = await fetch(`${baseUrl()}/backup/export?include_files=${includeFiles.value}`, { headers: authorization() });
+    const response = await fetch(`${baseUrl()}/backup/export?include_files=${includeFiles.value}`, {headers: authorization()});
     if (!response.ok) {
       // 生成阶段失败会走统一响应体，能拿到具体原因（例如已有备份在执行）；流式响应开始后就不会再返回 JSON 了。
       const body = await response.json().catch(() => ({})) as { message?: string };
@@ -207,19 +221,19 @@ async function runBackup() {
     const plain = disposition.match(/filename="?([^";]+)"?/i)?.[1];
     const fallback = includeFiles.value ? "cartask-backup.zip" : "cartask-backup.sql";
     const filename = encoded
-      ? decodeURIComponent(encoded)
-      : plain
-        ? decodeURIComponent(plain)
-        : fallback;
+        ? decodeURIComponent(encoded)
+        : plain
+            ? decodeURIComponent(plain)
+            : fallback;
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
     link.download = filename;
     link.click();
     URL.revokeObjectURL(link.href);
     showMessage(
-      includeFiles.value
-        ? `备份完成，已下载 ${filename}（${formatBytes(blob.size)}）`
-        : `SQL 备份完成，已下载 ${filename}（${formatBytes(blob.size)}）`,
+        includeFiles.value
+            ? `备份完成，已下载 ${filename}（${formatBytes(blob.size)}）`
+            : `SQL 备份完成，已下载 ${filename}（${formatBytes(blob.size)}）`,
     );
   } catch (error) {
     showMessage(error instanceof Error ? error.message : "备份失败", "error");
@@ -241,41 +255,256 @@ onBeforeUnmount(stopProgressPolling);
 </script>
 
 <style scoped>
-.page { min-height: 100%; padding: 24px; }
-.page__header { align-items: flex-start; display: flex; justify-content: space-between; margin-bottom: 20px; }
-.page__title { color: var(--text); font-size: 18px; font-weight: 600; margin: 0; }
-.page__desc { color: var(--text-sub); margin: 4px 0 0; }
-.overview { display: grid; gap: 16px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.overview__item { align-items: flex-start; background: var(--card); border: 1px solid var(--border-strong); border-radius: 8px; display: flex; gap: 14px; padding: 18px; }
-.overview__item > .material-icons-outlined { color: var(--primary); font-size: 22px; }
-.overview__label { color: var(--text-sub); font-size: 12px; }
-.overview__value { color: var(--text); font-size: 16px; font-weight: 600; margin-top: 2px; }
-.overview__value--path { font-size: 13px; font-weight: 500; overflow-wrap: anywhere; }
-.overview__hint { color: var(--text-mute); font-size: 12px; margin-top: 2px; overflow-wrap: anywhere; }
-.option { align-items: flex-start; cursor: pointer; display: flex; gap: 10px; margin-top: 14px; }
-.option input { cursor: pointer; flex-shrink: 0; height: 16px; margin-top: 3px; width: 16px; }
-.option strong { color: var(--text); display: block; font-weight: 600; }
-.option em { color: var(--text-sub); display: block; font-style: normal; line-height: 1.7; margin-top: 4px; }
-.notice-panel__foot { color: var(--text-sub); margin: 12px 0 0; }
-.notice-panel code { background: var(--bg); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-size: 12px; padding: 1px 5px; }
-.button { align-items: center; border: 1px solid transparent; border-radius: 6px; cursor: pointer; display: inline-flex; font: inherit; gap: 5px; height: 34px; justify-content: center; padding: 0 13px; white-space: nowrap; }
-.button:disabled { cursor: not-allowed; opacity: .6; }
-.button--primary { background: var(--primary); color: #fff; }
-.button .material-icons-outlined { font-size: 17px; }
-.progress-panel { background: var(--card); border: 1px solid var(--border-strong); border-radius: 8px; margin-top: 18px; padding: 16px 18px; }
-.progress-panel__head { align-items: flex-start; display: flex; gap: 12px; justify-content: space-between; }
-.progress-panel__label { color: var(--text); font-weight: 600; }
-.progress-panel__detail { color: var(--text-sub); font-size: 12px; margin: 4px 0 0; }
-.progress-panel__percent { color: var(--primary); font-size: 18px; font-weight: 650; }
-.progress-bar { background: var(--bg); border: 1px solid var(--border); border-radius: 999px; height: 8px; margin-top: 12px; overflow: hidden; }
-.progress-bar__fill { background: var(--primary); height: 100%; transition: width .3s ease; }
-.progress-panel__message { color: var(--red); font-size: 12px; margin: 10px 0 0; }
-.notice-panel { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text-sub); margin-top: 18px; padding: 16px 18px; }
-.notice-panel__title { align-items: center; color: var(--text); display: flex; font-weight: 600; gap: 6px; }
-.notice-panel__title .material-icons-outlined { color: var(--primary); font-size: 18px; }
-.notice-panel ul { line-height: 1.8; margin: 8px 0 0; padding-left: 20px; }
-.feedback { color: #059669; margin: 14px 0 0; }
-.feedback.error { color: var(--red); }
-@media (max-width: 900px) { .overview { grid-template-columns: 1fr; } }
-@media (max-width: 700px) { .page { padding: 16px; }.page__header { flex-direction: column; gap: 12px; }.page__action { width: 100%; } }
+.page {
+  min-height: 100%;
+  padding: 24px;
+}
+
+.page__header {
+  align-items: flex-start;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.page__title {
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.page__desc {
+  color: var(--text-sub);
+  margin: 4px 0 0;
+}
+
+.overview {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.overview__item {
+  align-items: flex-start;
+  background: var(--card);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  display: flex;
+  gap: 14px;
+  padding: 18px;
+}
+
+.overview__item > .material-icons-outlined {
+  color: var(--primary);
+  font-size: 22px;
+}
+
+.overview__label {
+  color: var(--text-sub);
+  font-size: 12px;
+}
+
+.overview__value {
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.overview__value--path {
+  font-size: 13px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.overview__hint {
+  color: var(--text-mute);
+  font-size: 12px;
+  margin-top: 2px;
+  overflow-wrap: anywhere;
+}
+
+.option {
+  align-items: flex-start;
+  cursor: pointer;
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.option input {
+  cursor: pointer;
+  flex-shrink: 0;
+  height: 16px;
+  margin-top: 3px;
+  width: 16px;
+}
+
+.option strong {
+  color: var(--text);
+  display: block;
+  font-weight: 600;
+}
+
+.option em {
+  color: var(--text-sub);
+  display: block;
+  font-style: normal;
+  line-height: 1.7;
+  margin-top: 4px;
+}
+
+.notice-panel__foot {
+  color: var(--text-sub);
+  margin: 12px 0 0;
+}
+
+.notice-panel code {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 12px;
+  padding: 1px 5px;
+}
+
+.button {
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  gap: 5px;
+  height: 34px;
+  justify-content: center;
+  padding: 0 13px;
+  white-space: nowrap;
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: .6;
+}
+
+.button--primary {
+  background: var(--primary);
+  color: #fff;
+}
+
+.button .material-icons-outlined {
+  font-size: 17px;
+}
+
+.progress-panel {
+  background: var(--card);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  margin-top: 18px;
+  padding: 16px 18px;
+}
+
+.progress-panel__head {
+  align-items: flex-start;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.progress-panel__label {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.progress-panel__detail {
+  color: var(--text-sub);
+  font-size: 12px;
+  margin: 4px 0 0;
+}
+
+.progress-panel__percent {
+  color: var(--primary);
+  font-size: 18px;
+  font-weight: 650;
+}
+
+.progress-bar {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  height: 8px;
+  margin-top: 12px;
+  overflow: hidden;
+}
+
+.progress-bar__fill {
+  background: var(--primary);
+  height: 100%;
+  transition: width .3s ease;
+}
+
+.progress-panel__message {
+  color: var(--red);
+  font-size: 12px;
+  margin: 10px 0 0;
+}
+
+.notice-panel {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-sub);
+  margin-top: 18px;
+  padding: 16px 18px;
+}
+
+.notice-panel__title {
+  align-items: center;
+  color: var(--text);
+  display: flex;
+  font-weight: 600;
+  gap: 6px;
+}
+
+.notice-panel__title .material-icons-outlined {
+  color: var(--primary);
+  font-size: 18px;
+}
+
+.notice-panel ul {
+  line-height: 1.8;
+  margin: 8px 0 0;
+  padding-left: 20px;
+}
+
+.feedback {
+  color: #059669;
+  margin: 14px 0 0;
+}
+
+.feedback.error {
+  color: var(--red);
+}
+
+@media (max-width: 900px) {
+  .overview {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 700px) {
+  .page {
+    padding: 16px;
+  }
+
+  .page__header {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .page__action {
+    width: 100%;
+  }
+}
 </style>

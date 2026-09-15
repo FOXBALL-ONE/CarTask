@@ -94,7 +94,7 @@ function isAuthenticationEndpoint(url: string): boolean {
 
 function requestFailure(error: unknown): RequestFailure {
     const value = error as {
-        response?: {status?: number; _data?: ApiResult<unknown>; headers?: Headers};
+        response?: { status?: number; _data?: ApiResult<unknown>; headers?: Headers };
         data?: ApiResult<unknown>;
         statusCode?: number;
         message?: string;

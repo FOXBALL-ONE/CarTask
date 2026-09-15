@@ -5,8 +5,11 @@
         <h1 class="page__title">数据导入导出</h1>
         <p class="page__desc">使用 Excel 批量维护用户、车辆、设备和门禁人员数据</p>
       </div>
-      <button v-if="canExportAll" class="button button--soft page__export-all" type="button" :disabled="!!busy" @click="downloadAll">
-        <span class="material-icons-outlined">download_for_offline</span>{{ busy === "all-export" ? "导出中..." : "导出全部数据" }}
+      <button v-if="canExportAll" :disabled="!!busy" class="button button--soft page__export-all" type="button"
+              @click="downloadAll">
+        <span class="material-icons-outlined">download_for_offline</span>{{
+          busy === "all-export" ? "导出中..." : "导出全部数据"
+        }}
       </button>
     </header>
 
@@ -14,12 +17,17 @@
       <div class="notice-panel__title">关联资料整批导入</div>
       <p>样表包含部门、岗位、用户、车主、车位、车牌、设备和门禁人员。用编码关联新数据，任一错误整批回滚。</p>
       <div class="transfer-card__actions">
-        <button v-if="canUseAllSheets" class="button button--ghost" type="button" :disabled="!!busy" @click="download('all', 'template')">
-          <span class="material-icons-outlined">description</span>{{ busy === 'all-template' ? '下载中...' : '下载全部导入样表' }}
+        <button v-if="canUseAllSheets" :disabled="!!busy" class="button button--ghost" type="button"
+                @click="download('all', 'template')">
+          <span class="material-icons-outlined">description</span>{{
+            busy === 'all-template' ? '下载中...' : '下载全部导入样表'
+          }}
         </button>
-        <label v-if="canUseAllSheets" class="upload-button" :class="{ disabled: !!busy }">
-          <span class="material-icons-outlined">upload_file</span>{{ busy === 'all-import' ? '导入中...' : '导入全部数据' }}
-          <input type="file" accept=".xlsx,.xls" :disabled="!!busy" @change="(event) => importFile('all', event)">
+        <label v-if="canUseAllSheets" :class="{ disabled: !!busy }" class="upload-button">
+          <span class="material-icons-outlined">upload_file</span>{{
+            busy === 'all-import' ? '导入中...' : '导入全部数据'
+          }}
+          <input :disabled="!!busy" accept=".xlsx,.xls" type="file" @change="(event) => importFile('all', event)">
         </label>
       </div>
       <p>样表中的示例行会实际导入，请先修改或删除。无需导入的工作表保留表头即可；全部导出的文件不能直接作为导入样表。</p>
@@ -32,17 +40,24 @@
           <h2>{{ resource.label }}</h2>
           <p>{{ resource.description }}</p>
           <div class="transfer-card__actions">
-            <button class="button button--ghost" type="button" :disabled="!!busy" @click="download(resource.key, 'template')">
-              <span class="material-icons-outlined">description</span>{{ busy === `${resource.key}-template` ? "下载中..." : "下载模板" }}
+            <button :disabled="!!busy" class="button button--ghost" type="button"
+                    @click="download(resource.key, 'template')">
+              <span class="material-icons-outlined">description</span>{{
+                busy === `${resource.key}-template` ? "下载中..." : "下载模板"
+              }}
             </button>
-            <button v-if="canExport(resource.key)" class="button button--soft" type="button" :disabled="!!busy" @click="download(resource.key, 'export')">
-              <span class="material-icons-outlined">download</span>{{ busy === `${resource.key}-export` ? "导出中..." : "导出全部" }}
+            <button v-if="canExport(resource.key)" :disabled="!!busy" class="button button--soft" type="button"
+                    @click="download(resource.key, 'export')">
+              <span class="material-icons-outlined">download</span>{{
+                busy === `${resource.key}-export` ? "导出中..." : "导出全部"
+              }}
             </button>
           </div>
-          <label v-if="canHandle(resource.key, 'manage')" class="upload-button" :class="{ disabled: !!busy }">
+          <label v-if="canHandle(resource.key, 'manage')" :class="{ disabled: !!busy }" class="upload-button">
             <span class="material-icons-outlined">upload_file</span>
             <span>{{ busy === `${resource.key}-import` ? "导入中..." : "上传 Excel 导入" }}</span>
-            <input type="file" accept=".xlsx,.xls" :disabled="!!busy" @change="(event) => importFile(resource.key, event)">
+            <input :disabled="!!busy" accept=".xlsx,.xls" type="file"
+                   @change="(event) => importFile(resource.key, event)">
           </label>
         </div>
       </article>
@@ -53,29 +68,49 @@
       <ul>
         <li>请先下载对应模板，保持表头名称不变后再填写数据。</li>
         <li>用户导入的密码会按系统安全策略加密保存；账号和邮箱不能重复。</li>
-        <li>用户通过部门编码、岗位编码关联，车牌通过车主卡号关联；单表导入也支持已有数据库 ID。车主、车位、车牌状态填写 0 或 1。</li>
+        <li>用户通过部门编码、岗位编码关联，车牌通过车主卡号关联；单表导入也支持已有数据库 ID。车主、车位、车牌状态填写 0 或
+          1。
+        </li>
         <li>车辆年检按车牌号匹配已有车辆，「是否已年检」填是/否；已年检的车辆没填年检有效期时，按年检日期起一年计算。</li>
         <li>进出记录、审批申请等过程数据不开放导入，避免破坏系统流水和审计完整性。</li>
       </ul>
     </section>
 
-    <p v-if="message" role="status" class="feedback" :class="{ error: feedbackType === 'error' }">{{ message }}</p>
+    <p v-if="message" :class="{ error: feedbackType === 'error' }" class="feedback" role="status">{{ message }}</p>
   </section>
 </template>
 
-<script setup lang="ts">
-type ResourceKey = "users" | "positions" | "owners" | "spots" | "plates" | "plate-inspections" | "devices" | "gate-persons";
+<script lang="ts" setup>
+type ResourceKey =
+    "users"
+    | "positions"
+    | "owners"
+    | "spots"
+    | "plates"
+    | "plate-inspections"
+    | "devices"
+    | "gate-persons";
 /** "all" 是整批接口（/excel/all/*），不是 resources 里的一张卡片。 */
 type TransferResource = "all" | ResourceKey;
 const resources: { key: ResourceKey; label: string; icon: string; description: string }[] = [
-  { key: "users", label: "用户数据", icon: "group", description: "批量创建系统用户，包含账号、组织归属和状态。" },
-  { key: "positions", label: "岗位数据", icon: "badge", description: "批量维护岗位名称、编码、排序和启用状态。" },
-  { key: "owners", label: "车主数据", icon: "person", description: "批量维护车主卡号、联系方式、车位及车牌数量。" },
-  { key: "spots", label: "车位数据", icon: "local_parking", description: "批量维护车位编号、区域、类型和占用状态。" },
-  { key: "plates", label: "车牌数据", icon: "pin_drop", description: "批量登记车牌，并关联系统内已有车主。" },
-  { key: "plate-inspections", label: "车辆年检", icon: "fact_check", description: "按车牌号批量登记年检结果，已年检的车辆同时设置年检有效期。" },
-  { key: "devices", label: "设备数据", icon: "router", description: "批量维护门禁、摄像头等接入设备信息。" },
-  { key: "gate-persons", label: "门禁人员", icon: "badge", description: "批量登记门禁人员基础信息，导入后可继续审批同步。" },
+  {key: "users", label: "用户数据", icon: "group", description: "批量创建系统用户，包含账号、组织归属和状态。"},
+  {key: "positions", label: "岗位数据", icon: "badge", description: "批量维护岗位名称、编码、排序和启用状态。"},
+  {key: "owners", label: "车主数据", icon: "person", description: "批量维护车主卡号、联系方式、车位及车牌数量。"},
+  {key: "spots", label: "车位数据", icon: "local_parking", description: "批量维护车位编号、区域、类型和占用状态。"},
+  {key: "plates", label: "车牌数据", icon: "pin_drop", description: "批量登记车牌，并关联系统内已有车主。"},
+  {
+    key: "plate-inspections",
+    label: "车辆年检",
+    icon: "fact_check",
+    description: "按车牌号批量登记年检结果，已年检的车辆同时设置年检有效期。"
+  },
+  {key: "devices", label: "设备数据", icon: "router", description: "批量维护门禁、摄像头等接入设备信息。"},
+  {
+    key: "gate-persons",
+    label: "门禁人员",
+    icon: "badge",
+    description: "批量登记门禁人员基础信息，导入后可继续审批同步。"
+  },
 ];
 /**
  * 与后端 ExcelController 的 @PreAuthorize 一一对应：模板与导出要资源的 :read，导入要 :manage。
@@ -85,18 +120,18 @@ const resources: { key: ResourceKey; label: string; icon: string; description: s
  */
 /** export 缺省时沿用 read：只有门禁人员的导出被单独拆成了独立权限码。 */
 const resourcePermissions: Record<ResourceKey, { read: string; manage: string; export?: string }> = {
-  users: { read: "user:read", manage: "user:create" },
-  positions: { read: "position:read", manage: "position:manage" },
-  owners: { read: "owner:read", manage: "owner:manage" },
-  spots: { read: "spot:read", manage: "spot:manage" },
-  plates: { read: "plate:read", manage: "plate:manage" },
-  "plate-inspections": { read: "plate:read", manage: "plate:manage" },
-  devices: { read: "device:read", manage: "device:manage" },
-  "gate-persons": { read: "gate-person:read", manage: "gate-person:manage", export: "gate-person:export" },
+  users: {read: "user:read", manage: "user:create"},
+  positions: {read: "position:read", manage: "position:manage"},
+  owners: {read: "owner:read", manage: "owner:manage"},
+  spots: {read: "spot:read", manage: "spot:manage"},
+  plates: {read: "plate:read", manage: "plate:manage"},
+  "plate-inspections": {read: "plate:read", manage: "plate:manage"},
+  devices: {read: "device:read", manage: "device:manage"},
+  "gate-persons": {read: "gate-person:read", manage: "gate-person:manage", export: "gate-person:export"},
 };
 /** 这些接口后端都要求三种管理角色之一，普通用户即使有读权限也不该看到这里的操作入口。 */
 const adminRoles = ["SUPER_ADMIN", "ADMIN", "DEPT_ADMIN"];
-const { can } = usePermission();
+const {can} = usePermission();
 const authStore = useAuthStore();
 const busy = ref("");
 const message = ref("");
@@ -140,14 +175,14 @@ function endpoint(resource: TransferResource, action: "template" | "export" | "i
 }
 
 function authorization() {
-  return token.value ? { Authorization: /^Bearer\s/i.test(token.value) ? token.value : `Bearer ${token.value}` } : {};
+  return token.value ? {Authorization: /^Bearer\s/i.test(token.value) ? token.value : `Bearer ${token.value}`} : {};
 }
 
 async function download(resource: TransferResource, action: "template" | "export") {
   busy.value = `${resource}-${action}`;
   message.value = "";
   try {
-    const response = await fetch(endpoint(resource, action), { headers: authorization() });
+    const response = await fetch(endpoint(resource, action), {headers: authorization()});
     if (!response.ok) throw new Error(`下载失败（${response.status}）`);
     const blob = await response.blob();
     const disposition = response.headers.get("content-disposition") || "";
@@ -169,7 +204,7 @@ async function downloadAll() {
   busy.value = "all-export";
   message.value = "";
   try {
-    const response = await fetch(`${String(runtimeConfig.public.baseUrl || "http://127.0.0.1:8080/api").replace(/\/$/, "")}/excel/all/export`, { headers: authorization() });
+    const response = await fetch(`${String(runtimeConfig.public.baseUrl || "http://127.0.0.1:8080/api").replace(/\/$/, "")}/excel/all/export`, {headers: authorization()});
     if (!response.ok) throw new Error(`下载失败（${response.status}）`);
     const blob = await response.blob();
     const disposition = response.headers.get("content-disposition") || "";
@@ -196,10 +231,17 @@ async function importFile(resource: TransferResource, event: Event) {
   try {
     const formData = new FormData();
     formData.append("file", file);
-    const response = await fetch(endpoint(resource, "import"), { method: "POST", headers: authorization(), body: formData });
-    const body = await response.json().catch(() => ({})) as { message?: string; data?: { count?: number; counts?: Record<string, number> } };
+    const response = await fetch(endpoint(resource, "import"), {
+      method: "POST",
+      headers: authorization(),
+      body: formData
+    });
+    const body = await response.json().catch(() => ({})) as {
+      message?: string;
+      data?: { count?: number; counts?: Record<string, number> }
+    };
     if (!response.ok) throw new Error(body.message || `导入失败（${response.status}）`);
-    const labels: Record<string, string> = { departments: "部门", ...Object.fromEntries(resources.map((item) => [item.key, item.label])) };
+    const labels: Record<string, string> = {departments: "部门", ...Object.fromEntries(resources.map((item) => [item.key, item.label]))};
     const detail = resource === "all" ? Object.entries(body.data?.counts || {}).map(([key, count]) => `${labels[key] || key} ${count} 条`).join("，") : "";
     showMessage(`导入完成，共处理 ${body.data?.count ?? 0} 条数据${detail ? "（" + detail + "）" : ""}`);
   } catch (error) {
@@ -217,33 +259,199 @@ function showMessage(text: string, type: "success" | "error" = "success") {
 </script>
 
 <style scoped>
-.transfer-all { margin-bottom: 18px; }
-.transfer-all .upload-button { margin-top: 0; }
-.page { min-height: 100%; padding: 24px; }
-.page__header { align-items: flex-start; display: flex; justify-content: space-between; margin-bottom: 20px; }
-.page__title { color: var(--text); font-size: 18px; font-weight: 600; margin: 0; }
-.page__desc { color: var(--text-sub); margin: 4px 0 0; }
-.transfer-grid { display: grid; gap: 16px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.transfer-card { align-items: flex-start; background: var(--card); border: 1px solid var(--border-strong); border-radius: 8px; display: flex; gap: 16px; padding: 22px; }
-.transfer-card__icon { align-items: center; background: var(--primary-soft); border-radius: 8px; color: var(--primary); display: flex; flex-shrink: 0; height: 42px; justify-content: center; width: 42px; }
-.transfer-card__icon .material-icons-outlined { font-size: 22px; }
-.transfer-card__body { min-width: 0; }
-.transfer-card h2 { color: var(--text); font-size: 15px; margin: 0; }
-.transfer-card p { color: var(--text-sub); line-height: 1.6; margin: 6px 0 16px; }
-.transfer-card__actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.button, .upload-button { align-items: center; border: 1px solid transparent; border-radius: 6px; cursor: pointer; display: inline-flex; font: inherit; gap: 5px; height: 32px; justify-content: center; padding: 0 11px; white-space: nowrap; }
-.button:disabled, .upload-button.disabled { cursor: wait; opacity: .6; }
-.button--ghost { background: var(--card); border-color: var(--border-strong); color: var(--text-sub); }
-.button--soft { background: var(--primary-soft); color: var(--primary); }
-.button .material-icons-outlined, .upload-button .material-icons-outlined { font-size: 16px; }
-.upload-button { background: var(--primary); color: #fff; margin-top: 10px; position: relative; }
-.upload-button input { cursor: pointer; inset: 0; opacity: 0; position: absolute; }
-.notice-panel { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text-sub); margin-top: 18px; padding: 16px 18px; }
-.notice-panel__title { align-items: center; color: var(--text); display: flex; font-weight: 600; gap: 6px; }
-.notice-panel__title .material-icons-outlined { color: var(--primary); font-size: 18px; }
-.notice-panel ul { line-height: 1.8; margin: 8px 0 0; padding-left: 20px; }
-.feedback { color: #059669; margin: 14px 0 0; }
-.feedback.error { color: var(--red); }
-@media (max-width: 700px) { .page { padding: 16px; }.transfer-grid { grid-template-columns: 1fr; }.transfer-card { padding: 18px; } }
-@media (max-width: 700px) { .page__header { flex-direction: column; gap: 12px; }.page__export-all { width: 100%; } }
+.transfer-all {
+  margin-bottom: 18px;
+}
+
+.transfer-all .upload-button {
+  margin-top: 0;
+}
+
+.page {
+  min-height: 100%;
+  padding: 24px;
+}
+
+.page__header {
+  align-items: flex-start;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.page__title {
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.page__desc {
+  color: var(--text-sub);
+  margin: 4px 0 0;
+}
+
+.transfer-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.transfer-card {
+  align-items: flex-start;
+  background: var(--card);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  display: flex;
+  gap: 16px;
+  padding: 22px;
+}
+
+.transfer-card__icon {
+  align-items: center;
+  background: var(--primary-soft);
+  border-radius: 8px;
+  color: var(--primary);
+  display: flex;
+  flex-shrink: 0;
+  height: 42px;
+  justify-content: center;
+  width: 42px;
+}
+
+.transfer-card__icon .material-icons-outlined {
+  font-size: 22px;
+}
+
+.transfer-card__body {
+  min-width: 0;
+}
+
+.transfer-card h2 {
+  color: var(--text);
+  font-size: 15px;
+  margin: 0;
+}
+
+.transfer-card p {
+  color: var(--text-sub);
+  line-height: 1.6;
+  margin: 6px 0 16px;
+}
+
+.transfer-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.button, .upload-button {
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  gap: 5px;
+  height: 32px;
+  justify-content: center;
+  padding: 0 11px;
+  white-space: nowrap;
+}
+
+.button:disabled, .upload-button.disabled {
+  cursor: wait;
+  opacity: .6;
+}
+
+.button--ghost {
+  background: var(--card);
+  border-color: var(--border-strong);
+  color: var(--text-sub);
+}
+
+.button--soft {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.button .material-icons-outlined, .upload-button .material-icons-outlined {
+  font-size: 16px;
+}
+
+.upload-button {
+  background: var(--primary);
+  color: #fff;
+  margin-top: 10px;
+  position: relative;
+}
+
+.upload-button input {
+  cursor: pointer;
+  inset: 0;
+  opacity: 0;
+  position: absolute;
+}
+
+.notice-panel {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-sub);
+  margin-top: 18px;
+  padding: 16px 18px;
+}
+
+.notice-panel__title {
+  align-items: center;
+  color: var(--text);
+  display: flex;
+  font-weight: 600;
+  gap: 6px;
+}
+
+.notice-panel__title .material-icons-outlined {
+  color: var(--primary);
+  font-size: 18px;
+}
+
+.notice-panel ul {
+  line-height: 1.8;
+  margin: 8px 0 0;
+  padding-left: 20px;
+}
+
+.feedback {
+  color: #059669;
+  margin: 14px 0 0;
+}
+
+.feedback.error {
+  color: var(--red);
+}
+
+@media (max-width: 700px) {
+  .page {
+    padding: 16px;
+  }
+
+  .transfer-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .transfer-card {
+    padding: 18px;
+  }
+}
+
+@media (max-width: 700px) {
+  .page__header {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .page__export-all {
+    width: 100%;
+  }
+}
 </style>

@@ -17,24 +17,24 @@
       <section class="panel info-card">
         <div class="avatar-wrap">
           <div class="avatar-display" title="点击更换头像" @click="pickAvatar">
-            <img v-if="avatarSrc" :src="avatarSrc" alt="头像" >
+            <img v-if="avatarSrc" :src="avatarSrc" alt="头像">
             <span v-else class="avatar-initial">{{ initial }}</span>
           </div>
           <button
-            class="avatar-badge"
-            type="button"
-            title="更换头像"
-            :disabled="store.uploading"
-            @click="pickAvatar"
+              :disabled="store.uploading"
+              class="avatar-badge"
+              title="更换头像"
+              type="button"
+              @click="pickAvatar"
           >
             <span class="material-icons-outlined">{{ store.uploading ? "hourglass_empty" : "photo_camera" }}</span>
           </button>
           <input
-            ref="avatarInput"
-            class="avatar-input"
-            type="file"
-            accept="image/png,image/jpeg,image/webp,image/gif"
-            @change="onAvatarSelected"
+              ref="avatarInput"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              class="avatar-input"
+              type="file"
+              @change="onAvatarSelected"
           >
         </div>
         <div class="info-card__name">{{ displayName }}</div>
@@ -71,19 +71,21 @@
       <section class="panel">
         <div class="panel__head tabs">
           <button
-            class="tab"
-            type="button"
-            :class="{ 'tab--active': tab === 'info' }"
-            :disabled="forcePasswordChange"
-            :title="forcePasswordChange ? '请先完成密码修改' : ''"
-            @click="tab = 'info'"
-          >基本资料</button>
+              :class="{ 'tab--active': tab === 'info' }"
+              :disabled="forcePasswordChange"
+              :title="forcePasswordChange ? '请先完成密码修改' : ''"
+              class="tab"
+              type="button"
+              @click="tab = 'info'"
+          >基本资料
+          </button>
           <button
-            class="tab"
-            type="button"
-            :class="{ 'tab--active': tab === 'password' }"
-            @click="tab = 'password'"
-          >修改密码</button>
+              :class="{ 'tab--active': tab === 'password' }"
+              class="tab"
+              type="button"
+              @click="tab = 'password'"
+          >修改密码
+          </button>
         </div>
 
         <div class="panel__body">
@@ -94,17 +96,17 @@
           <form v-show="tab === 'info'" class="form-grid" @submit.prevent="submitProfile">
             <label class="field">
               <span class="field__label">用户账号</span>
-              <input class="input" :value="profile?.username || ''" disabled >
+              <input :value="profile?.username || ''" class="input" disabled>
             </label>
             <div class="field-row">
               <label class="field">
                 <span class="field__label">用户昵称<em>*</em></span>
-                <input v-model.trim="form.name" class="input" placeholder="请输入用户昵称" required >
+                <input v-model.trim="form.name" class="input" placeholder="请输入用户昵称" required>
               </label>
               <div class="field">
                 <span class="field__label">手机号码</span>
                 <div class="bound-phone">
-                  <input class="input" :value="profile?.phone || ''" placeholder="未绑定手机号" disabled >
+                  <input :value="profile?.phone || ''" class="input" disabled placeholder="未绑定手机号">
                   <button class="btn btn--ghost" type="button" @click="openPhoneEditor">
                     {{ profile?.phone ? "更换" : "绑定" }}
                   </button>
@@ -112,7 +114,7 @@
               </div>
               <label class="field">
                 <span class="field__label">邮箱</span>
-                <input v-model.trim="form.email" class="input" type="email" placeholder="请输入邮箱" required >
+                <input v-model.trim="form.email" class="input" placeholder="请输入邮箱" required type="email">
               </label>
               <label class="field">
                 <span class="field__label">性别</span>
@@ -125,7 +127,7 @@
             </div>
 
             <div class="form-actions">
-              <button class="btn btn--primary" type="submit" :disabled="store.saving">
+              <button :disabled="store.saving" class="btn btn--primary" type="submit">
                 {{ store.saving ? "保存中..." : "保存" }}
               </button>
               <button class="btn btn--ghost" type="button" @click="resetProfileForm">重置</button>
@@ -145,21 +147,23 @@
             <div class="phone-editor__grid">
               <label class="field">
                 <span class="field__label">新手机号<em>*</em></span>
-                <input v-model.trim="phoneForm.phone" class="input" inputmode="numeric" autocomplete="off" placeholder="请输入新手机号" >
+                <input v-model.trim="phoneForm.phone" autocomplete="off" class="input" inputmode="numeric"
+                       placeholder="请输入新手机号">
               </label>
               <template v-if="authStore.smsVerificationEnabled">
                 <label class="field">
                   <span class="field__label">图形验证码<em>*</em></span>
                   <div class="phone-editor__row">
-                    <input v-model.trim="phoneForm.captcha" class="input" autocomplete="off" placeholder="请输入图形验证码" >
+                    <input v-model.trim="phoneForm.captcha" autocomplete="off" class="input"
+                           placeholder="请输入图形验证码">
                     <button
-                      class="captcha-box"
-                      type="button"
-                      title="点击刷新"
-                      :disabled="authStore.captchaLoading"
-                      @click="refreshPhoneCaptcha"
+                        :disabled="authStore.captchaLoading"
+                        class="captcha-box"
+                        title="点击刷新"
+                        type="button"
+                        @click="refreshPhoneCaptcha"
                     >
-                      <img v-if="authStore.captchaImage" :src="authStore.captchaImage" alt="验证码" >
+                      <img v-if="authStore.captchaImage" :src="authStore.captchaImage" alt="验证码">
                       <span v-else-if="authStore.captchaFailed" class="captcha-box__fallback">获取失败，点击重试</span>
                       <span v-else class="captcha-box__fallback">加载中...</span>
                     </button>
@@ -168,18 +172,20 @@
                 <label class="field">
                   <span class="field__label">短信验证码<em>*</em></span>
                   <div class="phone-editor__row">
-                    <input v-model.trim="phoneForm.code" class="input" inputmode="numeric" autocomplete="off" placeholder="请输入短信验证码" >
-                    <button class="btn btn--ghost" type="button" :disabled="smsSendDisabled" @click="sendPhoneCode">
+                    <input v-model.trim="phoneForm.code" autocomplete="off" class="input" inputmode="numeric"
+                           placeholder="请输入短信验证码">
+                    <button :disabled="smsSendDisabled" class="btn btn--ghost" type="button" @click="sendPhoneCode">
                       {{ smsSendText }}
                     </button>
                   </div>
                 </label>
               </template>
             </div>
-            <p v-if="!authStore.smsVerificationEnabled" class="phone-editor__note">短信验证已临时关闭，填写新手机号后直接确认即可。</p>
+            <p v-if="!authStore.smsVerificationEnabled" class="phone-editor__note">
+              短信验证已临时关闭，填写新手机号后直接确认即可。</p>
             <p v-if="phoneError" class="form-error">{{ phoneError }}</p>
             <div class="form-actions">
-              <button class="btn btn--primary" type="button" :disabled="store.saving" @click="submitPhoneChange">
+              <button :disabled="store.saving" class="btn btn--primary" type="button" @click="submitPhoneChange">
                 {{ store.saving ? "提交中..." : "确认更换" }}
               </button>
               <button class="btn btn--ghost" type="button" @click="closePhoneEditor">取消</button>
@@ -190,21 +196,28 @@
           <form v-show="tab === 'password'" class="form-grid" @submit.prevent="submitPassword">
             <label class="field">
               <span class="field__label">原密码<em>*</em></span>
-              <input v-model="passwordForm.current" class="input" type="password" autocomplete="current-password" placeholder="请输入原密码" required >
+              <input v-model="passwordForm.current" autocomplete="current-password" class="input"
+                     placeholder="请输入原密码"
+                     required type="password">
             </label>
             <label class="field">
               <span class="field__label">新密码<em>*</em></span>
-              <input v-model="passwordForm.next" class="input" type="password" autocomplete="new-password" :placeholder="`请输入新密码（至少 ${MIN_PASSWORD_LENGTH} 位）`" required >
+              <input v-model="passwordForm.next" :placeholder="`请输入新密码（至少 ${MIN_PASSWORD_LENGTH} 位）`"
+                     autocomplete="new-password" class="input"
+                     required type="password">
             </label>
             <label class="field">
               <span class="field__label">确认密码<em>*</em></span>
-              <input v-model="passwordForm.confirm" class="input" type="password" autocomplete="new-password" placeholder="请再次输入新密码" required >
+              <input v-model="passwordForm.confirm" autocomplete="new-password" class="input"
+                     placeholder="请再次输入新密码"
+                     required type="password">
             </label>
             <div class="form-actions">
-              <button class="btn btn--primary" type="submit" :disabled="store.saving">
+              <button :disabled="store.saving" class="btn btn--primary" type="submit">
                 {{ store.saving ? "提交中..." : "保存" }}
               </button>
-              <button v-if="!forcePasswordChange" class="btn btn--ghost" type="button" @click="resetPasswordForm">重置</button>
+              <button v-if="!forcePasswordChange" class="btn btn--ghost" type="button" @click="resetPasswordForm">重置
+              </button>
             </div>
           </form>
         </div>
@@ -213,7 +226,7 @@
   </section>
 </template>
 
-<script setup lang="ts">
+<script lang="ts" setup>
 import type {Gender, ProfileData} from "~/stores/profile";
 
 // 页面结构对齐原型 20260625115857 的「个人中心」，样式沿用本站的 CSS 变量体系。
@@ -242,15 +255,15 @@ const form = reactive({
   email: "",
   gender: "UNKNOWN" as Gender,
 });
-const passwordForm = reactive({ current: "", next: "", confirm: "" });
+const passwordForm = reactive({current: "", next: "", confirm: ""});
 /** 换绑手机号：手机号不在基本资料表单里，避免「保存资料」顺手改掉登录凭据。 */
 const phoneEditorVisible = ref(false);
 const phoneError = ref("");
-const phoneForm = reactive({ phone: "", captcha: "", code: "" });
+const phoneForm = reactive({phone: "", captcha: "", code: ""});
 const smsCountdown = ref(0);
 let countdownTimer: ReturnType<typeof setInterval> | null = null;
 const smsSendDisabled = computed(
-  () => smsCountdown.value > 0 || authStore.smsSending || store.saving || authStore.captchaLoading,
+    () => smsCountdown.value > 0 || authStore.smsSending || store.saving || authStore.captchaLoading,
 );
 const smsSendText = computed(() => {
   if (smsCountdown.value > 0) {
@@ -267,7 +280,7 @@ const createdAt = computed(() => formatDateTime(profile.value?.created_at || "")
 // 初始密码未修改时锁定「基本资料」标签，只允许完成改密。
 const forcePasswordChange = computed(() => profile.value?.must_change_password === true);
 
-useHead({ title: "个人中心" });
+useHead({title: "个人中心"});
 
 function formatDateTime(value: string) {
   const date = new Date(value);
@@ -412,7 +425,7 @@ async function sendPhoneCode() {
   }
 
   try {
-    await authStore.sendSmsCode({ phone, captchaAnswer, purpose: "CHANGE_PHONE" });
+    await authStore.sendSmsCode({phone, captchaAnswer, purpose: "CHANGE_PHONE"});
   } catch (error) {
     // 图形验证码已在后端一次性消费，失败后必须换一张再试。
     phoneForm.captcha = "";
@@ -441,7 +454,7 @@ async function submitPhoneChange() {
   }
 
   try {
-    applyProfile(await store.changePhone({ phone, code }));
+    applyProfile(await store.changePhone({phone, code}));
   } catch (error) {
     // 短信验证码在校验时即被作废，失败后必须重新获取。
     phoneForm.code = "";
@@ -589,19 +602,74 @@ onBeforeUnmount(stopCountdown);
 </script>
 
 <style scoped>
-.page { min-height: 100%; padding: 24px; }
-.page__header { align-items: center; display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; margin-bottom: 20px; }
-.page__title { color: var(--text); font-size: 18px; font-weight: 600; margin: 0; }
-.page__desc { color: var(--text-sub); margin: 2px 0 0; }
+.page {
+  min-height: 100%;
+  padding: 24px;
+}
 
-.notice { align-items: center; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; color: #9a3412; display: flex; gap: 8px; margin-bottom: 16px; padding: 10px 14px; }
-.notice .material-icons-outlined { font-size: 18px; }
+.page__header {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
 
-.profile-grid { align-items: start; display: grid; gap: 16px; grid-template-columns: 340px minmax(0, 1fr); }
-.panel { background: var(--card); border: 1px solid var(--border-strong); border-radius: 8px; overflow: hidden; }
+.page__title {
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+}
 
-.info-card { padding: 32px 24px; text-align: center; }
-.avatar-wrap { height: 120px; margin: 0 auto 18px; position: relative; width: 120px; }
+.page__desc {
+  color: var(--text-sub);
+  margin: 2px 0 0;
+}
+
+.notice {
+  align-items: center;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 8px;
+  color: #9a3412;
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 10px 14px;
+}
+
+.notice .material-icons-outlined {
+  font-size: 18px;
+}
+
+.profile-grid {
+  align-items: start;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 340px minmax(0, 1fr);
+}
+
+.panel {
+  background: var(--card);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.info-card {
+  padding: 32px 24px;
+  text-align: center;
+}
+
+.avatar-wrap {
+  height: 120px;
+  margin: 0 auto 18px;
+  position: relative;
+  width: 120px;
+}
+
 .avatar-display {
   align-items: center;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -616,7 +684,13 @@ onBeforeUnmount(stopCountdown);
   overflow: hidden;
   width: 100%;
 }
-.avatar-display img { height: 100%; object-fit: cover; width: 100%; }
+
+.avatar-display img {
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
 .avatar-badge {
   align-items: center;
   background: var(--primary);
@@ -634,73 +708,346 @@ onBeforeUnmount(stopCountdown);
   right: 0;
   width: 36px;
 }
-.avatar-badge:disabled { cursor: not-allowed; opacity: 0.7; }
-.avatar-badge .material-icons-outlined { font-size: 18px; }
-.avatar-input { display: none; }
 
-.info-card__name { border-bottom: 1px solid var(--border); color: var(--text); font-size: 20px; font-weight: 600; margin-bottom: 20px; padding-bottom: 16px; }
-.info-list { margin: 0; text-align: left; }
-.info-row { align-items: center; display: flex; margin-bottom: 14px; }
-.info-row:last-child { margin-bottom: 0; }
-.info-row .material-icons-outlined { color: var(--text-mute); flex: 0 0 auto; font-size: 20px; margin-right: 10px; }
-.info-row dt { color: var(--text-mute); flex: 0 0 70px; font-size: 13px; }
-.info-row dd { color: var(--text); flex: 1; font-size: 13px; font-weight: 500; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.avatar-badge:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
 
-.panel__head { border-bottom: 1px solid var(--border); padding: 0; }
-.tabs { display: flex; }
-.tab { background: none; border: 0; border-bottom: 2px solid transparent; color: var(--text-sub); cursor: pointer; font: inherit; font-size: 14px; font-weight: 500; margin-bottom: -1px; padding: 15px 24px; transition: color var(--tr), border-color var(--tr); }
-.tab:hover:not(:disabled) { color: var(--primary); }
-.tab--active { border-bottom-color: var(--primary); color: var(--primary); }
-.tab:disabled { color: var(--text-mute); cursor: not-allowed; }
+.avatar-badge .material-icons-outlined {
+  font-size: 18px;
+}
 
-.panel__body { padding: 22px 24px; }
-.form-grid { margin: 0; }
-.field-row { display: grid; gap: 0 16px; grid-template-columns: 1fr 1fr; }
-.field { display: block; margin-bottom: 16px; }
-.field__label { color: var(--text-sub); display: block; font-size: 12px; font-weight: 500; margin-bottom: 5px; }
-.field__label em { color: var(--red); font-style: normal; margin-left: 2px; }
-.input, .select { background: var(--card); border: 1px solid var(--border-strong); border-radius: 6px; box-sizing: border-box; color: var(--text); font: inherit; height: 34px; outline: none; padding: 0 10px; width: 100%; }
-.input:focus, .select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgb(37 99 235 / 10%); }
-.input:disabled { background: var(--bg); color: var(--text-mute); }
+.avatar-input {
+  display: none;
+}
 
-.form-actions { display: flex; gap: 8px; margin-top: 4px; }
+.info-card__name {
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+}
 
-.bound-phone { display: flex; gap: 8px; }
-.bound-phone .input { flex: 1; min-width: 0; }
-.bound-phone .btn { flex: 0 0 auto; }
+.info-list {
+  margin: 0;
+  text-align: left;
+}
 
-.phone-editor { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; margin: 4px 0 18px; padding: 16px; }
-.phone-editor__head { align-items: flex-start; display: flex; gap: 8px; margin-bottom: 14px; }
-.phone-editor__head .material-icons-outlined { color: var(--primary); font-size: 18px; margin-top: 1px; }
-.phone-editor__head h3 { color: var(--text); font-size: 13px; margin: 0; }
-.phone-editor__head p { color: var(--text-mute); font-size: 12px; margin: 3px 0 0; }
-.phone-editor__grid { display: grid; gap: 0 16px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
-.phone-editor__row { align-items: center; display: flex; gap: 8px; }
-.phone-editor__row .input { flex: 1; min-width: 0; }
-.phone-editor__row .btn { flex: 0 0 auto; }
-.captcha-box { align-items: center; background: var(--card); border: 1px solid var(--border-strong); border-radius: 6px; color: var(--text-mute); cursor: pointer; display: flex; flex: 0 0 auto; font: inherit; font-size: 11px; height: 34px; justify-content: center; overflow: hidden; padding: 0; width: 104px; }
-.captcha-box:disabled { cursor: wait; opacity: 0.7; }
-.captcha-box img { height: 100%; object-fit: cover; width: 100%; }
-.captcha-box__fallback { padding: 0 6px; text-align: center; }
+.info-row {
+  align-items: center;
+  display: flex;
+  margin-bottom: 14px;
+}
+
+.info-row:last-child {
+  margin-bottom: 0;
+}
+
+.info-row .material-icons-outlined {
+  color: var(--text-mute);
+  flex: 0 0 auto;
+  font-size: 20px;
+  margin-right: 10px;
+}
+
+.info-row dt {
+  color: var(--text-mute);
+  flex: 0 0 70px;
+  font-size: 13px;
+}
+
+.info-row dd {
+  color: var(--text);
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.panel__head {
+  border-bottom: 1px solid var(--border);
+  padding: 0;
+}
+
+.tabs {
+  display: flex;
+}
+
+.tab {
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: var(--text-sub);
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: -1px;
+  padding: 15px 24px;
+  transition: color var(--tr), border-color var(--tr);
+}
+
+.tab:hover:not(:disabled) {
+  color: var(--primary);
+}
+
+.tab--active {
+  border-bottom-color: var(--primary);
+  color: var(--primary);
+}
+
+.tab:disabled {
+  color: var(--text-mute);
+  cursor: not-allowed;
+}
+
+.panel__body {
+  padding: 22px 24px;
+}
+
+.form-grid {
+  margin: 0;
+}
+
+.field-row {
+  display: grid;
+  gap: 0 16px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.field {
+  display: block;
+  margin-bottom: 16px;
+}
+
+.field__label {
+  color: var(--text-sub);
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  margin-bottom: 5px;
+}
+
+.field__label em {
+  color: var(--red);
+  font-style: normal;
+  margin-left: 2px;
+}
+
+.input, .select {
+  background: var(--card);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  box-sizing: border-box;
+  color: var(--text);
+  font: inherit;
+  height: 34px;
+  outline: none;
+  padding: 0 10px;
+  width: 100%;
+}
+
+.input:focus, .select:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgb(37 99 235 / 10%);
+}
+
+.input:disabled {
+  background: var(--bg);
+  color: var(--text-mute);
+}
+
+.form-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.bound-phone {
+  display: flex;
+  gap: 8px;
+}
+
+.bound-phone .input {
+  flex: 1;
+  min-width: 0;
+}
+
+.bound-phone .btn {
+  flex: 0 0 auto;
+}
+
+.phone-editor {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin: 4px 0 18px;
+  padding: 16px;
+}
+
+.phone-editor__head {
+  align-items: flex-start;
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.phone-editor__head .material-icons-outlined {
+  color: var(--primary);
+  font-size: 18px;
+  margin-top: 1px;
+}
+
+.phone-editor__head h3 {
+  color: var(--text);
+  font-size: 13px;
+  margin: 0;
+}
+
+.phone-editor__head p {
+  color: var(--text-mute);
+  font-size: 12px;
+  margin: 3px 0 0;
+}
+
+.phone-editor__grid {
+  display: grid;
+  gap: 0 16px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.phone-editor__row {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.phone-editor__row .input {
+  flex: 1;
+  min-width: 0;
+}
+
+.phone-editor__row .btn {
+  flex: 0 0 auto;
+}
+
+.captcha-box {
+  align-items: center;
+  background: var(--card);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  color: var(--text-mute);
+  cursor: pointer;
+  display: flex;
+  flex: 0 0 auto;
+  font: inherit;
+  font-size: 11px;
+  height: 34px;
+  justify-content: center;
+  overflow: hidden;
+  padding: 0;
+  width: 104px;
+}
+
+.captcha-box:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.captcha-box img {
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.captcha-box__fallback {
+  padding: 0 6px;
+  text-align: center;
+}
+
 /* 临时状态提示（后端关掉短信验证时）：虚线框表示这不是常驻样式 */
-.phone-editor__note { background: var(--card); border: 1px dashed var(--border-strong); border-radius: 6px; color: var(--text-mute); font-size: 12px; margin: 0 0 14px; padding: 7px 10px; }
-.btn { align-items: center; border: 0; border-radius: 6px; cursor: pointer; display: inline-flex; font: inherit; font-size: 13px; gap: 5px; height: 32px; padding: 0 16px; transition: all var(--tr); white-space: nowrap; }
-.btn--primary { background: var(--primary); color: #fff; }
-.btn--primary:disabled { cursor: not-allowed; opacity: 0.7; }
-.btn--ghost { background: var(--card); border: 1px solid var(--border-strong); color: var(--text-sub); }
-.btn--ghost:hover { color: var(--text); }
+.phone-editor__note {
+  background: var(--card);
+  border: 1px dashed var(--border-strong);
+  border-radius: 6px;
+  color: var(--text-mute);
+  font-size: 12px;
+  margin: 0 0 14px;
+  padding: 7px 10px;
+}
 
-.form-error { color: var(--red); margin: 0 0 14px; }
-.form-success { color: #059669; margin: 0 0 14px; }
+.btn {
+  align-items: center;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: 13px;
+  gap: 5px;
+  height: 32px;
+  padding: 0 16px;
+  transition: all var(--tr);
+  white-space: nowrap;
+}
+
+.btn--primary {
+  background: var(--primary);
+  color: #fff;
+}
+
+.btn--primary:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.btn--ghost {
+  background: var(--card);
+  border: 1px solid var(--border-strong);
+  color: var(--text-sub);
+}
+
+.btn--ghost:hover {
+  color: var(--text);
+}
+
+.form-error {
+  color: var(--red);
+  margin: 0 0 14px;
+}
+
+.form-success {
+  color: #059669;
+  margin: 0 0 14px;
+}
 
 @media (max-width: 900px) {
-  .profile-grid { grid-template-columns: minmax(0, 1fr); }
+  .profile-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 @media (max-width: 640px) {
-  .page { padding: 16px; }
-  .field-row { grid-template-columns: minmax(0, 1fr); }
-  .tab { padding: 13px 16px; }
-  .panel__body { padding: 18px 16px; }
+  .page {
+    padding: 16px;
+  }
+
+  .field-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .tab {
+    padding: 13px 16px;
+  }
+
+  .panel__body {
+    padding: 18px 16px;
+  }
 }
 </style>

@@ -1,13 +1,13 @@
 <template>
-  <nuxt-route-announcer />
+  <nuxt-route-announcer/>
   <nuxt-layout>
     <n-el>
-      <nuxt-page />
+      <nuxt-page/>
     </n-el>
   </nuxt-layout>
 </template>
 
-<script setup lang="ts">
+<script lang="ts" setup>
 </script>
 
 <style scoped>
