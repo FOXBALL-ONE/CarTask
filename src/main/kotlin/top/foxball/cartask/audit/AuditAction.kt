@@ -12,6 +12,7 @@ enum class AuditAction(
     AUTH_LOGIN_FAILED("AUTH_LOGIN_FAILED", AuditEvent.Category.AUTHENTICATION, AuditEvent.RiskLevel.MEDIUM),
     AUTH_LOGOUT("AUTH_LOGOUT", AuditEvent.Category.AUTHENTICATION, AuditEvent.RiskLevel.HIGH),
     AUTH_PASSWORD_CHANGED("AUTH_PASSWORD_CHANGED", AuditEvent.Category.AUTHENTICATION, AuditEvent.RiskLevel.HIGH),
+
     /** 换绑手机号：手机号是短信登录与重置密码的凭据，与改密同级。 */
     AUTH_PHONE_CHANGED("AUTH_PHONE_CHANGED", AuditEvent.Category.AUTHENTICATION, AuditEvent.RiskLevel.HIGH),
     PROFILE_UPDATED("PROFILE_UPDATED", AuditEvent.Category.ACCOUNT, AuditEvent.RiskLevel.MEDIUM),
@@ -23,6 +24,7 @@ enum class AuditAction(
     USER_DELETED("USER_DELETED", AuditEvent.Category.ACCOUNT, AuditEvent.RiskLevel.CRITICAL),
     ROLE_CHANGED("ROLE_CHANGED", AuditEvent.Category.CONFIGURATION, AuditEvent.RiskLevel.CRITICAL),
     PERMISSION_CHANGED("PERMISSION_CHANGED", AuditEvent.Category.CONFIGURATION, AuditEvent.RiskLevel.CRITICAL),
+
     /** 改同步任务的执行周期。改坏了会静默停止数据拉取，所以按配置类高风险动作记录。 */
     SYNC_SCHEDULE_CHANGED("SYNC_SCHEDULE_CHANGED", AuditEvent.Category.CONFIGURATION, AuditEvent.RiskLevel.HIGH),
     ACCESS_CONTROL_CREATED("ACCESS_CONTROL_CREATED", AuditEvent.Category.ACCESS_CONTROL, AuditEvent.RiskLevel.HIGH),
@@ -34,19 +36,46 @@ enum class AuditAction(
     GATE_PERSON_DELETED("GATE_PERSON_DELETED", AuditEvent.Category.ACCESS_CONTROL, AuditEvent.RiskLevel.CRITICAL),
     GATE_PERSON_REVIEWED("GATE_PERSON_REVIEWED", AuditEvent.Category.ACCESS_CONTROL, AuditEvent.RiskLevel.HIGH),
     GATE_DELETE_REQUESTED("GATE_DELETE_REQUESTED", AuditEvent.Category.ACCESS_CONTROL, AuditEvent.RiskLevel.MEDIUM),
-    GATE_DELETE_REQUEST_REVIEWED("GATE_DELETE_REQUEST_REVIEWED", AuditEvent.Category.ACCESS_CONTROL, AuditEvent.RiskLevel.HIGH),
+    GATE_DELETE_REQUEST_REVIEWED(
+        "GATE_DELETE_REQUEST_REVIEWED",
+        AuditEvent.Category.ACCESS_CONTROL,
+        AuditEvent.RiskLevel.HIGH
+    ),
+
     /** 车辆进出申请登记：登记的是月卡下发申请，审批通过后才会写科拓平台。 */
-    VEHICLE_INOUT_REQUEST_CREATED("VEHICLE_INOUT_REQUEST_CREATED", AuditEvent.Category.ACCESS_CONTROL, AuditEvent.RiskLevel.HIGH),
-    VEHICLE_INOUT_REQUEST_UPDATED("VEHICLE_INOUT_REQUEST_UPDATED", AuditEvent.Category.ACCESS_CONTROL, AuditEvent.RiskLevel.HIGH),
-    VEHICLE_INOUT_REQUEST_REVIEWED("VEHICLE_INOUT_REQUEST_REVIEWED", AuditEvent.Category.ACCESS_CONTROL, AuditEvent.RiskLevel.HIGH),
-    VEHICLE_INOUT_REQUEST_CANCELLED("VEHICLE_INOUT_REQUEST_CANCELLED", AuditEvent.Category.ACCESS_CONTROL, AuditEvent.RiskLevel.MEDIUM),
+    VEHICLE_INOUT_REQUEST_CREATED(
+        "VEHICLE_INOUT_REQUEST_CREATED",
+        AuditEvent.Category.ACCESS_CONTROL,
+        AuditEvent.RiskLevel.HIGH
+    ),
+    VEHICLE_INOUT_REQUEST_UPDATED(
+        "VEHICLE_INOUT_REQUEST_UPDATED",
+        AuditEvent.Category.ACCESS_CONTROL,
+        AuditEvent.RiskLevel.HIGH
+    ),
+    VEHICLE_INOUT_REQUEST_REVIEWED(
+        "VEHICLE_INOUT_REQUEST_REVIEWED",
+        AuditEvent.Category.ACCESS_CONTROL,
+        AuditEvent.RiskLevel.HIGH
+    ),
+    VEHICLE_INOUT_REQUEST_CANCELLED(
+        "VEHICLE_INOUT_REQUEST_CANCELLED",
+        AuditEvent.Category.ACCESS_CONTROL,
+        AuditEvent.RiskLevel.MEDIUM
+    ),
+
     /** 申请单下发结果；与审核分开记录，因为下发是可以独立重试的一次外部调用。 */
     VEHICLE_INOUT_REQUEST_SYNCED("VEHICLE_INOUT_REQUEST_SYNCED", AuditEvent.Category.DEVICE, AuditEvent.RiskLevel.HIGH),
-    ACCESS_RECORD_CORRECTED("ACCESS_RECORD_CORRECTED", AuditEvent.Category.ACCESS_RECORD, AuditEvent.RiskLevel.CRITICAL),
+    ACCESS_RECORD_CORRECTED(
+        "ACCESS_RECORD_CORRECTED",
+        AuditEvent.Category.ACCESS_RECORD,
+        AuditEvent.RiskLevel.CRITICAL
+    ),
     ACCESS_RECORD_RELEASED("ACCESS_RECORD_RELEASED", AuditEvent.Category.ACCESS_RECORD, AuditEvent.RiskLevel.CRITICAL),
     FILE_UPLOADED("FILE_UPLOADED", AuditEvent.Category.FILE, AuditEvent.RiskLevel.MEDIUM),
     FILE_DOWNLOADED("FILE_DOWNLOADED", AuditEvent.Category.FILE, AuditEvent.RiskLevel.HIGH),
     SENSITIVE_DATA_EXPORTED("SENSITIVE_DATA_EXPORTED", AuditEvent.Category.DATA_EXPORT, AuditEvent.RiskLevel.HIGH),
+
     /** 导出整库 SQL 与附件压缩包。比普通导出更敏感：产物里有全部账号口令散列与生物特征照片。 */
     DATA_BACKUP_CREATED("DATA_BACKUP_CREATED", AuditEvent.Category.DATA_EXPORT, AuditEvent.RiskLevel.CRITICAL),
     LOGS_CLEARED("LOGS_CLEARED", AuditEvent.Category.CONFIGURATION, AuditEvent.RiskLevel.CRITICAL),

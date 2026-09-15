@@ -1,15 +1,14 @@
 package top.foxball.cartask.authentication
 
-import org.springframework.security.authentication.BadCredentialsException
 import org.springframework.dao.DataAccessException
 import org.springframework.data.redis.core.StringRedisTemplate
 import org.springframework.data.redis.core.script.DefaultRedisScript
+import org.springframework.security.authentication.BadCredentialsException
 import org.springframework.stereotype.Component
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.security.SecureRandom
-import java.util.Base64
-import java.util.UUID
+import java.util.*
 
 /**
  * 登录图形验证码：4 位数字 + SVG 干扰线/干扰点，Redis 存储、5 分钟过期、一次性使用。
@@ -26,6 +25,13 @@ class CaptchaService(
 
     private val random = SecureRandom()
 
+    /**
+     * generate：执行当前模块中的业务操作。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     fun generate(): CaptchaImage = guarded("生成验证码") {
         val code = (CAPTCHA_MIN + random.nextInt(CAPTCHA_RANGE)).toString()
         val token = UUID.randomUUID().toString().replace("-", "")
@@ -66,12 +72,28 @@ class CaptchaService(
         }
     }
 
+    /**
+     * hash：查询或读取相关数据。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param value 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun hash(value: String): String {
         val digest = MessageDigest.getInstance("SHA-256")
             .digest(value.toByteArray(StandardCharsets.UTF_8))
         return Base64.getUrlEncoder().withoutPadding().encodeToString(digest)
     }
 
+    /**
+     * key：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param token 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun key(token: String) = "$KEY_PREFIX$token"
 
     private fun <T> guarded(operation: String, action: () -> T): T = try {
@@ -86,6 +108,14 @@ class CaptchaService(
         throw AuthenticationInfrastructureException("Redis $operation 失败", ex)
     }
 
+    /**
+     * render：转换、构建或格式化数据。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param code 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun render(code: String): String {
         // 干扰线
         val lines = buildString {
@@ -95,7 +125,8 @@ class CaptchaService(
                 val y1 = random.nextDouble() * HEIGHT
                 val x2 = random.nextDouble() * WIDTH
                 val y2 = random.nextDouble() * HEIGHT
-                val color = "rgba(${random.nextDouble() * 150}, ${random.nextDouble() * 150}, ${random.nextDouble() * 150}, 0.3)"
+                val color =
+                    "rgba(${random.nextDouble() * 150}, ${random.nextDouble() * 150}, ${random.nextDouble() * 150}, 0.3)"
                 val strokeWidth = random.nextDouble() * 2 + 0.5
                 append("""<line x1="$x1" y1="$y1" x2="$x2" y2="$y2" stroke="$color" stroke-width="$strokeWidth"/>""")
             }
@@ -108,7 +139,8 @@ class CaptchaService(
                 val cx = random.nextDouble() * WIDTH
                 val cy = random.nextDouble() * HEIGHT
                 val r = random.nextDouble() * 2 + 1
-                val color = "rgba(${random.nextDouble() * 200}, ${random.nextDouble() * 200}, ${random.nextDouble() * 200}, 0.4)"
+                val color =
+                    "rgba(${random.nextDouble() * 200}, ${random.nextDouble() * 200}, ${random.nextDouble() * 200}, 0.4)"
                 append("""<circle cx="$cx" cy="$cy" r="$r" fill="$color"/>""")
             }
         }
@@ -124,7 +156,7 @@ class CaptchaService(
                 val color = COLORS[random.nextInt(COLORS.size)]
                 append(
                     """<text x="$x" y="$y" font-size="$fontSize" font-weight="bold" fill="$color" """ +
-                        """text-anchor="middle" dominant-baseline="middle" transform="rotate($angle $x $y)">$char</text>""",
+                            """text-anchor="middle" dominant-baseline="middle" transform="rotate($angle $x $y)">$char</text>""",
                 )
             }
         }

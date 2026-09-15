@@ -4,55 +4,99 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import org.springframework.security.authentication.BadCredentialsException
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
-import top.foxball.cartask.entity.User
 import top.foxball.cartask.audit.AuditAction
 import top.foxball.cartask.audit.AuditCommand
 import top.foxball.cartask.audit.AuditService
+import top.foxball.cartask.entity.User
 import top.foxball.cartask.repository.UserRepository
 import java.time.Duration
 import java.time.LocalDateTime
 
 interface AuthService {
     data class LoginCommand(
-        @param:JsonProperty("username") val username: kotlin.String,
+        @param:JsonProperty("username") val username: String,
         @param:JsonProperty("password") val password: CredentialValue,
-        @param:JsonProperty("captchaToken") val captchaToken: kotlin.String?,
-        @param:JsonProperty("captchaAnswer") val captchaAnswer: kotlin.String?,
+        @param:JsonProperty("captchaToken") val captchaToken: String?,
+        @param:JsonProperty("captchaAnswer") val captchaAnswer: String?,
     )
-    
+
     data class LoginData(
         val accessToken: AccessTokenValue,
         val expiresAt: LocalDateTime,
         val userId: Long,
-        val username: kotlin.String,
-        val role: kotlin.String,
-        val permissions: Set<kotlin.String>,
+        val username: String,
+        val role: String,
+        val permissions: Set<String>,
         /** 初始密码尚未修改，前端需强制进入改密页；服务端另有过滤器兜底拦截。 */
         val mustChangePassword: Boolean = false,
-        val avatar: kotlin.String? = null,
+        val avatar: String? = null,
         /** 本次会话的当前工作部门；null 表示不限部门。 */
         val workingDepartmentId: Long? = null,
     )
 
     data class SmsSendCommand(
-        @param:JsonProperty("phone") val phone: kotlin.String,
-        @param:JsonProperty("purpose") val purpose: kotlin.String?,
-        @param:JsonProperty("captchaToken") val captchaToken: kotlin.String?,
-        @param:JsonProperty("captchaAnswer") val captchaAnswer: kotlin.String?,
+        @param:JsonProperty("phone") val phone: String,
+        @param:JsonProperty("purpose") val purpose: String?,
+        @param:JsonProperty("captchaToken") val captchaToken: String?,
+        @param:JsonProperty("captchaAnswer") val captchaAnswer: String?,
     )
 
     data class SmsLoginCommand(
-        @param:JsonProperty("phone") val phone: kotlin.String,
-        @param:JsonProperty("code") val code: kotlin.String,
+        @param:JsonProperty("phone") val phone: String,
+        @param:JsonProperty("code") val code: String,
     )
 
     data class ResetPasswordCommand(val phone: String, val code: String, val newPassword: CredentialValue)
 
+    /**
+     * login：完成身份认证、令牌或验证码处理。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param command 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     fun login(command: LoginCommand): LoginData
+
+    /**
+     * sendSmsCode：完成身份认证、令牌或验证码处理。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param command 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     fun sendSmsCode(command: SmsSendCommand)
+
+    /**
+     * loginBySms：完成身份认证、令牌或验证码处理。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param command 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     fun loginBySms(command: SmsLoginCommand): LoginData
+
+    /**
+     * resetPassword：更新业务状态或修改相关配置。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param command 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     fun resetPassword(command: ResetPasswordCommand)
-    fun logout(tokenId: kotlin.String)
+
+    /**
+     * logout：删除、清理或撤销相关数据。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param tokenId 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
+    fun logout(tokenId: String)
 }
 
 @Service
@@ -67,6 +111,14 @@ class AuthServiceImpl(
     private val auditService: AuditService? = null,
     private val smsVerificationService: SmsVerificationService,
 ) : AuthService {
+    /**
+     * login：完成身份认证、令牌或验证码处理。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param command 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     override fun login(command: AuthService.LoginCommand): AuthService.LoginData {
         // 验证码先于凭据校验，与原型一致：验证码错误不计入登录失败次数。
         captchaService.verify(command.captchaToken, command.captchaAnswer)
@@ -146,6 +198,14 @@ class AuthServiceImpl(
         )
     }
 
+    /**
+     * sendSmsCode：完成身份认证、令牌或验证码处理。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param command 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     override fun sendSmsCode(command: AuthService.SmsSendCommand) {
         val purpose = when (val raw = command.purpose?.trim()?.uppercase()) {
             null, "", "LOGIN" -> SmsVerificationService.Purpose.LOGIN
@@ -162,6 +222,14 @@ class AuthServiceImpl(
         smsVerificationService.send(command.phone, purpose)
     }
 
+    /**
+     * loginBySms：完成身份认证、令牌或验证码处理。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param command 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     override fun loginBySms(command: AuthService.SmsLoginCommand): AuthService.LoginData {
         smsVerificationService.verify(command.phone, command.code, SmsVerificationService.Purpose.LOGIN)
         val user = userRepository.findByPhone(command.phone.trim())
@@ -171,10 +239,19 @@ class AuthServiceImpl(
         return issueToken(user, role)
     }
 
+    /**
+     * resetPassword：更新业务状态或修改相关配置。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param command 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     override fun resetPassword(command: AuthService.ResetPasswordCommand) {
         smsVerificationService.verify(command.phone, command.code, SmsVerificationService.Purpose.RESET_PASSWORD)
         require(command.newPassword.isNotBlank()) { "新密码不能为空" }
-        val user = userRepository.findByPhone(command.phone.trim()) ?: throw BadCredentialsException("手机号或验证码错误")
+        val user =
+            userRepository.findByPhone(command.phone.trim()) ?: throw BadCredentialsException("手机号或验证码错误")
         user.passwordHash = passwordEncoder.encode(command.newPassword).toString()
         // 用户已自行设定新密码，初始密码不再有效，「必须改密」随之解除。
         user.mustChangePassword = false
@@ -183,6 +260,15 @@ class AuthServiceImpl(
         user.id?.let(sessionRepository::incrementTokenVersion)
     }
 
+    /**
+     * issueToken：校验输入、状态或访问条件。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param user 参与本次处理的输入参数。
+     * @param role 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun issueToken(user: User, role: String): AuthService.LoginData {
         val permissions = rolePermissionService.permissionsFor(role)
         val userId = user.id ?: throw IllegalStateException("用户 ID 缺失")
@@ -218,7 +304,7 @@ class AuthServiceImpl(
             defaultWorkingDepartment(user, role),
         )
     }
-    
+
     /**
      * 登录时的默认工作部门。
      *
@@ -229,7 +315,15 @@ class AuthServiceImpl(
     private fun defaultWorkingDepartment(user: User, role: String): Long? =
         if (role == SecurityRole.DEPT_ADMIN) user.department?.id else null
 
-    override fun logout(tokenId: kotlin.String) {
+    /**
+     * logout：删除、清理或撤销相关数据。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param tokenId 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
+    override fun logout(tokenId: String) {
         sessionRepository.delete(tokenId)
         runCatching {
             auditService?.record(

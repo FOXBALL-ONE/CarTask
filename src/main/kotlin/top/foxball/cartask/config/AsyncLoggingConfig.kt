@@ -15,11 +15,19 @@ import java.util.concurrent.ThreadPoolExecutor
 @EnableAsync
 class AsyncLoggingConfig {
     @Bean("operationLogExecutor")
+            /**
+             * operationLogExecutor：执行当前模块中的业务操作。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param properties 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun operationLogExecutor(properties: LoggingProperties): ThreadPoolTaskExecutor = ThreadPoolTaskExecutor().apply {
         corePoolSize = 2
         maxPoolSize = 8
         queueCapacity = properties.queueSize.coerceAtLeast(128)
-        setKeepAliveSeconds(60)
+        keepAliveSeconds = 60
         setThreadNamePrefix("operation-log-")
         setTaskDecorator { delegate ->
             val securityContext: SecurityContext = SecurityContextHolder.getContext()
@@ -36,7 +44,9 @@ class AsyncLoggingConfig {
                     delegate.run()
                 } finally {
                     SecurityContextHolder.setContext(previousSecurityContext)
-                    if (previousRequestContext == null) AuditRequestContext.clear() else AuditRequestContext.set(previousRequestContext)
+                    if (previousRequestContext == null) AuditRequestContext.clear() else AuditRequestContext.set(
+                        previousRequestContext
+                    )
                     MDC.clear()
                     previousMdcContext?.let(MDC::setContextMap)
                 }

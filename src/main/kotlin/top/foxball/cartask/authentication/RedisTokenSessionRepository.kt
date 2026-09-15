@@ -1,12 +1,12 @@
 package top.foxball.cartask.authentication
 
-import tools.jackson.databind.ObjectMapper
 import org.springframework.dao.DataAccessException
 import org.springframework.data.redis.core.RedisOperations
 import org.springframework.data.redis.core.SessionCallback
 import org.springframework.data.redis.core.StringRedisTemplate
 import org.springframework.data.redis.core.script.DefaultRedisScript
 import org.springframework.stereotype.Repository
+import tools.jackson.databind.ObjectMapper
 import java.time.Duration
 import java.time.LocalDateTime
 
@@ -28,18 +28,36 @@ class RedisTokenSessionRepository(
         )
         resultType = List::class.java
     }
-    
+
+    /**
+     * currentTokenVersion：查询或读取相关数据。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param userId 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     fun currentTokenVersion(userId: Long): Long = guarded("读取用户 token version") {
         val key = tokenVersionKey(userId)
         val existing = redisTemplate.opsForValue().get(key)
         if (existing != null) return@guarded existing.toLongOrNull()
             ?: throw AuthenticationInfrastructureException("Redis token version 格式错误")
-        
+
         redisTemplate.opsForValue().setIfAbsent(key, "0")
         redisTemplate.opsForValue().get(key)?.toLongOrNull()
             ?: throw AuthenticationInfrastructureException("Redis token version 初始化失败")
     }
-    
+
+    /**
+     * save：创建、保存或初始化相关数据。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param tokenId 参与本次处理的输入参数。
+     * @param session 参与本次处理的输入参数。
+     * @param ttl 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     fun save(tokenId: String, session: RedisTokenSession, ttl: Duration) = guarded("保存 JWT 会话") {
         if (ttl.isZero || ttl.isNegative) throw JwtAuthenticationException("登录凭据已过期")
         val wasSaved = redisTemplate.opsForValue().setIfAbsent(
@@ -47,7 +65,16 @@ class RedisTokenSessionRepository(
         )
         if (wasSaved != true) throw AuthenticationInfrastructureException("JWT 会话 ID 冲突")
     }
-    
+
+    /**
+     * validate：校验输入、状态或访问条件。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param tokenId 参与本次处理的输入参数。
+     * @param userId 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     fun validate(tokenId: String, userId: Long): RedisTokenSession = guarded("校验 JWT 会话") {
         val result = redisTemplate.execute(
             validateScript,
@@ -66,7 +93,15 @@ class RedisTokenSessionRepository(
         if (session.tokenVersion != version) throw JwtAuthenticationException("登录状态已撤销")
         session
     }
-    
+
+    /**
+     * delete：删除、清理或撤销相关数据。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param tokenId 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     fun delete(tokenId: String) = guarded("删除 JWT 会话") {
         redisTemplate.delete(sessionKey(tokenId))
     }
@@ -125,15 +160,45 @@ class RedisTokenSessionRepository(
         redisTemplate.opsForValue().increment(tokenVersionKey(userId))
             ?: throw AuthenticationInfrastructureException("Redis token version 递增失败")
     }
-    
+
+    /**
+     * readSession：查询或读取相关数据。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param text 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun readSession(text: String): RedisTokenSession = try {
         objectMapper.readValue(text, RedisTokenSession::class.java)
     } catch (ex: Exception) {
         throw JwtAuthenticationException("登录状态损坏", ex)
     }
-    
+
+    /**
+     * sessionKey：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param tokenId 参与本次处理的输入参数。
+     * @param shopmall 参与本次处理的输入参数。
+     * @param auth 参与本次处理的输入参数。
+     * @param jwt 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun sessionKey(tokenId: String) = "shopmall:auth:jwt:$tokenId"
 
+    /**
+     * tokenVersionKey：完成身份认证、令牌或验证码处理。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param userId 参与本次处理的输入参数。
+     * @param shopmall 参与本次处理的输入参数。
+     * @param auth 参与本次处理的输入参数。
+     * @param user 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun tokenVersionKey(userId: Long) = "shopmall:auth:user:$userId:token-version"
 
     private companion object {

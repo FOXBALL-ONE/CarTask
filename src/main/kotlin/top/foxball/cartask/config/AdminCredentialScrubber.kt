@@ -1,7 +1,5 @@
 package top.foxball.cartask.config
 
-import java.nio.file.Files
-import java.nio.file.StandardCopyOption
 import org.slf4j.LoggerFactory
 import org.springframework.boot.context.event.ApplicationReadyEvent
 import org.springframework.context.event.EventListener
@@ -9,6 +7,8 @@ import org.springframework.core.Ordered
 import org.springframework.core.annotation.Order
 import org.springframework.stereotype.Component
 import top.foxball.cartask.repository.UserRepository
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 
 /**
  * 管理员建好之后，把 `.env` 里的明文口令擦掉。
@@ -37,6 +37,13 @@ class AdminCredentialScrubber(
 
     @Order(Ordered.LOWEST_PRECEDENCE - 49)
     @EventListener(classes = [ApplicationReadyEvent::class])
+            /**
+             * scrub：执行当前模块中的业务操作。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun scrub() {
         if (!properties.enabled || properties.forceWrite) return
         if (userRepository.findByUsername(properties.username.trim()) == null) return
@@ -55,10 +62,12 @@ class AdminCredentialScrubber(
                     scrubbed = true
                     "# $PASSWORD_KEY=（管理员已创建，口令已清除；需要重置口令时把这一行改回 $PASSWORD_KEY=新口令 并重启）"
                 }
+
                 trimmed == "$ENABLED_KEY=true" -> {
                     scrubbed = true
                     "$ENABLED_KEY=false"
                 }
+
                 else -> line
             }
         }

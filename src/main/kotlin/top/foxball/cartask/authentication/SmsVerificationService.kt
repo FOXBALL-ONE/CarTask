@@ -38,6 +38,15 @@ class SmsVerificationService(
         }
     }
 
+    /**
+     * send：执行当前模块中的业务操作。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param phone 参与本次处理的输入参数。
+     * @param purpose 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     fun send(phone: String, purpose: Purpose) {
         if (properties.skipVerification) {
             logger.warn("短信验证已临时关闭，跳过发送验证码：purpose={} phone={}", purpose, phone)
@@ -66,6 +75,16 @@ class SmsVerificationService(
         }
     }
 
+    /**
+     * verify：校验输入、状态或访问条件。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param phone 参与本次处理的输入参数。
+     * @param code 参与本次处理的输入参数。
+     * @param purpose 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     fun verify(phone: String, code: String, purpose: Purpose) {
         if (properties.skipVerification) {
             logger.warn("短信验证已临时关闭，跳过验证码校验：purpose={} phone={}", purpose, phone)
@@ -78,18 +97,60 @@ class SmsVerificationService(
         }
     }
 
+    /**
+     * normalize：转换、构建或格式化数据。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param phone 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun normalize(phone: String): String {
         val value = phone.trim()
         require(Regex("^\\+?[0-9]{6,20}$").matches(value)) { "手机号格式无效" }
         return value
     }
 
+    /**
+     * hash：查询或读取相关数据。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param value 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun hash(value: String): String = MessageDigest.getInstance("SHA-256")
         .digest(value.toByteArray()).joinToString("") { "%02x".format(it) }
 
+    /**
+     * key：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param phone 参与本次处理的输入参数。
+     * @param purpose 参与本次处理的输入参数。
+     * @param shopmall 参与本次处理的输入参数。
+     * @param auth 参与本次处理的输入参数。
+     * @param sms 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun key(phone: String, purpose: Purpose) = "shopmall:auth:sms:${purpose.name.lowercase()}:$phone"
 
-    private fun cooldownKey(phone: String, purpose: Purpose) = "shopmall:auth:sms:cooldown:${purpose.name.lowercase()}:$phone"
+    /**
+     * cooldownKey：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param phone 参与本次处理的输入参数。
+     * @param purpose 参与本次处理的输入参数。
+     * @param shopmall 参与本次处理的输入参数。
+     * @param auth 参与本次处理的输入参数。
+     * @param sms 参与本次处理的输入参数。
+     * @param cooldown 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
+    private fun cooldownKey(phone: String, purpose: Purpose) =
+        "shopmall:auth:sms:cooldown:${purpose.name.lowercase()}:$phone"
 
     enum class Purpose {
         LOGIN,

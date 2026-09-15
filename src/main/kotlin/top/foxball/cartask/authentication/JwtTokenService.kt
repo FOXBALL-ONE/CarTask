@@ -10,16 +10,7 @@ import org.springframework.security.oauth2.core.OAuth2Error
 import org.springframework.security.oauth2.core.OAuth2TokenValidator
 import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm
-import org.springframework.security.oauth2.jwt.JwsHeader
-import org.springframework.security.oauth2.jwt.Jwt
-import org.springframework.security.oauth2.jwt.JwtClaimsSet
-import org.springframework.security.oauth2.jwt.JwtDecoder
-import org.springframework.security.oauth2.jwt.JwtEncoder
-import org.springframework.security.oauth2.jwt.JwtEncoderParameters
-import org.springframework.security.oauth2.jwt.JwtIssuerValidator
-import org.springframework.security.oauth2.jwt.JwtTimestampValidator
-import org.springframework.security.oauth2.jwt.NimbusJwtDecoder
-import org.springframework.security.oauth2.jwt.NimbusJwtEncoder
+import org.springframework.security.oauth2.jwt.*
 import org.springframework.stereotype.Service
 import org.springframework.util.StringUtils
 import tools.jackson.databind.ObjectMapper
@@ -30,8 +21,7 @@ import java.time.Clock
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneOffset
-import java.util.Base64
-import java.util.UUID
+import java.util.*
 import javax.crypto.Cipher
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
@@ -44,11 +34,11 @@ class JwtTokenService(
     private val objectMapper: ObjectMapper,
     private val clock: Clock,
 ) {
-    private val signingKeys: Map<kotlin.String, SecretKey>
-    private val decoders: Map<kotlin.String, JwtDecoder>
+    private val signingKeys: Map<String, SecretKey>
+    private val decoders: Map<String, JwtDecoder>
     private val encoder: JwtEncoder
     private val storageEncryptionKey: SecretKey
-    
+
     init {
         require(properties.issuer.isNotBlank()) { "JWT issuer 不能为空" }
         require(properties.audience.isNotBlank()) { "JWT audience 不能为空" }
@@ -59,7 +49,7 @@ class JwtTokenService(
         require(signingKeys.containsKey(properties.activeSigningKeyId)) { "JWT active signing key 不存在" }
         storageEncryptionKey = aesKey(properties.tokenStorageEncryptionKey)
         require(properties.tokenStorageEncryptionKeyId.isNotBlank()) { "JWT token storage encryption key ID 不能为空" }
-        
+
         val activeJwk = OctetSequenceKey.Builder(signingKeys.getValue(properties.activeSigningKeyId).encoded)
             .keyID(properties.activeSigningKeyId)
             .algorithm(JWSAlgorithm.HS256)
@@ -67,27 +57,38 @@ class JwtTokenService(
         encoder = NimbusJwtEncoder(ImmutableJWKSet<SecurityContext>(JWKSet(activeJwk)))
         decoders = signingKeys.mapValues { (_, key) -> decoderFor(key) }
     }
-    
+
     data class IssuedToken(
         val accessToken: AccessTokenValue,
-        val tokenId: kotlin.String,
+        val tokenId: String,
         val issuedAt: LocalDateTime,
         val expiresAt: LocalDateTime,
-        val tokenHash: kotlin.String,
-        val tokenCiphertext: kotlin.String,
-        val tokenEncryptionKeyId: kotlin.String,
+        val tokenHash: String,
+        val tokenCiphertext: String,
+        val tokenEncryptionKeyId: String,
     )
-    
+
     data class VerifiedToken(
-        val tokenId: kotlin.String,
+        val tokenId: String,
         val userId: Long,
-        val username: kotlin.String,
-        val role: kotlin.String,
+        val username: String,
+        val role: String,
         val tokenVersion: Long,
-        val tokenHash: kotlin.String,
+        val tokenHash: String,
     )
-    
-    fun issue(userId: Long, username: kotlin.String, role: kotlin.String, tokenVersion: Long): IssuedToken {
+
+    /**
+     * issue：校验输入、状态或访问条件。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param userId 参与本次处理的输入参数。
+     * @param username 参与本次处理的输入参数。
+     * @param role 参与本次处理的输入参数。
+     * @param tokenVersion 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
+    fun issue(userId: Long, username: String, role: String, tokenVersion: Long): IssuedToken {
         val normalizedRole = SecurityRole.normalize(role)
         val now = Instant.now(clock)
         val expiration = now.plus(properties.ttl)
@@ -115,7 +116,15 @@ class JwtTokenService(
             tokenEncryptionKeyId = properties.tokenStorageEncryptionKeyId,
         )
     }
-    
+
+    /**
+     * verify：校验输入、状态或访问条件。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param jwtValue 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     fun verify(jwtValue: AccessTokenValue): VerifiedToken {
         val keyId = extractKeyId(jwtValue)
         val jwt = try {
@@ -141,7 +150,15 @@ class JwtTokenService(
             ?: throw JwtAuthenticationException("JWT token version 缺失")
         return VerifiedToken(tokenId, userId, username, role, tokenVersion, fingerprint(jwtValue))
     }
-    
+
+    /**
+     * decoderFor：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param key 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun decoderFor(key: SecretKey): JwtDecoder = NimbusJwtDecoder.withSecretKey(key)
         .macAlgorithm(MacAlgorithm.HS256)
         .build()
@@ -159,8 +176,16 @@ class JwtTokenService(
                 ),
             )
         }
-    
-    private fun extractKeyId(jwtValue: AccessTokenValue): kotlin.String = try {
+
+    /**
+     * extractKeyId：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param jwtValue 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
+    private fun extractKeyId(jwtValue: AccessTokenValue): String = try {
         val parts = jwtValue.split('.')
         if (parts.size != 3) throw JwtAuthenticationException("JWT 格式无效")
         val headerText = String(
@@ -175,20 +200,45 @@ class JwtTokenService(
     } catch (ex: Exception) {
         throw JwtAuthenticationException("JWT header 无效", ex)
     }
-    
-    private fun hmacKey(encoded: kotlin.String): SecretKey {
+
+    /**
+     * hmacKey：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param encoded 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
+    private fun hmacKey(encoded: String): SecretKey {
         val bytes = decodeBase64(encoded, "JWT signing key")
         require(bytes.size >= 32) { "JWT signing key 至少需要 256 位" }
         return SecretKeySpec(bytes, "HmacSHA256")
     }
-    
-    private fun aesKey(encoded: kotlin.String): SecretKey {
+
+    /**
+     * aesKey：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param encoded 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
+    private fun aesKey(encoded: String): SecretKey {
         val bytes = decodeBase64(encoded, "JWT storage encryption key")
         require(bytes.size == 32) { "JWT storage encryption key 必须为 256 位" }
         return SecretKeySpec(bytes, "AES")
     }
-    
-    private fun decodeBase64(value: kotlin.String, name: kotlin.String): ByteArray {
+
+    /**
+     * decodeBase64：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param value 参与本次处理的输入参数。
+     * @param name 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
+    private fun decodeBase64(value: String, name: String): ByteArray {
         require(value.isNotBlank()) { "$name 不能为空" }
         return try {
             Base64.getDecoder().decode(value)
@@ -196,8 +246,17 @@ class JwtTokenService(
             throw IllegalArgumentException("$name 必须为 Base64", ex)
         }
     }
-    
-    private fun encryptForStorage(jwtValue: AccessTokenValue, tokenId: kotlin.String): kotlin.String = try {
+
+    /**
+     * encryptForStorage：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param jwtValue 参与本次处理的输入参数。
+     * @param tokenId 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
+    private fun encryptForStorage(jwtValue: AccessTokenValue, tokenId: String): String = try {
         val nonce = ByteArray(12).also(SecureRandom()::nextBytes)
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.ENCRYPT_MODE, storageEncryptionKey, GCMParameterSpec(128, nonce))
@@ -207,7 +266,15 @@ class JwtTokenService(
     } catch (ex: Exception) {
         throw AuthenticationInfrastructureException("JWT Redis 副本加密失败", ex)
     }
-    
-    private fun fingerprint(jwtValue: AccessTokenValue): kotlin.String = Base64.getUrlEncoder().withoutPadding()
+
+    /**
+     * fingerprint：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param jwtValue 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
+    private fun fingerprint(jwtValue: AccessTokenValue): String = Base64.getUrlEncoder().withoutPadding()
         .encodeToString(MessageDigest.getInstance("SHA-256").digest(jwtValue.toByteArray(StandardCharsets.UTF_8)))
 }

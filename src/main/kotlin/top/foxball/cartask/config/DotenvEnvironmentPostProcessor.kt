@@ -1,9 +1,9 @@
 package top.foxball.cartask.config
 
-import java.nio.file.Path
 import org.springframework.boot.EnvironmentPostProcessor
 import org.springframework.boot.SpringApplication
 import org.springframework.core.env.ConfigurableEnvironment
+import java.nio.file.Path
 
 /**
  * 启动时把工作目录下的 `.env` 注入 [ConfigurableEnvironment]，使 `application.yaml` 里的
@@ -25,6 +25,15 @@ import org.springframework.core.env.ConfigurableEnvironment
 class DotenvEnvironmentPostProcessor @JvmOverloads constructor(
     private val dotenvPath: Path = DotenvLoader.defaultPath(),
 ) : EnvironmentPostProcessor {
+    /**
+     * postProcessEnvironment：执行当前模块中的业务操作。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param environment 参与本次处理的输入参数。
+     * @param application 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     override fun postProcessEnvironment(environment: ConfigurableEnvironment, application: SpringApplication) {
         if ("test" in environment.activeProfiles) return
         DotenvLoader.addTo(environment, dotenvPath)

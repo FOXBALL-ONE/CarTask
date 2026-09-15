@@ -25,14 +25,14 @@ import org.springframework.web.multipart.MaxUploadSizeExceededException
 import org.springframework.web.multipart.support.MissingServletRequestPartException
 import org.springframework.web.servlet.NoHandlerFoundException
 import org.springframework.web.servlet.resource.NoResourceFoundException
-import top.foxball.cartask.shared.Response
-import top.foxball.cartask.shared.ResponseBuilder
-import top.foxball.cartask.authentication.AuthenticationInfrastructureException
-import top.foxball.cartask.authentication.LoginRateLimitException
 import top.foxball.cartask.audit.AuditAction
 import top.foxball.cartask.audit.AuditCommand
-import top.foxball.cartask.audit.AuditService
 import top.foxball.cartask.audit.AuditRequestContext
+import top.foxball.cartask.audit.AuditService
+import top.foxball.cartask.authentication.AuthenticationInfrastructureException
+import top.foxball.cartask.authentication.LoginRateLimitException
+import top.foxball.cartask.shared.Response
+import top.foxball.cartask.shared.ResponseBuilder
 
 
 /** 全局异常处理：将各类异常转换为统一 [Response] 响应。 */
@@ -45,6 +45,14 @@ class GlobalExceptionHandler(
     private val builder = ResponseBuilder()
 
     @ExceptionHandler(HomeRecommendationVersionConflictException::class)
+            /**
+             * onHomeRecommendationVersionConflictException：处理请求、事件或异常流程。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param ex 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun onHomeRecommendationVersionConflictException(
         ex: HomeRecommendationVersionConflictException,
     ): ResponseEntity<Response> {
@@ -61,6 +69,14 @@ class GlobalExceptionHandler(
     }
 
     @ExceptionHandler(AnnouncementVersionConflictException::class)
+            /**
+             * onAnnouncementVersionConflictException：处理请求、事件或异常流程。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param ex 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun onAnnouncementVersionConflictException(
         ex: AnnouncementVersionConflictException,
     ): ResponseEntity<Response> {
@@ -77,6 +93,14 @@ class GlobalExceptionHandler(
     }
 
     @ExceptionHandler(BusinessException::class)
+            /**
+             * onBusinessException：处理请求、事件或异常流程。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param ex 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun onBusinessException(ex: BusinessException): ResponseEntity<Response> {
         return builder.status(ex.status)
             .message(ex.message)
@@ -84,6 +108,14 @@ class GlobalExceptionHandler(
     }
 
     @ExceptionHandler(OrderProcessingException::class)
+            /**
+             * onOrderProcessingException：处理请求、事件或异常流程。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param ex 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun onOrderProcessingException(ex: OrderProcessingException): ResponseEntity<Response> {
         return builder.status(ex.status)
             .retryAfter(1)
@@ -92,6 +124,14 @@ class GlobalExceptionHandler(
     }
 
     @ExceptionHandler(OrderWindowLimitException::class)
+            /**
+             * onOrderWindowLimitException：处理请求、事件或异常流程。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param ex 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun onOrderWindowLimitException(ex: OrderWindowLimitException): ResponseEntity<Response> {
         return builder.status(ex.status)
             .retryAfter(ex.retryAfterSeconds)
@@ -100,6 +140,14 @@ class GlobalExceptionHandler(
     }
 
     @ExceptionHandler(SupportTicketRateLimitException::class)
+            /**
+             * onSupportTicketRateLimitException：处理请求、事件或异常流程。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param ex 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun onSupportTicketRateLimitException(ex: SupportTicketRateLimitException): ResponseEntity<Response> {
         return builder.status(ex.status)
             .retryAfter(ex.retryAfterSeconds)
@@ -109,6 +157,15 @@ class GlobalExceptionHandler(
 
 
     @ExceptionHandler(AccessDeniedException::class)
+            /**
+             * onAccessDeniedException：处理请求、事件或异常流程。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param req 参与本次处理的输入参数。
+             * @param ex 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun onAccessDeniedException(req: HttpServletRequest, ex: AccessDeniedException): ResponseEntity<Response> {
         runCatching {
             auditService.record(
@@ -141,6 +198,14 @@ class GlobalExceptionHandler(
     }
 
     @ExceptionHandler(LoginRateLimitException::class)
+            /**
+             * onLoginRateLimitException：处理请求、事件或异常流程。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param ex 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun onLoginRateLimitException(ex: LoginRateLimitException): ResponseEntity<Response> {
         return builder.status(HttpStatus.TOO_MANY_REQUESTS)
             .retryAfter(ex.retryAfterSeconds)
@@ -150,6 +215,14 @@ class GlobalExceptionHandler(
     }
 
     @ExceptionHandler(AuthenticationInfrastructureException::class)
+            /**
+             * onAuthenticationInfrastructureException：处理请求、事件或异常流程。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param ex 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun onAuthenticationInfrastructureException(ex: AuthenticationInfrastructureException): ResponseEntity<Response> {
         log.error("Authentication infrastructure unavailable", ex)
         return builder.serviceUnavailable()
@@ -160,6 +233,14 @@ class GlobalExceptionHandler(
     }
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException::class)
+            /**
+             * onHttpRequestMethodNotSupportedException：处理请求、事件或异常流程。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param ex 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun onHttpRequestMethodNotSupportedException(ex: HttpRequestMethodNotSupportedException): ResponseEntity<Response> {
         return builder.badRequest()
             .message("Method \"${ex.method}\" is not supported on this endpoint.")
@@ -167,11 +248,26 @@ class GlobalExceptionHandler(
     }
 
     @ExceptionHandler(NoResourceFoundException::class, NoHandlerFoundException::class)
+            /**
+             * onNoResourceOrHandlerFoundException：处理请求、事件或异常流程。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun onNoResourceOrHandlerFoundException(): ResponseEntity<Response> {
         return builder.notFound().build()
     }
 
     @ExceptionHandler(MissingServletRequestParameterException::class)
+            /**
+             * onMissingServletRequestParameterException：处理请求、事件或异常流程。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param ex 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun onMissingServletRequestParameterException(ex: MissingServletRequestParameterException): ResponseEntity<Response> {
         return builder.badRequest()
             .message("Required parameter \"${ex.parameterName}\" is not provided!")
@@ -179,6 +275,14 @@ class GlobalExceptionHandler(
     }
 
     @ExceptionHandler(MissingServletRequestPartException::class)
+            /**
+             * onMissingServletRequestPartException：处理请求、事件或异常流程。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param ex 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun onMissingServletRequestPartException(ex: MissingServletRequestPartException): ResponseEntity<Response> {
         return builder.badRequest()
             .message("Required request part \"${ex.requestPartName}\" is not provided!")
@@ -186,6 +290,14 @@ class GlobalExceptionHandler(
     }
 
     @ExceptionHandler(MissingRequestHeaderException::class)
+            /**
+             * onMissingRequestHeaderException：处理请求、事件或异常流程。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param ex 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun onMissingRequestHeaderException(ex: MissingRequestHeaderException): ResponseEntity<Response> {
         return builder.badRequest()
             .message("Required request header \"${ex.headerName}\" is not provided!")
@@ -193,6 +305,14 @@ class GlobalExceptionHandler(
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException::class)
+            /**
+             * onMethodArgumentTypeMismatchException：处理请求、事件或异常流程。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param ex 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun onMethodArgumentTypeMismatchException(ex: MethodArgumentTypeMismatchException): ResponseEntity<Response> {
         return builder.badRequest()
             .message("Parameter \"${ex.parameter.parameterName}\" type mismatch. Expected ${ex.requiredType}.")
@@ -200,6 +320,14 @@ class GlobalExceptionHandler(
     }
 
     @ExceptionHandler(MethodArgumentNotValidException::class)
+            /**
+             * onMethodArgumentNotValid：处理请求、事件或异常流程。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param ex 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun onMethodArgumentNotValid(ex: MethodArgumentNotValidException): ResponseEntity<Response> {
         val detail = ex.fieldErrors.joinToString("; ") { "${it.field}: ${it.defaultMessage}" }
         return builder.badRequest()
@@ -208,6 +336,14 @@ class GlobalExceptionHandler(
     }
 
     @ExceptionHandler(HandlerMethodValidationException::class)
+            /**
+             * onHandlerMethodValidationException：处理请求、事件或异常流程。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param ex 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun onHandlerMethodValidationException(ex: HandlerMethodValidationException): ResponseEntity<Response> {
         val detail = ex.parameterValidationResults.joinToString("; ") { result ->
             val parameterName = result.methodParameter.parameterName ?: "parameter"
@@ -223,6 +359,14 @@ class GlobalExceptionHandler(
 
 
     @ExceptionHandler(HttpMessageNotReadableException::class)
+            /**
+             * onHttpMessageNotReadable：处理请求、事件或异常流程。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param ex 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun onHttpMessageNotReadable(ex: HttpMessageNotReadableException): ResponseEntity<Response> {
         return builder.badRequest()
             .message("请求体格式错误或必填字段缺失")
@@ -230,6 +374,13 @@ class GlobalExceptionHandler(
     }
 
     @ExceptionHandler(MaxUploadSizeExceededException::class)
+            /**
+             * onMaxUploadSizeExceededException：处理请求、事件或异常流程。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun onMaxUploadSizeExceededException(): ResponseEntity<Response> {
         return builder.status(HttpStatus.PAYLOAD_TOO_LARGE)
             .message("Uploaded file exceeds the configured size limit.")
@@ -237,6 +388,14 @@ class GlobalExceptionHandler(
     }
 
     @ExceptionHandler(IllegalArgumentException::class)
+            /**
+             * onIllegalArgumentException：处理请求、事件或异常流程。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param ex 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun onIllegalArgumentException(ex: IllegalArgumentException?): ResponseEntity<Response> {
         log.warn("Illegal argument access happened: ", ex)
         return builder.badRequest()
@@ -245,6 +404,14 @@ class GlobalExceptionHandler(
     }
 
     @ExceptionHandler(TransientDataAccessException::class)
+            /**
+             * onTransientDataAccessException：处理请求、事件或异常流程。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param ex 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun onTransientDataAccessException(ex: TransientDataAccessException): ResponseEntity<Response> {
         log.warn("Transient data access error: {}", ex.message)
         return builder.serviceUnavailable()
@@ -254,6 +421,14 @@ class GlobalExceptionHandler(
     }
 
     @ExceptionHandler(ObjectOptimisticLockingFailureException::class)
+            /**
+             * onOptimisticLockingFailureException：处理请求、事件或异常流程。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param ex 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun onOptimisticLockingFailureException(ex: ObjectOptimisticLockingFailureException): ResponseEntity<Response> {
         log.warn("Optimistic locking conflict: {}", ex.message)
         return builder.status(HttpStatus.CONFLICT)
@@ -262,6 +437,14 @@ class GlobalExceptionHandler(
     }
 
     @ExceptionHandler(DataIntegrityViolationException::class)
+            /**
+             * onDataIntegrityViolationException：处理请求、事件或异常流程。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param ex 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun onDataIntegrityViolationException(ex: DataIntegrityViolationException): ResponseEntity<Response> {
         val detail = generateSequence<Throwable>(ex) { it.cause }
             .mapNotNull { it.message }
@@ -292,12 +475,29 @@ class GlobalExceptionHandler(
     }
 
     @ExceptionHandler(DataAccessException::class)
+            /**
+             * onDataAccessException：处理请求、事件或异常流程。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param ex 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun onDataAccessException(ex: DataAccessException): ResponseEntity<Response> {
         log.error("Non-transient data access error", ex)
         return builder.exception().build()
     }
 
     @ExceptionHandler(Exception::class)
+            /**
+             * onException：处理请求、事件或异常流程。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param req 参与本次处理的输入参数。
+             * @param ex 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun onException(req: HttpServletRequest, ex: Exception?): ResponseEntity<Response> {
         log.error("Got an exception while process request: {}", req.requestURI, ex)
         return builder.exception().build()

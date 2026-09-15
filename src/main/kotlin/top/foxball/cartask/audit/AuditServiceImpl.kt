@@ -1,6 +1,7 @@
 package top.foxball.cartask.audit
 
 import io.micrometer.core.instrument.MeterRegistry
+import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import tools.jackson.databind.ObjectMapper
@@ -10,8 +11,7 @@ import top.foxball.cartask.repository.AuditEventRepository
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAccessor
-import java.util.UUID
-import org.springframework.security.core.context.SecurityContextHolder
+import java.util.*
 
 @Service
 class AuditServiceImpl(
@@ -20,9 +20,19 @@ class AuditServiceImpl(
     private val meterRegistry: MeterRegistry? = null,
 ) : AuditService {
     @Transactional
+    /**
+     * record：执行当前模块中的业务操作。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param command 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     override fun record(command: AuditCommand): AuditEvent {
         val request = AuditRequestContext.current()
-        val sourceSystem = (command.sourceSystem?.trim()?.uppercase()?.takeIf { it.isNotEmpty() } ?: request?.sourceSystem ?: "SYSTEM").take(32)
+        val sourceSystem =
+            (command.sourceSystem?.trim()?.uppercase()?.takeIf { it.isNotEmpty() } ?: request?.sourceSystem
+            ?: "SYSTEM").take(32)
         val idempotencyKey = command.idempotencyKey?.trim()?.takeIf { it.isNotEmpty() }?.take(256)
         val targetType = command.targetType
             .replace(Regex("[\\u0000-\\u001F\\u007F]"), "")
@@ -45,7 +55,8 @@ class AuditServiceImpl(
             sourceSystem != "WEB" -> AuditEvent.ActorType.EXTERNAL
             else -> AuditEvent.ActorType.ANONYMOUS
         }
-        val actorUsername = principal?.username ?: if (actorType == AuditEvent.ActorType.SYSTEM) sourceSystem else "anonymous"
+        val actorUsername =
+            principal?.username ?: if (actorType == AuditEvent.ActorType.SYSTEM) sourceSystem else "anonymous"
         val recordedAt = LocalDateTime.now()
         val partitionKey = recordedAt.format(PARTITION_FORMATTER)
         repository.lockPartition(partitionKey)
@@ -108,16 +119,40 @@ class AuditServiceImpl(
         }
     }
 
+    /**
+     * serialize：转换、构建或格式化数据。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param value 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun serialize(value: Map<String, Any?>?): String? = value
         ?.let(::sanitizeMap)
         ?.let(objectMapper::writeValueAsString)
 
+    /**
+     * sanitizeMap：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param value 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun sanitizeMap(value: Map<String, Any?>): Map<String, Any?> = value
         .asSequence()
         .filter { (key, _) -> key in SAFE_KEYS && SENSITIVE_KEYS.none(key.lowercase()::contains) }
         .associate { (key, item) -> key.take(128) to sanitizeValue(item) }
         .toSortedMap()
 
+    /**
+     * sanitizeValue：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param value 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun sanitizeValue(value: Any?): Any? = when (value) {
         is Map<*, *> -> sanitizeMap(value.entries.associate { it.key.toString() to it.value })
         is Iterable<*> -> value.map(::sanitizeValue)
@@ -126,6 +161,14 @@ class AuditServiceImpl(
         else -> null
     }
 
+    /**
+     * sanitizeReason：执行当前模块中的业务操作。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param value 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun sanitizeReason(value: String?): String? = value
         ?.replace(Regex("[\\u0000-\\u001F\\u007F]"), " ")
         ?.replace(Regex("(?i)(password|credential|token|secret|authorization)\\s*[=:]\\s*[^,;\\s]+"), "$1=[REDACTED]")
@@ -147,6 +190,7 @@ class AuditServiceImpl(
             "file_content",
             "content_bytes",
         )
+
         /**
          * 审计摘要只允许业务白名单字段，未知字段默认丢弃。
          *

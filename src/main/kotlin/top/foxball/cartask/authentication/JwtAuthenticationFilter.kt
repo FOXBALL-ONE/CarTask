@@ -4,12 +4,12 @@ import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.slf4j.LoggerFactory
+import org.slf4j.MDC
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.core.AuthenticationException
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.security.oauth2.server.resource.web.DefaultBearerTokenResolver
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource
-import org.slf4j.MDC
 import org.springframework.stereotype.Component
 import org.springframework.web.filter.OncePerRequestFilter
 import top.foxball.cartask.service.OnlinePresenceService
@@ -26,7 +26,17 @@ class JwtAuthenticationFilter(
 ) : OncePerRequestFilter() {
     private val log = LoggerFactory.getLogger(javaClass)
     private val tokenResolver = DefaultBearerTokenResolver()
-    
+
+    /**
+     * doFilterInternal：处理请求、事件或异常流程。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param request 参与本次处理的输入参数。
+     * @param response 参与本次处理的输入参数。
+     * @param filterChain 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     override fun doFilterInternal(
         request: HttpServletRequest,
         response: HttpServletResponse,
@@ -95,8 +105,19 @@ class JwtAuthenticationFilter(
             writeFailure(response, HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized", false)
         }
     }
-    
-    private fun writeFailure(response: HttpServletResponse, status: Int, message: kotlin.String, retryable: Boolean) {
+
+    /**
+     * writeFailure：创建、保存或初始化相关数据。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param response 参与本次处理的输入参数。
+     * @param status 参与本次处理的输入参数。
+     * @param message 参与本次处理的输入参数。
+     * @param retryable 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
+    private fun writeFailure(response: HttpServletResponse, status: Int, message: String, retryable: Boolean) {
         response.status = status
         response.contentType = "application/json;charset=UTF-8"
         response.setHeader("Cache-Control", "no-store")

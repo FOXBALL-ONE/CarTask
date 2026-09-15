@@ -16,13 +16,9 @@ import org.springframework.security.web.context.NullSecurityContextRepository
 import org.springframework.web.cors.CorsConfiguration
 import org.springframework.web.cors.CorsConfigurationSource
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource
+import top.foxball.cartask.audit.*
 import top.foxball.cartask.authentication.JwtAuthenticationFilter
 import top.foxball.cartask.authentication.PasswordChangeRequiredFilter
-import top.foxball.cartask.audit.AuditRequestContextFilter
-import top.foxball.cartask.audit.AuditRequestContext
-import top.foxball.cartask.audit.AuditAction
-import top.foxball.cartask.audit.AuditCommand
-import top.foxball.cartask.audit.AuditService
 
 @Configuration
 @EnableMethodSecurity
@@ -36,6 +32,14 @@ class SecurityConfig(
     private val logger = LoggerFactory.getLogger(javaClass)
 
     @Bean
+            /**
+             * securityFilterChain：执行当前模块中的业务操作。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @param http 参与本次处理的输入参数。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun securityFilterChain(http: HttpSecurity): SecurityFilterChain {
         http
             .csrf { it.disable() }
@@ -100,6 +104,16 @@ class SecurityConfig(
         return http.build()
     }
 
+    /**
+     * writeJson：创建、保存或初始化相关数据。
+     *
+     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param response 参与本次处理的输入参数。
+     * @param status 参与本次处理的输入参数。
+     * @param message 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     private fun writeJson(response: HttpServletResponse, status: Int, message: String) {
         response.contentType = "application/json;charset=UTF-8"
         response.status = status
@@ -108,6 +122,13 @@ class SecurityConfig(
     }
 
     @Bean
+            /**
+             * corsConfigurationSource：执行当前模块中的业务操作。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun corsConfigurationSource(): CorsConfigurationSource {
         corsProperties.validate()
         if ("*" in corsProperties.origins() || "*" in corsProperties.originPatterns()) {

@@ -1,9 +1,9 @@
 package top.foxball.cartask.config
 
-import java.nio.file.Files
-import java.nio.file.Path
 import org.springframework.core.env.ConfigurableEnvironment
 import org.springframework.core.env.MapPropertySource
+import java.nio.file.Files
+import java.nio.file.Path
 
 /** Loads optional dotenv key/value pairs without overriding process environment values. */
 object DotenvLoader {
@@ -44,11 +44,23 @@ object DotenvLoader {
                 if (index <= 0) return@mapNotNull null
                 val key = line.substring(0, index).trim()
                 val raw = line.substring(index + 1).trim()
-                val value = if (raw.length >= 2 && raw.first() == '"' && raw.last() == '"') raw.substring(1, raw.length - 1) else raw
+                val value = if (raw.length >= 2 && raw.first() == '"' && raw.last() == '"') raw.substring(
+                    1,
+                    raw.length - 1
+                ) else raw
                 key to value
             }.toMap()
     }
 
+    /**
+     * addTo：创建、保存或初始化相关数据。
+     *
+     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+     * @param environment 参与本次处理的输入参数。
+     * @param path 参与本次处理的输入参数。
+     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     */
     fun addTo(environment: ConfigurableEnvironment, path: Path) {
         val values = read(path)
         if (values.isNotEmpty()) environment.propertySources.addLast(MapPropertySource("dotenv", values))

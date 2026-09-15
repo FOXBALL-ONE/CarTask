@@ -7,52 +7,9 @@ import org.springframework.boot.context.event.ApplicationReadyEvent
 import org.springframework.context.event.EventListener
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Component
-import top.foxball.cartask.entity.AccessControl
-import top.foxball.cartask.entity.AccessRecord
-import top.foxball.cartask.entity.CarMasterInfo
-import top.foxball.cartask.entity.Department
-import top.foxball.cartask.entity.Device
-import top.foxball.cartask.entity.GateDeleteRequest
-import top.foxball.cartask.entity.GatePerson
-import top.foxball.cartask.entity.PersonAccessRecord
-import top.foxball.cartask.entity.ParkingOwner
-import top.foxball.cartask.entity.ParkingPlate
-import top.foxball.cartask.entity.ParkingSpot
-import top.foxball.cartask.entity.Position
-import top.foxball.cartask.entity.Role
-import top.foxball.cartask.entity.User
-import top.foxball.cartask.entity.ViolationRecord
-import top.foxball.cartask.entity.ViolationSubject
-import top.foxball.cartask.entity.type.AccessControlType
-import top.foxball.cartask.entity.type.CarType
-import top.foxball.cartask.entity.type.LicensePlateType
-import top.foxball.cartask.entity.type.ReleaseType
-import top.foxball.cartask.entity.type.RestrictionType
-import top.foxball.cartask.entity.type.ViolationType
-import top.foxball.cartask.entity.type.ZoneType
-import top.foxball.cartask.repository.AccessControlRepository
-import top.foxball.cartask.repository.AccessControlTypeRepository
-import top.foxball.cartask.repository.AccessRecordRepository
-import top.foxball.cartask.repository.CarMasterInfoRepository
-import top.foxball.cartask.repository.CarTypeRepository
-import top.foxball.cartask.repository.DepartmentRepository
-import top.foxball.cartask.repository.DeviceRepository
-import top.foxball.cartask.repository.GateDeleteRequestRepository
-import top.foxball.cartask.repository.GatePersonRepository
-import top.foxball.cartask.repository.LicensePlateTypeRepository
-import top.foxball.cartask.repository.ParkingOwnerRepository
-import top.foxball.cartask.repository.ParkingPlateRepository
-import top.foxball.cartask.repository.ParkingSpotRepository
-import top.foxball.cartask.repository.PersonAccessRecordRepository
-import top.foxball.cartask.repository.PositionRepository
-import top.foxball.cartask.repository.RoleRepository
-import top.foxball.cartask.repository.ReleaseTypeRepository
-import top.foxball.cartask.repository.RestrictionTypeRepository
-import top.foxball.cartask.repository.UserRepository
-import top.foxball.cartask.repository.ViolationRecordRepository
-import top.foxball.cartask.repository.ViolationSubjectRepository
-import top.foxball.cartask.repository.ViolationTypeRepository
-import top.foxball.cartask.repository.ZoneTypeRepository
+import top.foxball.cartask.entity.*
+import top.foxball.cartask.entity.type.*
+import top.foxball.cartask.repository.*
 import java.math.BigDecimal
 import java.time.LocalDateTime
 
@@ -95,6 +52,13 @@ class MockDataInitializer(
 
     @EventListener(classes = [ApplicationReadyEvent::class])
     @Transactional
+            /**
+             * write：创建、保存或初始化相关数据。
+             *
+             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
+             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
+             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             */
     fun write() {
         if (!properties.enabled) {
             logger.debug("模拟数据写入未启用")
@@ -685,7 +649,8 @@ class MockDataInitializer(
             Triple(gatePersonTwo, "进", now.minusMinutes(45)),
         ).forEachIndexed { index, (person, direction, time) ->
             ensure(
-                personAccessRecordRepository.findAll().firstOrNull { it.person == person.name && it.direction == direction },
+                personAccessRecordRepository.findAll()
+                    .firstOrNull { it.person == person.name && it.direction == direction },
                 {
                     PersonAccessRecord().apply {
                         this.person = person.name
@@ -733,7 +698,8 @@ class MockDataInitializer(
             violationSubjectRepository::save,
         )
         ensure(
-            violationRecordRepository.findAll().firstOrNull { it.subject.subjectNumber == violationSubject.subjectNumber && it.violationType.violationName == violationType.violationName },
+            violationRecordRepository.findAll()
+                .firstOrNull { it.subject.subjectNumber == violationSubject.subjectNumber && it.violationType.violationName == violationType.violationName },
             {
                 ViolationRecord().apply {
                     subject = violationSubject
@@ -893,7 +859,10 @@ class MockDataInitializer(
         )
         ensure(
             accessRecordRepository.findByIdentity("粤A·MOCK01", AccessRecord.InAndOut.IN, now.minusHours(2))
-                ?: accessRecordRepository.findFirstByCarNumberAndInAndOutOrderByInAndOutTimeDesc("粤A·MOCK01", AccessRecord.InAndOut.IN),
+                ?: accessRecordRepository.findFirstByCarNumberAndInAndOutOrderByInAndOutTimeDesc(
+                    "粤A·MOCK01",
+                    AccessRecord.InAndOut.IN
+                ),
             {
                 AccessRecord().apply {
                     carNumber = "粤A·MOCK01"
@@ -911,7 +880,10 @@ class MockDataInitializer(
         )
         ensure(
             accessRecordRepository.findByIdentity("粤A·MOCK01", AccessRecord.InAndOut.OUT, now.minusHours(1))
-                ?: accessRecordRepository.findFirstByCarNumberAndInAndOutOrderByInAndOutTimeDesc("粤A·MOCK01", AccessRecord.InAndOut.OUT),
+                ?: accessRecordRepository.findFirstByCarNumberAndInAndOutOrderByInAndOutTimeDesc(
+                    "粤A·MOCK01",
+                    AccessRecord.InAndOut.OUT
+                ),
             {
                 AccessRecord().apply {
                     carNumber = "粤A·MOCK01"
@@ -932,7 +904,10 @@ class MockDataInitializer(
         )
         ensure(
             accessRecordRepository.findByIdentity("粤A·MOCK02", AccessRecord.InAndOut.IN, now.minusHours(5))
-                ?: accessRecordRepository.findFirstByCarNumberAndInAndOutOrderByInAndOutTimeDesc("粤A·MOCK02", AccessRecord.InAndOut.IN),
+                ?: accessRecordRepository.findFirstByCarNumberAndInAndOutOrderByInAndOutTimeDesc(
+                    "粤A·MOCK02",
+                    AccessRecord.InAndOut.IN
+                ),
             {
                 AccessRecord().apply {
                     carNumber = "粤A·MOCK02"
@@ -951,7 +926,10 @@ class MockDataInitializer(
         )
         ensure(
             accessRecordRepository.findByIdentity("粤A·MOCK02", AccessRecord.InAndOut.OUT, now.minusHours(3))
-                ?: accessRecordRepository.findFirstByCarNumberAndInAndOutOrderByInAndOutTimeDesc("粤A·MOCK02", AccessRecord.InAndOut.OUT),
+                ?: accessRecordRepository.findFirstByCarNumberAndInAndOutOrderByInAndOutTimeDesc(
+                    "粤A·MOCK02",
+                    AccessRecord.InAndOut.OUT
+                ),
             {
                 AccessRecord().apply {
                     carNumber = "粤A·MOCK02"
@@ -972,7 +950,10 @@ class MockDataInitializer(
         )
         ensure(
             accessRecordRepository.findByIdentity("粤A·MOCK03", AccessRecord.InAndOut.IN, now.minusDays(1).withHour(8))
-                ?: accessRecordRepository.findFirstByCarNumberAndInAndOutOrderByInAndOutTimeDesc("粤A·MOCK03", AccessRecord.InAndOut.IN),
+                ?: accessRecordRepository.findFirstByCarNumberAndInAndOutOrderByInAndOutTimeDesc(
+                    "粤A·MOCK03",
+                    AccessRecord.InAndOut.IN
+                ),
             {
                 AccessRecord().apply {
                     carNumber = "粤A·MOCK03"
