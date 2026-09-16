@@ -1,8 +1,18 @@
 package top.foxball.cartask.audit
 
+/**
+ * AuditAction 组件。
+ * 
+ * 负责实现该文件声明的配置、领域模型或基础设施能力。
+ */
+
 import top.foxball.cartask.entity.AuditEvent
 
-/** 审计动作的稳定代码字典；权限编码由 Permission 独立维护。 */
+
+/**
+ * AuditAction 的职责说明。
+ * 该类型封装相关业务状态、依赖及操作流程。
+ */
 enum class AuditAction(
     val code: String,
     val category: AuditEvent.Category,
@@ -12,8 +22,8 @@ enum class AuditAction(
     AUTH_LOGIN_FAILED("AUTH_LOGIN_FAILED", AuditEvent.Category.AUTHENTICATION, AuditEvent.RiskLevel.MEDIUM),
     AUTH_LOGOUT("AUTH_LOGOUT", AuditEvent.Category.AUTHENTICATION, AuditEvent.RiskLevel.HIGH),
     AUTH_PASSWORD_CHANGED("AUTH_PASSWORD_CHANGED", AuditEvent.Category.AUTHENTICATION, AuditEvent.RiskLevel.HIGH),
-
-    /** 换绑手机号：手机号是短信登录与重置密码的凭据，与改密同级。 */
+    
+    
     AUTH_PHONE_CHANGED("AUTH_PHONE_CHANGED", AuditEvent.Category.AUTHENTICATION, AuditEvent.RiskLevel.HIGH),
     PROFILE_UPDATED("PROFILE_UPDATED", AuditEvent.Category.ACCOUNT, AuditEvent.RiskLevel.MEDIUM),
     AUTHORIZATION_DENIED("AUTHORIZATION_DENIED", AuditEvent.Category.AUTHORIZATION, AuditEvent.RiskLevel.MEDIUM),
@@ -24,8 +34,8 @@ enum class AuditAction(
     USER_DELETED("USER_DELETED", AuditEvent.Category.ACCOUNT, AuditEvent.RiskLevel.CRITICAL),
     ROLE_CHANGED("ROLE_CHANGED", AuditEvent.Category.CONFIGURATION, AuditEvent.RiskLevel.CRITICAL),
     PERMISSION_CHANGED("PERMISSION_CHANGED", AuditEvent.Category.CONFIGURATION, AuditEvent.RiskLevel.CRITICAL),
-
-    /** 改同步任务的执行周期。改坏了会静默停止数据拉取，所以按配置类高风险动作记录。 */
+    
+    
     SYNC_SCHEDULE_CHANGED("SYNC_SCHEDULE_CHANGED", AuditEvent.Category.CONFIGURATION, AuditEvent.RiskLevel.HIGH),
     ACCESS_CONTROL_CREATED("ACCESS_CONTROL_CREATED", AuditEvent.Category.ACCESS_CONTROL, AuditEvent.RiskLevel.HIGH),
     ACCESS_CONTROL_UPDATED("ACCESS_CONTROL_UPDATED", AuditEvent.Category.ACCESS_CONTROL, AuditEvent.RiskLevel.HIGH),
@@ -41,8 +51,8 @@ enum class AuditAction(
         AuditEvent.Category.ACCESS_CONTROL,
         AuditEvent.RiskLevel.HIGH
     ),
-
-    /** 车辆进出申请登记：登记的是月卡下发申请，审批通过后才会写科拓平台。 */
+    
+    
     VEHICLE_INOUT_REQUEST_CREATED(
         "VEHICLE_INOUT_REQUEST_CREATED",
         AuditEvent.Category.ACCESS_CONTROL,
@@ -63,8 +73,8 @@ enum class AuditAction(
         AuditEvent.Category.ACCESS_CONTROL,
         AuditEvent.RiskLevel.MEDIUM
     ),
-
-    /** 申请单下发结果；与审核分开记录，因为下发是可以独立重试的一次外部调用。 */
+    
+    
     VEHICLE_INOUT_REQUEST_SYNCED("VEHICLE_INOUT_REQUEST_SYNCED", AuditEvent.Category.DEVICE, AuditEvent.RiskLevel.HIGH),
     ACCESS_RECORD_CORRECTED(
         "ACCESS_RECORD_CORRECTED",
@@ -75,8 +85,10 @@ enum class AuditAction(
     FILE_UPLOADED("FILE_UPLOADED", AuditEvent.Category.FILE, AuditEvent.RiskLevel.MEDIUM),
     FILE_DOWNLOADED("FILE_DOWNLOADED", AuditEvent.Category.FILE, AuditEvent.RiskLevel.HIGH),
     SENSITIVE_DATA_EXPORTED("SENSITIVE_DATA_EXPORTED", AuditEvent.Category.DATA_EXPORT, AuditEvent.RiskLevel.HIGH),
-
-    /** 导出整库 SQL 与附件压缩包。比普通导出更敏感：产物里有全部账号口令散列与生物特征照片。 */
+    
+    
     DATA_BACKUP_CREATED("DATA_BACKUP_CREATED", AuditEvent.Category.DATA_EXPORT, AuditEvent.RiskLevel.CRITICAL),
     LOGS_CLEARED("LOGS_CLEARED", AuditEvent.Category.CONFIGURATION, AuditEvent.RiskLevel.CRITICAL),
 }
+
+

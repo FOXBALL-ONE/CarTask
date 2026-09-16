@@ -1,30 +1,43 @@
 package top.foxball.setup
 
+/**
+ * SetupRestartSignal 配置引导组件说明。
+ *
+ * 该文件负责系统初始化向导中的配置探测、持久化、校验或 Web 入口逻辑。
+ */
+/**
+ * SetupRestartSignal 组件。
+ * 
+ * 负责实现该文件声明的配置、领域模型或基础设施能力。
+ */
+
 import jakarta.annotation.PreDestroy
 import org.springframework.stereotype.Component
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicBoolean
 
-/**
- * 配置完成后的「重启」信号：让 `main` 关掉配置模式上下文，按新的 `.env` 再启动一次。
- *
- * 不做进程退出再拉起，是因为引导页刚提交完就断连，实施人员看到的只有「连接被拒绝」，
- * 分不清是重启中还是启动失败。同一个 JVM 里换上下文，端口只断开一瞬，页面轮询就能穿过这段空窗。
- *
- * 延迟 [RESTART_DELAY_MILLIS] 再触发：当前这次请求的响应还没写完就关上下文，浏览器拿到的是网络错误
- * 而不是「配置已保存」。延迟由独立线程承担，请求线程照常返回。
- */
+
 @Component
+/**
+ * SetupRestartSignal 的职责说明。
+ * 该类型封装相关业务状态、依赖及操作流程。
+ */
+/**
+ * SetupRestartSignal 的职责与行为说明。
+ * 该声明负责配置引导流程中的相关数据处理、校验或服务调用。
+ */
 class SetupRestartSignal {
     private val latch = CountDownLatch(1)
     private val restartRequested = AtomicBoolean(false)
-
+    
+    
     /**
-     * request：执行当前模块中的业务操作。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     * request 函数：执行与该组件职责相关的业务操作。
+     * 参数和返回值遵循调用方与领域服务之间的约定。
+     */
+    /**
+     * request 的职责与行为说明。
+     * 该声明负责配置引导流程中的相关数据处理、校验或服务调用。
      */
     fun request() {
         if (!restartRequested.compareAndSet(false, true)) return
@@ -36,32 +49,42 @@ class SetupRestartSignal {
             name = "setup-restart"
         }.start()
     }
-
+    
+    
     /**
-     * 阻塞至可以继续为止。
-     *
-     * 返回 true 表示收到重启请求；返回 false 表示上下文已被别的路径关闭（例如 Ctrl+C 触发的
-     * 关闭钩子），此时 `main` 应当直接退出。两种情况都要 [CountDownLatch.countDown]，
-     * 否则关闭钩子里等着的那个线程永远醒不过来，表现为 Ctrl+C 之后进程不退出。
+     * await 函数：执行与该组件职责相关的业务操作。
+     * 参数和返回值遵循调用方与领域服务之间的约定。
+     */
+    /**
+     * await 的职责与行为说明。
+     * 该声明负责配置引导流程中的相关数据处理、校验或服务调用。
      */
     fun await(): Boolean {
         latch.await()
         return restartRequested.get()
     }
-
+    
     @PreDestroy
+            
+            
             /**
-             * release：执行当前模块中的业务操作。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             * release 函数：执行与该组件职责相关的业务操作。
+             * 参数和返回值遵循调用方与领域服务之间的约定。
+             */
+            /**
+             * release 的职责与行为说明。
+             * 该声明负责配置引导流程中的相关数据处理、校验或服务调用。
              */
     fun release() {
         latch.countDown()
     }
-
+    
     private companion object {
         const val RESTART_DELAY_MILLIS = 900L
     }
 }
+
+
+
+
+

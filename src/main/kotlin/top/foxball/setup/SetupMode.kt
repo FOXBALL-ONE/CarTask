@@ -1,32 +1,55 @@
 package top.foxball.setup
 
+/**
+ * SetupMode 配置引导组件说明。
+ *
+ * 该文件负责系统初始化向导中的配置探测、持久化、校验或 Web 入口逻辑。
+ */
+/**
+ * SetupMode 组件。
+ * 
+ * 负责实现该文件声明的配置、领域模型或基础设施能力。
+ */
+
 import top.foxball.cartask.config.DotenvLoader
 import java.nio.file.Path
 
+
 /**
- * 判定这次启动进「配置引导模式」还是正常运行。
- *
- * 判据是环境里有没有 `DB_URL`：这个键只有被人配置过才存在，`application.yaml` 里的
- * `${DB_URL:默认值}` 占位符本身不会在属性源里留下 `DB_URL` 这一项。所以「有没有配过数据库」
- * 与「要不要引导」是同一件事——没有它，数据源建不起来，正常模式连启动都启动不了。
- *
- * 不看 `.env` 文件是否存在：整个配置都走操作系统环境变量、或者由容器注入的部署同样有效。
- *
- * [FORCE_KEY] 供人工覆盖：改配置、换数据库这类操作要重新拉起引导时把它设成 `true`；
- * 反过来想跳过引导（例如配置由外部编排系统托管）就设成 `false`，缺配置时正常模式的启动失败
- * 信息比引导页更能说明问题。
+ * SetupMode 的职责说明。
+ * 该类型封装相关业务状态、依赖及操作流程。
+ */
+/**
+ * SetupMode 的职责与行为说明。
+ * 该声明负责配置引导流程中的相关数据处理、校验或服务调用。
  */
 object SetupMode {
-    /** 显式开关，取值同 `true/false`，也接受 `1/0`、`yes/no`、`on/off`。 */
+    
     const val FORCE_KEY = "SETUP_MODE"
-
-    /** 唯一能说明这套部署被配置过的键。 */
+    
+    
     const val DATABASE_URL_KEY = "DB_URL"
-
-    /** 按工作目录下的 `.env` 加进程环境变量判定。 */
+    
+    
+    /**
+     * required 函数：执行与该组件职责相关的业务操作。
+     * 参数和返回值遵循调用方与领域服务之间的约定。
+     */
+    /**
+     * required 的职责与行为说明。
+     * 该声明负责配置引导流程中的相关数据处理、校验或服务调用。
+     */
     fun required(): Boolean = required(effectiveEnvironment())
-
-    /** 按给定的键值环境判定；与 [effectiveEnvironment] 解耦以便测试。 */
+    
+    
+    /**
+     * required 函数：执行与该组件职责相关的业务操作。
+     * 参数和返回值遵循调用方与领域服务之间的约定。
+     */
+    /**
+     * required 的职责与行为说明。
+     * 该声明负责配置引导流程中的相关数据处理、校验或服务调用。
+     */
     fun required(environment: Map<String, String>): Boolean {
         when (environment[FORCE_KEY]?.trim()?.lowercase()) {
             "true", "1", "yes", "on" -> return true
@@ -34,12 +57,15 @@ object SetupMode {
         }
         return environment[DATABASE_URL_KEY].isNullOrBlank()
     }
-
+    
+    
     /**
-     * 生效的配置来源：工作目录 `.env` < 进程环境变量 < `-D` 系统属性。
-     *
-     * 与 [top.foxball.cartask.config.DotenvEnvironmentPostProcessor] 把 `.env` 追加到属性源末尾
-     * 之后的优先级一致，避免「启动模式判成一套、Spring 读到的又是另一套」。
+     * effectiveEnvironment 函数：执行与该组件职责相关的业务操作。
+     * 参数和返回值遵循调用方与领域服务之间的约定。
+     */
+    /**
+     * effectiveEnvironment 的职责与行为说明。
+     * 该声明负责配置引导流程中的相关数据处理、校验或服务调用。
      */
     fun effectiveEnvironment(envPath: Path = DotenvLoader.defaultPath()): Map<String, String> = buildMap {
         putAll(DotenvLoader.read(envPath))
@@ -48,3 +74,8 @@ object SetupMode {
         System.getProperty(DATABASE_URL_KEY)?.let { put(DATABASE_URL_KEY, it) }
     }
 }
+
+
+
+
+

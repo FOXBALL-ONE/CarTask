@@ -1,5 +1,11 @@
 package top.foxball.cartask.keytop
 
+/**
+ * KeytopServiceImpl 组件。
+ * 
+ * 负责实现该文件声明的配置、领域模型或基础设施能力。
+ */
+
 import org.slf4j.LoggerFactory
 import org.slf4j.MarkerFactory
 import org.springframework.http.MediaType
@@ -13,6 +19,10 @@ import java.time.temporal.ChronoUnit
 import java.util.*
 
 @Service
+/**
+ * KeytopServiceImpl 的职责说明。
+ * 该类型封装相关业务状态、依赖及操作流程。
+ */
 class KeytopServiceImpl(
     restClientBuilder: RestClient.Builder,
     private val properties: KeytopProperties,
@@ -22,23 +32,15 @@ class KeytopServiceImpl(
         setConnectTimeout(properties.timeout)
         setReadTimeout(properties.timeout)
     }
-
+    
     private val restClient = restClientBuilder
         .baseUrl(properties.baseUrl.trimEnd('/'))
         .requestFactory(requestFactory)
         .build()
-
+    
     private val logger = LoggerFactory.getLogger(KeytopServiceImpl::class.java)
-
-    /**
-     * getCarCardList：查询或读取相关数据。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param pageIndex 参与本次处理的输入参数。
-     * @param pageSize 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     override fun getCarCardList(pageIndex: Int, pageSize: Int): KeytopResponse {
         requirePage(pageIndex, pageSize)
         return post(
@@ -47,19 +49,8 @@ class KeytopServiceImpl(
             business = mapOf("pageIndex" to pageIndex, "pageSize" to pageSize),
         )
     }
-
-    /**
-     * addCarCardNo：创建、保存或初始化相关数据。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param userId 参与本次处理的输入参数。
-     * @param userName 参与本次处理的输入参数。
-     * @param cardInfo 参与本次处理的输入参数。
-     * @param carLotList 参与本次处理的输入参数。
-     * @param plateNoInfo 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     override fun addCarCardNo(
         userId: Long,
         userName: String,
@@ -77,19 +68,8 @@ class KeytopServiceImpl(
             plateNoInfo = objectMapper.writeValueAsString(plateNoInfo.map { it.copy(id = null, plateState = null) }),
         )
     }
-
-    /**
-     * addCarCardNo：创建、保存或初始化相关数据。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param userId 参与本次处理的输入参数。
-     * @param userName 参与本次处理的输入参数。
-     * @param cardInfo 参与本次处理的输入参数。
-     * @param carLotList 参与本次处理的输入参数。
-     * @param plateNoInfo 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     override fun addCarCardNo(
         userId: Long,
         userName: String,
@@ -107,15 +87,8 @@ class KeytopServiceImpl(
             "plateNoInfo" to plateNoInfo,
         ),
     )
-
-    /**
-     * getCarCardInfo：查询或读取相关数据。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param cardId 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     override fun getCarCardInfo(cardId: Long): KeytopResponse {
         require(cardId > 0) { "cardId must be greater than 0" }
         return post(
@@ -124,15 +97,8 @@ class KeytopServiceImpl(
             business = mapOf("cardId" to cardId),
         )
     }
-
-    /**
-     * getCarCardInfo：查询或读取相关数据。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param plateNo 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     override fun getCarCardInfo(plateNo: String): KeytopResponse {
         require(plateNo.isNotBlank()) { "plateNo must not be blank" }
         return post(
@@ -141,19 +107,8 @@ class KeytopServiceImpl(
             business = mapOf("plateNo" to plateNo),
         )
     }
-
-    /**
-     * modifyCarCardNo：更新业务状态或修改相关配置。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param userId 参与本次处理的输入参数。
-     * @param userName 参与本次处理的输入参数。
-     * @param cardInfo 参与本次处理的输入参数。
-     * @param carLotList 参与本次处理的输入参数。
-     * @param plateNoInfo 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     override fun modifyCarCardNo(
         userId: Long,
         userName: String,
@@ -172,19 +127,8 @@ class KeytopServiceImpl(
             plateNoInfo = objectMapper.writeValueAsString(plateNoInfo),
         )
     }
-
-    /**
-     * modifyCarCardNo：更新业务状态或修改相关配置。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param userId 参与本次处理的输入参数。
-     * @param userName 参与本次处理的输入参数。
-     * @param cardInfo 参与本次处理的输入参数。
-     * @param carLotList 参与本次处理的输入参数。
-     * @param plateNoInfo 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     override fun modifyCarCardNo(
         userId: Long,
         userName: String,
@@ -202,15 +146,8 @@ class KeytopServiceImpl(
             "plateNoInfo" to plateNoInfo,
         ),
     )
-
-    /**
-     * delCarCardInfo：执行当前模块中的业务操作。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param cardId 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     override fun delCarCardInfo(cardId: Long): KeytopResponse {
         require(cardId > 0) { "cardId must be greater than 0" }
         return post(
@@ -219,15 +156,8 @@ class KeytopServiceImpl(
             business = mapOf("cardId" to cardId),
         )
     }
-
-    /**
-     * payCarCardFee：执行当前模块中的业务操作。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param request 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     override fun payCarCardFee(request: KeytopPayCarCardFeeRequest): KeytopResponse {
         require(request.userId > 0) { "userId must be greater than 0" }
         require(request.cardId > 0) { "cardId must be greater than 0" }
@@ -257,21 +187,8 @@ class KeytopServiceImpl(
             ),
         )
     }
-
-    /**
-     * payCarCardFee：执行当前模块中的业务操作。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param userId 参与本次处理的输入参数。
-     * @param userName 参与本次处理的输入参数。
-     * @param cardId 参与本次处理的输入参数。
-     * @param carType 参与本次处理的输入参数。
-     * @param validFrom 参与本次处理的输入参数。
-     * @param validTo 参与本次处理的输入参数。
-     * @param createTime 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     override fun payCarCardFee(
         userId: Long,
         userName: String,
@@ -283,15 +200,8 @@ class KeytopServiceImpl(
     ): KeytopResponse = payCarCardFee(
         KeytopPayCarCardFeeRequest(userId, userName, cardId, carType, validFrom, validTo, createTime),
     )
-
-    /**
-     * refundCarCardFee：执行当前模块中的业务操作。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param request 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     override fun refundCarCardFee(request: KeytopRefundCarCardFeeRequest): KeytopResponse {
         require(request.userId > 0) { "userId must be greater than 0" }
         require(request.cardId > 0) { "cardId must be greater than 0" }
@@ -322,22 +232,8 @@ class KeytopServiceImpl(
             ),
         )
     }
-
-    /**
-     * refundCarCardFee：执行当前模块中的业务操作。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param userId 参与本次处理的输入参数。
-     * @param userName 参与本次处理的输入参数。
-     * @param cardId 参与本次处理的输入参数。
-     * @param carType 参与本次处理的输入参数。
-     * @param validFrom 参与本次处理的输入参数。
-     * @param validTo 参与本次处理的输入参数。
-     * @param createTime 参与本次处理的输入参数。
-     * @param remark 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     override fun refundCarCardFee(
         userId: Long,
         userName: String,
@@ -359,15 +255,8 @@ class KeytopServiceImpl(
             remark = remark
         ),
     )
-
-    /**
-     * getCardInfoByUser：查询或读取相关数据。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param plateNo 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     override fun getCardInfoByUser(plateNo: String): KeytopResponse {
         require(plateNo.isNotBlank()) { "plateNo must not be blank" }
         return post(
@@ -376,19 +265,8 @@ class KeytopServiceImpl(
             business = mapOf("plateNo" to plateNo),
         )
     }
-
-    /**
-     * getCarInoutInfo：查询或读取相关数据。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param pageIndex 参与本次处理的输入参数。
-     * @param pageSize 参与本次处理的输入参数。
-     * @param plateNo 参与本次处理的输入参数。
-     * @param startTime 参与本次处理的输入参数。
-     * @param endTime 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     override fun getCarInoutInfo(
         pageIndex: Int,
         pageSize: Int,
@@ -413,44 +291,22 @@ class KeytopServiceImpl(
             ),
         )
     }
-
-    /**
-     * getParkingPlaceArea：查询或读取相关数据。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     override fun getParkingPlaceArea(): KeytopResponse = post(
         path = "/api/wec/GetParkingPlaceArea",
         serviceCode = "getParkingPlaceArea",
         business = emptyMap(),
     )
-
-    /**
-     * getDictList：查询或读取相关数据。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param dictType 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     override fun getDictList(dictType: String?): KeytopResponse = post(
         path = "/api/wec/GetDictList",
         serviceCode = "GetDictDataList",
         business = mapOf("dictType" to dictType),
     )
-
-    /**
-     * queryCarBlackInfo：查询或读取相关数据。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param pageIndex 参与本次处理的输入参数。
-     * @param pageSize 参与本次处理的输入参数。
-     * @param plateNo 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     override fun queryCarBlackInfo(pageIndex: Int, pageSize: Int, plateNo: String?): KeytopResponse {
         requirePage(pageIndex, pageSize)
         require(plateNo == null || plateNo.isNotBlank()) { "plateNo must not be blank" }
@@ -460,17 +316,8 @@ class KeytopServiceImpl(
             business = mapOf("pageIndex" to pageIndex, "pageSize" to pageSize, "plateNo" to plateNo),
         )
     }
-
-    /**
-     * addCarBlackInfo：创建、保存或初始化相关数据。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param plateNo 参与本次处理的输入参数。
-     * @param reason 参与本次处理的输入参数。
-     * @param remark 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     override fun addCarBlackInfo(plateNo: String, reason: String, remark: String): KeytopResponse {
         require(plateNo.isNotBlank()) { "plateNo must not be blank" }
         require(reason.isNotBlank()) { "reason must not be blank" }
@@ -480,18 +327,8 @@ class KeytopServiceImpl(
             business = mapOf("plateNo" to plateNo, "reason" to reason, "remark" to remark),
         )
     }
-
-    /**
-     * modifyCarBlackInfo：更新业务状态或修改相关配置。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param id 参与本次处理的输入参数。
-     * @param plateNo 参与本次处理的输入参数。
-     * @param reason 参与本次处理的输入参数。
-     * @param remark 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     override fun modifyCarBlackInfo(id: Long, plateNo: String, reason: String, remark: String): KeytopResponse {
         require(id > 0) { "id must be greater than 0" }
         require(plateNo.isNotBlank()) { "plateNo must not be blank" }
@@ -502,16 +339,8 @@ class KeytopServiceImpl(
             business = mapOf("id" to id, "plateNo" to plateNo, "reason" to reason, "remark" to remark),
         )
     }
-
-    /**
-     * delCarBlackInfo：执行当前模块中的业务操作。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param id 参与本次处理的输入参数。
-     * @param plateNo 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     override fun delCarBlackInfo(id: Long?, plateNo: String?): KeytopResponse {
         require(id != null || !plateNo.isNullOrBlank()) { "id or plateNo must be provided" }
         require(id == null || id > 0) { "id must be greater than 0" }
@@ -521,17 +350,8 @@ class KeytopServiceImpl(
             business = mapOf("id" to id, "plateNo" to plateNo),
         )
     }
-
-    /**
-     * post：执行当前模块中的业务操作。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param path 参与本次处理的输入参数。
-     * @param serviceCode 参与本次处理的输入参数。
-     * @param business 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     private fun post(path: String, serviceCode: String, business: Map<String, Any?>): KeytopResponse {
         val request = LinkedHashMap<String, Any?>()
         request["appId"] = properties.appId
@@ -543,7 +363,7 @@ class KeytopServiceImpl(
             if (value != null) request[name] = value
         }
         request["key"] = KeytopSignature.paramsSign(request, properties.appSecret)
-
+        
         val requestBody = objectMapper.writeValueAsString(request)
         val requestUrl = "${properties.baseUrl.trimEnd('/')}$path"
         val startedAt = System.nanoTime()
@@ -556,7 +376,7 @@ class KeytopServiceImpl(
             properties.version,
             requestBody,
         )
-
+        
         val body = try {
             restClient.post()
                 .uri(path)
@@ -598,23 +418,17 @@ class KeytopServiceImpl(
             data = json.get("data"),
         )
     }
-
-    /**
-     * requirePage：校验输入、状态或访问条件。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param pageIndex 参与本次处理的输入参数。
-     * @param pageSize 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     private fun requirePage(pageIndex: Int, pageSize: Int) {
         require(pageIndex >= 1) { "pageIndex must be greater than 0" }
         require(pageSize >= 1) { "pageSize must be greater than 0" }
     }
-
+    
     private companion object {
         val PROTOCOL_TIME: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
         val RAW_PAYLOAD_MARKER = MarkerFactory.getMarker("KEYTOP_RAW_PAYLOAD")
     }
 }
+
+

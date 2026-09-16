@@ -15,16 +15,18 @@ import java.time.LocalDateTime
 
 @RestController
 @RequestMapping("/api/users")
-/** 用户账户的单条和批量管理接口。 */
+
+/** class UserController：Web 控制器，负责接收 HTTP 请求、调用领域服务并构造统一响应。 */
 class UserController(
     private val userService: UserService,
     private val responseBuilder: ResponseBuilder,
     private val scopeGuard: ScopeGuard,
     private val workingDepartmentService: WorkingDepartmentService,
 ) {
-    /** 文档兼容的 JSON 用户创建入口。 */
+    
     @PostMapping(consumes = ["application/json"])
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('user:create')")
+            /** createDocument：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun createDocument(@RequestBody body: DocumentUserRequest): ResponseEntity<Response> {
         data class Response(
             val id: Long,
@@ -39,7 +41,7 @@ class UserController(
             val status: Int,
             @param:JsonProperty("createTime") val createTime: LocalDateTime,
         )
-
+        
         val username = requireNotNull(body.username) { "用户名不能为空" }
         val password = requireNotNull(body.password) { "密码不能为空" }
         val name = requireNotNull(body.name) { "姓名不能为空" }
@@ -78,16 +80,11 @@ class UserController(
         )
         return responseBuilder.created().data(rs).build()
     }
-
-    /**
-     * 文档兼容的 JSON 用户更新入口。
-     *
-     * 管理员改手机号走这里，不需要短信校验；能改哪些账号由数据范围决定——超级管理员与平台管理
-     * （未收窄工作部门时）可改任意账号，部门管理只能改自己范围内的账号，见
-     * [top.foxball.cartask.service.impl.UserServiceImpl.updateBatch]。
-     */
+    
+    
     @PutMapping("/{id}", consumes = ["application/json"])
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('user:update')")
+            /** updateDocument：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun updateDocument(@PathVariable id: Long, @RequestBody body: DocumentUserRequest): ResponseEntity<Response> {
         data class Response(
             val id: Long,
@@ -133,10 +130,11 @@ class UserController(
         )
         return responseBuilder.ok().data(rs).build()
     }
-
-    /** 创建一个用户账户。 */
+    
+    
     @PostMapping
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('user:create')")
+            /** create：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun create(
         @RequestParam username: String,
         @RequestParam email: String,
@@ -163,7 +161,7 @@ class UserController(
             @param:JsonProperty("created_at") val createdAt: LocalDateTime,
             @param:JsonProperty("updated_at") val updatedAt: LocalDateTime,
         )
-
+        
         val user = userService.create(
             UserService.CreateCommand(
                 username,
@@ -194,10 +192,11 @@ class UserController(
         )
         return responseBuilder.created().data(rs).build()
     }
-
-    /** 根据并列参数批量创建用户账户。 */
+    
+    
     @PostMapping("/batch")
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('user:create')")
+            /** createBatch：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun createBatch(
         @RequestParam username: List<String>,
         @RequestParam email: List<String>,
@@ -225,9 +224,9 @@ class UserController(
             @param:JsonProperty("created_at") val createdAt: LocalDateTime,
             @param:JsonProperty("updated_at") val updatedAt: LocalDateTime,
         )
-
+        
         data class Response(val users: List<UserData>)
-
+        
         require(username.isNotEmpty()) { "用户列表不能为空" }
         require(username.size == email.size && email.size == credential.size && credential.size == role.size && role.size == enabled.size) {
             "批量用户必填字段数量必须一致"
@@ -270,10 +269,11 @@ class UserController(
         })
         return responseBuilder.created().data(rs).build()
     }
-
-    /** 按用户 ID 查询账户信息。 */
+    
+    
     @GetMapping("/{id}")
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('user:read')")
+            /** get：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun get(@PathVariable id: Long): ResponseEntity<Response> {
         data class Response(
             val id: Long,
@@ -288,7 +288,7 @@ class UserController(
             val status: Int,
             @param:JsonProperty("createTime") val createTime: LocalDateTime,
         )
-
+        
         val user = userService.get(id)
         val rs = Response(
             user.id,
@@ -305,10 +305,11 @@ class UserController(
         )
         return responseBuilder.ok().data(rs).build()
     }
-
-    /** 分页查询用户账户。 */
+    
+    
     @GetMapping
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('user:read')")
+            /** listDocument：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun listDocument(
         @RequestParam(required = false) keyword: String?,
         @RequestParam(required = false) status: Int?,
@@ -329,14 +330,14 @@ class UserController(
             val status: Int,
             @param:JsonProperty("createTime") val createTime: LocalDateTime,
         )
-
+        
         data class Response(
             val items: List<UserData>,
             val total: Int,
             val page: Int,
             @param:JsonProperty("pageSize") val pageSize: Int,
         )
-
+        
         require(page >= 1) { "页码必须大于 0" }
         require(pageSize in 1..100) { "每页数量必须在 1 到 100 之间" }
         val allUsers = mutableListOf<UserService.UserData>()
@@ -349,14 +350,10 @@ class UserController(
             sourcePage++
         } while (allUsers.size < sourceTotal)
         val scope = scopeGuard.currentScope()
-        // 客户端传的 department_id 必须与范围取交集。写成「传了就用传的、没传就用范围」是
-        // 一行数据泄露，而且读起来完全正确——部门管理只要换个 id 就能读到别的部门。
         val requestedFilter = scopeGuard.requestedDepartment(departmentId, scope)
         if (requestedFilter.denied) {
             return responseBuilder.ok().data(Response(emptyList(), 0, page, pageSize)).build()
         }
-        // 范围本身已经由 UserServiceImpl.list 下推到 SQL（导出用户走的是同一条路径），
-        // 这里只负责把客户端过滤参数与它叠加。
         val users = allUsers.filter {
             (keyword.isNullOrBlank() || it.username.contains(keyword, true) || it.name.orEmpty()
                 .contains(keyword, true) || it.phone.orEmpty().contains(keyword, true)) &&
@@ -387,10 +384,11 @@ class UserController(
         )
         return responseBuilder.ok().data(rs).build()
     }
-
-    /** 兼容原有 snake_case 分页参数。 */
+    
+    
     @GetMapping(params = ["page_size"])
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('user:read')")
+            /** list：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun list(
         @RequestParam(defaultValue = "1") page: Int,
         @RequestParam(name = "page_size", defaultValue = "20") pageSize: Int,
@@ -410,14 +408,14 @@ class UserController(
             @param:JsonProperty("created_at") val createdAt: LocalDateTime,
             @param:JsonProperty("updated_at") val updatedAt: LocalDateTime,
         )
-
+        
         data class Response(
             val users: List<UserData>,
             val page: Int,
             @param:JsonProperty("page_size") val pageSize: Int,
             val total: Long,
         )
-
+        
         val result = userService.list(page, pageSize)
         val rs = Response(result.users.map {
             UserData(
@@ -438,10 +436,11 @@ class UserController(
         }, result.page, result.pageSize, result.total)
         return responseBuilder.ok().data(rs).build()
     }
-
-    /** 按多个用户 ID 批量查询账户信息。 */
+    
+    
     @GetMapping("/batch")
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('user:read')")
+            /** getBatch：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun getBatch(@RequestParam id: List<Long>): ResponseEntity<Response> {
         data class UserData(
             val id: Long,
@@ -457,9 +456,9 @@ class UserController(
             @param:JsonProperty("created_at") val createdAt: LocalDateTime,
             @param:JsonProperty("updated_at") val updatedAt: LocalDateTime,
         )
-
+        
         data class Response(val users: List<UserData>)
-
+        
         val users = userService.getBatch(id)
         val rs = Response(users.map {
             UserData(
@@ -479,10 +478,11 @@ class UserController(
         })
         return responseBuilder.ok().data(rs).build()
     }
-
-    /** 更新指定用户账户的可变字段。 */
+    
+    
     @PutMapping("/{id}")
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('user:update')")
+            /** update：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun update(
         @PathVariable id: Long,
         @RequestParam(required = false) username: String?,
@@ -508,7 +508,7 @@ class UserController(
             @param:JsonProperty("position_id") val positionId: Long?,
             val status: User.Status,
         )
-
+        
         require(role == null && enabled == null && status == null) { "角色和账号状态必须使用专用接口更新" }
         val user = userService.update(
             id,
@@ -539,10 +539,11 @@ class UserController(
         )
         return responseBuilder.ok().data(rs).build()
     }
-
-    /** 对多个用户应用相同的更新内容。 */
+    
+    
     @PutMapping("/batch")
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('user:update')")
+            /** updateBatch：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun updateBatch(
         @RequestParam id: List<Long>,
         @RequestParam(required = false) username: String?,
@@ -576,72 +577,73 @@ class UserController(
         val rs = Response(id)
         return responseBuilder.ok().data(rs).build()
     }
-
-    /** 仅超级管理员可变更账户角色，避免普通资料更新形成提权路径。 */
+    
+    
     @PutMapping("/{id}/role")
     @PreAuthorize("hasRole('SUPER_ADMIN') and hasAuthority('user:role-assign')")
+            /** assignRole：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun assignRole(
         @PathVariable id: Long,
         @RequestParam role: String,
     ): ResponseEntity<Response> {
         data class Response(val id: Long, val role: String)
-
+        
         val user = userService.update(id, UserService.UpdateCommand(role = role))
         val rs = Response(user.id, user.role)
         return responseBuilder.ok().data(rs).build()
     }
-
-    /** 启停或封禁账户会撤销旧会话，独立于普通资料更新。 */
+    
+    
     @PutMapping("/{id}/account-status")
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('user:disable')")
+            /** updateAccountStatus：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun updateAccountStatus(
         @PathVariable id: Long,
         @RequestParam enabled: Boolean,
         @RequestParam status: User.Status,
     ): ResponseEntity<Response> {
         data class Response(val id: Long, val enabled: Boolean, val status: User.Status)
-
+        
         val user = userService.update(id, UserService.UpdateCommand(enabled = enabled, status = status))
         val rs = Response(user.id, user.enabled, user.status)
         return responseBuilder.ok().data(rs).build()
     }
-
-    /** 删除指定用户账户。 */
+    
+    
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('SUPER_ADMIN') and hasAuthority('user:disable')")
+            /** delete：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun delete(@PathVariable id: Long): ResponseEntity<Response> {
         data class Response(val id: Long)
         userService.delete(id)
         val rs = Response(id)
         return responseBuilder.ok().data(rs).build()
     }
-
-    /** 按多个用户 ID 批量删除账户。 */
+    
+    
     @DeleteMapping("/batch")
     @PreAuthorize("hasRole('SUPER_ADMIN') and hasAuthority('user:disable')")
+            /** deleteBatch：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun deleteBatch(@RequestParam id: List<Long>): ResponseEntity<Response> {
         data class Response(@param:JsonProperty("user_ids") val userIds: List<Long>)
         userService.deleteBatch(id)
         val rs = Response(id)
         return responseBuilder.ok().data(rs).build()
     }
-
-    /**
-     * 查询用户的部门管理范围。
-     *
-     * 只有超级管理员能读写：范围决定「能看多少数据」，让部门管理自己去改范围就是一条提权路径。
-     */
+    
+    
     @GetMapping("/{id}/managed-departments")
     @PreAuthorize("hasRole('SUPER_ADMIN') and hasAuthority('user:role-assign')")
+            /** managedDepartments：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun managedDepartments(@PathVariable id: Long): ResponseEntity<Response> {
         data class DepartmentData(
             @param:JsonProperty("department_id") val departmentId: Long,
             @param:JsonProperty("department_name") val departmentName: String,
             @param:JsonProperty("include_descendants") val includeDescendants: Boolean,
         )
-
+        
         data class Response(val departments: List<DepartmentData>)
-
+        
         val rs = Response(
             workingDepartmentService.managedDepartmentsOf(id).map {
                 DepartmentData(it.departmentId, it.departmentName, it.includeDescendants)
@@ -649,10 +651,11 @@ class UserController(
         )
         return responseBuilder.ok().data(rs).build()
     }
-
-    /** 整体替换用户的部门管理范围；替换会撤销该用户已签发的会话。 */
+    
+    
     @PutMapping("/{id}/managed-departments")
     @PreAuthorize("hasRole('SUPER_ADMIN') and hasAuthority('user:role-assign')")
+            /** replaceManagedDepartments：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun replaceManagedDepartments(
         @PathVariable id: Long,
         @RequestBody body: ManagedDepartmentRequest,
@@ -662,9 +665,9 @@ class UserController(
             @param:JsonProperty("department_name") val departmentName: String,
             @param:JsonProperty("include_descendants") val includeDescendants: Boolean,
         )
-
+        
         data class Response(val departments: List<DepartmentData>)
-
+        
         val items = body.departments.orEmpty().map { item ->
             ManagedDepartmentInput(
                 departmentId = requireNotNull(item.departmentId) { "部门不能为空" },

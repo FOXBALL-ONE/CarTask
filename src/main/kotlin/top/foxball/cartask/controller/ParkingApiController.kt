@@ -30,9 +30,10 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.util.*
 
-/** 文档 v1 前端接口的兼容层。缺少独立领域表的展示资源在此保持进程内状态。 */
+
 @RestController
 @RequestMapping("/api")
+/** class ParkingApiController：Web 控制器，负责接收 HTTP 请求、调用领域服务并构造统一响应。 */
 class ParkingApiController(
     private val responseBuilder: ResponseBuilder,
     private val departmentService: DepartmentService,
@@ -58,13 +59,9 @@ class ParkingApiController(
 ) {
     @GetMapping("/depts")
     @PreAuthorize("hasAuthority('department:read')")
-            /**
-             * listDepartments：查询或读取相关数据。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-             */
+            
+            
+            /** listDepartments：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun listDepartments(): ResponseEntity<Response> {
         data class DepartmentData(
             val id: Long,
@@ -76,7 +73,7 @@ class ParkingApiController(
             val phone: String?,
             val status: Int,
         )
-
+        
         val rs = departmentService.listAll().map {
             DepartmentData(
                 requireNotNull(it.id),
@@ -91,17 +88,12 @@ class ParkingApiController(
         }
         return responseBuilder.ok().data(rs).build()
     }
-
+    
     @PostMapping("/depts")
     @PreAuthorize("hasAuthority('department:manage')")
-            /**
-             * createDepartment：创建、保存或初始化相关数据。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @param body 参与本次处理的输入参数。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-             */
+            
+            
+            /** createDepartment：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun createDepartment(@RequestBody body: DocumentDepartmentRequest): ResponseEntity<Response> {
         require(body.status == 0 || body.status == 1) { "状态必须为 0 或 1" }
         val department = departmentService.create(
@@ -123,18 +115,12 @@ class ParkingApiController(
             )
         ).build()
     }
-
+    
     @PutMapping("/depts/{id}")
     @PreAuthorize("hasAuthority('department:manage')")
-            /**
-             * updateDepartment：更新业务状态或修改相关配置。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @param id 参与本次处理的输入参数。
-             * @param body 参与本次处理的输入参数。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-             */
+            
+            
+            /** updateDepartment：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun updateDepartment(
         @PathVariable id: Long,
         @RequestBody body: DocumentDepartmentRequest
@@ -161,31 +147,22 @@ class ParkingApiController(
             )
         ).build()
     }
-
+    
     @DeleteMapping("/depts/{id}")
     @PreAuthorize("hasAuthority('department:manage')")
-            /**
-             * deleteDepartment：删除、清理或撤销相关数据。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @param id 参与本次处理的输入参数。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-             */
+            
+            
+            /** deleteDepartment：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun deleteDepartment(@PathVariable id: Long): ResponseEntity<Response> {
         departmentService.deleteDepartment(id)
         return responseBuilder.ok().message("删除成功").data(mapOf("id" to id)).build()
     }
-
+    
     @GetMapping("/posts")
     @PreAuthorize("hasAuthority('position:read')")
-            /**
-             * listPosts：查询或读取相关数据。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-             */
+            
+            
+            /** listPosts：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun listPosts(): ResponseEntity<Response> {
         data class PostData(
             val id: Long,
@@ -195,7 +172,7 @@ class ParkingApiController(
             val status: Int,
             val remark: String?
         )
-
+        
         val allPosts = mutableListOf<Position>()
         var sourcePage = 1
         var sourceTotal = 0L
@@ -217,17 +194,12 @@ class ParkingApiController(
         }
         return responseBuilder.ok().data(rs).build()
     }
-
+    
     @PostMapping("/posts")
     @PreAuthorize("hasAuthority('position:manage')")
-            /**
-             * createPost：创建、保存或初始化相关数据。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @param body 参与本次处理的输入参数。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-             */
+            
+            
+            /** createPost：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun createPost(@RequestBody body: DocumentPostRequest): ResponseEntity<Response> {
         require(body.status == 0 || body.status == 1) { "状态必须为 0 或 1" }
         val position = Position().apply {
@@ -250,18 +222,12 @@ class ParkingApiController(
             )
         ).build()
     }
-
+    
     @PutMapping("/posts/{id}")
     @PreAuthorize("hasAuthority('position:manage')")
-            /**
-             * updatePost：更新业务状态或修改相关配置。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @param id 参与本次处理的输入参数。
-             * @param body 参与本次处理的输入参数。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-             */
+            
+            
+            /** updatePost：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun updatePost(@PathVariable id: Long, @RequestBody body: DocumentPostRequest): ResponseEntity<Response> {
         require(body.status == null || body.status == 0 || body.status == 1) { "状态必须为 0 或 1" }
         val current = positionService.get(id)
@@ -286,36 +252,22 @@ class ParkingApiController(
             )
         ).build()
     }
-
+    
     @DeleteMapping("/posts/{id}")
     @PreAuthorize("hasAuthority('position:manage')")
-            /**
-             * deletePost：删除、清理或撤销相关数据。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @param id 参与本次处理的输入参数。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-             */
+            
+            
+            /** deletePost：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun deletePost(@PathVariable id: Long): ResponseEntity<Response> {
         positionService.delete(id)
         return responseBuilder.ok().message("删除成功").data(mapOf("id" to id)).build()
     }
-
+    
     @GetMapping("/owners")
     @PreAuthorize("hasAuthority('owner:read')")
-            /**
-             * listOwners：查询或读取相关数据。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @param keyword 参与本次处理的输入参数。
-             * @param dept 参与本次处理的输入参数。
-             * @param status 参与本次处理的输入参数。
-             * @param page 参与本次处理的输入参数。
-             * @param pageSize 参与本次处理的输入参数。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-             */
+            
+            
+            /** listOwners：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun listOwners(
         @RequestParam(required = false) keyword: String?,
         @RequestParam(required = false) dept: String?,
@@ -331,9 +283,8 @@ class ParkingApiController(
             val page: Int,
             @param:JsonProperty("pageSize") val pageSizeValue: Int
         )
-
+        
         val scope = dataScopeResolver.current()
-        // 范围谓词始终参与：客户端传的 dept 只能在此基础上继续收窄，不可能放宽范围。
         val visibleOwnerIds = if (scope.unrestricted) null else scopeQuerySupport.ownerIdsInScope(scope)
         val filtered = ownerRepository.findAll().filter {
             (visibleOwnerIds == null || requireNotNull(it.id) in visibleOwnerIds) &&
@@ -359,24 +310,18 @@ class ParkingApiController(
         val to = (from + pageSize.coerceAtLeast(1)).coerceAtMost(filtered.size)
         return responseBuilder.ok().data(PageData(filtered.subList(from, to), filtered.size, page, pageSize)).build()
     }
-
+    
     @PostMapping("/owners")
     @PreAuthorize("hasAuthority('owner:manage')")
-            /**
-             * createOwner：创建、保存或初始化相关数据。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @param body 参与本次处理的输入参数。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-             */
+            
+            
+            /** createOwner：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun createOwner(@RequestBody body: OwnerRequest): ResponseEntity<Response> {
         val cardId = requireNotNull(body.cardId) { "车主卡号不能为空" }
         require(!ownerRepository.existsByCardId(cardId)) { "车主卡号已存在" }
         val dept = requireNotNull(body.dept) { "部门不能为空" }
         val scope = scopeGuard.currentScope()
         val deptCode = scopeQuerySupport.stampDepartmentCode(dept, null)
-        // 写路径同样要校验：否则部门管理能造出一条自己看不见、却归属别的部门的记录。
         scopeGuard.requireDepartmentCodeAllowed(deptCode, scope)
         val owner = ParkingOwner().apply {
             this.cardId = cardId
@@ -407,18 +352,12 @@ class ParkingApiController(
             )
         ).build()
     }
-
+    
     @PutMapping("/owners/{id}")
     @PreAuthorize("hasAuthority('owner:manage')")
-            /**
-             * updateOwner：更新业务状态或修改相关配置。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @param id 参与本次处理的输入参数。
-             * @param body 参与本次处理的输入参数。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-             */
+            
+            
+            /** updateOwner：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun updateOwner(@PathVariable id: Long, @RequestBody body: OwnerRequest): ResponseEntity<Response> {
         val scope = scopeGuard.currentScope()
         val owner = scopeGuard.requireVisibleRow(ownerRepository.findById(id).orElse(null), scope, "车主不存在")
@@ -429,7 +368,6 @@ class ParkingApiController(
         body.name?.let { owner.name = it }
         body.dept?.let {
             val newCode = scopeQuerySupport.stampDepartmentCode(it, owner.departmentCode)
-            // 既不能把本部门车主挪到范围外，也不能把范围外车主挪进来。
             scopeGuard.requireDepartmentCodeAllowed(newCode, scope)
             owner.dept = it
             owner.departmentCode = newCode
@@ -463,17 +401,12 @@ class ParkingApiController(
             )
         ).build()
     }
-
+    
     @DeleteMapping("/owners/{id}")
     @PreAuthorize("hasAuthority('owner:manage')")
-            /**
-             * deleteOwner：删除、清理或撤销相关数据。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @param id 参与本次处理的输入参数。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-             */
+            
+            
+            /** deleteOwner：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun deleteOwner(@PathVariable id: Long): ResponseEntity<Response> {
         val owner = scopeGuard.requireVisibleRow(
             ownerRepository.findById(id).orElse(null),
@@ -487,18 +420,12 @@ class ParkingApiController(
         ownerRepository.deleteById(id)
         return responseBuilder.ok().message("删除成功").data(mapOf("id" to id)).build()
     }
-
+    
     @PostMapping("/owners/{id}/recharge")
     @PreAuthorize("hasAuthority('owner:manage')")
-            /**
-             * rechargeOwner：执行当前模块中的业务操作。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @param id 参与本次处理的输入参数。
-             * @param body 参与本次处理的输入参数。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-             */
+            
+            
+            /** rechargeOwner：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun rechargeOwner(@PathVariable id: Long, @RequestBody body: RechargeRequest): ResponseEntity<Response> {
         val old = scopeGuard.requireVisibleRow(
             ownerRepository.findById(id).orElse(null),
@@ -511,22 +438,12 @@ class ParkingApiController(
         val updated = ownerRepository.save(old)
         return responseBuilder.ok().message("充值成功").data(mapOf("id" to id, "balance" to updated.balance)).build()
     }
-
+    
     @GetMapping("/spots")
     @PreAuthorize("hasAuthority('spot:read')")
-            /**
-             * listSpots：查询或读取相关数据。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @param keyword 参与本次处理的输入参数。
-             * @param area 参与本次处理的输入参数。
-             * @param type 参与本次处理的输入参数。
-             * @param status 参与本次处理的输入参数。
-             * @param page 参与本次处理的输入参数。
-             * @param pageSize 参与本次处理的输入参数。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-             */
+            
+            
+            /** listSpots：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun listSpots(
         @RequestParam(required = false) keyword: String?, @RequestParam(required = false) area: String?,
         @RequestParam(required = false) type: String?, @RequestParam(required = false) status: Int?,
@@ -535,7 +452,7 @@ class ParkingApiController(
         require(page >= 1) { "页码必须大于 0" }
         require(pageSize in 1..100) { "每页数量必须在 1 到 100 之间" }
         data class PageData(val items: List<StoredSpot>, val total: Int)
-
+        
         val scope = dataScopeResolver.current()
         val visibleOwnerCodes = if (scope.unrestricted) null else scopeQuerySupport.ownerCardIdsInScope(scope)
         val filtered = spotRepository.findAll().filter {
@@ -552,22 +469,16 @@ class ParkingApiController(
         val to = (from + pageSize.coerceAtLeast(1)).coerceAtMost(filtered.size)
         return responseBuilder.ok().data(PageData(filtered.subList(from, to), filtered.size)).build()
     }
-
+    
     @PostMapping("/spots")
     @PreAuthorize("hasAuthority('spot:manage')")
-            /**
-             * createSpot：创建、保存或初始化相关数据。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @param body 参与本次处理的输入参数。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-             */
+            
+            
+            /** createSpot：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun createSpot(@RequestBody body: SpotRequest): ResponseEntity<Response> {
         val code = requireNotNull(body.code) { "车位编号不能为空" }
         require(!spotRepository.existsByCode(code)) { "车位编号已存在" }
         val ownerCode = scopeQuerySupport.stampOwnerCode(body.owner, null)
-        // 车位没有自己的部门字段，归属完全靠车主；目标车主不在范围内就不允许建。
         scopeGuard.requireOwnerCodeAllowed(ownerCode, scopeGuard.currentScope())
         val spot = ParkingSpot().apply {
             this.code = code; area = requireNotNull(body.area); type = requireNotNull(body.type); owner =
@@ -589,18 +500,12 @@ class ParkingApiController(
             )
         ).build()
     }
-
+    
     @PutMapping("/spots/{id}")
     @PreAuthorize("hasAuthority('spot:manage')")
-            /**
-             * updateSpot：更新业务状态或修改相关配置。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @param id 参与本次处理的输入参数。
-             * @param body 参与本次处理的输入参数。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-             */
+            
+            
+            /** updateSpot：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun updateSpot(@PathVariable id: Long, @RequestBody body: SpotRequest): ResponseEntity<Response> {
         val scope = scopeGuard.currentScope()
         val spot = scopeGuard.requireVisibleSpot(spotRepository.findById(id).orElse(null), scope, "车位不存在")
@@ -628,37 +533,23 @@ class ParkingApiController(
             )
         ).build()
     }
-
+    
     @DeleteMapping("/spots/{id}")
     @PreAuthorize("hasAuthority('spot:manage')")
-            /**
-             * deleteSpot：删除、清理或撤销相关数据。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @param id 参与本次处理的输入参数。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-             */
+            
+            
+            /** deleteSpot：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun deleteSpot(@PathVariable id: Long): ResponseEntity<Response> {
         scopeGuard.requireVisibleSpot(spotRepository.findById(id).orElse(null), scopeGuard.currentScope(), "车位不存在")
         spotRepository.deleteById(id); refreshOwnerCounts()
         return responseBuilder.ok().message("删除成功").data(mapOf("id" to id)).build()
     }
-
+    
     @GetMapping("/plates")
     @PreAuthorize("hasAuthority('plate:read')")
-            /**
-             * listPlates：查询或读取相关数据。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @param keyword 参与本次处理的输入参数。
-             * @param status 参与本次处理的输入参数。
-             * @param inspectionStatus 参与本次处理的输入参数。
-             * @param page 参与本次处理的输入参数。
-             * @param pageSize 参与本次处理的输入参数。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-             */
+            
+            
+            /** listPlates：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun listPlates(
         @RequestParam(required = false) keyword: String?,
         @RequestParam(required = false) status: Int?,
@@ -669,10 +560,9 @@ class ParkingApiController(
         require(page >= 1) { "页码必须大于 0" }
         require(pageSize in 1..100) { "每页数量必须在 1 到 100 之间" }
         data class PageData(val items: List<StoredPlate>, val total: Int)
-
+        
         val scope = dataScopeResolver.current()
         val visibleOwnerIds = if (scope.unrestricted) null else scopeQuerySupport.ownerIdsInScope(scope)
-        // 年检状态按当天判定：一次请求里取一个日期，避免跨零点时同一页出现两种判定。
         val today = LocalDate.now()
         val filtered = plateRepository.findAll().filter {
             scopeQuerySupport.plateVisible(
@@ -709,17 +599,12 @@ class ParkingApiController(
         val to = (from + pageSize.coerceAtLeast(1)).coerceAtMost(filtered.size)
         return responseBuilder.ok().data(PageData(filtered.subList(from, to), filtered.size)).build()
     }
-
+    
     @PostMapping("/plates")
     @PreAuthorize("hasAuthority('plate:manage')")
-            /**
-             * createPlate：创建、保存或初始化相关数据。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @param body 参与本次处理的输入参数。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-             */
+            
+            
+            /** createPlate：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun createPlate(@RequestBody body: PlateRequest): ResponseEntity<Response> {
         val plateNumber = requireNotNull(body.plate) { "车牌号不能为空" }
         require(!plateRepository.existsByPlate(plateNumber)) { "车牌号已存在" }
@@ -756,18 +641,12 @@ class ParkingApiController(
             )
         ).build()
     }
-
+    
     @PutMapping("/plates/{id}")
     @PreAuthorize("hasAuthority('plate:manage')")
-            /**
-             * updatePlate：更新业务状态或修改相关配置。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @param id 参与本次处理的输入参数。
-             * @param body 参与本次处理的输入参数。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-             */
+            
+            
+            /** updatePlate：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun updatePlate(@PathVariable id: Long, @RequestBody body: PlateRequest): ResponseEntity<Response> {
         val scope = scopeGuard.currentScope()
         val plate = scopeGuard.requireVisiblePlate(plateRepository.findById(id).orElse(null), scope, "车牌不存在")
@@ -804,17 +683,12 @@ class ParkingApiController(
             )
         ).build()
     }
-
+    
     @DeleteMapping("/plates/{id}")
     @PreAuthorize("hasAuthority('plate:manage')")
-            /**
-             * deletePlate：删除、清理或撤销相关数据。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @param id 参与本次处理的输入参数。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-             */
+            
+            
+            /** deletePlate：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun deletePlate(@PathVariable id: Long): ResponseEntity<Response> {
         scopeGuard.requireVisiblePlate(
             plateRepository.findById(id).orElse(null),
@@ -824,22 +698,12 @@ class ParkingApiController(
         plateRepository.deleteById(id); refreshOwnerCounts()
         return responseBuilder.ok().message("删除成功").data(mapOf("id" to id)).build()
     }
-
+    
     @GetMapping("/gate-persons")
     @PreAuthorize("hasAuthority('gate-person:read')")
-            /**
-             * listGatePersons：查询或读取相关数据。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @param keyword 参与本次处理的输入参数。
-             * @param dept 参与本次处理的输入参数。
-             * @param approveStatus 参与本次处理的输入参数。
-             * @param syncStatus 参与本次处理的输入参数。
-             * @param page 参与本次处理的输入参数。
-             * @param pageSize 参与本次处理的输入参数。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-             */
+            
+            
+            /** listGatePersons：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun listGatePersons(
         @RequestParam(required = false) keyword: String?,
         @RequestParam(required = false) dept: String?,
@@ -851,7 +715,7 @@ class ParkingApiController(
         require(page >= 1) { "页码必须大于 0" }
         require(pageSize in 1..100) { "每页数量必须在 1 到 100 之间" }
         data class PageData(val items: List<StoredGatePerson>, val total: Int)
-
+        
         val filtered = scopeQuerySupport.visibleInScope(dataScopeResolver.current(), gatePersonRepository.findAll())
             .filter { person ->
                 (keyword.isNullOrBlank() || listOf(
@@ -883,17 +747,12 @@ class ParkingApiController(
         val to = (from + pageSize.coerceAtLeast(1)).coerceAtMost(filtered.size)
         return responseBuilder.ok().data(PageData(filtered.subList(from, to), filtered.size)).build()
     }
-
+    
     @GetMapping("/gate-persons/{id}")
     @PreAuthorize("hasAuthority('gate-person:read')")
-            /**
-             * getGatePerson：查询或读取相关数据。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @param id 参与本次处理的输入参数。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-             */
+            
+            
+            /** getGatePerson：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun getGatePerson(@PathVariable id: Long): ResponseEntity<Response> {
         val person = scopeGuard.requireVisibleRow(
             gatePersonRepository.findById(id).orElse(null),
@@ -914,23 +773,13 @@ class ParkingApiController(
         )
         return responseBuilder.ok().data(data).build()
     }
-
+    
     @PostMapping("/gate-persons", consumes = ["multipart/form-data"])
     @PreAuthorize("hasAuthority('gate-person:manage')")
     @Transactional
-            /**
-             * createGatePersonMultipart：创建、保存或初始化相关数据。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @param code 参与本次处理的输入参数。
-             * @param dept 参与本次处理的输入参数。
-             * @param name 参与本次处理的输入参数。
-             * @param phone 参与本次处理的输入参数。
-             * @param idCard 参与本次处理的输入参数。
-             * @param face 参与本次处理的输入参数。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-             */
+            
+            
+            /** createGatePersonMultipart：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun createGatePersonMultipart(
         @RequestPart("code") code: String,
         @RequestPart("dept") dept: String,
@@ -945,11 +794,9 @@ class ParkingApiController(
         val validatedName = GatePersonFields.requireName(name)
         val validatedPhone = GatePersonFields.requirePhone(phone)
         val validatedIdCard = GatePersonFields.requireIdCard(idCard)
-        // 唯一性必须先于上传：先传文件再报唯一性冲突，文件已经独立落库，会永久留在存储里。
         require(!gatePersonRepository.existsByCode(validatedCode)) { GatePersonFields.CODE_EXISTS_MESSAGE }
         require(!gatePersonRepository.existsByIdCard(validatedIdCard)) { GatePersonFields.ID_CARD_EXISTS_MESSAGE }
         val gatePersonDepartmentCode = scopeQuerySupport.stampDepartmentCode(validatedDept, null)
-        // 与车主一致：不允许在范围外的部门下新建门禁人员。
         scopeGuard.requireDepartmentCodeAllowed(gatePersonDepartmentCode, scopeGuard.currentScope())
         val file = fileService.upload(face)
         val person = GatePerson().apply {
@@ -964,7 +811,6 @@ class ParkingApiController(
             updatedAt = createTime
         }
         val saved = gatePersonRepository.save(person)
-        // 关联到人员编号：本人范围下靠它才能取到自己的门禁图片，否则只有上传部门看得到。
         fileService.linkBusiness(file.id, StoredFile.BUSINESS_GATE_PERSON, saved.code)
         auditService.record(
             AuditCommand(
@@ -992,24 +838,13 @@ class ParkingApiController(
         )
         return responseBuilder.created().data(data).build()
     }
-
+    
     @PutMapping("/gate-persons/{id}", consumes = ["multipart/form-data"])
     @PreAuthorize("hasAuthority('gate-person:manage')")
     @Transactional
-            /**
-             * updateGatePersonMultipart：更新业务状态或修改相关配置。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @param id 参与本次处理的输入参数。
-             * @param code 参与本次处理的输入参数。
-             * @param dept 参与本次处理的输入参数。
-             * @param name 参与本次处理的输入参数。
-             * @param phone 参与本次处理的输入参数。
-             * @param idCard 参与本次处理的输入参数。
-             * @param face 参与本次处理的输入参数。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-             */
+            
+            
+            /** updateGatePersonMultipart：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun updateGatePersonMultipart(
         @PathVariable id: Long,
         @RequestPart("code", required = false) code: String?,
@@ -1026,11 +861,15 @@ class ParkingApiController(
         val previousDepartmentCode = person.departmentCode
         val previousStatus = person.approveStatus
         val previousSyncStatus = person.syncStatus
-        // 只有内容真的变了才算改动：没变的 PUT（前端回填表单后原样提交）不该把已通过的人打回待审核。
         var changed = false
         code?.let {
             val validatedCode = GatePersonFields.requireCode(it)
-            require(!gatePersonRepository.existsByCodeAndIdNot(validatedCode, id)) { GatePersonFields.CODE_EXISTS_MESSAGE }
+            require(
+                !gatePersonRepository.existsByCodeAndIdNot(
+                    validatedCode,
+                    id
+                )
+            ) { GatePersonFields.CODE_EXISTS_MESSAGE }
             if (validatedCode != person.code) {
                 person.code = validatedCode; changed = true
             }
@@ -1043,9 +882,6 @@ class ParkingApiController(
                 person.dept = validatedDept
                 changed = true
             }
-            // 部门编码可能只是被回填（历史行 department_code 为 null，见 GatePerson 的注释）。
-            // 它不是用户可见内容，所以照常落库，但不算「改动」：不退回待审核，也不写更新审计。
-            // 否则前端原样提交一条已通过的历史记录就会把它打回待审核。
             if (newCode != person.departmentCode) person.departmentCode = newCode
         }
         name?.let {
@@ -1060,21 +896,23 @@ class ParkingApiController(
         }
         idCard?.let {
             val validatedIdCard = GatePersonFields.requireIdCard(it)
-            require(!gatePersonRepository.existsByIdCardAndIdNot(validatedIdCard, id)) { GatePersonFields.ID_CARD_EXISTS_MESSAGE }
+            require(
+                !gatePersonRepository.existsByIdCardAndIdNot(
+                    validatedIdCard,
+                    id
+                )
+            ) { GatePersonFields.ID_CARD_EXISTS_MESSAGE }
             if (validatedIdCard != person.idCard) {
                 person.idCard = validatedIdCard; changed = true
             }
         }
         val uploadedFace = face?.let { fileService.upload(it) }
         uploadedFace?.let { person.face = it.downloadUrl; changed = true }
-        // 已审核通过的内容被改动后必须回到待审核：否则「先送审、通过后再改」可以静默绕过审核。
         if (changed && person.approveStatus != GatePerson.ApproveStatus.PENDING) {
             person.approveStatus = GatePerson.ApproveStatus.PENDING
             person.syncStatus = GatePerson.SyncStatus.NOT_SYNCED
         }
         val saved = gatePersonRepository.save(person)
-        // 人脸文件既按人员编号判定归属、也按部门快照判定归属：编号或部门变了都要重新锚定，
-        // 否则旧编号再也取不到照片，或旧部门在人员调走之后仍能下载。
         if (previousCode != saved.code || previousDepartmentCode != saved.departmentCode) {
             fileService.relinkBusiness(StoredFile.BUSINESS_GATE_PERSON, previousCode, saved.code, saved.departmentCode)
         }
@@ -1111,19 +949,13 @@ class ParkingApiController(
         )
         return responseBuilder.ok().data(data).build()
     }
-
+    
     @PutMapping("/gate-persons/{id}/approve")
     @PreAuthorize("hasAuthority('gate-person:review')")
     @Transactional
-            /**
-             * approveGatePerson：执行当前模块中的业务操作。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @param id 参与本次处理的输入参数。
-             * @param reason 参与本次处理的输入参数。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-             */
+            
+            
+            /** approveGatePerson：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun approveGatePerson(
         @PathVariable id: Long,
         @RequestParam(required = false) reason: String?
@@ -1132,19 +964,13 @@ class ParkingApiController(
         return responseBuilder.ok().message("审批通过")
             .data(mapOf("id" to saved.id, "approveStatus" to saved.approveStatus.value())).build()
     }
-
+    
     @PutMapping("/gate-persons/{id}/reject")
     @PreAuthorize("hasAuthority('gate-person:review')")
     @Transactional
-            /**
-             * rejectGatePerson：执行当前模块中的业务操作。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @param id 参与本次处理的输入参数。
-             * @param reason 参与本次处理的输入参数。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-             */
+            
+            
+            /** rejectGatePerson：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun rejectGatePerson(
         @PathVariable id: Long,
         @RequestParam(required = false) reason: String?
@@ -1153,41 +979,31 @@ class ParkingApiController(
         return responseBuilder.ok().message("审批拒绝")
             .data(mapOf("id" to saved.id, "approveStatus" to saved.approveStatus.value())).build()
     }
-
-    /**
-     * 批量审核。
-     *
-     * 单独开一个端点而不是让前端循环单条 PUT：单条调用下「部分成功」是常态，前端既拿不到一个
-     * 明确的审核结论，也没法把失败的那几个人一次性告诉用户。
-     */
+    
+    
     @PutMapping("/gate-persons/reviews")
     @PreAuthorize("hasAuthority('gate-person:review')")
     @Transactional
+            /** reviewGatePersons：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun reviewGatePersons(@RequestBody body: GatePersonReviewBody): ResponseEntity<Response> {
         val ids = requireNotNull(body.ids) { "审核列表不能为空" }
         require(ids.isNotEmpty()) { "审核列表不能为空" }
         require(ids.size <= BATCH_REVIEW_MAX) { "单次批量审核不能超过 $BATCH_REVIEW_MAX 人，请分批提交" }
         require(ids.distinct().size == ids.size) { "审核记录的 ID 不能重复" }
         val approved = requireNotNull(body.approved) { "必须指定审核结论" }
-        // 范围只解析一次：current() 每次都要重读整张部门表，逐条解析会把一次批量放大成 N 倍库查询。
         val scope = scopeGuard.currentScope()
         val byId = gatePersonRepository.findAllById(ids).associateBy { requireNotNull(it.id) }
-        // 一次取齐，不再逐条 findById；缺失与范围外共用同一个错误，避免用响应差异探测别的部门。
         val reviewed = ids.map { id ->
             reviewGatePerson(scopeGuard.requireVisibleRow(byId[id], scope, "人员不存在"), approved, body.reason)
         }
         return responseBuilder.ok().message("已审核 ${reviewed.size} 人").data(mapOf("reviewed" to reviewed.size))
             .build()
     }
-
-    /**
-     * 门禁人员物理删除。
-     *
-     * 与门禁授权一致地置为 denyAll：删除人员必须走「申请删除 → 审批同意」这条留痕路径，
-     * 否则持有 manage 的部门管理可以直接删掉本部门人员，删除审核形同虚设。
-     */
+    
+    
     @DeleteMapping("/gate-persons/{id}")
     @PreAuthorize("denyAll()")
+            /** deleteGatePerson：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun deleteGatePerson(@PathVariable id: Long): ResponseEntity<Response> {
         scopeGuard.requireVisibleRow(
             gatePersonRepository.findById(id).orElse(null),
@@ -1197,18 +1013,12 @@ class ParkingApiController(
         gatePersonRepository.deleteById(id)
         return responseBuilder.ok().message("删除成功").data(mapOf("id" to id)).build()
     }
-
+    
     @PostMapping("/gate-persons/{id}/delete-requests")
     @PreAuthorize("hasAuthority('gate-person:manage')")
-            /**
-             * createDeleteRequest：创建、保存或初始化相关数据。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @param id 参与本次处理的输入参数。
-             * @param body 参与本次处理的输入参数。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-             */
+            
+            
+            /** createDeleteRequest：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun createDeleteRequest(@PathVariable id: Long, @RequestBody body: DeleteRequestBody): ResponseEntity<Response> {
         val person = scopeGuard.requireVisibleRow(
             gatePersonRepository.findById(id).orElse(null),
@@ -1248,20 +1058,12 @@ class ParkingApiController(
         )
         return responseBuilder.created().data(data).build()
     }
-
+    
     @GetMapping("/gate-persons/delete-requests")
     @PreAuthorize("hasAuthority('gate-person:read')")
-            /**
-             * listDeleteRequests：查询或读取相关数据。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @param keyword 参与本次处理的输入参数。
-             * @param status 参与本次处理的输入参数。
-             * @param page 参与本次处理的输入参数。
-             * @param pageSize 参与本次处理的输入参数。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-             */
+            
+            
+            /** listDeleteRequests：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun listDeleteRequests(
         @RequestParam(required = false) keyword: String?,
         @RequestParam(required = false) status: String?,
@@ -1271,7 +1073,6 @@ class ParkingApiController(
         data class Response(val items: List<StoredDeleteRequest>, val total: Int)
         require(page >= 1) { "页码必须大于 0" }
         require(pageSize in 1..100) { "每页数量必须在 1 到 100 之间" }
-        // 删除申请带姓名、手机号与身份证快照，必须和门禁人员本身一样按工作部门裁剪。
         val requests =
             scopeQuerySupport.visibleInScope(dataScopeResolver.current(), gateDeleteRequestRepository.findAll())
                 .filter { request ->
@@ -1304,31 +1105,24 @@ class ParkingApiController(
         val rs = Response(requests.subList(from, to), requests.size)
         return responseBuilder.ok().data(rs).build()
     }
-
+    
     @Transactional
     @PutMapping("/gate-persons/delete-requests/{id}/approve")
     @PreAuthorize("hasAuthority('gate-person:review')")
-            /**
-             * approveDeleteRequest：执行当前模块中的业务操作。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @param id 参与本次处理的输入参数。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-             */
+            
+            
+            /** approveDeleteRequest：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun approveDeleteRequest(@PathVariable id: Long): ResponseEntity<Response> {
         val scope = scopeGuard.currentScope()
         val request =
             scopeGuard.requireVisibleRow(gateDeleteRequestRepository.findById(id).orElse(null), scope, "删除申请不存在")
         require(request.status == GateDeleteRequest.Status.PENDING) { "删除申请已处理" }
-        // 真正被删的是人员，范围校验必须落在人员上：申请单本身的可见性不构成删除授权。
         val person = scopeGuard.requireVisibleRow(
             gatePersonRepository.findById(request.personId).orElse(null),
             scope,
             "人员不存在"
         )
         gatePersonRepository.deleteById(requireNotNull(person.id))
-        // 人脸是敏感生物特征，人员已删除就不能再按它的编号被反查下载。
         fileService.unlinkBusiness(StoredFile.BUSINESS_GATE_PERSON, person.code)
         request.status = GateDeleteRequest.Status.APPROVED
         gateDeleteRequestRepository.save(request)
@@ -1343,7 +1137,6 @@ class ParkingApiController(
                 afterData = mapOf("status" to request.status.value()),
             ),
         )
-        // 人员被物理删除是 CRITICAL 级事实，单独立案；申请单的状态流转不足以表达它。
         auditService.record(
             AuditCommand(
                 AuditAction.GATE_PERSON_DELETED,
@@ -1360,17 +1153,12 @@ class ParkingApiController(
         )
         return responseBuilder.ok().message("已同意删除申请").build()
     }
-
+    
     @PutMapping("/gate-persons/delete-requests/{id}/reject")
     @PreAuthorize("hasAuthority('gate-person:review')")
-            /**
-             * rejectDeleteRequest：执行当前模块中的业务操作。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @param id 参与本次处理的输入参数。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-             */
+            
+            
+            /** rejectDeleteRequest：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun rejectDeleteRequest(@PathVariable id: Long): ResponseEntity<Response> {
         val request = scopeGuard.requireVisibleRow(
             gateDeleteRequestRepository.findById(id).orElse(null),
@@ -1393,25 +1181,12 @@ class ParkingApiController(
         )
         return responseBuilder.ok().message("已拒绝删除申请").build()
     }
-
+    
     @GetMapping("/person-records")
     @PreAuthorize("hasAuthority('person-record:read')")
-            /**
-             * personRecords：执行当前模块中的业务操作。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @param keyword 参与本次处理的输入参数。
-             * @param direction 参与本次处理的输入参数。
-             * @param gate 参与本次处理的输入参数。
-             * @param passType 参与本次处理的输入参数。
-             * @param recordStatus 参与本次处理的输入参数。
-             * @param startDate 参与本次处理的输入参数。
-             * @param endDate 参与本次处理的输入参数。
-             * @param page 参与本次处理的输入参数。
-             * @param pageSize 参与本次处理的输入参数。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-             */
+            
+            
+            /** personRecords：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun personRecords(
         @RequestParam(required = false) keyword: String?,
         @RequestParam(required = false) direction: String?,
@@ -1437,9 +1212,9 @@ class ParkingApiController(
             val status: String,
             val photo: String?
         )
-
+        
         data class PageData(val items: List<PersonRecordData>, val total: Int)
-
+        
         val scope = dataScopeResolver.current()
         val filtered = scopeQuerySupport.personRecordsInScope(scope, personAccessRecordRepository.findAll()).filter {
             (keyword.isNullOrBlank() || it.person.contains(keyword, true) || it.cardId.orEmpty()
@@ -1467,25 +1242,13 @@ class ParkingApiController(
         }
         return responseBuilder.ok().data(PageData(items, filtered.size)).build()
     }
-
+    
     @Transactional
     @GetMapping("/vehicle-records")
     @PreAuthorize("hasAuthority('vehicle-record:read')")
-            /**
-             * vehicleRecords：执行当前模块中的业务操作。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @param keyword 参与本次处理的输入参数。
-             * @param direction 参与本次处理的输入参数。
-             * @param gate 参与本次处理的输入参数。
-             * @param passType 参与本次处理的输入参数。
-             * @param startDate 参与本次处理的输入参数。
-             * @param endDate 参与本次处理的输入参数。
-             * @param page 参与本次处理的输入参数。
-             * @param pageSize 参与本次处理的输入参数。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-             */
+            
+            
+            /** vehicleRecords：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun vehicleRecords(
         @RequestParam(required = false) keyword: String?,
         @RequestParam(required = false) direction: String?,
@@ -1512,9 +1275,9 @@ class ParkingApiController(
             val status: String,
             val photo: String?,
         )
-
+        
         data class PageData(val items: List<VehicleRecord>, val total: Int)
-
+        
         val directionFilter = when (direction) {
             "进" -> AccessRecord.InAndOut.IN
             "出" -> AccessRecord.InAndOut.OUT
@@ -1528,8 +1291,6 @@ class ParkingApiController(
             startDate,
             endDate
         )
-            // 范围必须下推到 SQL：本接口是数据库分页并直接返回 totalElements 的，事后过滤会让
-            // 总数失真，甚至出现「总数大于 0 但当前页为空」。
             .and(scopeQuerySupport.accessRecordSpec(dataScopeResolver.current()))
         val records = accessRecordRepository.findAll(
             spec,
@@ -1557,22 +1318,12 @@ class ParkingApiController(
         }
         return responseBuilder.ok().data(PageData(items, records.totalElements.toInt())).build()
     }
-
+    
     @GetMapping("/login-logs")
     @PreAuthorize("hasAuthority('audit:read')")
-            /**
-             * loginLogs：完成身份认证、令牌或验证码处理。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @param keyword 参与本次处理的输入参数。
-             * @param status 参与本次处理的输入参数。
-             * @param startDate 参与本次处理的输入参数。
-             * @param endDate 参与本次处理的输入参数。
-             * @param page 参与本次处理的输入参数。
-             * @param pageSize 参与本次处理的输入参数。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-             */
+            
+            
+            /** loginLogs：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun loginLogs(
         @RequestParam(required = false) keyword: String?,
         @RequestParam(required = false) status: String?,
@@ -1594,9 +1345,9 @@ class ParkingApiController(
             val time: String,
             val message: String?
         )
-
+        
         data class PageData(val items: List<LogData>, val total: Int)
-
+        
         val visibleAfter = logVisibilityService.visibleAfter(LogVisibilityService.Type.LOGIN)
         val logs = auditEventRepository.findAll().filter {
             val targetUsername =
@@ -1652,19 +1403,15 @@ class ParkingApiController(
         }
         return responseBuilder.ok().data(PageData(items, logs.size)).build()
     }
-
+    
     @DeleteMapping("/login-logs")
     @PreAuthorize("hasRole('SUPER_ADMIN') and hasAuthority('audit:delete')")
-            /**
-             * clearLoginLogs：删除、清理或撤销相关数据。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-             */
+            
+            
+            /** clearLoginLogs：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun clearLoginLogs(): ResponseEntity<Response> {
         data class Response(@param:JsonProperty("cleared_at") val clearedAt: String)
-
+        
         val clearedAt = logVisibilityService.clear(LogVisibilityService.Type.LOGIN)
         auditService.record(
             AuditCommand(
@@ -1676,23 +1423,12 @@ class ParkingApiController(
         val rs = Response(clearedAt.toString())
         return responseBuilder.ok().message("登录日志已清空").data(rs).build()
     }
-
+    
     @GetMapping("/operation-logs")
     @PreAuthorize("hasAuthority('audit:read')")
-            /**
-             * operationLogs：执行当前模块中的业务操作。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @param keyword 参与本次处理的输入参数。
-             * @param module 参与本次处理的输入参数。
-             * @param status 参与本次处理的输入参数。
-             * @param startDate 参与本次处理的输入参数。
-             * @param endDate 参与本次处理的输入参数。
-             * @param page 参与本次处理的输入参数。
-             * @param pageSize 参与本次处理的输入参数。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-             */
+            
+            
+            /** operationLogs：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun operationLogs(
         @RequestParam(required = false) keyword: String?,
         @RequestParam(required = false) module: String?,
@@ -1715,9 +1451,9 @@ class ParkingApiController(
             val time: String,
             val cost: String?
         )
-
+        
         data class PageData(val items: List<LogData>, val total: Int)
-
+        
         val visibleAfter = logVisibilityService.visibleAfter(LogVisibilityService.Type.OPERATION)
         val logs = operationLogRepository.findAll().filter {
             val moduleName = it.path.trim('/').split('/').drop(1).firstOrNull()?.let { segment ->
@@ -1777,19 +1513,15 @@ class ParkingApiController(
         }
         return responseBuilder.ok().data(PageData(items, logs.size)).build()
     }
-
+    
     @DeleteMapping("/operation-logs")
     @PreAuthorize("hasRole('SUPER_ADMIN') and hasAuthority('audit:delete')")
-            /**
-             * clearOperationLogs：删除、清理或撤销相关数据。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-             */
+            
+            
+            /** clearOperationLogs：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun clearOperationLogs(): ResponseEntity<Response> {
         data class Response(@param:JsonProperty("cleared_at") val clearedAt: String)
-
+        
         val clearedAt = logVisibilityService.clear(LogVisibilityService.Type.OPERATION)
         auditService.record(
             AuditCommand(
@@ -1801,16 +1533,12 @@ class ParkingApiController(
         val rs = Response(clearedAt.toString())
         return responseBuilder.ok().message("操作日志已清空").data(rs).build()
     }
-
+    
     @GetMapping("/dashboard")
     @PreAuthorize("hasAuthority('dashboard:read')")
-            /**
-             * dashboard：执行当前模块中的业务操作。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-             */
+            
+            
+            /** dashboard：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun dashboard(): ResponseEntity<Response> {
         data class Stat(val label: String, val value: Int, val delta: String, val trend: String, val color: String)
         data class Parking(val area: String, val total: Int, val used: Int)
@@ -1823,9 +1551,8 @@ class ParkingApiController(
             @param:JsonProperty("violationTrend") val violationTrend: Trend,
             @param:JsonProperty("inoutTrend") val inoutTrend: Trend
         )
-
+        
         val scope = dataScopeResolver.current()
-        // 车位指标按配置的车场/区域统计：总数取科拓同步的区域容量，已分配取本地已登记且启用的车位数。
         val spotStats = dashboardSpotStatsService.currentStats(scope)
         val violations = violationRecordRepository.findAllWithViolationType()
             .filter { scopeQuerySupport.violationSubjectVisible(scope, it.subject) }
@@ -1886,17 +1613,8 @@ class ParkingApiController(
         )
         return responseBuilder.ok().data(rs).build()
     }
-
-    /**
-     * 把请求里的年检信息写到车牌上。
-     *
-     * `inspected` 只表达「已年检 / 未年检」两种意图，两者都是整条登记的替换：
-     * false 清空年检信息，true 按请求登记（没给年检日期就按今天，没给有效期就按年检日期起一年）。
-     * 只有 `inspected` 缺省时才退化成局部更新，只写明确给出的字段——这样只改车牌号或状态的请求
-     * 不会顺手抹掉已有的年检记录。
-     *
-     * 备注用「字段是否出现」区分意图：传空串表示清空，不传则保持原值。
-     */
+    
+    
     private fun applyInspection(plate: ParkingPlate, body: PlateRequest) {
         if (body.inspected == false) {
             plate.inspectionDate = null
@@ -1921,14 +1639,8 @@ class ParkingApiController(
         val validUntil = plate.inspectionValidUntil
         require(inspectedOn == null || validUntil == null || !validUntil.isBefore(inspectedOn)) { "年检有效期不能早于年检日期" }
     }
-
-    /**
-     * refreshOwnerCounts：更新业务状态或修改相关配置。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     private fun refreshOwnerCounts() {
         val owners = ownerRepository.findAll()
         val spots = spotRepository.findAll()
@@ -1939,8 +1651,8 @@ class ParkingApiController(
         }
         if (owners.isNotEmpty()) ownerRepository.saveAll(owners)
     }
-
-    /** 车辆进出记录列表的数据库筛选条件；未传入的条件不参与查询。 */
+    
+    
     private fun vehicleRecordSpec(
         keyword: String?,
         inAndOut: AccessRecord.InAndOut?,
@@ -1966,14 +1678,13 @@ class ParkingApiController(
         endDate?.let { predicates.add(cb.lessThan(root.get("inAndOutTime"), it.plusDays(1).atStartOfDay())) }
         cb.and(*predicates.toTypedArray())
     }
-
-    /** 门禁人员审核的单一入口：单条与批量共用，避免两条路径的状态机走偏。 */
+    
+    
     private fun reviewGatePerson(person: GatePerson, approved: Boolean, reason: String?): GatePerson {
         val id = requireNotNull(person.id)
         val before = person.approveStatus
         require(before == GatePerson.ApproveStatus.PENDING) { "该人员当前状态不允许审核，请编辑后重新提交" }
         person.approveStatus = if (approved) GatePerson.ApproveStatus.APPROVED else GatePerson.ApproveStatus.REJECTED
-        // 驳回的人不能继续留在「已同步」上，否则会出现已拒绝却已下发的矛盾状态。
         if (!approved) person.syncStatus = GatePerson.SyncStatus.NOT_SYNCED
         val saved = gatePersonRepository.save(person)
         auditService.record(
@@ -1989,23 +1700,16 @@ class ParkingApiController(
         )
         return saved
     }
-
-    /** 按 ID 取范围内人员；不存在与范围外共用同一个错误，避免用响应差异探测别的部门。 */
+    
+    
     private fun requireVisibleGatePerson(id: Long): GatePerson =
         scopeGuard.requireVisibleRow(
             gatePersonRepository.findById(id).orElse(null),
             scopeGuard.currentScope(),
             "人员不存在"
         )
-
-    /**
-     * requireImageUpload：校验输入、状态或访问条件。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param file 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     private fun requireImageUpload(file: MultipartFile) {
         require(file.size <= FACE_PHOTO_MAX_BYTES) { "人脸照片不能超过 2MB" }
         require(file.contentType?.startsWith("image/", ignoreCase = true) == true) { "人脸照片必须为图片格式" }
@@ -2013,54 +1717,48 @@ class ParkingApiController(
             ?.substringAfterLast('.', "")
             ?.lowercase(Locale.ROOT)
         require(extension in FACE_PHOTO_EXTENSIONS) { "人脸照片格式不受支持" }
-        // 只信客户端给的内容类型与扩展名，会被「改个后缀 + 伪造 Content-Type」绕过，再核对文件头。
         require(matchesImageSignature(file)) { "人脸照片内容不是受支持的图片" }
     }
-
-    /**
-     * 按文件头判断是不是受支持的图片。
-     *
-     * WebP 不能只看 RIFF 前缀——WAV、AVI 同样是 RIFF 容器，必须再核对偏移 8 处的 WEBP 标识，
-     * 否则把音频改名为 face.webp 就能通过校验。
-     */
+    
+    
     private fun matchesImageSignature(file: MultipartFile): Boolean {
         val header = ByteArray(IMAGE_HEADER_BYTES)
         val size = file.inputStream.use { it.read(header) }
         if (size < 4) return false
-        /**
-         * matches：校验输入、状态或访问条件。
-         *
-         * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-         * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-         * @param offset 参与本次处理的输入参数。
-         * @param expected 参与本次处理的输入参数。
-         * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-         */
+        
+        
+        
+        
+        
+        
+        
+        
+        /** matches：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
         fun matches(offset: Int, vararg expected: Int): Boolean =
             size >= offset + expected.size && expected.indices.all { header[offset + it] == expected[it].toByte() }
-        return matches(0, 0xFF, 0xD8, 0xFF) || // JPEG
-                matches(0, 0x89, 'P'.code, 'N'.code, 'G'.code) || // PNG
-                matches(0, 'G'.code, 'I'.code, 'F'.code) || // GIF
-                matches(0, 'B'.code, 'M'.code) || // BMP
+        return matches(0, 0xFF, 0xD8, 0xFF) ||
+                matches(0, 0x89, 'P'.code, 'N'.code, 'G'.code) ||
+                matches(0, 'G'.code, 'I'.code, 'F'.code) ||
+                matches(0, 'B'.code, 'M'.code) ||
                 (matches(0, 'R'.code, 'I'.code, 'F'.code, 'F'.code) && matches(
                     8,
                     'W'.code,
                     'E'.code,
                     'B'.code,
                     'P'.code
-                )) // WebP
+                ))
     }
-
+    
     private companion object {
-        /** 与原型一致：人脸照片上限 2MB。 */
+        
         const val FACE_PHOTO_MAX_BYTES = 2 * 1024 * 1024
-
-        /** 单次批量审核的条数上限：一次请求要逐条写审计并占用一个事务，必须有个封顶。 */
+        
+        
         const val BATCH_REVIEW_MAX = 200
-
+        
         const val IMAGE_HEADER_BYTES = 12
-
+        
         val FACE_PHOTO_EXTENSIONS = setOf("jpg", "jpeg", "png", "gif", "webp", "bmp")
     }
-
+    
 }

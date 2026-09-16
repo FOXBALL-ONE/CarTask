@@ -1,5 +1,11 @@
 package top.foxball.cartask.config
 
+/**
+ * AsyncLoggingConfig 组件。
+ * 
+ * 负责实现该文件声明的配置、领域模型或基础设施能力。
+ */
+
 import org.slf4j.MDC
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -13,15 +19,17 @@ import java.util.concurrent.ThreadPoolExecutor
 
 @Configuration
 @EnableAsync
+/**
+ * AsyncLoggingConfig 的职责说明。
+ * 该类型封装相关业务状态、依赖及操作流程。
+ */
 class AsyncLoggingConfig {
     @Bean("operationLogExecutor")
+            
+            
             /**
-             * operationLogExecutor：执行当前模块中的业务操作。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @param properties 参与本次处理的输入参数。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             * operationLogExecutor 函数：执行与该组件职责相关的业务操作。
+             * 参数和返回值遵循调用方与领域服务之间的约定。
              */
     fun operationLogExecutor(properties: LoggingProperties): ThreadPoolTaskExecutor = ThreadPoolTaskExecutor().apply {
         corePoolSize = 2
@@ -56,3 +64,5 @@ class AsyncLoggingConfig {
         initialize()
     }
 }
+
+

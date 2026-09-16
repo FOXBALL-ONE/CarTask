@@ -1,48 +1,61 @@
 package top.foxball.setup
 
+/**
+ * StorageProbe 配置引导组件说明。
+ *
+ * 该文件负责系统初始化向导中的配置探测、持久化、校验或 Web 入口逻辑。
+ */
+/**
+ * StorageProbe 组件。
+ * 
+ * 负责实现该文件声明的配置、领域模型或基础设施能力。
+ */
+
 import org.springframework.stereotype.Component
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.*
 
+/**
+ * StorageProbeResult 的职责与行为说明。
+ * 该声明负责配置引导流程中的相关数据处理、校验或服务调用。
+ */
 data class StorageProbeResult(
     val root: Path,
     val baseUrl: String,
 )
 
-/**
- * 文件存储配置探测。
- *
- * 目录只填不验是不够的：`FILE_STORAGE_ROOT` 指向一个服务进程没有写权限的路径（Windows 上的
- * `D:\` 根目录、Linux 上挂在只读卷里的目录）时，服务能正常启动、能登录、能查询，直到有人上传
- * 第一个附件才报错，而那时已经离配置现场很远了。这里就地写一个探针文件再删掉，把问题留在向导里。
- *
- * 下载基址必须当场校验是绝对 HTTP(S) 地址：它是拼给浏览器用的，填成相对路径或内网别名时
- * 服务端一切正常，只有前端下载会失败。
- */
-@Component
-class StorageProbe {
 
+@Component
+/**
+ * StorageProbe 的职责说明。
+ * 该类型封装相关业务状态、依赖及操作流程。
+ */
+/**
+ * StorageProbe 的职责与行为说明。
+ * 该声明负责配置引导流程中的相关数据处理、校验或服务调用。
+ */
+class StorageProbe {
+    
+    
     /**
-     * probe：执行数据同步、探测或文件处理。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param root 参与本次处理的输入参数。
-     * @param baseUrl 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     * probe 函数：执行与该组件职责相关的业务操作。
+     * 参数和返回值遵循调用方与领域服务之间的约定。
+     */
+    /**
+     * probe 的职责与行为说明。
+     * 该声明负责配置引导流程中的相关数据处理、校验或服务调用。
      */
     fun probe(root: String, baseUrl: String): StorageProbeResult {
         val trimmedBaseUrl = baseUrl.trim().trimEnd('/')
         if (!trimmedBaseUrl.startsWith("http://") && !trimmedBaseUrl.startsWith("https://")) {
             throw SetupException("下载基址必须是绝对 HTTP(S) 地址，例如 http://192.168.1.95:8080")
         }
-
-        // 留空表示用服务的工作目录，与 application.yaml 的 `${FILE_STORAGE_ROOT:${user.dir}}` 一致。
+        
         val directory = root.trim().takeIf { it.isNotEmpty() }
             ?.let { Path.of(it).toAbsolutePath().normalize() }
             ?: Path.of("").toAbsolutePath().normalize()
-
+        
         val probeFile = directory.resolve(".setup-write-probe-${UUID.randomUUID()}")
         try {
             Files.createDirectories(directory)
@@ -55,3 +68,8 @@ class StorageProbe {
         return StorageProbeResult(root = directory, baseUrl = trimmedBaseUrl)
     }
 }
+
+
+
+
+

@@ -1,28 +1,39 @@
 package top.foxball.cartask.authentication
 
+/**
+ * RolePermissionService：认证子系统中的组件，负责实现相关安全、令牌或访问控制能力。
+ *
+ * 该文件中的类型和函数用于支撑登录认证流程，并在边界处校验输入与会话状态。
+ */
+
+/**
+ * RolePermissionService 认证组件说明。
+ *
+ * 该文件集中定义认证流程所需的领域类型、服务及基础设施适配逻辑。
+ */
+
 import org.springframework.dao.DataAccessException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import top.foxball.cartask.repository.RoleRepository
 
-/**
- * 查询当前角色的启用权限，用于在每个有效 JWT 请求中构建 Spring Security authorities。
- *
- * 角色记录缺失或被禁用时必须拒绝认证，避免仅凭角色 authority 绕过角色配置治理。
- */
+
 @Service
+/**
+ * RolePermissionService 的职责说明。
+ * 该类型封装相关业务状态、依赖及操作流程。
+ */
 class RolePermissionService(
     private val roleRepository: RoleRepository,
 ) {
     @Transactional(readOnly = true)
+            
+            
             /**
-             * permissionsFor：执行当前模块中的业务操作。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @param role 参与本次处理的输入参数。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             * permissionsFor 函数：执行与该组件职责相关的业务操作。
+             * 参数和返回值遵循调用方与领域服务之间的约定。
              */
+            /** permissionsFor：执行认证组件中的一项具体操作，完成输入校验并返回处理结果。 */
     fun permissionsFor(role: String): Set<String> = try {
         val configuredRole = roleRepository.findByNameIgnoreCase(SecurityRole.normalize(role))
         if (configuredRole != null && !configuredRole.enabled) {
@@ -48,3 +59,5 @@ class RolePermissionService(
         throw AuthenticationInfrastructureException("读取角色权限失败", ex)
     }
 }
+
+

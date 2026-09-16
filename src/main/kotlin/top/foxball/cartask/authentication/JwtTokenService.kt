@@ -1,5 +1,17 @@
 package top.foxball.cartask.authentication
 
+/**
+ * JwtTokenService：认证子系统中的组件，负责实现相关安全、令牌或访问控制能力。
+ *
+ * 该文件中的类型和函数用于支撑登录认证流程，并在边界处校验输入与会话状态。
+ */
+
+/**
+ * JwtTokenService 认证组件说明。
+ *
+ * 该文件集中定义认证流程所需的领域类型、服务及基础设施适配逻辑。
+ */
+
 import com.nimbusds.jose.JWSAlgorithm
 import com.nimbusds.jose.jwk.JWKSet
 import com.nimbusds.jose.jwk.OctetSequenceKey
@@ -27,8 +39,12 @@ import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
 
-/** JWT 的签发、严格验签及 Redis token 密文副本加密。 */
+
 @Service
+/**
+ * JwtTokenService 的职责说明。
+ * 该类型封装相关业务状态、依赖及操作流程。
+ */
 class JwtTokenService(
     private val properties: JwtProperties,
     private val objectMapper: ObjectMapper,
@@ -38,7 +54,7 @@ class JwtTokenService(
     private val decoders: Map<String, JwtDecoder>
     private val encoder: JwtEncoder
     private val storageEncryptionKey: SecretKey
-
+    
     init {
         require(properties.issuer.isNotBlank()) { "JWT issuer 不能为空" }
         require(properties.audience.isNotBlank()) { "JWT audience 不能为空" }
@@ -49,7 +65,7 @@ class JwtTokenService(
         require(signingKeys.containsKey(properties.activeSigningKeyId)) { "JWT active signing key 不存在" }
         storageEncryptionKey = aesKey(properties.tokenStorageEncryptionKey)
         require(properties.tokenStorageEncryptionKeyId.isNotBlank()) { "JWT token storage encryption key ID 不能为空" }
-
+        
         val activeJwk = OctetSequenceKey.Builder(signingKeys.getValue(properties.activeSigningKeyId).encoded)
             .keyID(properties.activeSigningKeyId)
             .algorithm(JWSAlgorithm.HS256)
@@ -57,7 +73,11 @@ class JwtTokenService(
         encoder = NimbusJwtEncoder(ImmutableJWKSet<SecurityContext>(JWKSet(activeJwk)))
         decoders = signingKeys.mapValues { (_, key) -> decoderFor(key) }
     }
-
+    
+    /**
+     * IssuedToken 的职责与行为说明。
+     * 该声明负责认证域中的相关数据处理、校验或服务调用。
+     */
     data class IssuedToken(
         val accessToken: AccessTokenValue,
         val tokenId: String,
@@ -67,7 +87,11 @@ class JwtTokenService(
         val tokenCiphertext: String,
         val tokenEncryptionKeyId: String,
     )
-
+    
+    /**
+     * VerifiedToken 的职责与行为说明。
+     * 该声明负责认证域中的相关数据处理、校验或服务调用。
+     */
     data class VerifiedToken(
         val tokenId: String,
         val userId: Long,
@@ -76,18 +100,13 @@ class JwtTokenService(
         val tokenVersion: Long,
         val tokenHash: String,
     )
-
+    
+    
     /**
-     * issue：校验输入、状态或访问条件。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param userId 参与本次处理的输入参数。
-     * @param username 参与本次处理的输入参数。
-     * @param role 参与本次处理的输入参数。
-     * @param tokenVersion 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     * issue 函数：执行与该组件职责相关的业务操作。
+     * 参数和返回值遵循调用方与领域服务之间的约定。
      */
+    /** issue：执行认证组件中的一项具体操作，完成输入校验并返回处理结果。 */
     fun issue(userId: Long, username: String, role: String, tokenVersion: Long): IssuedToken {
         val normalizedRole = SecurityRole.normalize(role)
         val now = Instant.now(clock)
@@ -116,15 +135,13 @@ class JwtTokenService(
             tokenEncryptionKeyId = properties.tokenStorageEncryptionKeyId,
         )
     }
-
+    
+    
     /**
-     * verify：校验输入、状态或访问条件。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param jwtValue 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     * verify 函数：执行与该组件职责相关的业务操作。
+     * 参数和返回值遵循调用方与领域服务之间的约定。
      */
+    /** verify：执行认证组件中的一项具体操作，完成输入校验并返回处理结果。 */
     fun verify(jwtValue: AccessTokenValue): VerifiedToken {
         val keyId = extractKeyId(jwtValue)
         val jwt = try {
@@ -150,15 +167,9 @@ class JwtTokenService(
             ?: throw JwtAuthenticationException("JWT token version 缺失")
         return VerifiedToken(tokenId, userId, username, role, tokenVersion, fingerprint(jwtValue))
     }
-
-    /**
-     * decoderFor：执行当前模块中的业务操作。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param key 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
+    /** decoderFor：执行认证组件中的一项具体操作，完成输入校验并返回处理结果。 */
     private fun decoderFor(key: SecretKey): JwtDecoder = NimbusJwtDecoder.withSecretKey(key)
         .macAlgorithm(MacAlgorithm.HS256)
         .build()
@@ -176,15 +187,9 @@ class JwtTokenService(
                 ),
             )
         }
-
-    /**
-     * extractKeyId：执行当前模块中的业务操作。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param jwtValue 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
+    /** extractKeyId：执行认证组件中的一项具体操作，完成输入校验并返回处理结果。 */
     private fun extractKeyId(jwtValue: AccessTokenValue): String = try {
         val parts = jwtValue.split('.')
         if (parts.size != 3) throw JwtAuthenticationException("JWT 格式无效")
@@ -200,44 +205,25 @@ class JwtTokenService(
     } catch (ex: Exception) {
         throw JwtAuthenticationException("JWT header 无效", ex)
     }
-
-    /**
-     * hmacKey：执行当前模块中的业务操作。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param encoded 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
+    /** hmacKey：执行认证组件中的一项具体操作，完成输入校验并返回处理结果。 */
     private fun hmacKey(encoded: String): SecretKey {
         val bytes = decodeBase64(encoded, "JWT signing key")
         require(bytes.size >= 32) { "JWT signing key 至少需要 256 位" }
         return SecretKeySpec(bytes, "HmacSHA256")
     }
-
-    /**
-     * aesKey：执行当前模块中的业务操作。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param encoded 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
+    /** aesKey：执行认证组件中的一项具体操作，完成输入校验并返回处理结果。 */
     private fun aesKey(encoded: String): SecretKey {
         val bytes = decodeBase64(encoded, "JWT storage encryption key")
         require(bytes.size == 32) { "JWT storage encryption key 必须为 256 位" }
         return SecretKeySpec(bytes, "AES")
     }
-
-    /**
-     * decodeBase64：执行当前模块中的业务操作。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param value 参与本次处理的输入参数。
-     * @param name 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
+    /** decodeBase64：执行认证组件中的一项具体操作，完成输入校验并返回处理结果。 */
     private fun decodeBase64(value: String, name: String): ByteArray {
         require(value.isNotBlank()) { "$name 不能为空" }
         return try {
@@ -246,16 +232,9 @@ class JwtTokenService(
             throw IllegalArgumentException("$name 必须为 Base64", ex)
         }
     }
-
-    /**
-     * encryptForStorage：执行当前模块中的业务操作。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param jwtValue 参与本次处理的输入参数。
-     * @param tokenId 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
+    /** encryptForStorage：执行认证组件中的一项具体操作，完成输入校验并返回处理结果。 */
     private fun encryptForStorage(jwtValue: AccessTokenValue, tokenId: String): String = try {
         val nonce = ByteArray(12).also(SecureRandom()::nextBytes)
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
@@ -266,15 +245,11 @@ class JwtTokenService(
     } catch (ex: Exception) {
         throw AuthenticationInfrastructureException("JWT Redis 副本加密失败", ex)
     }
-
-    /**
-     * fingerprint：执行当前模块中的业务操作。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param jwtValue 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
+    /** fingerprint：执行认证组件中的一项具体操作，完成输入校验并返回处理结果。 */
     private fun fingerprint(jwtValue: AccessTokenValue): String = Base64.getUrlEncoder().withoutPadding()
         .encodeToString(MessageDigest.getInstance("SHA-256").digest(jwtValue.toByteArray(StandardCharsets.UTF_8)))
 }
+
+

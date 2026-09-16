@@ -1,5 +1,16 @@
 package top.foxball.setup
 
+/**
+ * SetupEnvFile 配置引导组件说明。
+ *
+ * 该文件负责系统初始化向导中的配置探测、持久化、校验或 Web 入口逻辑。
+ */
+/**
+ * SetupEnvFile 组件。
+ * 
+ * 负责实现该文件声明的配置、领域模型或基础设施能力。
+ */
+
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import top.foxball.cartask.config.DotenvLoader
@@ -12,30 +23,32 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.*
 
+
 /**
- * 把引导结果渲染成 `.env`。
- *
- * 纯函数部分与文件写入分开：渲染出来的文本是这套系统唯一的交付物，它的每一行都值得单独测。
+ * SetupEnvTemplate 的职责说明。
+ * 该类型封装相关业务状态、依赖及操作流程。
+ */
+/**
+ * SetupEnvTemplate 的职责与行为说明。
+ * 该声明负责配置引导流程中的相关数据处理、校验或服务调用。
  */
 object SetupEnvTemplate {
-    /** 引导没问、但写出来能让这份文件自解释的键；缺省值与 `application.yaml` 保持一致。 */
+    
     private const val DEFAULT_REDIS_TIMEOUT = "2s"
     private const val DEFAULT_DDL_AUTO = "update"
     private const val DEFAULT_CORS_ORIGINS = "http://localhost:8090,http://127.0.0.1:8090"
     private const val DEFAULT_KEYTOP_BASE_URL = "https://kp-open.keytop.cn/unite-api"
     private const val SESSION_TTL = "2h"
     private const val CLOCK_SKEW = "30s"
-
+    
+    
     /**
-     * render：转换、构建或格式化数据。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param values 参与本次处理的输入参数。
-     * @param existing 参与本次处理的输入参数。
-     * @param frontendOrigin 参与本次处理的输入参数。
-     * @param generatedAt 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     * render 函数：执行与该组件职责相关的业务操作。
+     * 参数和返回值遵循调用方与领域服务之间的约定。
+     */
+    /**
+     * render 的职责与行为说明。
+     * 该声明负责配置引导流程中的相关数据处理、校验或服务调用。
      */
     fun render(
         values: Map<String, String>,
@@ -44,13 +57,12 @@ object SetupEnvTemplate {
         generatedAt: LocalDateTime,
     ): String {
         val merged = values.toMutableMap()
-
-        // JWT 密钥沿用既有 `.env`：重新走一遍引导去改数据库地址，不该顺带把所有在线会话踢掉。
+        
         val signingKey = existing["JWT_SIGNING_KEY_LOCAL"]?.takeIf { it.isNotBlank() } ?: randomBase64Key()
         val storageKey = existing["JWT_STORAGE_ENCRYPTION_KEY"]?.takeIf { it.isNotBlank() } ?: randomBase64Key()
-
+        
         val corsOrigins = corsOrigins(existing, frontendOrigin)
-
+        
         return buildString {
             appendLine("# ============================================================")
             appendLine("#  由「配置引导」于 ${generatedAt} 生成")
@@ -118,13 +130,11 @@ object SetupEnvTemplate {
             appendLine("ADMIN_INITIALIZER_FORCE_WRITE=false")
         }
     }
-
+    
+    
     /**
-     * 跨域白名单。
-     *
-     * 把提交引导页的那个 Origin 一并写进去：引导页跑在前端应用上，操作者用什么地址打开它，前端多半
-     * 就会用什么地址长期访问。少了这一条，部署到内网 IP 或域名后第一个撞上的就是登录页所有请求
-     * 被浏览器 CORS 拦掉，而报错信息不会告诉任何人「去改 .env」。
+     * corsOrigins 的职责与行为说明。
+     * 该声明负责配置引导流程中的相关数据处理、校验或服务调用。
      */
     private fun corsOrigins(existing: Map<String, String>, frontendOrigin: String?): String {
         val configured = existing["CORS_ALLOWED_ORIGINS"].orEmpty()
@@ -137,23 +147,22 @@ object SetupEnvTemplate {
             .distinct()
             .joinToString(",")
     }
-
+    
+    
     /**
-     * randomBase64Key：转换、构建或格式化数据。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     * randomBase64Key 的职责与行为说明。
+     * 该声明负责配置引导流程中的相关数据处理、校验或服务调用。
      */
     private fun randomBase64Key(): String {
         val bytes = ByteArray(32)
         SecureRandom().nextBytes(bytes)
         return Base64.getEncoder().encodeToString(bytes)
     }
-
+    
+    
     /**
-     * 需要引号时才加引号：含 `#` 的值会被当成注释截断，含首尾空格的值会被读取端 trim 掉。
-     * 一律加引号反而让 `.env` 更难和手工改过的那份比对。
+     * Map 的职责与行为说明。
+     * 该声明负责配置引导流程中的相关数据处理、校验或服务调用。
      */
     private fun Map<String, String>.quoted(key: String, default: String = ""): String {
         val value = this[key]?.takeIf { it.isNotBlank() } ?: default
@@ -162,25 +171,36 @@ object SetupEnvTemplate {
     }
 }
 
-/** `.env` 的落盘：先备份再原子替换，中途失败也不会留下半份配置。 */
+
 @Component
+/**
+ * SetupEnvFile 的职责说明。
+ * 该类型封装相关业务状态、依赖及操作流程。
+ */
+/**
+ * SetupEnvFile 的职责与行为说明。
+ * 该声明负责配置引导流程中的相关数据处理、校验或服务调用。
+ */
 class SetupEnvFile(
     private val properties: SetupProperties,
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
-
+    
+    
     /**
-     * 写入配置并返回备份路径（没有旧文件时为 null）。
-     *
-     * 覆盖之前先备份：进入引导模式可能是 `SETUP_MODE=true` 主动触发的，此时手上这份 `.env` 里
-     * 有正在生效的配置，而引导页填错一个字段就会把它整体换掉。
+     * write 函数：执行与该组件职责相关的业务操作。
+     * 参数和返回值遵循调用方与领域服务之间的约定。
+     */
+    /**
+     * write 的职责与行为说明。
+     * 该声明负责配置引导流程中的相关数据处理、校验或服务调用。
      */
     fun write(values: Map<String, String>, frontendOrigin: String?, now: LocalDateTime): Path? {
         val path = properties.envPath()
         val existing = DotenvLoader.read(path)
         val backup = backup(path, now)
         val content = SetupEnvTemplate.render(values, existing, frontendOrigin, now)
-
+        
         path.parent?.let { Files.createDirectories(it) }
         val temporary = path.resolveSibling("${path.fileName}.tmp")
         Files.writeString(temporary, content)
@@ -199,15 +219,11 @@ class SetupEnvFile(
         )
         return backup
     }
-
+    
+    
     /**
-     * backup：执行数据同步、探测或文件处理。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param path 参与本次处理的输入参数。
-     * @param now 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     * backup 的职责与行为说明。
+     * 该声明负责配置引导流程中的相关数据处理、校验或服务调用。
      */
     private fun backup(path: Path, now: LocalDateTime): Path? {
         if (!Files.exists(path)) return null
@@ -217,3 +233,8 @@ class SetupEnvFile(
         return backup
     }
 }
+
+
+
+
+

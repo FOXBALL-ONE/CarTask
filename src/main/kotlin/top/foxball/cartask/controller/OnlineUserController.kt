@@ -15,14 +15,16 @@ import java.time.LocalDateTime
 
 @RestController
 @RequestMapping("/api/online-users")
+/** class OnlineUserController：Web 控制器，负责接收 HTTP 请求、调用领域服务并构造统一响应。 */
 class OnlineUserController(
     private val onlinePresenceService: OnlinePresenceService,
     private val userRepository: UserRepository,
     private val responseBuilder: ResponseBuilder,
 ) {
-    /** 返回最近 10 秒内有请求活动的有效用户，供管理端轮询展示。 */
+    
     @GetMapping
     @PreAuthorize("hasAuthority('user:read')")
+            /** list：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun list(): ResponseEntity<Response> {
         data class UserData(
             val id: Long,
@@ -31,14 +33,14 @@ class OnlineUserController(
             val role: String,
             @param:JsonProperty("last_seen") val lastSeen: LocalDateTime,
         )
-
+        
         data class Response(
             val items: List<UserData>,
             val total: Int,
             @param:JsonProperty("captured_at") val capturedAt: LocalDateTime,
             @param:JsonProperty("stale_after_seconds") val staleAfterSeconds: Long,
         )
-
+        
         val presences = onlinePresenceService.onlineUsers()
         val usersById = userRepository.findAllById(presences.map { it.userId }).associateBy { it.id }
         val items = presences.mapNotNull { presence ->

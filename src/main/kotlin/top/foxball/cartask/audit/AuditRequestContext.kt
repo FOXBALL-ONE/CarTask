@@ -1,5 +1,11 @@
 package top.foxball.cartask.audit
 
+/**
+ * AuditRequestContext 组件。
+ * 
+ * 负责实现该文件声明的配置、领域模型或基础设施能力。
+ */
+
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
@@ -23,23 +29,18 @@ data class AuditRequestInfo(
     val sourceSystem: String = "WEB",
 )
 
-/** 为请求生成可回传的关联 ID；任务线程没有 HTTP 上下文时由审计服务使用 SYSTEM 主体。 */
+
 @Component
+/**
+ * AuditRequestContextFilter 的职责说明。
+ * 该类型封装相关业务状态、依赖及操作流程。
+ */
 class AuditRequestContextFilter(
     private val operationLogService: OperationLogService,
 ) : OncePerRequestFilter() {
     private val log = LoggerFactory.getLogger(AuditRequestContextFilter::class.java)
-
-    /**
-     * doFilterInternal：处理请求、事件或异常流程。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param request 参与本次处理的输入参数。
-     * @param response 参与本次处理的输入参数。
-     * @param filterChain 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     override fun doFilterInternal(
         request: HttpServletRequest,
         response: HttpServletResponse,
@@ -106,38 +107,35 @@ class AuditRequestContextFilter(
     }
 }
 
+/**
+ * AuditRequestContext 的职责说明。
+ * 该类型封装相关业务状态、依赖及操作流程。
+ */
 object AuditRequestContext {
     private val holder = ThreadLocal<AuditRequestInfo?>()
-
+    
+    
     /**
-     * current：查询或读取相关数据。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     * current 函数：执行与该组件职责相关的业务操作。
+     * 参数和返回值遵循调用方与领域服务之间的约定。
      */
     fun current(): AuditRequestInfo? = holder.get()
-
+    
+    
     /**
-     * set：创建、保存或初始化相关数据。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param value 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     * set 函数：执行与该组件职责相关的业务操作。
+     * 参数和返回值遵循调用方与领域服务之间的约定。
      */
     fun set(value: AuditRequestInfo) = holder.set(value)
-
+    
+    
     /**
-     * clear：删除、清理或撤销相关数据。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     * clear 函数：执行与该组件职责相关的业务操作。
+     * 参数和返回值遵循调用方与领域服务之间的约定。
      */
     fun clear() = holder.remove()
-
-    /** 在任务或外部回调线程建立可检索的日志关联上下文。调用方必须使用 [withRun]。 */
+    
+    
     fun <T> withRun(requestId: String = UUID.randomUUID().toString(), block: () -> T): T {
         val previous = current()
         val previousMdc = MDC.getCopyOfContextMap()
@@ -156,3 +154,5 @@ object AuditRequestContext {
         }
     }
 }
+
+

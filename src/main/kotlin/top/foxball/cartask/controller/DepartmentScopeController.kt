@@ -12,28 +12,25 @@ import top.foxball.cartask.scope.UnlinkedSummary
 import top.foxball.cartask.shared.Response
 import top.foxball.cartask.shared.ResponseBuilder
 
-/**
- * 部门归属回填与未解析统计。
- *
- * 独立于部门 CRUD 单独成类：这两个接口是上线运维动作（先回填、确认统计干净，再开放部门管理），
- * 与部门资料的日常维护不是同一件事，权限也只给超级管理员。
- */
+
 @RestController
 @RequestMapping("/api/departments")
+/** class DepartmentScopeController：Web 控制器，负责接收 HTTP 请求、调用领域服务并构造统一响应。 */
 class DepartmentScopeController(
     private val backfillService: DepartmentLinkBackfillService,
     private val responseBuilder: ResponseBuilder,
 ) {
-    /** 幂等地把存量数据的部门自由文本与车牌补齐成稳定键。 */
+    
     @PostMapping("/backfill-links")
     @PreAuthorize("hasRole('SUPER_ADMIN') and hasAuthority('department:manage')")
+            /** backfillLinks：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun backfillLinks(): ResponseEntity<Response> {
         data class CountData(
             val scanned: Int,
             val resolved: Int,
             val unresolved: Int,
         )
-
+        
         data class Response(
             val owners: CountData,
             @param:JsonProperty("gate_persons") val gatePersons: CountData,
@@ -42,7 +39,7 @@ class DepartmentScopeController(
             @param:JsonProperty("access_records") val accessRecords: CountData,
             @param:JsonProperty("violation_subjects") val violationSubjects: CountData,
         )
-
+        
         val result = backfillService.backfill()
         val rs = Response(
             CountData(result.owners.scanned, result.owners.resolved, result.owners.unresolved),
@@ -58,15 +55,11 @@ class DepartmentScopeController(
         )
         return responseBuilder.ok().message("归属回填完成").data(rs).build()
     }
-
-    /**
-     * 仍未解析出部门归属的行数。
-     *
-     * 这是开放部门管理前的闸门：范围判定是 fail closed 的，数字不为零就意味着这些数据对
-     * 受限角色凭空消失，必须先补数据或补部门名称再开通。
-     */
+    
+    
     @GetMapping("/unlinked-summary")
     @PreAuthorize("hasRole('SUPER_ADMIN') and hasAuthority('department:manage')")
+            /** unlinkedSummary：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun unlinkedSummary(): ResponseEntity<Response> {
         data class Response(
             val owners: Int,
@@ -76,7 +69,7 @@ class DepartmentScopeController(
             @param:JsonProperty("access_records") val accessRecords: Int,
             @param:JsonProperty("violation_subjects") val violationSubjects: Int,
         )
-
+        
         val summary: UnlinkedSummary = backfillService.unlinkedSummary()
         val rs = Response(
             summary.owners,

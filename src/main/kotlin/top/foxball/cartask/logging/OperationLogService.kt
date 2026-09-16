@@ -1,5 +1,11 @@
 package top.foxball.cartask.logging
 
+/**
+ * OperationLogService 组件。
+ * 
+ * 负责实现该文件声明的配置、领域模型或基础设施能力。
+ */
+
 import io.micrometer.core.instrument.MeterRegistry
 import org.slf4j.LoggerFactory
 import org.springframework.scheduling.annotation.Async
@@ -27,23 +33,25 @@ data class OperationLogCommand(
     val error: String?,
 )
 
-/** 将 HTTP 操作快照异步写入数据库，不阻塞业务请求。 */
+
 @Service
+/**
+ * OperationLogService 的职责说明。
+ * 该类型封装相关业务状态、依赖及操作流程。
+ */
 class OperationLogService(
     private val repository: OperationLogRepository,
     private val meterRegistry: MeterRegistry? = null,
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
-
+    
     @Async("operationLogExecutor")
     @Transactional
+            
+            
             /**
-             * recordAsync：执行当前模块中的业务操作。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @param command 参与本次处理的输入参数。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             * recordAsync 函数：执行与该组件职责相关的业务操作。
+             * 参数和返回值遵循调用方与领域服务之间的约定。
              */
     fun recordAsync(command: OperationLogCommand) {
         try {
@@ -70,8 +78,10 @@ class OperationLogService(
             logger.error("异步写入操作日志失败，request_id={}", command.requestId, ex)
         }
     }
-
+    
     private companion object {
         val CONTROL_CHARS = Regex("[\\u0000-\\u001F\\u007F]")
     }
 }
+
+

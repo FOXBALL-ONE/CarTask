@@ -15,16 +15,18 @@ import top.foxball.cartask.shared.ResponseBuilder
 
 @RestController
 @RequestMapping("/api/roles")
-/** 角色及其权限集合的管理接口。 */
+
+/** class RoleController：Web 控制器，负责接收 HTTP 请求、调用领域服务并构造统一响应。 */
 class RoleController(
     private val service: RoleService,
     private val roleRepository: RoleRepository,
     private val permissionRepository: PermissionRepository,
     private val responseBuilder: ResponseBuilder,
 ) {
-    /** 创建文档约定的业务角色。 */
+    
     @PostMapping(consumes = ["application/json"])
     @PreAuthorize("hasRole('SUPER_ADMIN') and hasAuthority('role:manage')")
+            /** create：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun create(@RequestBody body: DocumentRoleRequest): ResponseEntity<Response> {
         data class Response(
             val id: Long,
@@ -34,7 +36,7 @@ class RoleController(
             val status: Int,
             val remark: String?,
         )
-
+        
         val name = requireNotNull(body.name) { "角色名称不能为空" }
         val code = requireNotNull(body.code) { "角色编码不能为空" }
         val status = requireNotNull(body.status) { "状态不能为空" }
@@ -67,16 +69,18 @@ class RoleController(
         )
         return responseBuilder.created().data(rs).build()
     }
-
-    /** 批量创建实体记录。 */
+    
+    
     @PostMapping("/batch")
     @PreAuthorize("hasRole('SUPER_ADMIN') and hasAuthority('role:manage')")
+            /** createBatch：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun createBatch(@RequestBody entities: List<Role>): ResponseEntity<Response> =
         responseBuilder.created().data(service.createBatch(entities)).build()
-
-    /** 按主键获取一条实体记录。 */
+    
+    
     @GetMapping("/{id}")
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('role:read')")
+            /** get：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun get(@PathVariable id: Long): ResponseEntity<Response> {
         data class Response(
             val id: Long,
@@ -87,7 +91,7 @@ class RoleController(
             val remark: String?,
             @param:JsonProperty("permission_codes") val permissionCodes: List<String>,
         )
-
+        
         val role = roleRepository.findById(id).orElseThrow { IllegalArgumentException("角色不存在") }
         val loadedRole = roleRepository.findByNameIgnoreCase(role.name) ?: role
         val rs = Response(
@@ -101,16 +105,18 @@ class RoleController(
         )
         return responseBuilder.ok().data(rs).build()
     }
-
-    /** 按多个主键批量获取实体记录。 */
+    
+    
     @GetMapping("/batch")
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('role:read')")
+            /** getBatch：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun getBatch(@RequestParam id: List<Long>): ResponseEntity<Response> =
         responseBuilder.ok().data(service.getBatch(id)).build()
-
-    /** 返回文档约定的角色列表。 */
+    
+    
     @GetMapping
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('role:read')")
+            /** list：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun list(
         @RequestParam(defaultValue = "1") page: Int,
         @RequestParam(name = "pageSize", defaultValue = "8") pageSize: Int,
@@ -123,9 +129,9 @@ class RoleController(
             val status: Int,
             val remark: String?,
         )
-
+        
         data class Response(val items: List<RoleData>, val total: Int)
-
+        
         require(page >= 1) { "页码必须大于 0" }
         require(pageSize in 1..100) { "每页数量必须在 1 到 100 之间" }
         val allRoles = mutableListOf<Role>()
@@ -148,18 +154,20 @@ class RoleController(
         val rs = Response(systemRoles.subList(from, to), systemRoles.size)
         return responseBuilder.ok().data(rs).build()
     }
-
-    /** 兼容原有 snake_case 分页参数。 */
+    
+    
     @GetMapping(params = ["page_size"])
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('role:read')")
+            /** listPaged：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun listPaged(
         @RequestParam(defaultValue = "1") page: Int,
         @RequestParam(name = "page_size", defaultValue = "20") pageSize: Int,
     ): ResponseEntity<Response> = responseBuilder.ok().data(service.list(page, pageSize)).build()
-
-    /** 更新文档约定的业务角色。 */
+    
+    
     @PutMapping("/{id}", consumes = ["application/json"])
     @PreAuthorize("hasRole('SUPER_ADMIN') and hasAuthority('role:manage')")
+            /** update：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun update(@PathVariable id: Long, @RequestBody body: DocumentRoleRequest): ResponseEntity<Response> {
         data class Response(
             val id: Long,
@@ -169,7 +177,7 @@ class RoleController(
             val status: Int,
             val remark: String?,
         )
-
+        
         require(body.status == null || body.status == 0 || body.status == 1) { "状态必须为 0 或 1" }
         val current = service.get(id)
         val role = Role().apply {
@@ -201,10 +209,11 @@ class RoleController(
         )
         return responseBuilder.ok().data(rs).build()
     }
-
-    /** 替换角色权限集合；只接受已存在且启用的稳定权限编码。 */
+    
+    
     @PutMapping("/{id}/permissions", consumes = ["application/json"])
     @PreAuthorize("hasRole('SUPER_ADMIN') and hasAuthority('role:manage')")
+            /** replacePermissions：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun replacePermissions(
         @PathVariable id: Long,
         @RequestBody permissionCodes: List<String>,
@@ -213,7 +222,7 @@ class RoleController(
             val id: Long,
             @param:JsonProperty("permission_codes") val permissionCodes: List<String>,
         )
-
+        
         val normalizedCodes = permissionCodes.map(SecurityPermission::normalize)
         require(normalizedCodes.distinct().size == normalizedCodes.size) { "权限编码不能重复" }
         val resolvedPermissions = permissionRepository.findAllByCodeIn(normalizedCodes)
@@ -237,24 +246,27 @@ class RoleController(
         val rs = Response(requireNotNull(saved.id), saved.permissions.map { it.code }.sorted())
         return responseBuilder.ok().data(rs).build()
     }
-
-    /** 批量更新实体记录。 */
+    
+    
     @PutMapping("/batch")
     @PreAuthorize("hasRole('SUPER_ADMIN') and hasAuthority('role:manage')")
+            /** updateBatch：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun updateBatch(@RequestBody entities: List<Role>): ResponseEntity<Response> =
         responseBuilder.ok().data(service.updateBatch(entities)).build()
-
-    /** 删除指定主键的实体记录。 */
+    
+    
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('SUPER_ADMIN') and hasAuthority('role:manage')")
+            /** delete：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun delete(@PathVariable id: Long): ResponseEntity<Response> {
         service.delete(id)
         return responseBuilder.ok().data(mapOf("id" to id)).build()
     }
-
-    /** 批量删除实体记录。 */
+    
+    
     @DeleteMapping("/batch")
     @PreAuthorize("hasRole('SUPER_ADMIN') and hasAuthority('role:manage')")
+            /** deleteBatch：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun deleteBatch(@RequestParam id: List<Long>): ResponseEntity<Response> {
         service.deleteBatch(id)
         return responseBuilder.ok().data(mapOf("ids" to id)).build()

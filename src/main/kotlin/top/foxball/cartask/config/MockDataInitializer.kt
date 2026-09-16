@@ -1,5 +1,11 @@
 package top.foxball.cartask.config
 
+/**
+ * MockDataInitializer 组件。
+ * 
+ * 负责实现该文件声明的配置、领域模型或基础设施能力。
+ */
+
 import jakarta.transaction.Transactional
 import org.slf4j.LoggerFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -13,14 +19,13 @@ import top.foxball.cartask.repository.*
 import java.math.BigDecimal
 import java.time.LocalDateTime
 
-/**
- * 在应用完全启动后写入一组可重复执行的开发模拟数据。
- *
- * 所有样例记录都使用 MOCK 前缀、固定业务编号或固定名称识别，因此重复启动不会产生重复数据。
- * 该组件默认关闭，只能通过 MOCK_DATA_ENABLED=true 显式启用。
- */
+
 @Component
 @ConditionalOnProperty(prefix = "app.mock-data", name = ["enabled"], havingValue = "true")
+/**
+ * MockDataInitializer 的职责说明。
+ * 该类型封装相关业务状态、依赖及操作流程。
+ */
 class MockDataInitializer(
     private val properties: MockDataProperties,
     private val passwordEncoder: PasswordEncoder,
@@ -49,22 +54,21 @@ class MockDataInitializer(
     private val violationRecordRepository: ViolationRecordRepository,
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
-
+    
     @EventListener(classes = [ApplicationReadyEvent::class])
     @Transactional
+            
+            
             /**
-             * write：创建、保存或初始化相关数据。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             * write 函数：执行与该组件职责相关的业务操作。
+             * 参数和返回值遵循调用方与领域服务之间的约定。
              */
     fun write() {
         if (!properties.enabled) {
             logger.debug("模拟数据写入未启用")
             return
         }
-
+        
         val now = (properties.referenceTime ?: LocalDateTime.now()).withNano(0)
         val headquarters = ensure(
             departmentRepository.findByDepartmentNumber("MOCK-OPS"),
@@ -307,7 +311,7 @@ class MockDataInitializer(
             },
             deviceRepository::save,
         )
-
+        
         val carType = ensure(
             carTypeRepository.findFirstByCarName("模拟小型客车"),
             {
@@ -481,7 +485,7 @@ class MockDataInitializer(
             },
             zoneTypeRepository::save,
         )
-
+        
         val ownerOne = ensure(
             parkingOwnerRepository.findByCardId("MOCK-OWNER-CARD-001"),
             {
@@ -586,7 +590,7 @@ class MockDataInitializer(
                 parkingPlateRepository::save,
             )
         }
-
+        
         val gatePersonOne = ensure(
             gatePersonRepository.findByCode("MOCK-GATE-PERSON-001"),
             {
@@ -630,7 +634,6 @@ class MockDataInitializer(
                     personId = requireNotNull(gatePersonTwo.id)
                     code = gatePersonTwo.code
                     dept = gatePersonTwo.dept
-                    // 与真实写路径一致：申请单要落部门编码，否则列表只能靠部门名兜底解析。
                     departmentCode = gatePersonTwo.departmentCode
                     name = gatePersonTwo.name
                     phone = gatePersonTwo.phone
@@ -667,7 +670,7 @@ class MockDataInitializer(
                 personAccessRecordRepository::save,
             )
         }
-
+        
         val violationType = ensure(
             violationTypeRepository.findFirstByViolationName("模拟超时停车"),
             {
@@ -716,7 +719,7 @@ class MockDataInitializer(
             },
             violationRecordRepository::save,
         )
-
+        
         ensure(
             carMasterInfoRepository.findFirstByCarCardNumber("MOCK-CARD-001"),
             {
@@ -972,15 +975,17 @@ class MockDataInitializer(
             },
             accessRecordRepository::save,
         )
-
+        
         logger.info(
             "模拟数据写入完成: 部门=4, 用户=3, 设备=4, 区域=3, 车辆主档=3, 车主=3, 车位=5, 车牌=3, 门禁人员=2, 门禁授权=3, 人员进出记录=3, 车辆进出记录=5, 违规记录=1",
         )
     }
-
+    
     private fun <T : Any> ensure(
         existing: T?,
         factory: () -> T,
         save: (T) -> T,
     ): T = existing ?: save(factory())
 }
+
+

@@ -1,5 +1,17 @@
 package top.foxball.cartask.authentication
 
+/**
+ * SmsVerificationService：认证子系统中的组件，负责实现相关安全、令牌或访问控制能力。
+ *
+ * 该文件中的类型和函数用于支撑登录认证流程，并在边界处校验输入与会话状态。
+ */
+
+/**
+ * SmsVerificationService 认证组件说明。
+ *
+ * 该文件集中定义认证流程所需的领域类型、服务及基础设施适配逻辑。
+ */
+
 import org.slf4j.LoggerFactory
 import org.springframework.dao.DataAccessException
 import org.springframework.data.redis.core.StringRedisTemplate
@@ -14,6 +26,10 @@ import java.security.SecureRandom
 import java.time.Duration
 
 @Service
+/**
+ * SmsVerificationService 的职责说明。
+ * 该类型封装相关业务状态、依赖及操作流程。
+ */
 class SmsVerificationService(
     private val redisTemplate: StringRedisTemplate,
     private val smsClient: SmsClient,
@@ -21,15 +37,10 @@ class SmsVerificationService(
 ) {
     private val random = SecureRandom()
     private val logger = LoggerFactory.getLogger(javaClass)
-
-    /**
-     * 短信验证是否已被临时关闭（`cartask.sms.skip-verification=true`）。
-     *
-     * 对调用方公开是因为「跳过短信」还要连带跳过发送前的图形验证码——否则开关打开后，
-     * 用户仍要先过一道图形验证码才能得到一个永远收不到的验证码。
-     */
+    
+    
     val verificationSkipped: Boolean get() = properties.skipVerification
-
+    
     init {
         if (properties.skipVerification) {
             logger.warn(
@@ -37,16 +48,13 @@ class SmsVerificationService(
             )
         }
     }
-
+    
+    
     /**
-     * send：执行当前模块中的业务操作。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param phone 参与本次处理的输入参数。
-     * @param purpose 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     * send 函数：执行与该组件职责相关的业务操作。
+     * 参数和返回值遵循调用方与领域服务之间的约定。
      */
+    /** send：执行认证组件中的一项具体操作，完成输入校验并返回处理结果。 */
     fun send(phone: String, purpose: Purpose) {
         if (properties.skipVerification) {
             logger.warn("短信验证已临时关闭，跳过发送验证码：purpose={} phone={}", purpose, phone)
@@ -55,7 +63,6 @@ class SmsVerificationService(
         val normalized = normalize(phone)
         try {
             val codeKey = key(normalized, purpose)
-            // 重发间隔与验证码有效期分开计数，否则「5 分钟有效」会被误当成「5 分钟才能重发」。
             val cooldownKey = cooldownKey(normalized, purpose)
             if (redisTemplate.hasKey(cooldownKey) == true) throw VerificationCodeRateLimitException()
             val code = (100000 + random.nextInt(900000)).toString()
@@ -74,17 +81,13 @@ class SmsVerificationService(
             throw EmailSendFailedException("短信服务暂不可用，请稍后重试")
         }
     }
-
+    
+    
     /**
-     * verify：校验输入、状态或访问条件。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param phone 参与本次处理的输入参数。
-     * @param code 参与本次处理的输入参数。
-     * @param purpose 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     * verify 函数：执行与该组件职责相关的业务操作。
+     * 参数和返回值遵循调用方与领域服务之间的约定。
      */
+    /** verify：执行认证组件中的一项具体操作，完成输入校验并返回处理结果。 */
     fun verify(phone: String, code: String, purpose: Purpose) {
         if (properties.skipVerification) {
             logger.warn("短信验证已临时关闭，跳过验证码校验：purpose={} phone={}", purpose, phone)
@@ -96,75 +99,44 @@ class SmsVerificationService(
             throw VerificationCodeInvalidException()
         }
     }
-
-    /**
-     * normalize：转换、构建或格式化数据。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param phone 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
+    /** normalize：执行认证组件中的一项具体操作，完成输入校验并返回处理结果。 */
     private fun normalize(phone: String): String {
         val value = phone.trim()
         require(Regex("^\\+?[0-9]{6,20}$").matches(value)) { "手机号格式无效" }
         return value
     }
-
-    /**
-     * hash：查询或读取相关数据。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param value 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
+    /** hash：执行认证组件中的一项具体操作，完成输入校验并返回处理结果。 */
     private fun hash(value: String): String = MessageDigest.getInstance("SHA-256")
         .digest(value.toByteArray()).joinToString("") { "%02x".format(it) }
-
-    /**
-     * key：执行当前模块中的业务操作。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param phone 参与本次处理的输入参数。
-     * @param purpose 参与本次处理的输入参数。
-     * @param shopmall 参与本次处理的输入参数。
-     * @param auth 参与本次处理的输入参数。
-     * @param sms 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
+    /** key：执行认证组件中的一项具体操作，完成输入校验并返回处理结果。 */
     private fun key(phone: String, purpose: Purpose) = "shopmall:auth:sms:${purpose.name.lowercase()}:$phone"
-
-    /**
-     * cooldownKey：执行当前模块中的业务操作。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param phone 参与本次处理的输入参数。
-     * @param purpose 参与本次处理的输入参数。
-     * @param shopmall 参与本次处理的输入参数。
-     * @param auth 参与本次处理的输入参数。
-     * @param sms 参与本次处理的输入参数。
-     * @param cooldown 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
+    /** cooldownKey：执行认证组件中的一项具体操作，完成输入校验并返回处理结果。 */
     private fun cooldownKey(phone: String, purpose: Purpose) =
         "shopmall:auth:sms:cooldown:${purpose.name.lowercase()}:$phone"
-
+    
     enum class Purpose {
         LOGIN,
         RESET_PASSWORD,
-
-        /** 自助换绑手机号：验证码发到用户填写的**新**号码上，证明该号码确实由本人掌握。 */
+        
+        
         CHANGE_PHONE,
     }
-
+    
     companion object {
-        /** 验证码有效期。 */
+        
         val CODE_TTL: Duration = Duration.ofMinutes(5)
-
-        /** 同一手机号同一用途的最小重发间隔，与登录页倒计时（login.vue 的 SMS_RESEND_SECONDS）一致。 */
+        
+        
         val SEND_INTERVAL: Duration = Duration.ofSeconds(60)
     }
 }
+
+

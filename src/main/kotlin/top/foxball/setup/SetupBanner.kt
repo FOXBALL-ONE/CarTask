@@ -1,5 +1,16 @@
 package top.foxball.setup
 
+/**
+ * SetupBanner 配置引导组件说明。
+ *
+ * 该文件负责系统初始化向导中的配置探测、持久化、校验或 Web 入口逻辑。
+ */
+/**
+ * SetupBanner 组件。
+ * 
+ * 负责实现该文件声明的配置、领域模型或基础设施能力。
+ */
+
 import org.slf4j.LoggerFactory
 import org.springframework.boot.ApplicationArguments
 import org.springframework.boot.ApplicationRunner
@@ -9,30 +20,27 @@ import org.springframework.stereotype.Component
 import java.net.Inet4Address
 import java.net.NetworkInterface
 
-/**
- * 启动横幅：把「现在是配置模式、口令是什么、配置会写到哪」一次性说清楚。
- *
- * 引导页需要一个口令才能用，而口令只印在这里，所以横幅必须足够醒目且自带上下文——实施人员拿到的
- * 通常只有一行启动日志的截图或一段粘贴的终端输出，少了其中任何一项都要再来回问一轮。
- *
- * 同时列出本机的内网地址：配置文件里的 `FILE_BASE_URL`、以及从别的机器访问引导页，都要用实际地址
- * 而不是 `localhost`，而部署现场未必有人知道这台机器的 IP。
- */
+
 @Component
+/**
+ * SetupBanner 的职责说明。
+ * 该类型封装相关业务状态、依赖及操作流程。
+ */
+/**
+ * SetupBanner 的职责与行为说明。
+ * 该声明负责配置引导流程中的相关数据处理、校验或服务调用。
+ */
 class SetupBanner(
     private val token: SetupToken,
     private val properties: SetupProperties,
     private val applicationContext: ApplicationContext,
 ) : ApplicationRunner {
     private val logger = LoggerFactory.getLogger(javaClass)
-
+    
+    
     /**
-     * run：执行当前模块中的业务操作。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param args 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     * run 的职责与行为说明。
+     * 该声明负责配置引导流程中的相关数据处理、校验或服务调用。
      */
     override fun run(args: ApplicationArguments) {
         val port = (applicationContext as? WebServerApplicationContext)?.webServer?.port ?: DEFAULT_PORT
@@ -61,23 +69,22 @@ class SetupBanner(
             port,
         )
     }
-
+    
+    
     /**
-     * 引导页在前端应用里，后端无从得知它部署在哪，只能给出「本机 + 默认端口」这一条最可能的路径，
-     * 再补上内网地址供远程访问时套用。
+     * frontendHint 的职责与行为说明。
+     * 该声明负责配置引导流程中的相关数据处理、校验或服务调用。
      */
     private fun frontendHint(port: Int): String {
         val addresses = localAddresses()
         val suffix = if (addresses.isEmpty()) "" else "（内网可用：${addresses.joinToString("、")}，把主机名换成对应地址）"
         return "http://localhost:$FRONTEND_PORT/setup $suffix"
     }
-
+    
+    
     /**
-     * localAddresses：执行当前模块中的业务操作。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     * localAddresses 的职责与行为说明。
+     * 该声明负责配置引导流程中的相关数据处理、校验或服务调用。
      */
     private fun localAddresses(): List<String> = runCatching {
         NetworkInterface.getNetworkInterfaces().asSequence()
@@ -87,9 +94,14 @@ class SetupBanner(
             .map { it.hostAddress }
             .toList()
     }.getOrDefault(emptyList())
-
+    
     private companion object {
         const val DEFAULT_PORT = 8080
         const val FRONTEND_PORT = 8090
     }
 }
+
+
+
+
+

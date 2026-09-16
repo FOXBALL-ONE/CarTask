@@ -10,14 +10,16 @@ import top.foxball.cartask.shared.ResponseBuilder
 
 @RestController
 @RequestMapping("/api/departments")
-/** 组织部门的树形和批量管理接口。 */
+
+/** class DepartmentController：Web 控制器，负责接收 HTTP 请求、调用领域服务并构造统一响应。 */
 class DepartmentController(
     private val departmentService: DepartmentService,
     private val responseBuilder: ResponseBuilder,
 ) {
-    /** 创建一个部门。 */
+    
     @PostMapping
     @PreAuthorize("hasAuthority('department:manage')")
+            /** create：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun create(
         @RequestParam name: String,
         @RequestParam(name = "department_code") departmentCode: String,
@@ -35,7 +37,7 @@ class DepartmentController(
             val director: String?,
             @param:JsonProperty("contact_phone") val contactPhone: String?,
         )
-
+        
         val department = departmentService.create(
             DepartmentService.CreateCommand(name, departmentCode, superiorId, sortOrder, director, contactPhone),
         )
@@ -50,10 +52,11 @@ class DepartmentController(
         )
         return responseBuilder.created().data(rs).build()
     }
-
-    /** 批量创建部门。所有字段按数组下标对应。 */
+    
+    
     @PostMapping("/batch")
     @PreAuthorize("hasAuthority('department:manage')")
+            /** createBatch：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun createBatch(
         @RequestParam name: List<String>,
         @RequestParam(name = "department_code") departmentCode: List<String>,
@@ -71,9 +74,9 @@ class DepartmentController(
             val director: String?,
             @param:JsonProperty("contact_phone") val contactPhone: String?,
         )
-
+        
         data class Response(val departments: List<DepartmentData>)
-
+        
         require(name.isNotEmpty()) { "部门列表不能为空" }
         require(name.size == departmentCode.size) { "部门名称和编码数量必须一致" }
         require(superiorId == null || superiorId.size == name.size) { "上级部门数量必须与部门数量一致" }
@@ -103,10 +106,11 @@ class DepartmentController(
         })
         return responseBuilder.created().data(rs).build()
     }
-
-    /** 向指定部门批量添加多个下级部门。 */
+    
+    
     @PostMapping("/{superiorId}/children/batch")
     @PreAuthorize("hasAuthority('department:manage')")
+            /** createChildrenBatch：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun createChildrenBatch(
         @PathVariable superiorId: Long,
         @RequestParam name: List<String>,
@@ -124,9 +128,9 @@ class DepartmentController(
             val director: String?,
             @param:JsonProperty("contact_phone") val contactPhone: String?,
         )
-
+        
         data class Response(val departments: List<DepartmentData>)
-
+        
         require(name.isNotEmpty()) { "下级部门列表不能为空" }
         require(name.size == departmentCode.size) { "部门名称和编码数量必须一致" }
         require(sortOrder == null || sortOrder.size == name.size) { "排序值数量必须与部门数量一致" }
@@ -155,10 +159,11 @@ class DepartmentController(
         })
         return responseBuilder.created().data(rs).build()
     }
-
-    /** 查询全部部门，返回扁平化部门树节点供前端构建树。 */
+    
+    
     @GetMapping
     @PreAuthorize("hasAuthority('department:read')")
+            /** list：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun list(): ResponseEntity<Response> {
         data class DepartmentData(
             val id: Long,
@@ -169,12 +174,12 @@ class DepartmentController(
             val director: String?,
             @param:JsonProperty("contact_phone") val contactPhone: String?,
         )
-
+        
         data class Response(
             val departments: List<DepartmentData>,
             val total: Int,
         )
-
+        
         val departments = departmentService.listAll()
         val rs = Response(departments.map {
             DepartmentData(
@@ -189,10 +194,11 @@ class DepartmentController(
         }, departments.size)
         return responseBuilder.ok().data(rs).build()
     }
-
-    /** 按部门 ID 查询部门。 */
+    
+    
     @GetMapping("/{id:[0-9]+}")
     @PreAuthorize("hasAuthority('department:read')")
+            /** get：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun get(@PathVariable id: Long): ResponseEntity<Response> {
         data class Response(
             val id: Long,
@@ -203,7 +209,7 @@ class DepartmentController(
             val director: String?,
             @param:JsonProperty("contact_phone") val contactPhone: String?,
         )
-
+        
         val department = departmentService.get(id)
         val rs = Response(
             department.id!!,
@@ -216,10 +222,11 @@ class DepartmentController(
         )
         return responseBuilder.ok().data(rs).build()
     }
-
-    /** 按多个部门 ID 批量查询部门。 */
+    
+    
     @GetMapping("/batch")
     @PreAuthorize("hasAuthority('department:read')")
+            /** getBatch：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun getBatch(@RequestParam id: List<Long>): ResponseEntity<Response> {
         data class DepartmentData(
             val id: Long,
@@ -230,9 +237,9 @@ class DepartmentController(
             val director: String?,
             @param:JsonProperty("contact_phone") val contactPhone: String?,
         )
-
+        
         data class Response(val departments: List<DepartmentData>)
-
+        
         val departments = departmentService.getBatch(id)
         val rs = Response(departments.map {
             DepartmentData(
@@ -247,10 +254,11 @@ class DepartmentController(
         })
         return responseBuilder.ok().data(rs).build()
     }
-
-    /** 更新一个部门。未传入的字段保持不变。 */
+    
+    
     @PutMapping("/{id}")
     @PreAuthorize("hasAuthority('department:manage')")
+            /** update：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun update(
         @PathVariable id: Long,
         @RequestParam(required = false) name: String?,
@@ -269,7 +277,7 @@ class DepartmentController(
             val director: String?,
             @param:JsonProperty("contact_phone") val contactPhone: String?,
         )
-
+        
         val department = departmentService.update(
             id,
             DepartmentService.UpdateCommand(name, departmentCode, superiorId, sortOrder, director, contactPhone),
@@ -285,10 +293,11 @@ class DepartmentController(
         )
         return responseBuilder.ok().data(rs).build()
     }
-
-    /** 对多个部门应用相同的更新内容。 */
+    
+    
     @PutMapping("/batch")
     @PreAuthorize("hasAuthority('department:manage')")
+            /** updateBatch：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun updateBatch(
         @RequestParam id: List<Long>,
         @RequestParam(required = false) name: String?,
@@ -299,7 +308,7 @@ class DepartmentController(
         @RequestParam(name = "contact_phone", required = false) contactPhone: String?,
     ): ResponseEntity<Response> {
         data class Response(@param:JsonProperty("department_ids") val departmentIds: List<Long>)
-
+        
         departmentService.updateBatch(
             id,
             DepartmentService.UpdateCommand(name, departmentCode, superiorId, sortOrder, director, contactPhone),
@@ -307,24 +316,26 @@ class DepartmentController(
         val rs = Response(id)
         return responseBuilder.ok().data(rs).build()
     }
-
-    /** 删除一个部门。 */
+    
+    
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('department:manage')")
+            /** delete：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun delete(@PathVariable id: Long): ResponseEntity<Response> {
         data class Response(val id: Long)
-
+        
         departmentService.deleteDepartment(id)
         val rs = Response(id)
         return responseBuilder.ok().data(rs).build()
     }
-
-    /** 批量删除部门。 */
+    
+    
     @DeleteMapping("/batch")
     @PreAuthorize("hasAuthority('department:manage')")
+            /** deleteBatch：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun deleteBatch(@RequestParam id: List<Long>): ResponseEntity<Response> {
         data class Response(@param:JsonProperty("department_ids") val departmentIds: List<Long>)
-
+        
         departmentService.deleteDepartments(id)
         val rs = Response(id)
         return responseBuilder.ok().data(rs).build()

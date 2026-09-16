@@ -1,5 +1,16 @@
 package top.foxball.setup
 
+/**
+ * SetupDraftStore 配置引导组件说明。
+ *
+ * 该文件负责系统初始化向导中的配置探测、持久化、校验或 Web 入口逻辑。
+ */
+/**
+ * SetupDraftStore 组件。
+ * 
+ * 负责实现该文件声明的配置、领域模型或基础设施能力。
+ */
+
 import com.fasterxml.jackson.annotation.JsonInclude
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
@@ -9,43 +20,55 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 
-/**
- * 引导草稿：向导每一步验证通过后落盘的环境变量片段。
- *
- * 落盘而不是只放在内存里，是因为向导有好几步、还可能填到一半去查凭据。浏览器的状态一刷新就没了，
- * 而重新填一遍数据库密码这件事，没有任何理由让实施人员做第二次。
- */
+
 @JsonInclude(JsonInclude.Include.NON_NULL)
+/**
+ * SetupDraft 的职责与行为说明。
+ * 该声明负责配置引导流程中的相关数据处理、校验或服务调用。
+ */
 data class SetupDraft(
     val values: Map<String, String> = emptyMap(),
-    /** 已完成的步骤 id；缺哪一步，[SetupCompletion] 就不放行。 */
+    
     val steps: List<String> = emptyList(),
 )
 
 @Component
+/**
+ * SetupDraftStore 的职责说明。
+ * 该类型封装相关业务状态、依赖及操作流程。
+ */
+/**
+ * SetupDraftStore 的职责与行为说明。
+ * 该声明负责配置引导流程中的相关数据处理、校验或服务调用。
+ */
 class SetupDraftStore(
     private val properties: SetupProperties,
     private val objectMapper: ObjectMapper,
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
     private val lock = Any()
-
+    
     private var cached: SetupDraft? = null
-
+    
+    
     /**
-     * read：查询或读取相关数据。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     * read 函数：执行与该组件职责相关的业务操作。
+     * 参数和返回值遵循调用方与领域服务之间的约定。
+     */
+    /**
+     * read 的职责与行为说明。
+     * 该声明负责配置引导流程中的相关数据处理、校验或服务调用。
      */
     fun read(): SetupDraft = synchronized(lock) { loaded() }
-
+    
+    
     /**
-     * 写入一个步骤的结果。
-     *
-     * 只覆盖属于该步骤的键：某一步重填时不能把别的步骤已经验证过的值一起抹掉，否则「回头改一步」
-     * 会让后面所有步骤静默失效。
+     * save 函数：执行与该组件职责相关的业务操作。
+     * 参数和返回值遵循调用方与领域服务之间的约定。
+     */
+    /**
+     * save 的职责与行为说明。
+     * 该声明负责配置引导流程中的相关数据处理、校验或服务调用。
      */
     fun save(section: SetupSection, values: Map<String, String>) = synchronized(lock) {
         val current = loaded()
@@ -53,35 +76,33 @@ class SetupDraftStore(
         val drafted = SetupDraft(values = merged, steps = (current.steps + section.id).distinct())
         persist(drafted)
     }
-
+    
+    
     /**
-     * delete：删除、清理或撤销相关数据。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     * delete 函数：执行与该组件职责相关的业务操作。
+     * 参数和返回值遵循调用方与领域服务之间的约定。
+     */
+    /**
+     * delete 的职责与行为说明。
+     * 该声明负责配置引导流程中的相关数据处理、校验或服务调用。
      */
     fun delete() = synchronized(lock) {
         cached = SetupDraft()
         Files.deleteIfExists(properties.draftPath())
         Unit
     }
-
+    
+    
     /**
-     * loaded：查询或读取相关数据。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     * loaded 的职责与行为说明。
+     * 该声明负责配置引导流程中的相关数据处理、校验或服务调用。
      */
     private fun loaded(): SetupDraft = cached ?: loadFromDisk().also { cached = it }
-
+    
+    
     /**
-     * loadFromDisk：查询或读取相关数据。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     * loadFromDisk 的职责与行为说明。
+     * 该声明负责配置引导流程中的相关数据处理、校验或服务调用。
      */
     private fun loadFromDisk(): SetupDraft {
         val path = properties.draftPath()
@@ -93,30 +114,23 @@ class SetupDraftStore(
             null
         }
         if (fromDisk != null) return fromDisk
-
-        // 没有草稿：从既有 `.env` 接续。重新进入引导模式（SETUP_MODE=true）改配置时，
-        // 向导应当带着现有配置打开，而不是让人凭记忆把 IP、车场号、密钥再敲一遍。
+        
         val seeded = seedFrom(DotenvLoader.read(properties.envPath()))
         if (seeded.values.isNotEmpty()) {
             logger.info("按既有 .env 预填引导草稿: 键={} 已完成步骤={}", seeded.values.keys.sorted(), seeded.steps)
         }
         return seeded
     }
-
+    
+    
     /**
-     * persist：创建、保存或初始化相关数据。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param draft 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     * persist 的职责与行为说明。
+     * 该声明负责配置引导流程中的相关数据处理、校验或服务调用。
      */
     private fun persist(draft: SetupDraft) {
         val path = properties.draftPath()
         writeAtomically(path, objectMapper.writeValueAsString(draft))
         cached = draft
-        // 草稿里带明文口令与密钥，权限收到「只有属主可读写」。Windows 上该调用是空操作，
-        // 那里由 NTFS 的目录继承权限兜底。
         runCatching {
             Files.setPosixFilePermissions(
                 path,
@@ -124,15 +138,11 @@ class SetupDraftStore(
             )
         }
     }
-
+    
+    
     /**
-     * writeAtomically：创建、保存或初始化相关数据。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param path 参与本次处理的输入参数。
-     * @param content 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     * writeAtomically 的职责与行为说明。
+     * 该声明负责配置引导流程中的相关数据处理、校验或服务调用。
      */
     private fun writeAtomically(path: Path, content: String) {
         path.parent?.let { Files.createDirectories(it) }
@@ -140,18 +150,20 @@ class SetupDraftStore(
         Files.writeString(temporary, content)
         Files.move(temporary, path, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
     }
-
+    
     companion object {
+        
+        
         /**
-         * 按既有配置推导草稿初值。
-         *
-         * 与文件读写分开，是因为这里有几个容易搞错的判断（哪些步骤算「已完成」、哪些键该继承），
-         * 而它们不该靠跑一遍真文件来验证。
+         * seedFrom 函数：执行与该组件职责相关的业务操作。
+         * 参数和返回值遵循调用方与领域服务之间的约定。
+         */
+        /**
+         * seedFrom 的职责与行为说明。
+         * 该声明负责配置引导流程中的相关数据处理、校验或服务调用。
          */
         fun seedFrom(existing: Map<String, String>): SetupDraft {
             val inherited = existing.filterKeys { it in SetupSection.allKeys }
-            // 光看 satisfiedBy 不够：短信这类「没有必填项」的步骤会被空集判成已完成，于是重新进入
-            // 引导时它一步没填就已经打上勾。要求既有配置里确实出现过该步骤的键，才算这一步被配过。
             val satisfied = SetupSection.entries
                 .filter { section -> section.keys.any { inherited.containsKey(it) } && section.satisfiedBy(inherited) }
                 .map { it.id }
@@ -159,3 +171,8 @@ class SetupDraftStore(
         }
     }
 }
+
+
+
+
+

@@ -1,5 +1,11 @@
 package top.foxball.cartask.config
 
+/**
+ * AuthenticationConfig 组件。
+ * 
+ * 负责实现该文件声明的配置、领域模型或基础设施能力。
+ */
+
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.web.servlet.FilterRegistrationBean
 import org.springframework.context.annotation.Bean
@@ -12,30 +18,43 @@ import java.time.Clock
 
 @Configuration
 @EnableConfigurationProperties(JwtProperties::class, LoginRateLimitProperties::class, CorsProperties::class)
+/**
+ * AuthenticationConfig 的职责说明。
+ * 该类型封装相关业务状态、依赖及操作流程。
+ */
 class AuthenticationConfig {
     @Bean
+            
+            
             /**
-             * authenticationClock：完成身份认证、令牌或验证码处理。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+             * authenticationClock 函数：执行与该组件职责相关的业务操作。
+             * 参数和返回值遵循调用方与领域服务之间的约定。
              */
     fun authenticationClock(): Clock = Clock.systemUTC()
-
-    /** 认证过滤器只加入 Spring Security 链，禁止 Servlet 容器再次独立注册。 */
+    
+    
     @Bean
+            /**
+             * jwtAuthenticationFilterRegistration 函数：执行与该组件职责相关的业务操作。
+             * 参数和返回值遵循调用方与领域服务之间的约定。
+             */
     fun jwtAuthenticationFilterRegistration(
         filter: JwtAuthenticationFilter,
     ): FilterRegistrationBean<JwtAuthenticationFilter> = FilterRegistrationBean(filter).apply {
         isEnabled = false
     }
-
-    /** 审计上下文只加入 Spring Security 链，避免 Servlet 容器重复执行。 */
+    
+    
     @Bean
+            /**
+             * auditRequestContextFilterRegistration 函数：执行与该组件职责相关的业务操作。
+             * 参数和返回值遵循调用方与领域服务之间的约定。
+             */
     fun auditRequestContextFilterRegistration(
         filter: AuditRequestContextFilter,
     ): FilterRegistrationBean<AuditRequestContextFilter> = FilterRegistrationBean(filter).apply {
         isEnabled = false
     }
 }
+
+

@@ -1,5 +1,16 @@
 package top.foxball.setup
 
+/**
+ * SetupTokenFilter 配置引导组件说明。
+ *
+ * 该文件负责系统初始化向导中的配置探测、持久化、校验或 Web 入口逻辑。
+ */
+/**
+ * SetupTokenFilter 组件。
+ * 
+ * 负责实现该文件声明的配置、领域模型或基础设施能力。
+ */
+
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
@@ -10,32 +21,25 @@ import org.springframework.http.HttpMethod
 import org.springframework.stereotype.Component
 import org.springframework.web.filter.OncePerRequestFilter
 
-/**
- * 引导接口的配置口令校验。
- *
- * 放在过滤器链最前面（早于安全链）：口令不对的请求连 Spring Security 都不必走，也就不会在日志里
- * 留下一堆和引导无关的告警。
- *
- * 只有两个例外：
- *  - `/api/setup/status`：前端在跳转到引导页之前必须先问「要不要引导」，此时还没有口令可用；
- *  - `OPTIONS` 预检：浏览器不会在预检请求上带自定义头，拦下来会让向导在跨域下直接不可用。
- *
- * 状态码用 403 而不是 401：没有口令不等于「登录态失效」，前端那条「401 就清 token 跳登录页」的
- * 通用逻辑不该被引导接口触发——引导阶段根本没有 token 可清。
- */
+
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 10)
+/**
+ * SetupTokenFilter 的职责说明。
+ * 该类型封装相关业务状态、依赖及操作流程。
+ */
+/**
+ * SetupTokenFilter 的职责与行为说明。
+ * 该声明负责配置引导流程中的相关数据处理、校验或服务调用。
+ */
 class SetupTokenFilter(
     private val token: SetupToken,
 ) : OncePerRequestFilter() {
-
+    
+    
     /**
-     * shouldNotFilter：校验输入、状态或访问条件。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param request 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     * shouldNotFilter 的职责与行为说明。
+     * 该声明负责配置引导流程中的相关数据处理、校验或服务调用。
      */
     override fun shouldNotFilter(request: HttpServletRequest): Boolean {
         val path = path(request)
@@ -43,16 +47,11 @@ class SetupTokenFilter(
         if (request.method == HttpMethod.OPTIONS.name()) return true
         return path == STATUS_PATH
     }
-
+    
+    
     /**
-     * doFilterInternal：处理请求、事件或异常流程。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param request 参与本次处理的输入参数。
-     * @param response 参与本次处理的输入参数。
-     * @param filterChain 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     * doFilterInternal 的职责与行为说明。
+     * 该声明负责配置引导流程中的相关数据处理、校验或服务调用。
      */
     override fun doFilterInternal(
         request: HttpServletRequest,
@@ -70,19 +69,28 @@ class SetupTokenFilter(
         }
         filterChain.doFilter(request, response)
     }
-
-    /** 去掉 context path，避免部署在子路径下时前缀判断失配。 */
+    
+    
+    /**
+     * path 的职责与行为说明。
+     * 该声明负责配置引导流程中的相关数据处理、校验或服务调用。
+     */
     private fun path(request: HttpServletRequest): String =
         request.requestURI.removePrefix(request.contextPath)
-
+    
     companion object {
-        /** 引导页在首次提交时把口令放进这个头；接口全部要求它，除了免检的 status。 */
+        
         const val HEADER = "X-Setup-Token"
-
+        
         const val PATH_PREFIX = "/api/setup/"
         const val STATUS_PATH = "/api/setup/status"
-
+        
         private const val MISSING_TOKEN_MESSAGE =
             "配置口令不正确。请在服务启动日志的「配置引导模式」横幅中查看本次口令。"
     }
 }
+
+
+
+
+

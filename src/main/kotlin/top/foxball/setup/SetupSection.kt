@@ -1,25 +1,33 @@
 package top.foxball.setup
 
 /**
- * 引导步骤与环境变量的对应关系。
+ * SetupSection 配置引导组件说明。
  *
- * 一份声明同时兜住三件事：向导每一步能写哪些键（[keys]，写别的键一律拒绝）、这一步填到什么程度
- * 才算完成（[required]）、以及重新进入引导模式时从既有 `.env` 里捞回哪些值（仍按 [keys] 取）。
- * 三处各写一份的话，加一个键就会漏掉其中一处，而漏掉的表现是「某项配置在向导里填了却没生效」。
+ * 该文件负责系统初始化向导中的配置探测、持久化、校验或 Web 入口逻辑。
+ */
+/**
+ * SetupSection 组件。
+ * 
+ * 负责实现该文件声明的配置、领域模型或基础设施能力。
+ */
+
+
+/**
+ * SetupSection 的职责说明。
+ * 该类型封装相关业务状态、依赖及操作流程。
  */
 enum class SetupSection(
     val id: String,
     val title: String,
     val keys: List<String>,
     val required: List<String>,
-    /** 值属于机密、不原样回给前端，只回「已保存」标记。 */
+    
     val secrets: List<String>,
 ) {
     DATABASE(
         id = "database",
         title = "数据库",
         keys = listOf("DB_URL", "DB_USERNAME", "DB_PASSWORD"),
-        // 密码允许为空：本机信任认证、或者已经配好 pgpass 的部署确实没有密码。
         required = listOf("DB_URL", "DB_USERNAME"),
         secrets = listOf("DB_PASSWORD"),
     ),
@@ -54,7 +62,6 @@ enum class SetupSection(
             "SMS_SIGN_NAME",
             "SMS_TEMPLATE_CODE",
         ),
-        // 短信是可选项，允许整步跳过；启用时由服务端另外校验凭据是否齐全。
         required = emptyList(),
         secrets = listOf("SMS_ACCESS_KEY_SECRET"),
     ),
@@ -71,29 +78,52 @@ enum class SetupSection(
         secrets = listOf("ADMIN_INITIALIZER_PASSWORD"),
     ),
     ;
-
-    /** 该步骤是否已具备完成条件。 */
+    
+    
+    /**
+     * satisfiedBy 函数：执行与该组件职责相关的业务操作。
+     * 参数和返回值遵循调用方与领域服务之间的约定。
+     */
+    /**
+     * satisfiedBy 的职责与行为说明。
+     * 该声明负责配置引导流程中的相关数据处理、校验或服务调用。
+     */
     fun satisfiedBy(values: Map<String, String>): Boolean =
         required.all { !values[it].isNullOrBlank() }
-
-    /** 只取属于本步骤的键，用来把外部传入的键集裁剪回允许范围。 */
+    
+    
+    /**
+     * slice 函数：执行与该组件职责相关的业务操作。
+     * 参数和返回值遵循调用方与领域服务之间的约定。
+     */
+    /**
+     * slice 的职责与行为说明。
+     * 该声明负责配置引导流程中的相关数据处理、校验或服务调用。
+     */
     fun slice(values: Map<String, String>): Map<String, String> =
         keys.filter { values.containsKey(it) }.associateWith { values.getValue(it) }
-
+    
     companion object {
+        
+        
         /**
-         * byId：执行当前模块中的业务操作。
-         *
-         * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-         * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-         * @param id 参与本次处理的输入参数。
-         * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+         * byId 函数：执行与该组件职责相关的业务操作。
+         * 参数和返回值遵循调用方与领域服务之间的约定。
+         */
+        /**
+         * byId 的职责与行为说明。
+         * 该声明负责配置引导流程中的相关数据处理、校验或服务调用。
          */
         fun byId(id: String): SetupSection? = entries.firstOrNull { it.id == id }
-
-        /** 所有步骤写过的键的并集，供渲染 `.env` 时做白名单校验。 */
+        
+        
         val allKeys: Set<String> = entries.flatMap { it.keys }.toSet()
-
+        
         val allSecrets: Set<String> = entries.flatMap { it.secrets }.toSet()
     }
 }
+
+
+
+
+

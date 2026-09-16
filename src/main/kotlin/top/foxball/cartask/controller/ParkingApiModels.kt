@@ -26,32 +26,33 @@ data class DocumentRoleRequest(
     @param:JsonProperty("permissions") val permissions: List<String>? = null,
 )
 
+/** class DocumentDepartmentRequest：Web 控制器，负责接收 HTTP 请求、调用领域服务并构造统一响应。 */
 class DocumentDepartmentRequest {
     @JsonProperty("name")
     var name: String? = null
-
+    
     @JsonProperty("code")
     var code: String? = null
-
+    
     @JsonProperty("parent")
     var parent: Long? = null
         set(value) {
             field = value
             parentProvided = true
         }
-
+    
     @JsonProperty("sort")
     var sort: Int? = null
-
+    
     @JsonProperty("leader")
     var leader: String? = null
-
+    
     @JsonProperty("phone")
     var phone: String? = null
-
+    
     @JsonProperty("status")
     var status: Int? = null
-
+    
     @get:JsonIgnore
     @set:JsonIgnore
     var parentProvided: Boolean = false
@@ -90,29 +91,30 @@ data class OwnerRequest(
 
 data class RechargeRequest(@param:JsonProperty("amount") val amount: BigDecimal? = null)
 
+/** class SpotRequest：Web 控制器，负责接收 HTTP 请求、调用领域服务并构造统一响应。 */
 class SpotRequest {
     @JsonProperty("code")
     var code: String? = null
-
+    
     @JsonProperty("area")
     var area: String? = null
-
+    
     @JsonProperty("type")
     var type: String? = null
-
+    
     @JsonProperty("owner")
     var owner: String? = null
         set(value) {
             field = value
             ownerProvided = true
         }
-
+    
     @JsonProperty("status")
     var status: Int? = null
-
+    
     @JsonProperty("remark")
     var remark: String? = null
-
+    
     @get:JsonIgnore
     @set:JsonIgnore
     var ownerProvided: Boolean = false
@@ -128,7 +130,7 @@ data class PlateRequest(
     @param:JsonProperty("inspectionDate") val inspectionDate: String? = null,
     @param:JsonProperty("inspectionValidUntil") val inspectionValidUntil: String? = null,
     @param:JsonProperty("inspectionRemark") val inspectionRemark: String? = null,
-    /** 是否已年检：false 清空年检登记，true 按请求整条登记（缺年检日期按今天、缺有效期按年检日期起一年）。 */
+    
     @param:JsonProperty("inspected") val inspected: Boolean? = null,
 )
 
@@ -143,7 +145,7 @@ data class GatePersonRequest(
 
 data class DeleteRequestBody(@param:JsonProperty("reason") val reason: String? = null)
 
-/** 批量审核门禁人员：结论对整批生效，避免前端循环单条调用产生「部分成功」。 */
+
 data class GatePersonReviewBody(
     @param:JsonProperty("ids") val ids: List<Long>? = null,
     @param:JsonProperty("approved") val approved: Boolean? = null,
@@ -182,7 +184,7 @@ data class StoredPlate(
     val carBrand: String,
     val inspectionDate: String?,
     val inspectionValidUntil: String?,
-    /** 年检状态文案：未年检 / 有效 / 已过期，由后端按当前日期判定，避免各端各算一套。 */
+    
     val inspectionStatus: String,
     val inspectionRemark: String?,
 )
@@ -214,7 +216,7 @@ data class StoredDeleteRequest(
     val status: String,
 )
 
-/** 替换某个用户的部门管理范围。 */
+
 data class ManagedDepartmentRequest(
     val departments: List<ManagedDepartmentItem>? = null,
 )

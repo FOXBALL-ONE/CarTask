@@ -16,9 +16,10 @@ import top.foxball.cartask.task.SynCarCapInfoTask
 import top.foxball.cartask.task.SynOwnerArchiveTask
 import java.time.LocalDateTime
 
-/** 修改同步周期的请求体。 */
+
+/** class UpdateSyncScheduleRequest：Web 控制器，负责接收 HTTP 请求、调用领域服务并构造统一响应。 */
 class UpdateSyncScheduleRequest {
-    /** Spring 六段式 cron（秒 分 时 日 月 周）。 */
+    
     @JsonProperty("cron")
     var cron: String? = null
 }
@@ -29,7 +30,7 @@ data class ScheduleData(
     val description: String,
     val cron: String,
     @param:JsonProperty("default_cron") val defaultCron: String,
-    /** 与配置默认值不同时为 true；改回默认值会删掉覆盖记录。 */
+    
     val customized: Boolean,
     @param:JsonProperty("updated_at") val updatedAt: LocalDateTime?,
     @param:JsonProperty("updated_by") val updatedBy: String?,
@@ -38,6 +39,7 @@ data class ScheduleData(
 
 @RestController
 @RequestMapping("/api/synchronizations")
+/** class SynchronizationController：Web 控制器，负责接收 HTTP 请求、调用领域服务并构造统一响应。 */
 class SynchronizationController(
     private val synAreaInfoTask: SynAreaInfoTask,
     private val synCarCapInfoTask: SynCarCapInfoTask,
@@ -50,13 +52,9 @@ class SynchronizationController(
 ) {
     @GetMapping("/progress")
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAnyAuthority('dictionary:sync', 'vehicle-record:sync', 'owner:sync', 'account:sync')")
-            /**
-             * syncProgress：执行数据同步、探测或文件处理。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-             */
+            
+            
+            /** syncProgress：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun syncProgress(): ResponseEntity<Response> {
         data class TaskData(
             @param:JsonProperty("task_key") val taskKey: String,
@@ -66,15 +64,16 @@ class SynchronizationController(
             @param:JsonProperty("total_count") val totalCount: Int?,
             @param:JsonProperty("started_at") val startedAt: LocalDateTime?,
         )
-
+        
         val rs = syncTaskProgressService.snapshot()
             .map { TaskData(it.taskKey, it.taskName, it.running, it.processedCount, it.totalCount, it.startedAt) }
         return responseBuilder.ok().data(rs).build()
     }
-
-    /** 从科拓拉取一次停车区域，并将结果幂等写入本地区域字典。 */
+    
+    
     @PostMapping("/parking-areas")
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('dictionary:sync')")
+            /** synchronizeParkingAreas：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun synchronizeParkingAreas(): ResponseEntity<Response> {
         data class Response(
             @param:JsonProperty("received_count") val receivedCount: Int,
@@ -83,7 +82,7 @@ class SynchronizationController(
             @param:JsonProperty("unchanged_count") val unchangedCount: Int,
             @param:JsonProperty("executed_at") val executedAt: LocalDateTime,
         )
-
+        
         val result = synAreaInfoTask.synchronize()
         val rs = Response(
             receivedCount = result.receivedCount,
@@ -97,10 +96,11 @@ class SynchronizationController(
             .data(rs)
             .build()
     }
-
-    /** 根据上次成功检查点，从科拓增量同步车辆进出记录与抓拍图片。 */
+    
+    
     @GetMapping("/access-records/preview")
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('vehicle-record:sync')")
+            /** previewAccessRecordSynchronization：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun previewAccessRecordSynchronization(): ResponseEntity<Response> {
         data class Response(
             @param:JsonProperty("initial_sync") val initialSync: Boolean,
@@ -110,7 +110,7 @@ class SynchronizationController(
             @param:JsonProperty("checkpoint_time") val checkpointTime: LocalDateTime?,
             @param:JsonProperty("checked_at") val checkedAt: LocalDateTime,
         )
-
+        
         val result = synCarCapInfoTask.previewSynchronization()
         val rs = Response(
             initialSync = result.initialSync,
@@ -125,16 +125,12 @@ class SynchronizationController(
             .data(rs)
             .build()
     }
-
+    
     @PostMapping("/access-records")
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('vehicle-record:sync')")
-            /**
-             * synchronizeAccessRecords：执行数据同步、探测或文件处理。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-             */
+            
+            
+            /** synchronizeAccessRecords：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun synchronizeAccessRecords(): ResponseEntity<Response> {
         data class Response(
             @param:JsonProperty("processed_count") val processedCount: Int,
@@ -144,7 +140,7 @@ class SynchronizationController(
             @param:JsonProperty("cursor_time") val cursorTime: LocalDateTime,
             @param:JsonProperty("executed_at") val executedAt: LocalDateTime,
         )
-
+        
         val result = synCarCapInfoTask.synchronize()
         val rs = Response(
             processedCount = result.processedCount,
@@ -159,10 +155,11 @@ class SynchronizationController(
             .data(rs)
             .build()
     }
-
-    /** 从车辆进出记录里补建系统缺失的车主信息：回查科拓卡片信息新建车主档案并登记车牌关联。 */
+    
+    
     @PostMapping("/owners")
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('owner:sync')")
+            /** synchronizeOwners：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun synchronizeOwners(): ResponseEntity<Response> {
         data class Response(
             @param:JsonProperty("created_owner_count") val createdOwnerCount: Int,
@@ -170,7 +167,7 @@ class SynchronizationController(
             @param:JsonProperty("skipped_count") val skippedCount: Int,
             @param:JsonProperty("executed_at") val executedAt: LocalDateTime,
         )
-
+        
         val result = synOwnerArchiveTask.generate()
         val rs = Response(
             createdOwnerCount = result.createdOwnerCount,
@@ -183,10 +180,11 @@ class SynchronizationController(
             .data(rs)
             .build()
     }
-
-    /** 根据车辆进出记录为业主补建平台登录账号，已有账号的业主自动跳过。 */
+    
+    
     @PostMapping("/accounts")
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('account:sync')")
+            /** synchronizeAccounts：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun synchronizeAccounts(): ResponseEntity<Response> {
         data class Response(
             @param:JsonProperty("created_count") val createdCount: Int,
@@ -194,7 +192,7 @@ class SynchronizationController(
             @param:JsonProperty("failed_count") val failedCount: Int,
             @param:JsonProperty("executed_at") val executedAt: LocalDateTime,
         )
-
+        
         val result = synAccountGenerateTask.generate()
         val rs = Response(
             createdCount = result.createdCount,
@@ -207,10 +205,11 @@ class SynchronizationController(
             .data(rs)
             .build()
     }
-
-    /** 分页查询数据同步任务的执行历史，可按任务标识过滤。 */
+    
+    
     @GetMapping("/history")
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('sync-history:read')")
+            /** syncHistory：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun syncHistory(
         @RequestParam(defaultValue = "1") page: Int,
         @RequestParam(name = "page_size", defaultValue = "20") pageSize: Int,
@@ -233,14 +232,14 @@ class SynchronizationController(
             val summary: String?,
             val error: String?,
         )
-
+        
         data class Response(
             val runs: List<RunData>,
             val page: Int,
             @param:JsonProperty("page_size") val pageSize: Int,
             val total: Long,
         )
-
+        
         val result = syncTaskHistoryService.list(page, pageSize, taskKey)
         val rs = Response(
             result.runs.map { run ->
@@ -268,23 +267,21 @@ class SynchronizationController(
         )
         return responseBuilder.ok().data(rs).build()
     }
-
-    /** 列出全部可调周期的同步任务：当前周期、配置默认值与下次触发时间。 */
+    
+    
     @GetMapping("/schedules")
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('sync-schedule:manage')")
+            /** syncSchedules：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun syncSchedules(): ResponseEntity<Response> {
         return responseBuilder.ok()
             .data(syncScheduleService.list().map(::toScheduleData))
             .build()
     }
-
-    /**
-     * 修改某个同步任务的执行周期。保存即生效：事务提交后调度器重新注册触发时间。
-     *
-     * [taskKey] 里带点（如 `car_cap_info.sync`），Spring 默认不再做后缀匹配，无需转义。
-     */
+    
+    
     @PutMapping("/schedules/{taskKey}")
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('sync-schedule:manage')")
+            /** updateSyncSchedule：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun updateSyncSchedule(
         @PathVariable taskKey: String,
         @RequestBody request: UpdateSyncScheduleRequest,
@@ -296,15 +293,8 @@ class SynchronizationController(
             .data(toScheduleData(updated))
             .build()
     }
-
-    /**
-     * toScheduleData：转换、构建或格式化数据。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param schedule 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     private fun toScheduleData(schedule: SyncScheduleService.ScheduleView): ScheduleData = ScheduleData(
         taskKey = schedule.taskKey,
         taskName = schedule.taskName,

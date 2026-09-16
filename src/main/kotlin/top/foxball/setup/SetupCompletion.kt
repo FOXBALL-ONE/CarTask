@@ -1,23 +1,41 @@
 package top.foxball.setup
 
+/**
+ * SetupCompletion 配置引导组件说明。
+ *
+ * 该文件负责系统初始化向导中的配置探测、持久化、校验或 Web 入口逻辑。
+ */
+/**
+ * SetupCompletion 组件。
+ * 
+ * 负责实现该文件声明的配置、领域模型或基础设施能力。
+ */
+
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import java.nio.file.Path
 import java.time.LocalDateTime
 
+/**
+ * CompletionResult 的职责与行为说明。
+ * 该声明负责配置引导流程中的相关数据处理、校验或服务调用。
+ */
 data class CompletionResult(
     val envPath: Path,
     val backupPath: Path?,
     val completedAt: LocalDateTime,
 )
 
-/**
- * 收尾：校验步骤齐全、写出 `.env`、清掉草稿、请求重启。
- *
- * 顺序不能颠倒。先落配置再删草稿：反过来的话，写文件失败就只剩一份空草稿，实施人员得从头再填一遍。
- * 而重启放在最后，是因为它一旦触发，这套上下文马上就会关掉，后面任何一步都来不及执行。
- */
+
 @Component
+/**
+ * SetupCompletion 的职责说明。
+ * 该类型封装相关业务状态、依赖及操作流程。
+ */
+/**
+ * SetupCompletion 的职责与行为说明。
+ * 该声明负责配置引导流程中的相关数据处理、校验或服务调用。
+ */
 class SetupCompletion(
     private val draftStore: SetupDraftStore,
     private val envFile: SetupEnvFile,
@@ -25,18 +43,19 @@ class SetupCompletion(
     private val restartSignal: SetupRestartSignal,
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
-
+    
+    
     /**
-     * complete：执行当前模块中的业务操作。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param frontendOrigin 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     * complete 函数：执行与该组件职责相关的业务操作。
+     * 参数和返回值遵循调用方与领域服务之间的约定。
+     */
+    /**
+     * complete 的职责与行为说明。
+     * 该声明负责配置引导流程中的相关数据处理、校验或服务调用。
      */
     fun complete(frontendOrigin: String?): CompletionResult {
         val draft = draftStore.read()
-
+        
         val missingSteps = SetupSection.entries.filterNot { it.id in draft.steps }
         if (missingSteps.isNotEmpty()) {
             throw SetupException("还有未完成的步骤：${missingSteps.joinToString("、") { it.title }}")
@@ -45,7 +64,7 @@ class SetupCompletion(
         if (missingValues.isNotEmpty()) {
             throw SetupException("以下步骤缺少必填项：${missingValues.joinToString("、") { it.title }}")
         }
-
+        
         val now = LocalDateTime.now()
         val backup = envFile.write(draft.values, frontendOrigin, now)
         draftStore.delete()
@@ -54,3 +73,8 @@ class SetupCompletion(
         return CompletionResult(envPath = properties.envPath(), backupPath = backup, completedAt = now)
     }
 }
+
+
+
+
+

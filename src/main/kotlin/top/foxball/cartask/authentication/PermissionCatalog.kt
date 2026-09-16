@@ -1,12 +1,33 @@
 package top.foxball.cartask.authentication
 
-/** 管理端可配置的稳定权限字典。 */
-object PermissionCatalog {
-    data class Definition(val code: String, val name: String)
+/**
+ * PermissionCatalog：认证子系统中的组件，负责实现相关安全、令牌或访问控制能力。
+ *
+ * 该文件中的类型和函数用于支撑登录认证流程，并在边界处校验输入与会话状态。
+ */
 
+/**
+ * PermissionCatalog 认证组件说明。
+ *
+ * 该文件集中定义认证流程所需的领域类型、服务及基础设施适配逻辑。
+ */
+
+
+/**
+ * PermissionCatalog 的职责说明。
+ * 该类型封装相关业务状态、依赖及操作流程。
+ */
+/** object PermissionCatalog：用于认证领域的类型，封装相关状态与行为。 */
+object PermissionCatalog {
+    /**
+     * Definition 的职责与行为说明。
+     * 该声明负责认证域中的相关数据处理、校验或服务调用。
+     */
+    data class Definition(val code: String, val name: String)
+    
     const val SYSTEM_MONITOR_READ = "system-monitor:read"
     const val LEGACY_SYSTEM_MONITOR_READ = "system:monitor:read"
-
+    
     val definitions = listOf(
         Definition("dashboard:read", "查看仪表盘"),
         Definition(SYSTEM_MONITOR_READ, "查看系统监控"),
@@ -30,8 +51,6 @@ object PermissionCatalog {
         Definition("spot:manage", "管理车位"),
         Definition("plate:read", "查看车牌"),
         Definition("plate:manage", "管理车牌"),
-        // 车辆进出申请登记：登记的是「给这个车牌下发月卡」的申请，审批通过后才会写科拓平台。
-        // 登记、审核、下发是三个独立动作：登记的人不该必然能审批，审批的人也不该必然能写外部平台。
         Definition("vehicle-inout-request:read", "查看车辆进出申请"),
         Definition("vehicle-inout-request:apply", "登记车辆进出申请"),
         Definition("vehicle-inout-request:review", "审核车辆进出申请"),
@@ -71,11 +90,11 @@ object PermissionCatalog {
         Definition("dictionary:sync", "同步停车区域字典"),
         Definition("account:sync", "生成车辆业主账号"),
         Definition("sync-history:read", "查看同步执行历史"),
-        // 周期是全局调度配置，改坏了会静默停止数据拉取，因此不给部门管理。
         Definition("sync-schedule:manage", "修改同步任务周期"),
         Definition("file:read", "读取文件"),
         Definition("file:upload", "上传文件"),
-        // 只授给超级管理员：产物里是整库数据加全部附件，平台管理与部门管理都不该拿到。
         Definition("backup:manage", "数据备份"),
     )
 }
+
+

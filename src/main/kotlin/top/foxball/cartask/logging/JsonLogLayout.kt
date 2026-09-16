@@ -1,5 +1,11 @@
 package top.foxball.cartask.logging
 
+/**
+ * JsonLogLayout 组件。
+ * 
+ * 负责实现该文件声明的配置、领域模型或基础设施能力。
+ */
+
 import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.classic.spi.ThrowableProxyUtil
 import ch.qos.logback.core.LayoutBase
@@ -7,7 +13,11 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-/** Emits one escaped JSON object per line without serializing arbitrary application objects. */
+
+/**
+ * JsonLogLayout 的职责说明。
+ * 该类型封装相关业务状态、依赖及操作流程。
+ */
 class JsonLogLayout : LayoutBase<ILoggingEvent>() {
     var service: String = "carTask"
     var instance: String = System.getenv("HOSTNAME")?.ifBlank { null } ?: "local"
@@ -15,18 +25,11 @@ class JsonLogLayout : LayoutBase<ILoggingEvent>() {
     var includeException: Boolean = true
     var maxMessageLength: Int = 8192
     var maxExceptionLength: Int = 16384
-
+    
     private val formatter: DateTimeFormatter
         get() = DateTimeFormatter.ISO_OFFSET_DATE_TIME.withZone(ZoneId.of(timeZone))
-
-    /**
-     * doLayout：执行当前模块中的业务操作。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param event 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     override fun doLayout(event: ILoggingEvent): String {
         val fields = linkedMapOf<String, Any?>()
         fields["timestamp"] = formatter.format(Instant.ofEpochMilli(event.timeStamp))
@@ -77,28 +80,14 @@ class JsonLogLayout : LayoutBase<ILoggingEvent>() {
             append("}\n")
         }
     }
-
-    /**
-     * truncate：执行当前模块中的业务操作。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param limit 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     private fun String.truncate(limit: Int): String {
         if (length <= limit) return this
         return take(limit.coerceAtLeast(1)) + "...[truncated]"
     }
-
-    /**
-     * appendJsonValue：执行当前模块中的业务操作。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param value 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     private fun StringBuilder.appendJsonValue(value: Any?) {
         when (value) {
             null -> append("null")
@@ -106,15 +95,8 @@ class JsonLogLayout : LayoutBase<ILoggingEvent>() {
             else -> append('"').append(escape(value.toString())).append('"')
         }
     }
-
-    /**
-     * escape：执行当前模块中的业务操作。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param value 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     private fun escape(value: String): String = buildString(value.length + 8) {
         value.forEach { character ->
             when (character) {
@@ -128,3 +110,5 @@ class JsonLogLayout : LayoutBase<ILoggingEvent>() {
         }
     }
 }
+
+

@@ -1,10 +1,16 @@
 package top.foxball.cartask.keytop
 
+/**
+ * KeytopModels 组件。
+ * 
+ * 负责实现该文件声明的配置、领域模型或基础设施能力。
+ */
+
 import com.fasterxml.jackson.annotation.JsonInclude
 import tools.jackson.databind.JsonNode
 import java.time.LocalDateTime
 
-/** 科拓接口的统一响应。data 保留平台返回的原始 JSON，便于兼容不同车场的数据结构。 */
+
 data class KeytopResponse(
     val code: Int?,
     val message: String?,
@@ -17,7 +23,6 @@ data class KeytopCardInfo(
     val useName: String,
     val tel: String,
     val roomId: String,
-    /** 平台字段原名为 remak。 */
     val remak: String = "",
     val contact: String = "",
     val assist: String = "",
@@ -75,3 +80,5 @@ data class KeytopRefundCarCardFeeRequest(
     val freeNumber: Int = 0,
     val remark: String = "有效期缩短",
 )
+
+

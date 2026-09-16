@@ -1,5 +1,17 @@
 package top.foxball.cartask.authentication
 
+/**
+ * LoginAttemptLimiter：认证子系统中的组件，负责实现相关安全、令牌或访问控制能力。
+ *
+ * 该文件中的类型和函数用于支撑登录认证流程，并在边界处校验输入与会话状态。
+ */
+
+/**
+ * LoginAttemptLimiter 认证组件说明。
+ *
+ * 该文件集中定义认证流程所需的领域类型、服务及基础设施适配逻辑。
+ */
+
 import org.springframework.dao.DataAccessException
 import org.springframework.data.redis.core.StringRedisTemplate
 import org.springframework.data.redis.core.script.DefaultRedisScript
@@ -9,8 +21,12 @@ import java.security.MessageDigest
 import java.util.*
 import kotlin.math.ceil
 
-/** 使用 Redis 对规范化用户名进行失败窗口计数，避免单实例内存限流被绕过。 */
+
 @Component
+/**
+ * LoginAttemptLimiter 的职责说明。
+ * 该类型封装相关业务状态、依赖及操作流程。
+ */
 class LoginAttemptLimiter(
     private val redisTemplate: StringRedisTemplate,
     private val properties: LoginRateLimitProperties,
@@ -46,19 +62,17 @@ class LoginAttemptLimiter(
         )
         resultType = Long::class.java
     }
-
+    
     init {
         properties.validate()
     }
-
+    
+    
     /**
-     * check：校验输入、状态或访问条件。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param username 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     * check 函数：执行与该组件职责相关的业务操作。
+     * 参数和返回值遵循调用方与领域服务之间的约定。
      */
+    /** check：执行认证组件中的一项具体操作，完成输入校验并返回处理结果。 */
     fun check(username: String) {
         if (!properties.enabled) return
         guarded("检查登录失败次数") {
@@ -70,15 +84,13 @@ class LoginAttemptLimiter(
             if (remainingMillis > 0) throw LoginRateLimitException(toSeconds(remainingMillis))
         }
     }
-
+    
+    
     /**
-     * recordFailure：执行当前模块中的业务操作。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param username 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     * recordFailure 函数：执行与该组件职责相关的业务操作。
+     * 参数和返回值遵循调用方与领域服务之间的约定。
      */
+    /** recordFailure：执行认证组件中的一项具体操作，完成输入校验并返回处理结果。 */
     fun recordFailure(username: String) {
         if (!properties.enabled) return
         guarded("记录登录失败") {
@@ -91,46 +103,32 @@ class LoginAttemptLimiter(
             if (remainingMillis > 0) throw LoginRateLimitException(toSeconds(remainingMillis))
         }
     }
-
+    
+    
     /**
-     * clear：删除、清理或撤销相关数据。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param username 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     * clear 函数：执行与该组件职责相关的业务操作。
+     * 参数和返回值遵循调用方与领域服务之间的约定。
      */
+    /** clear：执行认证组件中的一项具体操作，完成输入校验并返回处理结果。 */
     fun clear(username: String) {
         if (!properties.enabled) return
         guarded("清除登录失败次数") {
             redisTemplate.delete(key(username))
         }
     }
-
-    /**
-     * key：执行当前模块中的业务操作。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param username 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
+    /** key：执行认证组件中的一项具体操作，完成输入校验并返回处理结果。 */
     private fun key(username: String): String {
         val normalized = username.trim().lowercase(Locale.ROOT)
         val digest = MessageDigest.getInstance("SHA-256").digest(normalized.toByteArray(StandardCharsets.UTF_8))
         return "shopmall:auth:login-failure:${Base64.getUrlEncoder().withoutPadding().encodeToString(digest)}"
     }
-
-    /**
-     * toSeconds：转换、构建或格式化数据。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param milliseconds 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
+    /** toSeconds：执行认证组件中的一项具体操作，完成输入校验并返回处理结果。 */
     private fun toSeconds(milliseconds: Long): Long = ceil(milliseconds / 1000.0).toLong().coerceAtLeast(1)
-
+    
     private fun <T> guarded(operation: String, action: () -> T): T = try {
         action()
     } catch (ex: LoginRateLimitException) {
@@ -143,3 +141,5 @@ class LoginAttemptLimiter(
         throw AuthenticationInfrastructureException("Redis $operation 失败", ex)
     }
 }
+
+

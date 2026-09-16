@@ -1,10 +1,22 @@
 package top.foxball.cartask.config
 
+/**
+ * LoggingConfig 组件。
+ * 
+ * 负责实现该文件声明的配置、领域模型或基础设施能力。
+ */
+
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Configuration
 import top.foxball.cartask.logging.LoggingProperties
 
 @Configuration
 @EnableConfigurationProperties(LoggingProperties::class)
-/** 启用日志配置属性，为结构化日志和操作日志执行器提供参数。 */
+
+/**
+ * LoggingConfig 的职责说明。
+ * 该类型封装相关业务状态、依赖及操作流程。
+ */
 class LoggingConfig
+
+

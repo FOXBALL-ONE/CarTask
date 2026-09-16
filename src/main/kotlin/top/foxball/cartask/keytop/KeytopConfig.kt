@@ -1,9 +1,21 @@
 package top.foxball.cartask.keytop
 
+/**
+ * KeytopConfig 组件。
+ * 
+ * 负责实现该文件声明的配置、领域模型或基础设施能力。
+ */
+
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Configuration
 
 @Configuration
 @EnableConfigurationProperties(KeytopProperties::class)
-/** 启用科拓开放平台配置属性，供客户端和同步任务读取连接参数。 */
+
+/**
+ * KeytopConfig 的职责说明。
+ * 该类型封装相关业务状态、依赖及操作流程。
+ */
 class KeytopConfig
+
+

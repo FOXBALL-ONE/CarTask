@@ -15,14 +15,16 @@ import java.util.*
 
 @RestController
 @RequestMapping("/api/files")
-/** 文件上传、元数据查询和下载接口。 */
+
+/** class FileController：Web 控制器，负责接收 HTTP 请求、调用领域服务并构造统一响应。 */
 class FileController(
     private val fileService: FileService,
     private val responseBuilder: ResponseBuilder,
 ) {
-    /** 接收单个 multipart 文件并返回文件元数据。 */
+    
     @PostMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('file:upload')")
+            /** upload：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun upload(@RequestPart("file") file: MultipartFile): ResponseEntity<Response> {
         data class Response(
             val id: UUID,
@@ -32,7 +34,7 @@ class FileController(
             @param:JsonProperty("download_url") val downloadUrl: String,
             @param:JsonProperty("created_at") val createdAt: LocalDateTime,
         )
-
+        
         val fileData = fileService.upload(file)
         val rs = Response(
             fileData.id,
@@ -44,10 +46,11 @@ class FileController(
         )
         return responseBuilder.created().data(rs).build()
     }
-
-    /** 返回指定文件的元数据和下载地址。 */
+    
+    
     @GetMapping("/{id}")
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN') or hasRole('USER')) and hasAuthority('file:read')")
+            /** get：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun get(@PathVariable id: UUID): ResponseEntity<Response> {
         data class Response(
             val id: UUID,
@@ -57,7 +60,7 @@ class FileController(
             @param:JsonProperty("download_url") val downloadUrl: String,
             @param:JsonProperty("created_at") val createdAt: LocalDateTime,
         )
-
+        
         val fileData = fileService.get(id)
         val rs = Response(
             fileData.id,
@@ -69,10 +72,11 @@ class FileController(
         )
         return responseBuilder.ok().data(rs).build()
     }
-
-    /** 以附件形式下载指定文件并恢复原始文件名。 */
+    
+    
     @GetMapping("/{id}/download")
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN') or hasRole('USER')) and hasAuthority('file:read')")
+            /** download：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun download(@PathVariable id: UUID): ResponseEntity<FileSystemResource> {
         val fileData = fileService.openDownload(id)
         val mediaType = try {

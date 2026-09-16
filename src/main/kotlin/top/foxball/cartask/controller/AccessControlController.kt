@@ -11,14 +11,7 @@ import top.foxball.cartask.shared.Response
 import top.foxball.cartask.shared.ResponseBuilder
 import java.time.LocalDateTime
 
-/**
- * 门禁授权的对外视图。
- *
- * 刻意不直接序列化 [AccessControl] 实体：`department` 是懒加载关联，而请求体里传进来的
- * 往往只是一个 `{id: 1}` 的空壳，直接回写响应会在 `Department` 那些 lateinit 字段上抛
- * `UninitializedPropertyAccessException`——接口报 500，记录却已经落库了。
- * 这里只取外键 id 与在事务内初始化好的部门名，与实体代理状态无关。
- */
+
 data class AccessControlView(
     val id: Long?,
     val name: String,
@@ -38,14 +31,15 @@ data class AccessControlView(
     @param:JsonProperty("updatedAt") val updatedAt: LocalDateTime?,
 ) {
     companion object {
-        /** lateinit 属性还没被赋值时按 null 取，而不是抛 [UninitializedPropertyAccessException]。 */
+        
         private inline fun <T> uninitializedAsNull(get: () -> T): T? = try {
             get()
         } catch (_: UninitializedPropertyAccessException) {
             null
         }
-
-        /** 只读两个关联的 `id`（外键列，代理无需初始化）与已在事务内取好的名称。 */
+        
+        
+        /** of：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
         fun of(entity: AccessControl): AccessControlView = AccessControlView(
             id = entity.id,
             name = entity.name,
@@ -62,8 +56,6 @@ data class AccessControlView(
             endTime = entity.endTime,
             reviewStatus = entity.reviewStatus.name,
             synchronizedLoading = entity.synchronizedLoading,
-            // createdAt / updatedAt 由 AuditingEntityListener 在持久化时填，非自增主键场景下
-            // 视图可能在赋值前就被构造出来，这里按 null 处理。
             createdAt = uninitializedAsNull { entity.createdAt },
             updatedAt = uninitializedAsNull { entity.updatedAt },
         )
@@ -76,90 +68,94 @@ private fun Page<AccessControl>.toViews(): Page<AccessControlView> = map { it.to
 
 @RestController
 @RequestMapping("/api/access-controls")
-/** 门禁授权记录的管理接口。 */
+
+/** class AccessControlController：Web 控制器，负责接收 HTTP 请求、调用领域服务并构造统一响应。 */
 class AccessControlController(
     private val service: AccessControlService,
     private val responseBuilder: ResponseBuilder,
 ) {
-    /** 创建一条实体记录。 */
+    
     @PostMapping
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('access-control:apply')")
+            /** create：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun create(@RequestBody entity: AccessControl): ResponseEntity<Response> =
         responseBuilder.created().data(service.create(entity).toView()).build()
-
-    /** 批量创建实体记录。 */
+    
+    
     @PostMapping("/batch")
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('access-control:apply')")
+            /** createBatch：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun createBatch(@RequestBody entities: List<AccessControl>): ResponseEntity<Response> =
         responseBuilder.created().data(service.createBatch(entities).map { it.toView() }).build()
-
-    /** 按主键获取一条实体记录。 */
+    
+    
     @GetMapping("/{id}")
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('access-control:read')")
+            /** get：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun get(@PathVariable id: Long): ResponseEntity<Response> =
         responseBuilder.ok().data(service.get(id).toView()).build()
-
-    /** 按多个主键批量获取实体记录。 */
+    
+    
     @GetMapping("/batch")
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('access-control:read')")
+            /** getBatch：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun getBatch(@RequestParam id: List<Long>): ResponseEntity<Response> =
         responseBuilder.ok().data(service.getBatch(id).map { it.toView() }).build()
-
-    /** 分页查询实体记录；结果按当前数据范围裁剪。 */
+    
+    
     @GetMapping
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('access-control:read')")
+            /** list：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun list(
         @RequestParam(defaultValue = "1") page: Int,
         @RequestParam(name = "page_size", defaultValue = "20") pageSize: Int,
     ): ResponseEntity<Response> = responseBuilder.ok().data(service.list(page, pageSize).toViews()).build()
-
-    /** 更新指定主键的实体记录。 */
+    
+    
     @PutMapping("/{id}")
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('access-control:update')")
+            /** update：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun update(@PathVariable id: Long, @RequestBody entity: AccessControl): ResponseEntity<Response> =
         responseBuilder.ok().data(service.update(id, entity).toView()).build()
-
-    /** 批量更新实体记录。 */
+    
+    
     @PutMapping("/batch")
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('access-control:update')")
+            /** updateBatch：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun updateBatch(@RequestBody entities: List<AccessControl>): ResponseEntity<Response> =
         responseBuilder.ok().data(service.updateBatch(entities).map { it.toView() }).build()
-
+    
     @PostMapping("/{id}/review")
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('access-control:review')")
-            /**
-             * review：执行当前模块中的业务操作。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @param id 参与本次处理的输入参数。
-             * @param approved 参与本次处理的输入参数。
-             * @param reason 参与本次处理的输入参数。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-             */
+            
+            
+            /** review：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun review(
         @PathVariable id: Long,
         @RequestParam approved: Boolean,
         @RequestParam(name = "review_reason") reason: String,
     ): ResponseEntity<Response> =
         responseBuilder.ok().data(service.review(id, approved, reason).toView()).build()
-
+    
     @PostMapping("/{id}/sync")
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('access-control:sync')")
+            /** synchronize：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun synchronize(@PathVariable id: Long): ResponseEntity<Response> =
         responseBuilder.ok().data(service.synchronize(id).toView()).build()
-
-    /** 删除指定主键的实体记录。 */
+    
+    
     @DeleteMapping("/{id}")
     @PreAuthorize("denyAll()")
+            /** delete：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun delete(@PathVariable id: Long): ResponseEntity<Response> {
         service.delete(id)
         return responseBuilder.ok().data(mapOf("id" to id)).build()
     }
-
-    /** 批量删除实体记录。 */
+    
+    
     @DeleteMapping("/batch")
     @PreAuthorize("denyAll()")
+            /** deleteBatch：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun deleteBatch(@RequestParam id: List<Long>): ResponseEntity<Response> {
         service.deleteBatch(id)
         return responseBuilder.ok().data(mapOf("ids" to id)).build()

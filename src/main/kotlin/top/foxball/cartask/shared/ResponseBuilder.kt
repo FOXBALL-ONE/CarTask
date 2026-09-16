@@ -1,219 +1,188 @@
 package top.foxball.cartask.shared
 
+/**
+ * ResponseBuilder 组件。
+ * 
+ * 负责实现该文件声明的配置、领域模型或基础设施能力。
+ */
+
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.stereotype.Component
 
-/** 构造统一 [ResponseEntity]/[Response] 的建造者，封装常见 HTTP 状态及分页/重试头。 */
-@Component
-class ResponseBuilder {
 
+@Component
+/**
+ * ResponseBuilder 的职责说明。
+ * 该类型封装相关业务状态、依赖及操作流程。
+ */
+class ResponseBuilder {
+    
+    
     /**
-     * ok：执行当前模块中的业务操作。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     * ok 函数：执行与该组件职责相关的业务操作。
+     * 参数和返回值遵循调用方与领域服务之间的约定。
      */
     fun ok(): Builder = Builder(ResponseCode.OK)
-
+    
+    
     /**
-     * created：创建、保存或初始化相关数据。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     * created 函数：执行与该组件职责相关的业务操作。
+     * 参数和返回值遵循调用方与领域服务之间的约定。
      */
     fun created(): Builder = Builder(ResponseCode.CREATED)
-
+    
+    
     /**
-     * notFound：执行当前模块中的业务操作。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     * notFound 函数：执行与该组件职责相关的业务操作。
+     * 参数和返回值遵循调用方与领域服务之间的约定。
      */
     fun notFound(): Builder = Builder(ResponseCode.NOT_FOUND)
-
+    
+    
     /**
-     * badRequest：执行当前模块中的业务操作。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     * badRequest 函数：执行与该组件职责相关的业务操作。
+     * 参数和返回值遵循调用方与领域服务之间的约定。
      */
     fun badRequest(): Builder = Builder(ResponseCode.BAD_REQUEST)
-
+    
+    
     /**
-     * forbidden：执行当前模块中的业务操作。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     * forbidden 函数：执行与该组件职责相关的业务操作。
+     * 参数和返回值遵循调用方与领域服务之间的约定。
      */
     fun forbidden(): Builder = Builder(ResponseCode.FORBIDDEN)
-
+    
+    
     /**
-     * unauthorized：执行当前模块中的业务操作。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     * unauthorized 函数：执行与该组件职责相关的业务操作。
+     * 参数和返回值遵循调用方与领域服务之间的约定。
      */
     fun unauthorized(): Builder = Builder(ResponseCode.UNAUTHORIZED)
-
+    
+    
     /**
-     * tooManyRequests：转换、构建或格式化数据。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     * tooManyRequests 函数：执行与该组件职责相关的业务操作。
+     * 参数和返回值遵循调用方与领域服务之间的约定。
      */
     fun tooManyRequests(): Builder = Builder(ResponseCode.TOO_MANY_REQUESTS)
-
+    
+    
     /**
-     * exception：执行当前模块中的业务操作。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     * exception 函数：执行与该组件职责相关的业务操作。
+     * 参数和返回值遵循调用方与领域服务之间的约定。
      */
     fun exception(): Builder = Builder(ResponseCode.INTERNAL_SERVER_ERROR)
-
+    
+    
     /**
-     * serviceUnavailable：执行当前模块中的业务操作。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     * serviceUnavailable 函数：执行与该组件职责相关的业务操作。
+     * 参数和返回值遵循调用方与领域服务之间的约定。
      */
     fun serviceUnavailable(): Builder = Builder(ResponseCode.SERVICE_UNAVAILABLE)
-
+    
+    
     /**
-     * teapot：执行当前模块中的业务操作。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     * teapot 函数：执行与该组件职责相关的业务操作。
+     * 参数和返回值遵循调用方与领域服务之间的约定。
      */
     fun teapot(): Builder = Builder(ResponseCode.IM_A_TEAPOT)
-
+    
+    
     /**
-     * status：执行当前模块中的业务操作。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param status 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+     * status 函数：执行与该组件职责相关的业务操作。
+     * 参数和返回值遵循调用方与领域服务之间的约定。
      */
     fun status(status: HttpStatus): Builder = Builder(status)
-
+    
     inner class Builder {
         private var status: Int
-
+        
         private var defaultMessage: String
-
+        
         private var customMessage: String? = null
-
+        
         private var data: Any? = null
-
+        
         private val headers = HttpHeaders()
-
+        
         constructor(responseCode: ResponseCode) {
             this.status = responseCode.code
             this.defaultMessage = responseCode.message
         }
-
+        
         constructor(httpStatus: HttpStatus) {
             this.status = httpStatus.value()
             this.defaultMessage = httpStatus.reasonPhrase
         }
-
+        
+        
         /**
-         * message：执行当前模块中的业务操作。
-         *
-         * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-         * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-         * @param message 参与本次处理的输入参数。
-         * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+         * message 函数：执行与该组件职责相关的业务操作。
+         * 参数和返回值遵循调用方与领域服务之间的约定。
          */
         fun message(message: String?) = apply {
             this.customMessage = message
         }
-
+        
+        
         /**
-         * data：执行当前模块中的业务操作。
-         *
-         * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-         * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-         * @param data 参与本次处理的输入参数。
-         * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+         * data 函数：执行与该组件职责相关的业务操作。
+         * 参数和返回值遵循调用方与领域服务之间的约定。
          */
         fun data(data: Any?) = apply {
             this.data = data
         }
-
+        
+        
         /**
-         * header：执行当前模块中的业务操作。
-         *
-         * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-         * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-         * @param key 参与本次处理的输入参数。
-         * @param value 参与本次处理的输入参数。
-         * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+         * header 函数：执行与该组件职责相关的业务操作。
+         * 参数和返回值遵循调用方与领域服务之间的约定。
          */
         fun header(key: String, value: String) = apply {
             this.headers.add(key, value)
         }
-
+        
+        
         /**
-         * headers：执行当前模块中的业务操作。
-         *
-         * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-         * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-         * @param httpHeaders 参与本次处理的输入参数。
-         * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+         * headers 函数：执行与该组件职责相关的业务操作。
+         * 参数和返回值遵循调用方与领域服务之间的约定。
          */
         fun headers(httpHeaders: HttpHeaders) = apply {
             this.headers.addAll(httpHeaders)
         }
-
+        
+        
         /**
-         * retryAfter：执行当前模块中的业务操作。
-         *
-         * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-         * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-         * @param seconds 参与本次处理的输入参数。
-         * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+         * retryAfter 函数：执行与该组件职责相关的业务操作。
+         * 参数和返回值遵循调用方与领域服务之间的约定。
          */
         fun retryAfter(seconds: Long) = apply {
             this.headers.add("Retry-After", seconds.toString())
         }
-
+        
+        
         /**
-         * build：转换、构建或格式化数据。
-         *
-         * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-         * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-         * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
+         * build 函数：执行与该组件职责相关的业务操作。
+         * 参数和返回值遵循调用方与领域服务之间的约定。
          */
         fun build(): ResponseEntity<Response> {
             val finalData = this.data ?: if (this.status in 200..299) HashMap<String, Any?>() else null
-
+            
             val responseBody = Response(
                 status = this.status,
                 message = this.customMessage ?: this.defaultMessage,
                 data = finalData
             )
-
+            
             return ResponseEntity
                 .status(this.status)
                 .headers(this.headers)
                 .body(responseBody)
         }
     }
-
+    
     enum class ResponseCode(val code: Int, val message: String) {
         OK(200, "操作成功"),
         CREATED(201, "操作成功"),
@@ -227,3 +196,5 @@ class ResponseBuilder {
         SERVICE_UNAVAILABLE(503, "Service Unavailable"),
     }
 }
+
+

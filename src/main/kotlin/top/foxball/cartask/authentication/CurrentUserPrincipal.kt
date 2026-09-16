@@ -1,24 +1,36 @@
 package top.foxball.cartask.authentication
 
+/**
+ * CurrentUserPrincipal：认证子系统中的组件，负责实现相关安全、令牌或访问控制能力。
+ *
+ * 该文件中的类型和函数用于支撑登录认证流程，并在边界处校验输入与会话状态。
+ */
+
+/**
+ * CurrentUserPrincipal 认证组件说明。
+ *
+ * 该文件集中定义认证流程所需的领域类型、服务及基础设施适配逻辑。
+ */
+
 import org.springframework.security.core.GrantedAuthority
 import org.springframework.security.core.authority.SimpleGrantedAuthority
 import java.util.*
 
-/** 放入 SecurityContext 的当前用户快照，不包含实体、密码或原始 token。 */
+
+/**
+ * CurrentUserPrincipal 的职责说明。
+ * 该类型封装相关业务状态、依赖及操作流程。
+ */
 class CurrentUserPrincipal(
     val userId: Long,
     val username: String,
     role: String,
     val tokenId: String,
     permissions: Collection<String> = emptySet(),
-    /** 为 true 时除改密相关接口外的业务请求都会被拒绝。 */
+    
     val mustChangePassword: Boolean = false,
-    /**
-     * 当前工作部门；null 表示不限部门。
-     *
-     * 取自 Redis 会话（[JwtAuthenticationFilter] 每请求本来就要读该会话），因此携带它
-     * 不会增加任何 Redis 或数据库调用。数据范围解析以它为准。
-     */
+    
+    
     val workingDepartmentId: Long? = null,
 ) {
     val role: String = SecurityRole.normalize(role)
@@ -30,3 +42,5 @@ class CurrentUserPrincipal(
         addAll(this@CurrentUserPrincipal.permissions.map(::SimpleGrantedAuthority))
     }
 }
+
+

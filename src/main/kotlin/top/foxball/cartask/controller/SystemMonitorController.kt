@@ -23,6 +23,7 @@ import javax.sql.DataSource
 
 @RestController
 @RequestMapping("/api/system-monitor")
+/** class SystemMonitorController：Web 控制器，负责接收 HTTP 请求、调用领域服务并构造统一响应。 */
 class SystemMonitorController(
     private val responseBuilder: ResponseBuilder,
     private val dataSource: DataSource,
@@ -30,13 +31,9 @@ class SystemMonitorController(
 ) {
     @GetMapping
     @PreAuthorize("hasAuthority('${PermissionCatalog.SYSTEM_MONITOR_READ}')")
-            /**
-             * getSnapshot：查询或读取相关数据。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-             */
+            
+            
+            /** getSnapshot：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun getSnapshot(): ResponseEntity<Response> {
         data class UsageData(val used: Long, val committed: Long, val max: Long)
         data class DiskData(
@@ -46,7 +43,7 @@ class SystemMonitorController(
             @param:JsonProperty("usable_bytes") val usableBytes: Long,
             @param:JsonProperty("used_bytes") val usedBytes: Long,
         )
-
+        
         data class SystemData(
             @param:JsonProperty("host_name") val hostName: String,
             @param:JsonProperty("host_address") val hostAddress: String,
@@ -58,7 +55,7 @@ class SystemMonitorController(
             @param:JsonProperty("physical_memory") val physicalMemory: UsageData,
             val disks: List<DiskData>,
         )
-
+        
         data class JvmData(
             val name: String,
             val vendor: String,
@@ -70,13 +67,13 @@ class SystemMonitorController(
             @param:JsonProperty("thread_count") val threadCount: Int,
             @param:JsonProperty("peak_thread_count") val peakThreadCount: Int,
         )
-
+        
         data class GcData(
             val name: String,
             @param:JsonProperty("collection_count") val collectionCount: Long,
             @param:JsonProperty("collection_time_millis") val collectionTimeMillis: Long,
         )
-
+        
         data class DatabaseData(
             val status: String,
             val product: String?,
@@ -89,7 +86,7 @@ class SystemMonitorController(
             @param:JsonProperty("max_connections") val maxConnections: Int?,
             @param:JsonProperty("waiting_threads") val waitingThreads: Int?,
         )
-
+        
         data class RedisData(
             val status: String,
             val version: String?,
@@ -104,7 +101,7 @@ class SystemMonitorController(
             @param:JsonProperty("keyspace_hits") val keyspaceHits: Long?,
             @param:JsonProperty("keyspace_misses") val keyspaceMisses: Long?,
         )
-
+        
         data class Response(
             @param:JsonProperty("captured_at") val capturedAt: LocalDateTime,
             val system: SystemData,
@@ -113,7 +110,7 @@ class SystemMonitorController(
             val database: DatabaseData,
             val redis: RedisData,
         )
-
+        
         val runtime = Runtime.getRuntime()
         val operatingSystem = ManagementFactory.getOperatingSystemMXBean()
         val extendedOperatingSystem = operatingSystem as? com.sun.management.OperatingSystemMXBean

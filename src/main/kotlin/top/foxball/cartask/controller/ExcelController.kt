@@ -35,51 +35,56 @@ import java.time.LocalDateTime
 
 private const val XLSX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
+/** class DepartmentExcelRow：Web 控制器，负责接收 HTTP 请求、调用领域服务并构造统一响应。 */
 class DepartmentExcelRow {
     @field:ExcelProperty("部门编码")
     var code: String? = null
+    
     @field:ExcelProperty("部门名称")
     var name: String? = null
+    
     @field:ExcelProperty("上级部门编码")
     var parentCode: String? = null
 }
 
+/** class UserExcelRow：Web 控制器，负责接收 HTTP 请求、调用领域服务并构造统一响应。 */
 class UserExcelRow {
     @field:ExcelProperty("部门编码")
     var departmentCode: String? = null
+    
     @field:ExcelProperty("岗位编码")
     var positionCode: String? = null
-
+    
     @field:ExcelProperty("账号")
     var username: String? = null
-
+    
     @field:ExcelProperty("姓名")
     var name: String? = null
-
+    
     @field:ExcelProperty("邮箱")
     var email: String? = null
-
+    
     @field:ExcelProperty("密码")
     var password: String? = null
-
+    
     @field:ExcelProperty("手机号")
     var phone: String? = null
-
+    
     @field:ExcelProperty("性别")
     var gender: String? = null
-
+    
     @field:ExcelProperty("部门ID")
     var departmentId: Long? = null
-
+    
     @field:ExcelProperty("岗位ID")
     var positionId: Long? = null
-
+    
     @field:ExcelProperty("角色编码")
     var role: String? = null
-
+    
     @field:ExcelProperty("状态")
     var status: String? = null
-
+    
     @field:ExcelProperty("启用")
     var enabled: String? = null
 }
@@ -98,19 +103,20 @@ data class UserExportRow(
     @field:ExcelProperty("启用") val enabled: String,
 )
 
+/** class PositionExcelRow：Web 控制器，负责接收 HTTP 请求、调用领域服务并构造统一响应。 */
 class PositionExcelRow {
     @field:ExcelProperty("岗位名称")
     var name: String? = null
-
+    
     @field:ExcelProperty("岗位编码")
     var code: String? = null
-
+    
     @field:ExcelProperty("显示排序")
     var sort: Int? = null
-
+    
     @field:ExcelProperty("状态")
     var status: String? = null
-
+    
     @field:ExcelProperty("备注")
     var remark: String? = null
 }
@@ -124,21 +130,29 @@ data class PositionExportRow(
     @field:ExcelProperty("备注") val remark: String?,
 )
 
+/** class OwnerExcelRow：Web 控制器，负责接收 HTTP 请求、调用领域服务并构造统一响应。 */
 class OwnerExcelRow {
     @field:ExcelProperty("卡号")
     var cardId: String? = null
+    
     @field:ExcelProperty("姓名")
     var name: String? = null
+    
     @field:ExcelProperty("部门")
     var dept: String? = null
+    
     @field:ExcelProperty("手机号")
     var phone: String? = null
+    
     @field:ExcelProperty("车位数量")
     var spotCount: Int? = null
+    
     @field:ExcelProperty("车牌数量")
     var plateCount: Int? = null
+    
     @field:ExcelProperty("余额")
     var balance: String? = null
+    
     @field:ExcelProperty("状态")
     var status: Int? = null
 }
@@ -155,17 +169,23 @@ data class OwnerExportRow(
     @field:ExcelProperty("状态") val status: String,
 )
 
+/** class SpotExcelRow：Web 控制器，负责接收 HTTP 请求、调用领域服务并构造统一响应。 */
 class SpotExcelRow {
     @field:ExcelProperty("车位编号")
     var code: String? = null
+    
     @field:ExcelProperty("区域")
     var area: String? = null
+    
     @field:ExcelProperty("类型")
     var type: String? = null
+    
     @field:ExcelProperty("车主姓名")
     var owner: String? = null
+    
     @field:ExcelProperty("状态")
     var status: Int? = null
+    
     @field:ExcelProperty("备注")
     var remark: String? = null
 }
@@ -180,17 +200,23 @@ data class SpotExportRow(
     @field:ExcelProperty("备注") val remark: String?,
 )
 
+/** class PlateExcelRow：Web 控制器，负责接收 HTTP 请求、调用领域服务并构造统一响应。 */
 class PlateExcelRow {
     @field:ExcelProperty("车主卡号")
     var ownerCard: String? = null
+    
     @field:ExcelProperty("车牌号")
     var plate: String? = null
+    
     @field:ExcelProperty("车主ID")
     var ownerId: Long? = null
+    
     @field:ExcelProperty("状态")
     var status: Int? = null
+    
     @field:ExcelProperty("登记日期")
     var regDate: String? = null
+    
     @field:ExcelProperty("车辆类型")
     var carBrand: String? = null
 }
@@ -205,15 +231,20 @@ data class PlateExportRow(
     @field:ExcelProperty("车辆类型") val carBrand: String,
 )
 
+/** class PlateInspectionExcelRow：Web 控制器，负责接收 HTTP 请求、调用领域服务并构造统一响应。 */
 class PlateInspectionExcelRow {
     @field:ExcelProperty("车牌号")
     var plate: String? = null
+    
     @field:ExcelProperty("是否已年检")
     var inspected: String? = null
+    
     @field:ExcelProperty("年检日期")
     var inspectionDate: String? = null
+    
     @field:ExcelProperty("年检有效期至")
     var validUntil: String? = null
+    
     @field:ExcelProperty("备注")
     var remark: String? = null
 }
@@ -230,25 +261,35 @@ data class PlateInspectionExportRow(
     @field:ExcelProperty("备注") val inspectionRemark: String?,
 )
 
+/** class DeviceExcelRow：Web 控制器，负责接收 HTTP 请求、调用领域服务并构造统一响应。 */
 class DeviceExcelRow {
     @field:ExcelProperty("设备编号")
     var code: String? = null
+    
     @field:ExcelProperty("设备名称")
     var name: String? = null
+    
     @field:ExcelProperty("设备类型")
     var type: String? = null
+    
     @field:ExcelProperty("品牌")
     var brand: String? = null
+    
     @field:ExcelProperty("型号")
     var model: String? = null
+    
     @field:ExcelProperty("安装位置")
     var location: String? = null
+    
     @field:ExcelProperty("IP地址")
     var ip: String? = null
+    
     @field:ExcelProperty("安装日期")
     var installDate: String? = null
+    
     @field:ExcelProperty("状态")
     var status: String? = null
+    
     @field:ExcelProperty("显示排序")
     var sort: Int? = null
 }
@@ -267,21 +308,21 @@ data class DeviceExportRow(
     @field:ExcelProperty("显示排序") val sort: Int,
 )
 
-/**
- * 门禁人员导入行。
- *
- * 这里只有真正会被导入的列。审核与同步状态不开放给样表：导入一律落在待审核、未同步，
- * 让样表里出现无法生效的「审核状态」列，只会让填表人以为批量预审核已经生效。
- */
+
+/** class GatePersonExcelRow：Web 控制器，负责接收 HTTP 请求、调用领域服务并构造统一响应。 */
 class GatePersonExcelRow {
     @field:ExcelProperty("人员编号")
     var code: String? = null
+    
     @field:ExcelProperty("部门")
     var dept: String? = null
+    
     @field:ExcelProperty("姓名")
     var name: String? = null
+    
     @field:ExcelProperty("手机号")
     var phone: String? = null
+    
     @field:ExcelProperty("身份证号")
     var idCard: String? = null
 }
@@ -300,7 +341,8 @@ data class GatePersonExportRow(
 
 @RestController
 @RequestMapping("/api/excel")
-/** 系统基础资料、车辆资料、设备及门禁人员的 Excel 模板、导入和导出接口。 */
+
+/** class ExcelController：Web 控制器，负责接收 HTTP 请求、调用领域服务并构造统一响应。 */
 class ExcelController(
     private val userService: UserService,
     private val departmentService: DepartmentService,
@@ -321,14 +363,9 @@ class ExcelController(
 ) {
     @GetMapping("/{resource}/template")
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and ((#resource == 'users' and hasAuthority('user:read')) or (#resource == 'positions' and hasAuthority('position:read')) or (#resource == 'owners' and hasAuthority('owner:read')) or (#resource == 'spots' and hasAuthority('spot:read')) or (#resource == 'plates' and hasAuthority('plate:read')) or (#resource == 'plate-inspections' and hasAuthority('plate:read')) or (#resource == 'devices' and hasAuthority('device:read')) or (#resource == 'gate-persons' and hasAuthority('gate-person:read')))")
-            /**
-             * template：执行当前模块中的业务操作。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @param resource 参与本次处理的输入参数。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-             */
+            
+            
+            /** template：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun template(@PathVariable resource: String): ResponseEntity<ByteArrayResource> {
         excelResourcePolicy.requireScopable(resource)
         val (filename, rows, type) = when (resource) {
@@ -342,28 +379,24 @@ class ExcelController(
                 listOf(PlateInspectionExcelRow()),
                 PlateInspectionExcelRow::class.java
             )
-
+            
             "devices" -> Triple("设备导入模板.xlsx", listOf(DeviceExcelRow()), DeviceExcelRow::class.java)
             "gate-persons" -> Triple(
                 "门禁人员导入模板.xlsx",
                 listOf(GatePersonExcelRow()),
                 GatePersonExcelRow::class.java
             )
-
+            
             else -> throw IllegalArgumentException("不支持的 Excel 数据类型: $resource")
         }
         return writeWorkbook(filename, rows, type)
     }
-
+    
     @GetMapping("/all/template")
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('department:manage') and hasAuthority('user:create') and hasAuthority('position:manage') and hasAuthority('owner:manage') and hasAuthority('spot:manage') and hasAuthority('plate:manage') and hasAuthority('device:manage') and hasAuthority('gate-person:manage')")
-            /**
-             * allTemplate：查询或读取相关数据。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-             */
+            
+            
+            /** allTemplate：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun allTemplate(): ResponseEntity<ByteArrayResource> {
         excelResourcePolicy.requireScopable("all")
         val sheets = listOf(
@@ -482,21 +515,15 @@ class ExcelController(
             .header("X-Content-Type-Options", "nosniff")
             .body(ByteArrayResource(output.toByteArray()))
     }
-
+    
     @GetMapping("/{resource}/export")
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and ((#resource == 'users' and hasAuthority('user:read')) or (#resource == 'positions' and hasAuthority('position:read')) or (#resource == 'owners' and hasAuthority('owner:read')) or (#resource == 'spots' and hasAuthority('spot:read')) or (#resource == 'plates' and hasAuthority('plate:read')) or (#resource == 'plate-inspections' and hasAuthority('plate:read')) or (#resource == 'devices' and hasAuthority('device:read')) or (#resource == 'gate-persons' and hasAuthority('gate-person:export')))")
-            /**
-             * export：执行数据同步、探测或文件处理。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @param resource 参与本次处理的输入参数。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-             */
+            
+            
+            /** export：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun export(@PathVariable resource: String): ResponseEntity<ByteArrayResource> {
         excelResourcePolicy.requireScopable(resource)
         val scope = dataScopeResolver.current()
-        // 车主与车位没有自己的部门字段，归属要经车主判定；先算一次，避免逐行重算。
         val visibleOwnerIds = if (scope.unrestricted) null else scopeQuerySupport.ownerIdsInScope(scope)
         val visibleOwnerCodes = if (scope.unrestricted) null else scopeQuerySupport.ownerCardIdsInScope(scope)
         return when (resource) {
@@ -532,7 +559,7 @@ class ExcelController(
                     UserExportRow::class.java,
                 )
             }
-
+            
             "positions" -> {
                 val positions = mutableListOf<Position>()
                 var page = 1
@@ -553,7 +580,7 @@ class ExcelController(
                     PositionExportRow::class.java,
                 )
             }
-
+            
             "owners" -> writeWorkbook(
                 "车主列表.xlsx",
                 scopeQuerySupport.visibleInScope(scope, ownerRepository.findAll()).map {
@@ -571,7 +598,7 @@ class ExcelController(
                 },
                 OwnerExportRow::class.java
             )
-
+            
             "spots" -> writeWorkbook(
                 "车位列表.xlsx",
                 spotRepository.findAll().filter { scopeQuerySupport.spotVisible(visibleOwnerCodes, it.ownerCode) }.map {
@@ -587,7 +614,7 @@ class ExcelController(
                 },
                 SpotExportRow::class.java
             )
-
+            
             "plates" -> writeWorkbook(
                 "车牌列表.xlsx",
                 plateRepository.findAll().filter { scopeQuerySupport.plateVisible(visibleOwnerIds, scope.userId, it) }
@@ -604,7 +631,7 @@ class ExcelController(
                     },
                 PlateExportRow::class.java
             )
-
+            
             "plate-inspections" -> {
                 val today = LocalDate.now()
                 writeWorkbook(
@@ -626,7 +653,7 @@ class ExcelController(
                     PlateInspectionExportRow::class.java
                 )
             }
-
+            
             "devices" -> {
                 val devices = mutableListOf<Device>()
                 var page = 1
@@ -652,7 +679,7 @@ class ExcelController(
                     )
                 }, DeviceExportRow::class.java)
             }
-
+            
             "gate-persons" -> {
                 val rows = scopeQuerySupport.visibleInScope(scope, gatePersonRepository.findAll()).map {
                     GatePersonExportRow(
@@ -668,7 +695,6 @@ class ExcelController(
                     )
                 }
                 val response = writeWorkbook("门禁人员列表.xlsx", rows, GatePersonExportRow::class.java)
-                // 工作簿真的写出来了才留痕：先记后写会在写出失败时留下一条「已成功导出」的假记录。
                 auditService.record(
                     AuditCommand(
                         AuditAction.SENSITIVE_DATA_EXPORTED,
@@ -678,20 +704,16 @@ class ExcelController(
                 )
                 response
             }
-
+            
             else -> throw IllegalArgumentException("不支持的 Excel 数据类型: $resource")
         }
     }
-
+    
     @GetMapping("/all/export")
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('user:read') and hasAuthority('position:read') and hasAuthority('owner:read') and hasAuthority('spot:read') and hasAuthority('plate:read') and hasAuthority('device:read') and hasAuthority('gate-person:export')")
-            /**
-             * exportAll：执行数据同步、探测或文件处理。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-             */
+            
+            
+            /** exportAll：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun exportAll(): ResponseEntity<ByteArrayResource> {
         excelResourcePolicy.requireScopable("all")
         val users = mutableListOf<UserService.UserData>()
@@ -786,9 +808,6 @@ class ExcelController(
             writer.finish()
         }
         val disposition = ContentDisposition.attachment().filename("全部数据.xlsx", StandardCharsets.UTF_8).build()
-        // 「导出全部数据」同样含明文身份证与手机号，即使范围未受限也要留痕；写出成功后才记。
-        // targetType 用独立的 excel_all，否则按 target_type=gate_person 检索会把「整库导出」
-        // 误当成门禁人员导出，条数也严重偏低。
         val exportedRowCount = userRows.size + positionRows.size + ownerRows.size + spotRows.size +
                 plateRows.size + deviceRows.size + gateRows.size
         auditService.record(
@@ -805,19 +824,13 @@ class ExcelController(
             .header("X-Content-Type-Options", "nosniff")
             .body(ByteArrayResource(output.toByteArray()))
     }
-
+    
     @PostMapping("/{resource}/import", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     @Transactional
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and ((#resource == 'all' and hasAuthority('department:manage') and hasAuthority('user:create') and hasAuthority('position:manage') and hasAuthority('owner:manage') and hasAuthority('spot:manage') and hasAuthority('plate:manage') and hasAuthority('device:manage') and hasAuthority('gate-person:manage')) or (#resource == 'users' and hasAuthority('user:create')) or (#resource == 'positions' and hasAuthority('position:manage')) or (#resource == 'owners' and hasAuthority('owner:manage')) or (#resource == 'spots' and hasAuthority('spot:manage')) or (#resource == 'plates' and hasAuthority('plate:manage')) or (#resource == 'plate-inspections' and hasAuthority('plate:manage')) or (#resource == 'devices' and hasAuthority('device:manage')) or (#resource == 'gate-persons' and hasAuthority('gate-person:manage')))")
-            /**
-             * import：执行数据同步、探测或文件处理。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @param resource 参与本次处理的输入参数。
-             * @param file 参与本次处理的输入参数。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-             */
+            
+            
+            /** import：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun import(
         @PathVariable("resource") resource: String,
         @RequestPart("file") file: MultipartFile
@@ -825,7 +838,7 @@ class ExcelController(
         excelResourcePolicy.requireScopable(resource)
         require(!file.isEmpty) { "导入文件不能为空" }
         data class Response(val count: Int, val counts: Map<String, Int>)
-
+        
         val sheetNames = linkedMapOf(
             "departments" to "部门", "positions" to "岗位", "users" to "用户",
             "owners" to "车主", "spots" to "车位", "plates" to "车牌", "devices" to "设备", "gate-persons" to "门禁人员"
@@ -840,7 +853,6 @@ class ExcelController(
                 reader.finish()
             }
         }
-        // 范围受限时导入必须落到当前工作部门；表里填了别的部门直接带行号报错，而不是悄悄改写。
         val forcedDepartment = excelResourcePolicy.forcedImportDepartment()
         val forcedImportRole = excelResourcePolicy.forcedImportRole()
         for (currentResource in if (resource == "all") sheetNames.keys else listOf(resource)) {
@@ -875,7 +887,7 @@ class ExcelController(
                     }
                     counts[currentResource] = rows.size
                 }
-
+                
                 "users" -> {
                     val rows = EasyExcel.read(file.inputStream).head(UserExcelRow::class.java).sheet(sheetName)
                         .doReadSync<UserExcelRow>()
@@ -888,7 +900,6 @@ class ExcelController(
                             email = row.email?.trim().takeUnless { it.isNullOrEmpty() }
                                 ?: "${row.username}@local.invalid",
                             credential = requireNotBlank(row.password, "第${line}行密码不能为空"),
-                            // 角色编码这一列是提权入口：部门管理导入时一律强制为普通用户。
                             role = forcedImportRole ?: (row.role?.trim().takeUnless { it.isNullOrEmpty() } ?: "USER"),
                             enabled = parseBoolean(row.enabled, true, "第${line}行启用"),
                             phone = row.phone?.trim().takeUnless { it.isNullOrEmpty() },
@@ -919,7 +930,7 @@ class ExcelController(
                     val imported = userService.createBatch(commands)
                     counts[currentResource] = imported.size
                 }
-
+                
                 "positions" -> {
                     val rows = EasyExcel.read(file.inputStream).head(PositionExcelRow::class.java).sheet(sheetName)
                         .doReadSync<PositionExcelRow>()
@@ -941,7 +952,7 @@ class ExcelController(
                     val imported = positionService.createBatch(entities)
                     counts[currentResource] = imported.size
                 }
-
+                
                 "owners" -> {
                     val rows = EasyExcel.read(file.inputStream).head(OwnerExcelRow::class.java).sheet(sheetName)
                         .doReadSync<OwnerExcelRow>()
@@ -974,7 +985,7 @@ class ExcelController(
                     val imported = ownerRepository.saveAll(entities)
                     counts[currentResource] = imported.size
                 }
-
+                
                 "spots" -> {
                     val rows = EasyExcel.read(file.inputStream).head(SpotExcelRow::class.java).sheet(sheetName)
                         .doReadSync<SpotExcelRow>()
@@ -1005,7 +1016,7 @@ class ExcelController(
                     val imported = spotRepository.saveAll(entities)
                     counts[currentResource] = imported.size
                 }
-
+                
                 "plates" -> {
                     val rows = EasyExcel.read(file.inputStream).head(PlateExcelRow::class.java).sheet(sheetName)
                         .doReadSync<PlateExcelRow>()
@@ -1047,7 +1058,7 @@ class ExcelController(
                     ownerRepository.flush()
                     counts[currentResource] = imported.size
                 }
-
+                
                 "plate-inspections" -> {
                     val rows =
                         EasyExcel.read(file.inputStream).head(PlateInspectionExcelRow::class.java).sheet(sheetName)
@@ -1055,13 +1066,11 @@ class ExcelController(
                     require(rows.isNotEmpty()) { "Excel 中没有可导入的数据" }
                     val scope = dataScopeResolver.current()
                     val visibleOwnerIds = if (scope.unrestricted) null else scopeQuerySupport.ownerIdsInScope(scope)
-                    // 年检表按车牌号关联已有车辆：车牌在档案、进出记录里存在间隔符写法差异，先归一化再匹配。
                     val platesByNumber = plateRepository.findAll().groupBy { PlateNumbers.normalize(it.plate) }
                     val updated = linkedMapOf<Long, ParkingPlate>()
                     rows.forEachIndexed { index, row ->
                         val line = index + 2
                         val number = requireNotBlank(row.plate, "第${line}行车牌号不能为空")
-                        // 归一化后重号的档案只可能是间隔符写法不同造成的重复登记，拒绝而不是随便挑一辆改。
                         val candidates = platesByNumber[PlateNumbers.normalize(number)].orEmpty()
                         val plate = requireNotNull(candidates.singleOrNull()) {
                             if (candidates.isEmpty()) "第${line}行车牌号不存在：$number" else "第${line}行车牌号对应多辆车辆档案，请先在车牌信息中去重：$number"
@@ -1075,7 +1084,6 @@ class ExcelController(
                         ) { "第${line}行车牌号不在当前数据范围内：$number" }
                         val plateId = requireNotNull(plate.id)
                         require(updated.put(plateId, plate) == null) { "第${line}行车牌号重复：$number" }
-                        // 「是否已年检」必填：留空时如果按未年检处理，会把已经登记好的年检记录悄悄清掉。
                         if (parseBoolean(
                                 requireNotBlank(row.inspected, "第${line}行是否已年检不能为空"),
                                 true,
@@ -1100,7 +1108,7 @@ class ExcelController(
                     plateRepository.saveAll(updated.values)
                     counts[currentResource] = updated.size
                 }
-
+                
                 "devices" -> {
                     val rows = EasyExcel.read(file.inputStream).head(DeviceExcelRow::class.java).sheet(sheetName)
                         .doReadSync<DeviceExcelRow>()
@@ -1129,7 +1137,7 @@ class ExcelController(
                     val imported = deviceService.createBatch(entities)
                     counts[currentResource] = imported.size
                 }
-
+                
                 "gate-persons" -> {
                     val rows = EasyExcel.read(file.inputStream).head(GatePersonExcelRow::class.java).sheet(sheetName)
                         .doReadSync<GatePersonExcelRow>()
@@ -1138,8 +1146,6 @@ class ExcelController(
                     val entities = rows.mapIndexed { index, row ->
                         val line = "第${index + 2}行"
                         val code = GatePersonFields.requireCode(row.code, line)
-                        // 范围受限时导入必须落到当前工作部门；表里填了别的部门直接带行号报错，
-                        // 而不是悄悄改写（那会让用户以为导入到了自己填的部门）。
                         val requestedDept = row.dept?.trim()?.takeIf(String::isNotEmpty)
                         if (forcedDepartment != null && requestedDept != null &&
                             requestedDept != forcedDepartment.name &&
@@ -1167,7 +1173,6 @@ class ExcelController(
                     require(idCards.none { gatePersonRepository.existsByIdCard(it) }) { GatePersonFields.ID_CARD_EXISTS_MESSAGE }
                     val imported = gatePersonRepository.saveAll(entities)
                     counts[currentResource] = imported.size
-                    // 批量录入同样要留痕；编号只采样前 20 个，避免一次导入上万行把审计记录撑爆。
                     auditService.record(
                         AuditCommand(
                             AuditAction.GATE_PERSON_CREATED,
@@ -1183,7 +1188,7 @@ class ExcelController(
                         ),
                     )
                 }
-
+                
                 else -> throw IllegalArgumentException("不支持的 Excel 数据类型: $resource")
             }
         }
@@ -1200,7 +1205,7 @@ class ExcelController(
         val rs = Response(counts.values.sum(), counts)
         return responseBuilder.created().data(rs).build()
     }
-
+    
     private fun <T> writeWorkbook(
         filename: String,
         rows: List<T>,
@@ -1216,90 +1221,41 @@ class ExcelController(
             .header("X-Content-Type-Options", "nosniff")
             .body(ByteArrayResource(output.toByteArray()))
     }
-
-    /**
-     * requireNotBlank：校验输入、状态或访问条件。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param value 参与本次处理的输入参数。
-     * @param message 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     private fun requireNotBlank(value: String?, message: String): String =
         requireNotNull(value?.trim().takeUnless { it.isNullOrEmpty() }) { message }
-
-    /**
-     * parseGender：执行当前模块中的业务操作。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param value 参与本次处理的输入参数。
-     * @param line 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     private fun parseGender(value: String?, line: Int): User.Gender = when (value?.trim()?.uppercase()) {
         null, "", "UNKNOWN", "未知" -> User.Gender.UNKNOWN
         "MALE", "男" -> User.Gender.MALE
         "FEMALE", "女" -> User.Gender.FEMALE
         else -> throw IllegalArgumentException("第${line}行性别必须为 MALE、FEMALE 或 UNKNOWN")
     }
-
-    /**
-     * parseStatus：执行当前模块中的业务操作。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param value 参与本次处理的输入参数。
-     * @param line 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     private fun parseStatus(value: String?, line: Int): User.Status = when (value?.trim()?.uppercase()) {
         null, "", "ACTIVITY", "正常", "1" -> User.Status.Activity
         "BANNED", "停用", "0" -> User.Status.BANNED
         else -> throw IllegalArgumentException("第${line}行状态必须为正常/停用")
     }
-
-    /**
-     * parsePositionStatus：执行当前模块中的业务操作。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param value 参与本次处理的输入参数。
-     * @param line 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     private fun parsePositionStatus(value: String?, line: Int): Position.Status = when (value?.trim()?.uppercase()) {
         null, "", "ACTIVITY", "正常", "1" -> Position.Status.Activity
         "BANNED", "停用", "0" -> Position.Status.BANNED
         else -> throw IllegalArgumentException("第${line}行状态必须为正常/停用")
     }
-
-    /**
-     * parseDeviceStatus：执行当前模块中的业务操作。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param value 参与本次处理的输入参数。
-     * @param line 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     private fun parseDeviceStatus(value: String?, line: Int): Device.Status = when (value?.trim()?.uppercase()) {
         null, "", "ACTIVITY", "正常", "1" -> Device.Status.Activity
         "BANNED", "停用", "0" -> Device.Status.BANNED
         else -> throw IllegalArgumentException("第${line}行状态必须为正常/停用")
     }
-
-    /**
-     * parseBoolean：执行当前模块中的业务操作。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param value 参与本次处理的输入参数。
-     * @param default 参与本次处理的输入参数。
-     * @param label 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     private fun parseBoolean(value: String?, default: Boolean, label: String): Boolean =
         when (value?.trim()?.uppercase()) {
             null, "" -> default

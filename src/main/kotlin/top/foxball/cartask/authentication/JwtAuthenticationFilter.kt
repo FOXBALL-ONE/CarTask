@@ -1,5 +1,17 @@
 package top.foxball.cartask.authentication
 
+/**
+ * JwtAuthenticationFilter：认证子系统中的组件，负责实现相关安全、令牌或访问控制能力。
+ *
+ * 该文件中的类型和函数用于支撑登录认证流程，并在边界处校验输入与会话状态。
+ */
+
+/**
+ * JwtAuthenticationFilter 认证组件说明。
+ *
+ * 该文件集中定义认证流程所需的领域类型、服务及基础设施适配逻辑。
+ */
+
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
@@ -16,8 +28,12 @@ import top.foxball.cartask.service.OnlinePresenceService
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 
-/** 在授权规则执行前完成 JWT 与 Redis 会话的联合认证，并写入当前请求 SecurityContext。 */
+
 @Component
+/**
+ * JwtAuthenticationFilter 的职责说明。
+ * 该类型封装相关业务状态、依赖及操作流程。
+ */
 class JwtAuthenticationFilter(
     private val jwtTokenService: JwtTokenService,
     private val sessionRepository: RedisTokenSessionRepository,
@@ -26,17 +42,9 @@ class JwtAuthenticationFilter(
 ) : OncePerRequestFilter() {
     private val log = LoggerFactory.getLogger(javaClass)
     private val tokenResolver = DefaultBearerTokenResolver()
-
-    /**
-     * doFilterInternal：处理请求、事件或异常流程。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param request 参与本次处理的输入参数。
-     * @param response 参与本次处理的输入参数。
-     * @param filterChain 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
+    /** doFilterInternal：执行认证组件中的一项具体操作，完成输入校验并返回处理结果。 */
     override fun doFilterInternal(
         request: HttpServletRequest,
         response: HttpServletResponse,
@@ -55,8 +63,6 @@ class JwtAuthenticationFilter(
         try {
             val verified = jwtTokenService.verify(bearerValue)
             val session = sessionRepository.validate(verified.tokenId, verified.userId)
-            // 只比对 token 与会话都必须一致的字段。工作部门是纯会话态、刻意不进 JWT，
-            // 因此绝不能加入这里的一致性校验，否则切换工作部门会被判成「JWT 与登录状态不匹配」。
             if (session.userId != verified.userId ||
                 session.username != verified.username ||
                 session.role != verified.role ||
@@ -97,26 +103,14 @@ class JwtAuthenticationFilter(
             SecurityContextHolder.clearContext()
             writeFailure(response, HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized", false)
         } catch (ex: IllegalArgumentException) {
-            // 签名校验通过的 token 里带着白名单之外的角色（例如角色被下线后旧 token 仍在有效期内），
-            // SecurityRole.normalize 会抛 IllegalArgumentException。这是认证失败而不是服务端故障，
-            // 不兜住就会变成 500。
             log.warn("JWT 角色不受支持: {}", ex.message)
             SecurityContextHolder.clearContext()
             writeFailure(response, HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized", false)
         }
     }
-
-    /**
-     * writeFailure：创建、保存或初始化相关数据。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param response 参与本次处理的输入参数。
-     * @param status 参与本次处理的输入参数。
-     * @param message 参与本次处理的输入参数。
-     * @param retryable 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
+    /** writeFailure：执行认证组件中的一项具体操作，完成输入校验并返回处理结果。 */
     private fun writeFailure(response: HttpServletResponse, status: Int, message: String, retryable: Boolean) {
         response.status = status
         response.contentType = "application/json;charset=UTF-8"
@@ -125,3 +119,5 @@ class JwtAuthenticationFilter(
         response.writer.write("{\"status\":$status,\"success\":${status in 200..299},\"message\":\"$message\",\"data\":{}}")
     }
 }
+
+

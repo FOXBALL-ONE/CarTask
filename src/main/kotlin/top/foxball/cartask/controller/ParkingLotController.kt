@@ -13,14 +13,15 @@ import top.foxball.cartask.shared.ResponseBuilder
 @RestController
 @RequestMapping("/api/parking-lot")
 @PreAuthorize("hasAuthority('dictionary:read')")
-/** 停车场详情的查询接口，数据由停车区域同步任务维护。 */
+
+/** class ParkingLotController：Web 控制器，负责接收 HTTP 请求、调用领域服务并构造统一响应。 */
 class ParkingLotController(
     private val parkingLotRepository: ParkingLotRepository,
     private val properties: KeytopProperties,
     private val responseBuilder: ResponseBuilder,
 ) {
-    /** 获取当前车场的详情；尚未同步时返回空数据。 */
     @GetMapping
+            /** get：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun get(): ResponseEntity<Response> =
         responseBuilder.ok().data(parkingLotRepository.findByParkCode(properties.parkId.trim())).build()
 }

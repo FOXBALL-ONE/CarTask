@@ -1,18 +1,44 @@
 package top.foxball.cartask.authentication
 
+/**
+ * AuthenticationExceptions：认证子系统中的组件，负责实现相关安全、令牌或访问控制能力。
+ *
+ * 该文件中的类型和函数用于支撑登录认证流程，并在边界处校验输入与会话状态。
+ */
+
+/**
+ * AuthenticationExceptions 认证组件说明。
+ *
+ * 该文件集中定义认证流程所需的领域类型、服务及基础设施适配逻辑。
+ */
+
 import org.springframework.security.core.AuthenticationException
 
-/** Bearer token 不可用、已过期或不再对应有效 Redis 会话。 */
+
+/**
+ * JwtAuthenticationException 的职责说明。
+ * 该类型封装相关业务状态、依赖及操作流程。
+ */
 class JwtAuthenticationException : AuthenticationException {
     constructor(message: String) : super(message)
     constructor(message: String, cause: Throwable) : super(message, cause)
 }
 
-/** Redis 认证状态不可用；必须 fail-closed，不能退化为仅验 JWT。 */
+
+/**
+ * AuthenticationInfrastructureException 的职责说明。
+ * 该类型封装相关业务状态、依赖及操作流程。
+ */
 class AuthenticationInfrastructureException(message: String, cause: Throwable? = null) :
     RuntimeException(message, cause)
 
-/** 登录失败次数超过窗口限制；不泄露用户名是否真实存在。 */
+
+/**
+ * LoginRateLimitException 的职责说明。
+ * 该类型封装相关业务状态、依赖及操作流程。
+ */
 class LoginRateLimitException(
     val retryAfterSeconds: Long,
 ) : RuntimeException("登录尝试过于频繁，请稍后重试")
+
+
