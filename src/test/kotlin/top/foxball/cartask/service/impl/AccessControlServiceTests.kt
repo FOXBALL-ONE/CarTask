@@ -31,8 +31,6 @@ class AccessControlServiceTests {
     private val departmentRepository = mock<DepartmentRepository>()
     private val permissionRepository = mock<AccessControlTypeRepository>()
 
-    // 这里用真的 ScopeGuard，只把范围来源（DataScopeResolver）替换掉：
-    // 若把 ScopeGuard 也 mock 掉，可见性判定就成了「打桩返回什么就是什么」，测不到东西。
     private val dataScopeResolver = mock<DataScopeResolver>()
     private val scopeGuard = ScopeGuard(dataScopeResolver, mock(), mock())
     private val service = AccessControlServiceImpl(
@@ -55,7 +53,7 @@ class AccessControlServiceTests {
         accessControlName = "类型$id"
     }
 
-    /** 审核要记审核人，没有认证上下文时 actorName() 会拒绝。 */
+    
     private fun authenticate() {
         val principal = CurrentUserPrincipal(
             userId = 692, username = "t_dept_d1", role = "DEPT_ADMIN", tokenId = "test-token",
@@ -141,7 +139,7 @@ class AccessControlServiceTests {
         assertThrows(org.springframework.security.access.AccessDeniedException::class.java) { service.deleteBatch(listOf(7)) }
     }
 
-    /** F3 的回归：这张表有真正的 department_id 外键，却一直没接数据范围。 */
+    
     @Test
     fun `部门管理读不到也审核不了其他部门的授权`() {
         departmentScope(1L)
@@ -153,7 +151,6 @@ class AccessControlServiceTests {
         }
         whenever(repository.findById(9)).thenReturn(Optional.of(other))
 
-        // 详情、更新、审核三条按 ID 的路径都要用同一句「记录不存在」，不给响应差异留探测口。
         val detail = assertThrows(IllegalArgumentException::class.java) { service.get(9) }
         assertEquals("记录不存在", detail.message)
         assertThrows(IllegalArgumentException::class.java) { service.review(9, true, "越权审核") }
@@ -184,7 +181,6 @@ class AccessControlServiceTests {
         departmentScope(1L)
         val orphan = AccessControl().apply { name = "没有部门的授权" }
 
-        // 建一条部门为空的记录，按 fail-closed 口径连自己都看不见，等于凭空造出谁也管不到的数据。
         val ex = assertThrows(IllegalArgumentException::class.java) { service.create(orphan) }
         assertEquals("必须指定部门", ex.message)
         verify(repository, never()).save(orphan)
@@ -205,16 +201,14 @@ class AccessControlServiceTests {
         verify(repository, never()).save(foreign)
     }
 
-    /**
-     * F4 的回归：请求体里的 department 只是一个 `{id: 2}` 空壳，直接存下去会让后续
-     * 序列化在 Department 的 lateinit 字段上抛异常（接口 500、数据却已落库）。
-     */
+
+
+
     @Test
     fun `创建时把请求体里只有 id 的部门换成受管实体`() {
         allScope()
         val managed = department(2L)
         whenever(departmentRepository.findById(2L)).thenReturn(Optional.of(managed))
-        // 反序列化出来的 Department 只有 id，name / departmentNumber 这两个 lateinit 字段是空的。
         val incoming = AccessControl().apply {
             name = "张三"
             department = Department().apply { id = 2 }
@@ -240,17 +234,15 @@ class AccessControlServiceTests {
         whenever(repository.findById(5)).thenReturn(Optional.of(current))
         whenever(repository.save(current)).thenReturn(current)
 
-        // copyEditableProperties 是逐属性覆盖，会把没带的 department 一起写成 null。
         service.update(5, AccessControl().apply { id = 5; name = "新名称" })
 
         assertEquals(1L, current.department?.id)
     }
 
-    /**
-     * 与部门同源的问题，而且这条真的在真机上复现过：只建不改的记录 access_control_type_id 还在，
-     * 做一次「取回来 → 原样提交」之后就被清空了——因为 copyEditableProperties 逐属性覆盖，
-     * 而响应视图里又没有这个字段，客户端根本没法把它带回来。
-     */
+
+
+
+
     @Test
     fun `更新时不带授权类型则保持原类型`() {
         allScope()
@@ -269,7 +261,7 @@ class AccessControlServiceTests {
         assertEquals(3L, current.accessControlPermission?.id)
     }
 
-    /** 挂一个不存在的类型：应当在写库前给出可读错误，而不是等 PostgreSQL 抛外键异常变成 500。 */
+    
     @Test
     fun `挂不存在的授权类型时报错而不是落到外键异常`() {
         allScope()
@@ -286,10 +278,9 @@ class AccessControlServiceTests {
         verify(repository, never()).save(entity)
     }
 
-    /**
-     * person_number 是全局唯一，但约束名是 Hibernate 生成的哈希串，GlobalExceptionHandler
-     * 没法按名字映射，落到兜底就是 500 + 空消息（真机上复现过）。先查一次给出可读提示。
-     */
+
+
+
     @Test
     fun `人员编号重复时给出可读提示`() {
         allScope()
@@ -308,7 +299,7 @@ class AccessControlServiceTests {
         verify(repository, never()).save(entity)
     }
 
-    /** 更新自己时不能被自己的编号判成重复。 */
+    
     @Test
     fun `更新时自己的人员编号不算重复`() {
         allScope()

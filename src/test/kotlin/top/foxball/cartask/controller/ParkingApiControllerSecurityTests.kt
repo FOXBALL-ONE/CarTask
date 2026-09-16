@@ -35,11 +35,9 @@ class ParkingApiControllerSecurityTests {
             "getGatePerson" to "hasAuthority('gate-person:read')",
             "createGatePersonMultipart" to "hasAuthority('gate-person:manage')",
             "updateGatePersonMultipart" to "hasAuthority('gate-person:manage')",
-            // 审核与录入分离：持有 gate-person:manage 的人不能顺带审核自己录的人。
             "approveGatePerson" to "hasAuthority('gate-person:review')",
             "rejectGatePerson" to "hasAuthority('gate-person:review')",
             "reviewGatePersons" to "hasAuthority('gate-person:review')",
-            // 物理删除走删除申请审批，与门禁授权一致地关闭直接删除。
             "deleteGatePerson" to "denyAll()",
             "createDeleteRequest" to "hasAuthority('gate-person:manage')",
             "listDeleteRequests" to "hasAuthority('gate-person:read')",

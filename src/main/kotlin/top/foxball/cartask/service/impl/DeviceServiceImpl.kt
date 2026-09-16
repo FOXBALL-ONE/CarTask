@@ -10,60 +10,36 @@ import top.foxball.cartask.repository.DeviceRepository
 import top.foxball.cartask.service.DeviceService
 
 @Service
-/** 基于 JPA 的接入设备服务。 */
+
 class DeviceServiceImpl(
     private val repository: DeviceRepository,
 ) : DeviceService {
     @Transactional
-    /**
-     * create：创建、保存或初始化相关数据。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param entity 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     override fun create(entity: Device): Device {
         require(entityId(entity) == null) { "创建记录时不能指定 ID" }
         return repository.save(entity)
     }
-
+    
     @Transactional
-    /**
-     * createBatch：创建、保存或初始化相关数据。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param entities 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     override fun createBatch(entities: List<Device>): List<Device> {
         require(entities.isNotEmpty()) { "创建列表不能为空" }
         require(entities.all { entityId(it) == null }) { "创建记录时不能指定 ID" }
         return repository.saveAll(entities)
     }
-
+    
     @Transactional
-    /**
-     * get：查询或读取相关数据。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param id 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     override fun get(id: Long): Device = repository.findById(id)
         .orElseThrow { IllegalArgumentException("记录不存在: $id") }
-
+    
     @Transactional
-    /**
-     * getBatch：查询或读取相关数据。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param ids 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     override fun getBatch(ids: List<Long>): List<Device> {
         require(ids.isNotEmpty()) { "ID 列表不能为空" }
         require(ids.all { it > 0 }) { "ID 必须大于 0" }
@@ -73,33 +49,19 @@ class DeviceServiceImpl(
         require(missingIds.isEmpty()) { "部分记录不存在: ${missingIds.joinToString(",")}" }
         return ids.map { recordsById.getValue(it) }
     }
-
+    
     @Transactional
-    /**
-     * list：查询或读取相关数据。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param page 参与本次处理的输入参数。
-     * @param pageSize 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     override fun list(page: Int, pageSize: Int): Page<Device> {
         require(page >= 1) { "页码必须大于 0" }
         require(pageSize in 1..100) { "每页数量必须在 1 到 100 之间" }
         return repository.findAll(PageRequest.of(page - 1, pageSize))
     }
-
+    
     @Transactional
-    /**
-     * update：更新业务状态或修改相关配置。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param id 参与本次处理的输入参数。
-     * @param entity 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     override fun update(id: Long, entity: Device): Device {
         require(id > 0) { "ID 必须大于 0" }
         require(entityId(entity) == id) { "路径 ID 必须与请求体 ID 一致" }
@@ -108,16 +70,10 @@ class DeviceServiceImpl(
         copyEditableProperties(entity, current)
         return repository.save(current)
     }
-
+    
     @Transactional
-    /**
-     * updateBatch：更新业务状态或修改相关配置。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param entities 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     override fun updateBatch(entities: List<Device>): List<Device> {
         require(entities.isNotEmpty()) { "更新列表不能为空" }
         val ids = entities.map { entityId(it) }
@@ -133,31 +89,19 @@ class DeviceServiceImpl(
         }
         return repository.saveAll(updated)
     }
-
+    
     @Transactional
-    /**
-     * delete：删除、清理或撤销相关数据。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param id 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     override fun delete(id: Long) {
         require(id > 0) { "ID 必须大于 0" }
         require(repository.existsById(id)) { "记录不存在: $id" }
         repository.deleteById(id)
     }
-
+    
     @Transactional
-    /**
-     * deleteBatch：删除、清理或撤销相关数据。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param ids 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     override fun deleteBatch(ids: List<Long>) {
         require(ids.isNotEmpty()) { "ID 列表不能为空" }
         require(ids.all { it > 0 }) { "ID 必须大于 0" }
@@ -168,15 +112,8 @@ class DeviceServiceImpl(
         require(missingIds.isEmpty()) { "部分记录不存在: ${missingIds.joinToString(",")}" }
         repository.deleteAll(distinctIds.map(recordsById::getValue))
     }
-
-    /**
-     * entityId：执行当前模块中的业务操作。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param entity 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     private fun entityId(entity: Device): Long? {
         var type: Class<*>? = entity.javaClass
         while (type != null) {
@@ -190,16 +127,8 @@ class DeviceServiceImpl(
         }
         throw IllegalArgumentException("实体缺少 Long 类型的 id 属性")
     }
-
-    /**
-     * copyEditableProperties：执行当前模块中的业务操作。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param source 参与本次处理的输入参数。
-     * @param target 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     private fun copyEditableProperties(source: Device, target: Device) {
         val sourceWrapper = BeanWrapperImpl(source)
         val targetWrapper = BeanWrapperImpl(target)

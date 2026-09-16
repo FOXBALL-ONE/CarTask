@@ -107,7 +107,6 @@ class ScopeGuardTests {
 
     @Test
     fun `本人范围下主数据详情一律拒绝`() {
-        // 车主/车牌这类主数据页面没有普通用户入口，fail closed 比放开安全。
         assertThrows(AccessDeniedException::class.java) {
             guard.requireVisible(owner("停车管理组", "PARKING"), DataScope.self(7L, "13800138000", setOf("A1"), emptySet(), emptySet()))
         }
@@ -121,7 +120,6 @@ class ScopeGuardTests {
 
     @Test
     fun `受限范围下没有部门归属的账号也拒绝修改`() {
-        // 范围解析不出归属时的语义是「看不到」，用户账号同样不能例外。
         assertThrows(AccessDeniedException::class.java) { guard.requireUserInScope(null, departmentScope) }
         assertThrows(AccessDeniedException::class.java) {
             guard.requireUserInScope(1L, DataScope.self(7L, "13800138000", setOf("A1"), emptySet(), emptySet()))

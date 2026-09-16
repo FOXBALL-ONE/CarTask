@@ -12,10 +12,10 @@ import top.foxball.cartask.repository.SyncCheckpointRepository
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 
-/**
- * 生产 Keytop 的受控增量联调。仅当 KEYTOP_LIVE_INCREMENTAL_SYNC=true 时执行。
- * 调用路径仅包含 getCarInoutInfo 查询；同步结果写入当前配置的本地数据库和文件存储。
- */
+
+
+
+
 @EnabledIfEnvironmentVariable(named = "KEYTOP_LIVE_INCREMENTAL_SYNC", matches = "true")
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,

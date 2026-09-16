@@ -83,7 +83,7 @@ class SynAccountGenerateTaskTests {
         status = 1
     }
 
-    /** 模拟车牌档案与车主档案的关联查询。 */
+    
     private fun prepareArchives(vararg plates: ParkingPlate, owners: List<ParkingOwner> = emptyList()) {
         whenever(parkingPlateRepository.findAll()).thenReturn(plates.toList())
         whenever(parkingOwnerRepository.findAllById(any())).thenAnswer { invocation ->
@@ -92,7 +92,7 @@ class SynAccountGenerateTaskTests {
         }
     }
 
-    /** 模拟部门查询与落库：真实 JPA 会把自增主键回填到实体上。 */
+    
     private fun prepareDepartments(vararg departments: Department) {
         whenever(departmentRepository.findAll()).thenReturn(departments.toList())
         var nextId = 500L

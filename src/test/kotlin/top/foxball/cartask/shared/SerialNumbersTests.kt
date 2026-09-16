@@ -20,7 +20,6 @@ class SerialNumbersTests {
 
     @Test
     fun `补零前后两种写法都能搜到同一条记录`() {
-        // 用户照着屏幕上的「0001」输入，或直接输入「1」，都应命中 ID 为 1 的记录。
         assertTrue(SerialNumbers.matches(1, "1"))
         assertTrue(SerialNumbers.matches(1, "0001"))
         assertTrue(SerialNumbers.matches(42, "0042"))

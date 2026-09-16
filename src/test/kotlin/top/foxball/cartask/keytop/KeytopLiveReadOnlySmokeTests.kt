@@ -5,7 +5,7 @@ import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
 import tools.jackson.databind.ObjectMapper
 import java.time.Duration
 
-/** 手工执行的只读联调测试；需要通过环境变量显式开启。 */
+
 @EnabledIfEnvironmentVariable(named = "KEYTOP_LIVE_READ_ONLY", matches = "true")
 class KeytopLiveReadOnlySmokeTests {
     @org.junit.jupiter.api.Test

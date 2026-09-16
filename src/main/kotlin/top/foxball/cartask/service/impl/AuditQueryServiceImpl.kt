@@ -22,14 +22,8 @@ class AuditQueryServiceImpl(
     private val auditService: AuditService,
     private val meterRegistry: MeterRegistry? = null,
 ) : AuditQueryService {
-    /**
-     * list：查询或读取相关数据。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param query 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     override fun list(query: AuditQueryService.Query): AuditQueryService.PageData {
         validate(query, requireTimeRange = true)
         val pageable = PageRequest.of(
@@ -40,27 +34,13 @@ class AuditQueryServiceImpl(
         val page = repository.findAll(specification(query), pageable)
         return AuditQueryService.PageData(page.content.map(::toData), query.page, query.pageSize, page.totalElements)
     }
-
-    /**
-     * get：查询或读取相关数据。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param eventId 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     override fun get(eventId: UUID): AuditQueryService.EventData = repository.findByEventId(eventId)
         ?.let(::toData)
         ?: throw IllegalArgumentException("审计事件不存在: $eventId")
-
-    /**
-     * export：执行数据同步、探测或文件处理。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param query 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     override fun export(query: AuditQueryService.Query): List<AuditQueryService.EventData> {
         require(query.occurredFrom != null && query.occurredTo != null) { "导出必须指定开始和结束时间" }
         validate(query.copy(page = 1, pageSize = 100), maxDays = 7, requireTimeRange = true)
@@ -86,15 +66,8 @@ class AuditQueryServiceImpl(
         meterRegistry?.counter("audit_export_records_total")?.increment(events.size.toDouble())
         return events
     }
-
-    /**
-     * verify：校验输入、状态或访问条件。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param partitionKey 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     override fun verify(partitionKey: String): AuditQueryService.VerificationData {
         require(Regex("\\d{4}-(0[1-9]|1[0-2])").matches(partitionKey)) { "分区必须使用有效的 yyyy-MM 格式" }
         val events = repository.findByPartitionKeyOrderBySequenceNoAsc(partitionKey)
@@ -140,15 +113,8 @@ class AuditQueryServiceImpl(
             "校验通过"
         )
     }
-
-    /**
-     * specification：执行当前模块中的业务操作。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param query 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     private fun specification(query: AuditQueryService.Query): Specification<AuditEvent> =
         Specification { root, _, builder ->
             val predicates = mutableListOf<jakarta.persistence.criteria.Predicate>()
@@ -163,17 +129,8 @@ class AuditQueryServiceImpl(
             query.requestId?.let { predicates += builder.equal(root.get<String>("requestId"), it) }
             builder.and(*predicates.toTypedArray())
         }
-
-    /**
-     * validate：校验输入、状态或访问条件。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param query 参与本次处理的输入参数。
-     * @param maxDays 参与本次处理的输入参数。
-     * @param requireTimeRange 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     private fun validate(
         query: AuditQueryService.Query,
         maxDays: Long = 31,
@@ -203,15 +160,8 @@ class AuditQueryServiceImpl(
             "审计查询时间范围不能超过 ${maxDays} 天"
         }
     }
-
-    /**
-     * toData：转换、构建或格式化数据。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param event 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     private fun toData(event: AuditEvent): AuditQueryService.EventData = AuditQueryService.EventData(
         eventId = event.eventId,
         occurredAt = event.occurredAt,
@@ -236,17 +186,10 @@ class AuditQueryServiceImpl(
         sourceSystem = event.sourceSystem,
         eventHash = event.eventHash,
     )
-
-    /**
-     * parse：执行当前模块中的业务操作。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param value 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     private fun parse(value: String?): Any? = value?.let { runCatching { objectMapper.readTree(it) }.getOrNull() }
-
+    
     private companion object {
         const val EXPORT_LIMIT = 1000
         const val MAX_PAGE = 10_000

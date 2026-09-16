@@ -58,8 +58,6 @@ class DotenvLoaderTests {
         val target = createTempDirectory("dotenv-elsewhere").resolve("production.env")
         System.setProperty(DotenvLoader.ENV_FILE_VARIABLE, target.toString())
 
-        // 启动模式判定、Spring 注入、引导写入、口令擦除都取这一个值；不一致就会出现
-        // 「引导写完了但启动时读不到」。
         assertEquals(target.toAbsolutePath().normalize(), DotenvLoader.defaultPath())
     }
 }

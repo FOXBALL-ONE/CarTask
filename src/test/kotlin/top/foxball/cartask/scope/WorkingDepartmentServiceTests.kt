@@ -19,14 +19,14 @@ import top.foxball.cartask.repository.UserManagedDepartmentRepository
 import top.foxball.cartask.repository.UserRepository
 import java.util.Optional
 
-/**
- * 工作部门切换的回归测试。
- *
- * 背景：这条路径曾经长期是「报成功、实际没写进去」——`updateWorkingDepartment` 因为拿
- * UTC 的 expiresAt 和本机时钟相减、TTL 恒为负而每次都返回 false，而调用方把这个 false
- * 丢掉了，于是接口照样回 200「工作部门已切换」。所以这里必须**两条**都锁住：
- * 会话说没写成功时不能返回成功，以及写成功时会话状态确实是新的。
- */
+
+
+
+
+
+
+
+
 class WorkingDepartmentServiceTests {
     private val departmentRepository = mock<DepartmentRepository>()
     private val managedRepository = mock<UserManagedDepartmentRepository>()
@@ -90,11 +90,10 @@ class WorkingDepartmentServiceTests {
         }
     }
 
-    /**
-     * 重复提交同一份管理范围是常规操作（前端原样提交、脚本重复执行）。
-     * Hibernate 的 flush 顺序是 INSERT 先于 DELETE，不显式落一次删除就会撞
-     * uk_user_managed_department 报 500——这个坑真的踩到过。
-     */
+
+
+
+
     @Test
     fun `重复提交同一份管理范围时先落删除再插入`() {
         val user = User().apply { id = 692L }

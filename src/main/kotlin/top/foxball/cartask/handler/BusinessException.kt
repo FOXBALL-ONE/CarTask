@@ -2,7 +2,7 @@ package top.foxball.cartask.handler
 
 import org.springframework.http.HttpStatus
 
-/** 业务异常基类，携带 HTTP 状态码；子类对应各类业务错误（未找到、未授权、参数错误等）。 */
+
 open class BusinessException(
     val status: HttpStatus,
     override val message: String

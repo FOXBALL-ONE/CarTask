@@ -29,12 +29,12 @@ import top.foxball.cartask.service.UserService
 import java.time.LocalDateTime
 import java.util.Optional
 
-/**
- * 用户更新路径的部门范围约束。
- *
- * 手机号是本系统的登录凭据，而用户表的范围过滤只下推到了列表查询；按 ID 更新必须自己校验，
- * 否则部门管理换一个用户 ID 就能改掉别部门账号的手机号。
- */
+
+
+
+
+
+
 class UserServiceScopeTests {
     private val userRepository = mock<UserRepository>()
     private val dataScopeResolver = mock<DataScopeResolver>()
@@ -130,7 +130,6 @@ class UserServiceScopeTests {
         service.update(12L, UserService.UpdateCommand(phone = "13900139001"))
 
         assertEquals("13900139001", other.phone)
-        // 手机号是登录凭据，改前/改后必须进审计，否则管理员改他人手机号不留痕。
         verify(auditService).record(captor.capture())
         assertEquals("13800138012", captor.firstValue.beforeData?.get("phone"))
         assertEquals("13900139001", captor.firstValue.afterData?.get("phone"))

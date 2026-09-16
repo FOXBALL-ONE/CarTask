@@ -30,7 +30,7 @@ import java.time.format.DateTimeFormatter
 import java.util.*
 
 @Service
-/** 将上传文件写入本地存储并维护元数据的一致性。 */
+
 class FileServiceImpl(
     private val fileRepository: StoredFileRepository,
     private val properties: FileProperties,
@@ -44,8 +44,8 @@ class FileServiceImpl(
         .connectTimeout(java.time.Duration.ofSeconds(10))
         .followRedirects(HttpClient.Redirect.NORMAL)
         .build()
-
-    /** 先写入磁盘，再持久化元数据；持久化失败时清理物理文件。 */
+    
+    
     override fun upload(file: MultipartFile): FileService.FileData {
         require(!file.isEmpty) { "文件不能为空" }
         val storedUpload = storeUpload(file)
@@ -73,16 +73,8 @@ class FileServiceImpl(
             throw ex
         }
     }
-
-    /**
-     * importRemote：执行数据同步、探测或文件处理。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param url 参与本次处理的输入参数。
-     * @param origin 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     override fun importRemote(url: String, origin: FileService.FileOrigin?): FileService.FileData {
         val uri = try {
             URI.create(url.trim())
@@ -147,11 +139,11 @@ class FileServiceImpl(
             throw exception
         }
     }
-
-    /** 将已存储的元数据转换为对外返回数据。 */
+    
+    
     override fun get(id: UUID): FileService.FileData = fileData(findVisibleFile(id))
-
-    /** 验证记录和文件均存在后，返回下载资源描述。 */
+    
+    
     override fun openDownload(id: UUID): FileService.DownloadData {
         val storedFile = findVisibleFile(id)
         val path = resolveStoredPath(storedFile.relativePath)
@@ -176,25 +168,16 @@ class FileServiceImpl(
             sizeBytes = storedFile.sizeBytes,
         )
     }
-
-    /** 将上传流写入日期目录，并在写入过程中计算摘要和大小。 */
+    
+    
     private fun storeUpload(file: MultipartFile): StoredUpload {
         val safeFilename = safeFilename(file.originalFilename)
         return file.inputStream.use { input ->
             storeContent(input, safeFilename, file.contentType)
         }
     }
-
-    /**
-     * storeContent：创建、保存或初始化相关数据。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param input 参与本次处理的输入参数。
-     * @param safeFilename 参与本次处理的输入参数。
-     * @param contentType 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     private fun storeContent(
         input: java.io.InputStream,
         safeFilename: SafeFilename,
@@ -204,7 +187,7 @@ class FileServiceImpl(
         val datePath = date.format(DATE_PATH_FORMATTER)
         val directory = properties.rootPath.resolve(datePath)
         Files.createDirectories(directory)
-
+        
         val id = UUID.randomUUID()
         val storedFilename = "$id${safeFilename.extension}"
         val target = directory.resolve(storedFilename)
@@ -248,8 +231,8 @@ class FileServiceImpl(
             throw ex
         }
     }
-
-    /** 根据元数据构造包含绝对下载地址的文件数据。 */
+    
+    
     private fun fileData(storedFile: StoredFile): FileService.FileData = FileService.FileData(
         id = storedFile.id,
         originalFilename = storedFile.originalFilename,
@@ -261,33 +244,22 @@ class FileServiceImpl(
             .toUriString(),
         createdAt = storedFile.createdAt,
     )
-
-    /** 按 ID 查询元数据；不存在时统一转换为资源不存在错误。 */
+    
+    
     private fun findFile(id: UUID): StoredFile = fileRepository.findById(id)
         .orElseThrow { ResourceNotFoundException("文件不存在") }
-
-    /**
-     * 按当前数据范围取文件。
-     *
-     * 文件表原先没有归属字段，任何 `file:read` 持有者只要知道 UUID 就能下载任意附件，
-     * 包括别人车辆的进出抓拍。范围外与不存在用同一个错误，避免用响应差异探测文件是否存在。
-     */
+    
+    
     private fun findVisibleFile(id: UUID): StoredFile {
         val storedFile = findFile(id)
         val scope = dataScopeResolver.current()
-        // 不受限范围直接放行，省掉逐条的业务归属反查。
         if (!scope.unrestricted && !scopeQuerySupport.fileVisible(scope, storedFile)) {
             throw ResourceNotFoundException("文件不存在")
         }
         return storedFile
     }
-
-    /**
-     * 落上上传者与其当前工作部门。
-     *
-     * 部门归属取上传者的当前工作部门；同步任务从外部平台拉取的图片没有登录主体，
-     * 归属由调用方通过 [FileService.FileOrigin] 显式传入。
-     */
+    
+    
     private fun applyUploader(metadata: StoredFile) {
         val principal = SecurityContextHolder.getContext().authentication?.principal as? CurrentUserPrincipal ?: return
         metadata.uploadedByUserId = principal.userId
@@ -295,50 +267,23 @@ class FileServiceImpl(
             ?.let { departmentId -> departmentLinkResolver.snapshot().codesOf(setOf(departmentId)).singleOrNull() }
             ?.let { metadata.departmentCode = it }
     }
-
-    /**
-     * applyOrigin：执行当前模块中的业务操作。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param metadata 参与本次处理的输入参数。
-     * @param origin 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     private fun applyOrigin(metadata: StoredFile, origin: FileService.FileOrigin) {
         origin.departmentCode?.let { metadata.departmentCode = it }
         origin.businessType?.let { metadata.businessType = it }
         origin.businessId?.let { metadata.businessId = it }
     }
-
-    /**
-     * linkBusiness：执行当前模块中的业务操作。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param id 参与本次处理的输入参数。
-     * @param businessType 参与本次处理的输入参数。
-     * @param businessId 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     override fun linkBusiness(id: UUID, businessType: String, businessId: String) {
         val storedFile = findFile(id)
         storedFile.businessType = businessType
         storedFile.businessId = businessId
         fileRepository.save(storedFile)
     }
-
-    /**
-     * relinkBusiness：执行当前模块中的业务操作。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param businessType 参与本次处理的输入参数。
-     * @param fromBusinessId 参与本次处理的输入参数。
-     * @param toBusinessId 参与本次处理的输入参数。
-     * @param departmentCode 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     override fun relinkBusiness(
         businessType: String,
         fromBusinessId: String,
@@ -352,28 +297,19 @@ class FileServiceImpl(
             }
         }
     }
-
-    /**
-     * unlinkBusiness：执行当前模块中的业务操作。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param businessType 参与本次处理的输入参数。
-     * @param businessId 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     override fun unlinkBusiness(businessType: String, businessId: String) {
         transactionOperations.executeWithoutResult {
             fileRepository.findByBusinessTypeAndBusinessId(businessType, businessId).forEach {
                 it.businessType = null
                 it.businessId = null
-                // 部门快照也要清掉：留着它，旧部门与上传者的下载权在业务对象删除后依然成立。
                 it.departmentCode = null
             }
         }
     }
-
-    /** 将数据库相对路径安全地限制在配置的文件根目录内。 */
+    
+    
     private fun resolveStoredPath(relativePath: String): Path {
         val relative = try {
             Path.of(relativePath).normalize()
@@ -386,8 +322,8 @@ class FileServiceImpl(
                 if (!resolved.startsWith(properties.rootPath)) throw ResourceNotFoundException("文件不存在")
             }
     }
-
-    /** 清理客户端文件名并验证其长度、控制字符和后缀。 */
+    
+    
     private fun safeFilename(submittedFilename: String?): SafeFilename {
         val value = submittedFilename
             ?.substringAfterLast('/')
@@ -405,22 +341,22 @@ class FileServiceImpl(
             ?: ""
         return SafeFilename(value, extension)
     }
-
-    /** 在补偿或失败清理时忽略物理文件删除异常。 */
+    
+    
     private fun deleteQuietly(path: Path) {
         runCatching { Files.deleteIfExists(path) }
     }
-
+    
     private data class SafeFilename(
         val value: String,
         val extension: String,
     )
-
+    
     private data class StoredUpload(
         val metadata: StoredFile,
         val path: Path,
     )
-
+    
     private companion object {
         val DATE_PATH_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy/MM/dd")
         val EXTENSION_PATTERN = Regex("[A-Za-z0-9]{1,20}")

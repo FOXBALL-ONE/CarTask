@@ -18,7 +18,6 @@ class VehicleInspectionTests {
     @Test
     fun `有效期早于今天的车辆是已过期`() {
         assertEquals("已过期", VehicleInspection.status(LocalDate.parse("2025-05-20"), LocalDate.parse("2026-05-20"), today))
-        // 有效期当天仍算有效：到期日当天的车不该显示为过期。
         assertEquals("有效", VehicleInspection.status(null, today, today))
     }
 

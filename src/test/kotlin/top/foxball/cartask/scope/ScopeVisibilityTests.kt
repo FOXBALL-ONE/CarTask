@@ -26,7 +26,7 @@ import top.foxball.cartask.repository.GatePersonRepository
 import top.foxball.cartask.repository.ParkingOwnerRepository
 import top.foxball.cartask.repository.ParkingPlateRepository
 
-/** 文件与违规主体的可见性判定：这两处原先完全没有归属字段，是本次新补的范围入口。 */
+
 class ScopeVisibilityTests {
     private val departmentLinkResolver = mock<DepartmentLinkResolver>()
     private val parkingOwnerRepository = mock<ParkingOwnerRepository>()
@@ -90,7 +90,6 @@ class ScopeVisibilityTests {
     fun `部门范围按归属部门判定文件可见性且缺归属时不可见`() {
         assertTrue(support.fileVisible(departmentScope, file(departmentCode = "PARKING")))
         assertTrue(support.fileVisible(departmentScope, file(departmentCode = "OTHER")).not())
-        // 没有任何归属的文件对受限角色不可见：fail closed，否则等于换个 UUID 就能下载。
         assertFalse(support.fileVisible(departmentScope, file()))
     }
 
@@ -116,7 +115,6 @@ class ScopeVisibilityTests {
             listOf(plate("粤A·12345", 1L)),
         )
 
-        // 同步任务写入的抓拍图片没有上传者，归属只能靠车牌反查——这条路径替代了写死的部门快照。
         val photo = file(businessType = StoredFile.BUSINESS_VEHICLE_PLATE, businessId = "粤A12345")
         assertTrue(support.fileVisible(departmentScope, photo))
     }
@@ -136,7 +134,6 @@ class ScopeVisibilityTests {
                 file(businessType = StoredFile.BUSINESS_GATE_PERSON, businessId = "GP-1"),
             ),
         )
-        // 别人的图片：既不是本人上传，车牌与门禁编号也不属于本人。
         assertFalse(
             support.fileVisible(
                 selfScope,
@@ -198,7 +195,7 @@ class ScopeVisibilityTests {
     }
 }
 
-/** Excel 导入导出的范围策略。 */
+
 class ExcelResourcePolicyTests {
     private val scopeGuard = mock<ScopeGuard>()
     private val departmentRepository = mock<DepartmentRepository>()
@@ -225,12 +222,10 @@ class ExcelResourcePolicyTests {
     fun `受限范围拒绝没有部门归属的资源`() {
         whenever(scopeGuard.currentScope()).thenReturn(DataScope.departments(setOf(1L), setOf("PARKING"), setOf("停车管理组")))
 
-        // 这些资源在表结构上没有部门字段，"按范围裁剪"是做不到的，只能拒绝而不是给一份全量数据。
         assertThrows(IllegalArgumentException::class.java) { policy.requireScopable("all") }
         assertThrows(IllegalArgumentException::class.java) { policy.requireScopable("devices") }
         assertThrows(IllegalArgumentException::class.java) { policy.requireScopable("positions") }
         assertThrows(IllegalArgumentException::class.java) { policy.requireScopable("departments") }
-        // 可裁剪的资源正常放行。
         policy.requireScopable("owners")
         policy.requireScopable("plates")
     }
@@ -252,7 +247,6 @@ class ExcelResourcePolicyTests {
         whenever(scopeGuard.currentScope())
             .thenReturn(DataScope.departments(setOf(1L, 2L), setOf("A", "B"), setOf("甲", "乙")))
 
-        // 导入总得落到一个部门，范围里有两个又没选工作部门时不能猜。
         assertThrows(IllegalArgumentException::class.java) { policy.forcedImportDepartment() }
     }
 
@@ -260,8 +254,6 @@ class ExcelResourcePolicyTests {
     fun `工作部门已不在管理范围内时拒绝导入`() {
         whenever(scopeGuard.currentScope())
             .thenReturn(DataScope.departments(setOf(1L), setOf("PARKING"), setOf("停车管理组")))
-        // 工作部门是会话里记住的上次选择：管理员把分配范围改小之后它可能已经不在范围内，
-        // 此时照着它写入就是把自己看不到、也管不到的数据落进别的部门。
         setWorkingDepartment(9L)
 
         assertThrows(IllegalArgumentException::class.java) { policy.forcedImportDepartment() }
@@ -272,7 +264,7 @@ class ExcelResourcePolicyTests {
         SecurityContextHolder.clearContext()
     }
 
-    /** 只影响 ExcelResourcePolicy 里读 SecurityContext 取工作部门的那处判断。 */
+    
     private fun setWorkingDepartment(departmentId: Long) {
         val principal = CurrentUserPrincipal(
             userId = 1L,

@@ -131,7 +131,6 @@ class SyncScheduleServiceTests {
         val taskKey = SynAccountGenerateTask.TASK_KEY
 
         assertThrows(ParamErrorException::class.java) { service.update(taskKey, "不是 cron") }
-        // 五段式是最常见的误填，必须明确拒绝而不是当六段式收下。
         assertThrows(ParamErrorException::class.java) { service.update(taskKey, "*/5 * * * *") }
         assertThrows(ParamErrorException::class.java) { service.update(taskKey, "  ") }
 
@@ -152,7 +151,6 @@ class SyncScheduleServiceTests {
         val cron = service.cronFor(taskKey)
 
         assertEquals(catalog.find(taskKey)!!.defaultCron, cron)
-        // 页面显示的口径与调度器一致：都回退到默认值，避免「显示一个值、按另一个值跑」。
         assertEquals(catalog.find(taskKey)!!.defaultCron, service.list().first { it.taskKey == taskKey }.cron)
     }
 }

@@ -10,7 +10,7 @@ import org.springframework.mock.web.MockHttpServletResponse
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.core.context.SecurityContextHolder
 
-/** 初始密码未修改时，业务接口必须被服务端拦下，只有改密相关接口放行。 */
+
 class PasswordChangeRequiredFilterTests {
     private val filter = PasswordChangeRequiredFilter()
 

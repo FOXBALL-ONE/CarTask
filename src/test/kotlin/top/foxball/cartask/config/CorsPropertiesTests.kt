@@ -5,12 +5,12 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 
-/**
- * CORS 白名单的配置约束。
- *
- * 「任意来源」与「允许凭据」不能同时成立：浏览器不允许 `Access-Control-Allow-Origin: *` 与凭据共存，
- * 而 Spring 在两者同时配置时会直接抛异常。这里的规则是**启动期**就拒绝，而不是等浏览器报错。
- */
+
+
+
+
+
+
 class CorsPropertiesTests {
     @Test
     fun `允许凭据时全局通配会被拒绝`() {
@@ -24,7 +24,6 @@ class CorsPropertiesTests {
 
     @Test
     fun `关掉凭据后可以放行任意来源`() {
-        // 临时联调用的组合：前端把 JWT 放在 Authorization 头里（credentials: omit），不需要浏览器凭据。
         assertDoesNotThrow {
             CorsProperties(allowedOriginPatterns = listOf("*"), allowCredentials = false).validate()
         }

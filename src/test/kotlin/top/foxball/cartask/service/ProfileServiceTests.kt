@@ -24,7 +24,7 @@ import top.foxball.cartask.service.impl.ProfileServiceImpl
 import java.time.LocalDateTime
 import java.util.Base64
 
-/** 个人中心的改密、头像与手机号换绑约束。 */
+
 class ProfileServiceTests {
     private val userRepository = mock<UserRepository>()
     private val passwordEncoder = mock<PasswordEncoder>()

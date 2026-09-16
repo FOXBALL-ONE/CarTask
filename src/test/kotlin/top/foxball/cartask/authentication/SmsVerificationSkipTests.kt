@@ -14,12 +14,12 @@ import top.foxball.cartask.handler.VerificationCodeInvalidException
 import top.foxball.cartask.sms.SmsClient
 import top.foxball.cartask.sms.SmsProperties
 
-/**
- * 短信验证的临时总开关。
- *
- * 打开时既不真发短信也不校验验证码——这是一条刻意的绕过，必须留在测试里，避免哪天开关被写反
- * （比如默认值变成 true）而没人发现。
- */
+
+
+
+
+
+
 class SmsVerificationSkipTests {
     private val redisTemplate = mock<StringRedisTemplate>()
     private val valueOperations = mock<ValueOperations<String, String>>()

@@ -69,13 +69,13 @@ class SynOwnerArchiveTaskTests {
         updatedAt = savedAt
     }
 
-    /** 模拟车牌档案与车主档案的全量查询。 */
+    
     private fun prepareArchives(vararg plates: ParkingPlate, owners: List<ParkingOwner> = emptyList()) {
         whenever(parkingPlateRepository.findAll()).thenReturn(plates.toList())
         whenever(parkingOwnerRepository.findAll()).thenReturn(owners)
     }
 
-    /** 模拟补建档案的落库：真实 JPA 会把自增主键回填到实体上。 */
+    
     private fun stubArchivePersistence() {
         whenever(parkingOwnerRepository.save(any())).thenAnswer { invocation ->
             invocation.getArgument<ParkingOwner>(0).apply { id = 900L }
@@ -85,7 +85,7 @@ class SynOwnerArchiveTaskTests {
         }
     }
 
-    /** 模拟科拓按车牌返回的卡片信息。 */
+    
     private fun stubCardInfo(plate: String, cardId: String, name: String, phone: String) {
         whenever(keytopService.getCardInfoByUser(plate)).thenReturn(
             KeytopResponse(

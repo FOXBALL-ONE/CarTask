@@ -280,7 +280,6 @@ class SynchronizationControllerTests {
             UpdateSyncScheduleRequest().apply { cron = " 0 */10 * * * * " },
         )
 
-        // 请求体里的空格要在服务层之前去掉，否则存进去的字符串和页面上显示的不是同一个。
         verify(scheduleService).update("car_cap_info.sync", "0 */10 * * * *")
         assertEquals(200, response.statusCode.value())
         assertEquals("同步周期已更新：车辆进出记录同步", response.body?.message)

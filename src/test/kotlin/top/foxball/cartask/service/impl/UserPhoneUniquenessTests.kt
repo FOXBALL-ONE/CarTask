@@ -28,12 +28,12 @@ import top.foxball.cartask.scope.ScopeGuard
 import top.foxball.cartask.scope.ScopeQuerySupport
 import top.foxball.cartask.service.UserService
 
-/**
- * 用户名与手机号的唯一性。
- *
- * 数据库上靠 [Table.uniqueConstraints] 兜底，服务层负责给出可读提示。两处都要锁住：
- * 只锁前者，撤销约束不会有测试变红；只锁后者，去掉服务层校验就变成一句 500。
- */
+
+
+
+
+
+
 class UserPhoneUniquenessTests {
     private val userRepository = mock<UserRepository>()
     private val dataScopeResolver = mock<DataScopeResolver>()
@@ -54,8 +54,6 @@ class UserPhoneUniquenessTests {
         val constraints = requireNotNull(User::class.java.getAnnotation(Table::class.java)).uniqueConstraints
             .associate { it.name to it.columnNames.toList() }
 
-        // 名字必须显式给出：Hibernate 自动生成的约束名是哈希串，GlobalExceptionHandler 没法按名字映射，
-        // 并发撞车时就只能给调用方一句 500。
         assertEquals(listOf("username"), constraints["uk_users_username"])
         assertEquals(listOf("phone"), constraints["uk_users_phone"])
     }
@@ -107,11 +105,9 @@ class UserPhoneUniquenessTests {
         whenever(dataScopeResolver.current()).thenReturn(DataScope.All)
 
         service.update(22L, UserService.UpdateCommand(phone = "  13900139001  "))
-        // 不去空白的话，「 139… 」与「139…」在唯一约束下算两个值，实际却是同一个登录凭据。
         assertEquals("13900139001", target.phone)
 
         service.update(22L, UserService.UpdateCommand(phone = ""))
-        // 空串一律存 null，否则整个系统只能存在一条空手机号的行。
         assertEquals(null, target.phone)
     }
 

@@ -103,7 +103,6 @@ class DataScopeResolverTests {
     @Test
     fun `部门管理选定工作部门时收窄到该部门`() {
         whenever(departmentLinkResolver.snapshot()).thenReturn(DepartmentSnapshot(listOf(root, parking, security)))
-        // 分配了「运营中心及以下」，工作部门选了下级「停车管理组」。
         whenever(userManagedDepartmentRepository.findDepartmentIds(7L)).thenReturn(listOf(root.id!!))
         whenever(userManagedDepartmentRepository.findDepartmentIdsWithDescendants(7L)).thenReturn(listOf(root.id!!))
 
@@ -131,7 +130,6 @@ class DataScopeResolverTests {
 
         val scope = resolver.forPrincipal(principal("DEPT_ADMIN"))
 
-        // 没勾「含下级」就不应把下级部门一并纳入，否则这个标记就没有意义。
         assertEquals(setOf(root.id), scope.departmentIds)
     }
 
@@ -175,7 +173,6 @@ class DataScopeResolverTests {
         val scope = resolver.forPrincipal(principal("USER"))
 
         assertEquals(ScopeKind.SELF, scope.kind)
-        // 车牌按统一规则归一化，范围里的车牌与进出记录的归一化车牌才能对上。
         assertEquals(setOf("粤A12345"), scope.carNumbers)
         assertEquals(setOf("GP-1"), scope.gatePersonCodes)
         assertEquals(setOf("张三"), scope.gatePersonNames)

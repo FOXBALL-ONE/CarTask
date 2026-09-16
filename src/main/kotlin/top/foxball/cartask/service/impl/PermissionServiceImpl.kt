@@ -18,7 +18,7 @@ import top.foxball.cartask.repository.UserRepository
 import top.foxball.cartask.service.PermissionService
 
 @Service
-/** 基于 JPA 的权限字典服务。 */
+
 class PermissionServiceImpl(
     private val repository: PermissionRepository,
     private val roleRepository: RoleRepository,
@@ -28,14 +28,8 @@ class PermissionServiceImpl(
 ) : PermissionService {
     @Transactional
     @PreAuthorize("hasRole('SUPER_ADMIN') and hasAuthority('permission:manage')")
-    /**
-     * create：创建、保存或初始化相关数据。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param entity 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     override fun create(entity: Permission): Permission {
         require(entityId(entity) == null) { "创建记录时不能指定 ID" }
         normalizePermissionCode(entity)
@@ -50,17 +44,11 @@ class PermissionServiceImpl(
         )
         return saved
     }
-
+    
     @Transactional
     @PreAuthorize("hasRole('SUPER_ADMIN') and hasAuthority('permission:manage')")
-    /**
-     * createBatch：创建、保存或初始化相关数据。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param entities 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     override fun createBatch(entities: List<Permission>): List<Permission> {
         require(entities.isNotEmpty()) { "创建列表不能为空" }
         require(entities.all { entityId(it) == null }) { "创建记录时不能指定 ID" }
@@ -82,30 +70,18 @@ class PermissionServiceImpl(
         }
         return saved
     }
-
+    
     @Transactional
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('permission:read')")
-    /**
-     * get：查询或读取相关数据。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param id 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     override fun get(id: Long): Permission = repository.findById(id)
         .orElseThrow { IllegalArgumentException("记录不存在: $id") }
-
+    
     @Transactional
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('permission:read')")
-    /**
-     * getBatch：查询或读取相关数据。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param ids 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     override fun getBatch(ids: List<Long>): List<Permission> {
         require(ids.isNotEmpty()) { "ID 列表不能为空" }
         require(ids.all { it > 0 }) { "ID 必须大于 0" }
@@ -115,35 +91,21 @@ class PermissionServiceImpl(
         require(missingIds.isEmpty()) { "部分记录不存在: ${missingIds.joinToString(",")}" }
         return ids.map { recordsById.getValue(it) }
     }
-
+    
     @Transactional
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('permission:read')")
-    /**
-     * list：查询或读取相关数据。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param page 参与本次处理的输入参数。
-     * @param pageSize 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     override fun list(page: Int, pageSize: Int): Page<Permission> {
         require(page >= 1) { "页码必须大于 0" }
         require(pageSize in 1..100) { "每页数量必须在 1 到 100 之间" }
         return repository.findAll(PageRequest.of(page - 1, pageSize))
     }
-
+    
     @Transactional
     @PreAuthorize("hasRole('SUPER_ADMIN') and hasAuthority('permission:manage')")
-    /**
-     * update：更新业务状态或修改相关配置。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param id 参与本次处理的输入参数。
-     * @param entity 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     override fun update(id: Long, entity: Permission): Permission {
         require(id > 0) { "ID 必须大于 0" }
         require(entityId(entity) == id) { "路径 ID 必须与请求体 ID 一致" }
@@ -167,17 +129,11 @@ class PermissionServiceImpl(
         )
         return saved
     }
-
+    
     @Transactional
     @PreAuthorize("hasRole('SUPER_ADMIN') and hasAuthority('permission:manage')")
-    /**
-     * updateBatch：更新业务状态或修改相关配置。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param entities 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     override fun updateBatch(entities: List<Permission>): List<Permission> {
         require(entities.isNotEmpty()) { "更新列表不能为空" }
         val ids = entities.map { entityId(it) }
@@ -220,17 +176,11 @@ class PermissionServiceImpl(
         }
         return saved
     }
-
+    
     @Transactional
     @PreAuthorize("hasRole('SUPER_ADMIN') and hasAuthority('permission:manage')")
-    /**
-     * delete：删除、清理或撤销相关数据。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param id 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     override fun delete(id: Long) {
         require(id > 0) { "ID 必须大于 0" }
         val permission = repository.findById(id).orElseThrow { IllegalArgumentException("记录不存在: $id") }
@@ -245,17 +195,11 @@ class PermissionServiceImpl(
             )
         )
     }
-
+    
     @Transactional
     @PreAuthorize("hasRole('SUPER_ADMIN') and hasAuthority('permission:manage')")
-    /**
-     * deleteBatch：删除、清理或撤销相关数据。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param ids 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     override fun deleteBatch(ids: List<Long>) {
         require(ids.isNotEmpty()) { "ID 列表不能为空" }
         require(ids.all { it > 0 }) { "ID 必须大于 0" }
@@ -278,15 +222,8 @@ class PermissionServiceImpl(
             )
         }
     }
-
-    /**
-     * entityId：执行当前模块中的业务操作。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param entity 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     private fun entityId(entity: Permission): Long? {
         var type: Class<*>? = entity.javaClass
         while (type != null) {
@@ -300,16 +237,8 @@ class PermissionServiceImpl(
         }
         throw IllegalArgumentException("实体缺少 Long 类型的 id 属性")
     }
-
-    /**
-     * copyEditableProperties：执行当前模块中的业务操作。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param source 参与本次处理的输入参数。
-     * @param target 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     private fun copyEditableProperties(source: Permission, target: Permission) {
         val sourceWrapper = BeanWrapperImpl(source)
         val targetWrapper = BeanWrapperImpl(target)
@@ -323,28 +252,13 @@ class PermissionServiceImpl(
                 targetWrapper.setPropertyValue(property, sourceWrapper.getPropertyValue(property))
             }
     }
-
-    /**
-     * normalizePermissionCode：转换、构建或格式化数据。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param entity 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     private fun normalizePermissionCode(entity: Permission) {
         entity.code = SecurityPermission.normalize(entity.code)
     }
-
-    /**
-     * requireGovernancePermissionChange：校验输入、状态或访问条件。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param previousCode 参与本次处理的输入参数。
-     * @param current 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     private fun requireGovernancePermissionChange(previousCode: String, current: Permission) {
         val superAdmin = roleRepository.findByNameIgnoreCase("SUPER_ADMIN") ?: return
         if (superAdmin.permissions.none { it.id == current.id }) return
@@ -353,29 +267,15 @@ class PermissionServiceImpl(
             "超级管理员已使用的治理权限不能禁用或改码"
         }
     }
-
-    /**
-     * requireNotAssigned：校验输入、状态或访问条件。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param permissionId 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     private fun requireNotAssigned(permissionId: Long) {
         require(roleRepository.findAll().none { role -> role.permissions.any { it.id == permissionId } }) {
             "已关联角色的权限不能删除"
         }
     }
-
-    /**
-     * revokeRoleSessionsUsingPermission：删除、清理或撤销相关数据。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param permissionId 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     private fun revokeRoleSessionsUsingPermission(permissionId: Long) {
         val roleNames = roleRepository.findAll()
             .filter { role -> role.permissions.any { it.id == permissionId } }

@@ -29,7 +29,7 @@ data class SyncTaskRunCommand(
     val error: String? = null,
 )
 
-/** 同步执行历史的分页查询结果。 */
+
 data class SyncTaskRunPage(
     val runs: List<SyncTaskRun>,
     val page: Int,
@@ -37,13 +37,13 @@ data class SyncTaskRunPage(
     val total: Long,
 )
 
-/** 写入同步执行历史，并按任务标识保留配置数量的最近记录。 */
+
 @Service
 class SyncTaskHistoryService(
     private val repository: SyncTaskRunRepository,
     private val properties: SyncProperties,
 ) {
-    /** 按开始时间倒序分页查询执行历史，可按任务标识过滤。 */
+    
     @Transactional(readOnly = true)
     fun list(page: Int, pageSize: Int, taskKey: String? = null): SyncTaskRunPage {
         val pageable = PageRequest.of((page - 1).coerceAtLeast(0), pageSize.coerceIn(1, 100))
@@ -55,22 +55,16 @@ class SyncTaskHistoryService(
         }
         return SyncTaskRunPage(result.content, page, pageSize, result.totalElements)
     }
-
+    
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-            /**
-             * record：执行当前模块中的业务操作。
-             *
-             * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-             * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-             * @param command 参与本次处理的输入参数。
-             * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-             */
+    
+    
     fun record(command: SyncTaskRunCommand): SyncTaskRun {
         val taskKey = command.taskKey.trim().take(128)
         val taskName = command.taskName.trim().take(128)
         require(taskKey.isNotEmpty()) { "同步任务标识不能为空" }
         require(taskName.isNotEmpty()) { "同步任务名称不能为空" }
-
+        
         val request = AuditRequestContext.current()
         val principal = SecurityContextHolder.getContext().authentication?.principal as? CurrentUserPrincipal
         val sourceSystem = request?.sourceSystem?.trim()?.uppercase()?.takeIf(String::isNotEmpty) ?: "SYSTEM"
@@ -104,16 +98,8 @@ class SyncTaskHistoryService(
         }
         return saved
     }
-
-    /**
-     * sanitize：执行当前模块中的业务操作。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param value 参与本次处理的输入参数。
-     * @param limit 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     private fun sanitize(value: String?, limit: Int): String? = value
         ?.replace(Regex("[\\u0000-\\u001F\\u007F]"), " ")
         ?.trim()

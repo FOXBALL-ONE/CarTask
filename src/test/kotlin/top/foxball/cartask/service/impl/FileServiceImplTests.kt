@@ -135,7 +135,6 @@ class FileServiceImplTests {
     }
 
     private fun service(root: Path, repository: StoredFileRepository): FileServiceImpl {
-        // 文件读取现在受数据范围约束；这几个用例验证的是存储与路径安全，因此统一放开范围。
         val dataScopeResolver = mock(DataScopeResolver::class.java)
         `when`(dataScopeResolver.current()).thenReturn(DataScope.All)
         return FileServiceImpl(

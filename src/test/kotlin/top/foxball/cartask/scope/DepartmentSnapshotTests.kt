@@ -29,7 +29,6 @@ class DepartmentSnapshotTests {
 
     @Test
     fun `不做模糊匹配`() {
-        // 模糊匹配会把别的部门的数据匹配进来，那是数据泄露，因此只接受精确相等。
         assertNull(snapshot.toCode("停车管理"))
         assertNull(snapshot.toCode("停车管理组东区"))
         assertNull(snapshot.toCode("PARK"))
@@ -66,7 +65,6 @@ class DepartmentSnapshotTests {
             listOf(department(1, "同名部门", "A"), department(2, "同名部门", "B")),
         )
 
-        // 名称解析本就不确定，结果必须稳定落在其中一个而不是随机；这类数据应由回填接口按编码修正。
         assertTrue(duplicated.toCode("同名部门") in setOf("A", "B"))
         assertEquals("A", duplicated.toCode("A"))
         assertEquals("B", duplicated.toCode("B"))

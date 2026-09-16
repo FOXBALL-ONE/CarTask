@@ -62,7 +62,6 @@ class AuditServiceImplTests {
     @Test
     fun `门禁人员审计的载荷键都在白名单内且脱敏仍生效`() {
         whenever(repository.findTopByPartitionKeyOrderBySequenceNoDesc(any())).thenReturn(null)
-        // 本用例调用 record 两次，桩必须回传「本次」的入参；用 argumentCaptor.firstValue 会两次都拿到第一条。
         whenever(repository.save(any<AuditEvent>())).thenAnswer { invocation -> invocation.getArgument<AuditEvent>(0) }
 
         val event = service.record(
@@ -81,17 +80,13 @@ class AuditServiceImplTests {
             ),
         )
 
-        // 白名单是严格过滤：键名写错就会被静默丢掉、只留一个空对象——那样「审核通过」和「审核驳回」
-        // 在审计里完全无法区分。这些键必须真的穿过 sanitizeMap 落进 JSON。
         listOf("code", "department_code", "person_id", "sample_codes").forEach { key ->
             assertTrue(event.targetSummary!!.contains("\"$key\""), "targetSummary 丢了 $key：${event.targetSummary}")
         }
         assertTrue(event.beforeData!!.contains("审核中"), "beforeData 丢了 review_status：${event.beforeData}")
         assertTrue(event.afterData!!.contains("通过"), "afterData 丢了 review_status：${event.afterData}")
-        // 通过与否必须能从审计里读出来，这是审核留痕的最低要求。
         assertFalse(event.beforeData == event.afterData)
 
-        // 放开白名单不能顺手把脱敏也放开：命中敏感子串的键依旧要被丢掉。
         val sanitized = service.record(
             AuditCommand(
                 AuditAction.GATE_PERSON_CREATED,

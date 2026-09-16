@@ -54,7 +54,6 @@ class DashboardSpotStatsServiceTests {
     fun `车位总数取车场的区域容量而不是本地登记行数`() {
         whenever(zoneTypeRepository.findAllByZoneCodeIn(listOf("1", "2")))
             .thenReturn(listOf(zone("1", "一号车场", 300), zone("2", "二号车场", 200)))
-        // 本地只登记了 2 个车位，容量仍是 500——这正是原先「车位总数」不准的原因。
         whenever(parkingSpotRepository.findAll())
             .thenReturn(listOf(spot("A-1", "一号车场", 1), spot("B-1", "二号车场", 0)))
 

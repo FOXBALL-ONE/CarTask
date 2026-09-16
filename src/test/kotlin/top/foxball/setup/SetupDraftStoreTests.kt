@@ -19,12 +19,11 @@ class SetupDraftStoreTests {
 
     private var previousEnvFile: String? = null
 
-    /**
-     * 把「既有配置」指到一个不存在的文件上。
-     *
-     * 草稿在首次读取时会按既有 `.env` 接续；默认路径就是仓库根目录那份开发用的 `.env`，
-     * 不隔离的话每个用例都会先被它预填一遍，断言就成了在测开发机上的配置。
-     */
+
+
+
+
+
     @BeforeTest
     fun isolateExistingConfiguration() {
         previousEnvFile = System.getProperty(DotenvLoader.ENV_FILE_VARIABLE)
@@ -117,7 +116,6 @@ class SetupDraftStoreTests {
 
     @Test
     fun `存储只配了目录不算完成`() {
-        // 下载基址缺了的话附件链接拼不出来，这一步放进「已完成」会让问题拖到用户点下载才暴露。
         val seeded = SetupDraftStore.seedFrom(mapOf("FILE_STORAGE_ROOT" to "./st"))
 
         assertEquals(emptyList(), seeded.steps)
@@ -132,7 +130,6 @@ class SetupDraftStoreTests {
 
     @Test
     fun `没有必填项的步骤只有配置里出现过才算完成`() {
-        // 短信整步可跳过，因此 satisfiedBy 永远为真；只看它会让重新进入引导时这一步凭空打上勾。
         assertEquals(emptyList(), SetupDraftStore.seedFrom(mapOf("REDIS_HOST" to "a")).steps)
 
         val configured = SetupDraftStore.seedFrom(mapOf("SMS_ENABLED" to "false"))

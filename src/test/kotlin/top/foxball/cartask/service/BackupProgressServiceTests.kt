@@ -4,9 +4,9 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 
-/**
- * 进度百分比是页面唯一的"还要等多久"依据，权重算错会让人以为卡住了或者快好了，所以把每个阶段锁住。
- */
+
+
+
 class BackupProgressServiceTests {
     private val progress = BackupProgressService()
 

@@ -98,7 +98,6 @@ class DataBackupServiceImplTests {
             assertTrue(sql.contains("CONSTRAINT \"FK_PLATES_OWNER\" FOREIGN KEY (\"OWNER_ID\") REFERENCES \"PUBLIC\".\"OWNERS\""), "外键约束缺失：$sql")
             assertTrue(sql.indexOf("\"PLATES\" (") > sql.indexOf("\"OWNERS\" ("), "被引用的表必须排在引用它的表之前，否则空库恢复时建表会失败")
             assertTrue(sql.contains("INSERT INTO \"PUBLIC\".\"OWNERS\""), sql)
-            // 单引号要按 SQL 规则翻倍，否则恢复时脚本在此处直接语法中断。
             assertTrue(sql.contains("'张''三'"), "字符串里的单引号未转义：$sql")
             assertTrue(sql.contains("(7, 1, '京A12345', NULL)"), "带 NULL 的插入语句不正确：$sql")
         } finally {
@@ -218,12 +217,10 @@ class DataBackupServiceImplTests {
             assertEquals(BackupPhase.FINISHED, snapshot.phase)
             assertEquals("备份完成", snapshot.label)
             assertEquals(100, snapshot.percent)
-            // 范围统计要落在进度上，页面才有"共多少张表、多少行"可展示。
             assertEquals(2, snapshot.tablesTotal)
             assertEquals(2, snapshot.tablesDone)
             assertEquals(3L, snapshot.rowsTotal)
             assertEquals(3L, snapshot.rowsDone)
-            // 附件元数据在册但物理文件不存在，打包阶段仍然要走完并如实计数。
             assertEquals(1, snapshot.filesTotal)
             assertEquals(1, snapshot.filesDone)
             assertNotNull(snapshot.startedAt)
@@ -235,7 +232,6 @@ class DataBackupServiceImplTests {
 
     @Test
     fun `导出失败时进度记下停在哪个阶段`(@TempDir storageRoot: Path) {
-        // 连不上的库：导出在统计范围阶段就会失败。
         val unreachable = DriverManagerDataSource().apply {
             setDriverClassName("org.h2.Driver")
             url = "jdbc:h2:tcp://127.0.0.1:1/unreachable"
@@ -246,7 +242,6 @@ class DataBackupServiceImplTests {
         val failing = service(unreachable, storageRoot, emptyList(), progress)
         var cleanupRoot: Path? = null
 
-        // 取连接失败抛的是受检的 SQLException，进度同样必须落到 FAILED。
         assertThrows(Exception::class.java) {
             cleanupRoot = failing.export(includeFiles = false).cleanupRoot
         }

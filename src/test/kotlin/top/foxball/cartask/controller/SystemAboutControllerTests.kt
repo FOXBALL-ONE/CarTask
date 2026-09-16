@@ -59,7 +59,6 @@ class SystemAboutControllerTests {
             controller().about().body?.data,
         ).toString()
 
-        // 主机名、连接串、内存这些都在「系统监控」里，这一页任何登录用户都能看，多一个字段就是多泄一点。
         listOf("postgresql://", "jdbc:", "host", "url", "heap", "memory").forEach { leaked ->
             assertFalse(payload.contains(leaked, ignoreCase = true), "关于系统不应包含 $leaked：$payload")
         }

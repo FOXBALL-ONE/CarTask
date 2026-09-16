@@ -47,7 +47,6 @@ class SyncScheduleSchedulerTests {
 
     private fun scheduler() = SyncScheduleScheduler(catalog, service, gate, provider)
 
-    /** 让每次注册都返回一个句柄，并按目录里的默认周期回应取值。 */
     private fun stubScheduling() {
         whenever(provider.ifAvailable).thenReturn(taskScheduler)
         catalog.definitions.forEach { whenever(service.cronFor(it.key)).thenReturn(it.defaultCron) }
@@ -62,9 +61,6 @@ class SyncScheduleSchedulerTests {
 
         val triggers = argumentCaptor<Trigger>()
         verify(taskScheduler, times(catalog.definitions.size)).schedule(any<Runnable>(), triggers.capture())
-        // 每个任务都必须真的拿到 cron 触发器：CronTrigger 的构造过程就是一次解析，
-        // 注册成坏表达式会在这里被挡住；至于「表达式永不触发」，由服务层保存时用
-        // next() 为空来拒绝，这里不必重复。
         triggers.allValues.forEach { trigger ->
             assertTrue(trigger is CronTrigger, "注册的触发器必须是 cron 触发器，实际：$trigger")
         }
@@ -81,7 +77,6 @@ class SyncScheduleSchedulerTests {
         whenever(service.cronFor(changedKey)).thenReturn("0 */10 * * * *")
         scheduler.onScheduleChanged(SyncScheduleChangedEvent(changedKey))
 
-        // 全部定义各注册一次，加上被改的那一个再注册一次。
         verify(taskScheduler, times(catalog.definitions.size + 1)).schedule(any<Runnable>(), any<Trigger>())
         verify(service, times(2)).cronFor(changedKey)
         verify(service, times(1)).cronFor(SynAreaInfoTask.TASK_KEY)
@@ -121,7 +116,6 @@ class SyncScheduleSchedulerTests {
         stubScheduling()
         whenever(taskScheduler.schedule(any<Runnable>(), any<Trigger>())).thenReturn(null)
 
-        // 只应记一条告警：半数任务因为取不到句柄而抛异常，才是真正的故障。
         scheduler().scheduleAll()
 
         verify(taskScheduler, times(catalog.definitions.size)).schedule(any<Runnable>(), any<Trigger>())
@@ -134,7 +128,6 @@ class SyncScheduleSchedulerTests {
         scheduler().scheduleAll()
         verify(taskScheduler, times(catalog.definitions.size)).schedule(registered.capture(), any<Trigger>())
 
-        // 另起一个线程持着写锁，等价于「备份正在生成」。
         val holding = CountDownLatch(1)
         val release = CountDownLatch(1)
         val holder = thread {
@@ -148,14 +141,12 @@ class SyncScheduleSchedulerTests {
         try {
             registered.allValues.forEach { it.run() }
 
-            // 备份期间同步写进去就是半个批次的数据，必须一条都不跑。
             verifyNoInteractions(areaInfoTask, carCapInfoTask, ownerArchiveTask, accountGenerateTask)
         } finally {
             release.countDown()
             holder.join(5_000)
         }
 
-        // 备份结束后立刻恢复：闸门不能被某次执行长期占着。
         registered.allValues.forEach { it.run() }
         verify(areaInfoTask).synAreaInfo()
     }

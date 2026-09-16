@@ -51,7 +51,6 @@ class DataBackupControllerTests {
         )
         assertTrue(body is Resource, "响应体应当是同步写出的资源，实际：${body?.javaClass}")
 
-        // 先留一份预期内容：流一关闭临时目录就被删了，之后再读原文件会 NoSuchFileException。
         val expected = Files.readString(sql)
         val content = body!!.inputStream.use { it.readBytes().toString(Charsets.UTF_8) }
         assertEquals(expected, content)

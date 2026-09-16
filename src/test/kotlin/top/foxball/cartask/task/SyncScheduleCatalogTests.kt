@@ -11,10 +11,10 @@ import top.foxball.cartask.keytop.KeytopProperties
 import java.time.LocalDateTime
 import java.time.ZoneId
 
-/**
- * 周期原先钉在各个方法的 @Scheduled 注解上，现在集中在目录里，这里锁住的是同一份契约：
- * 哪个任务、默认什么时候跑、按哪个时区、触发时调哪个方法。
- */
+
+
+
+
 class SyncScheduleCatalogTests {
     private val areaInfoTask = mock<SynAreaInfoTask>()
     private val carCapInfoTask = mock<SynCarCapInfoTask>()
@@ -64,7 +64,6 @@ class SyncScheduleCatalogTests {
 
     @Test
     fun `周期一律按上海时区解释`() {
-        // 换成 UTC 会让「凌晨两点跑」变成「上午十点跑」，且要等到第二天才发现。
         assertEquals(ZoneId.of("Asia/Shanghai"), SyncScheduleCatalog.ZONE)
     }
 
@@ -110,7 +109,6 @@ class SyncScheduleCatalogTests {
         definitions.getValue(SynAccountGenerateTask.TASK_KEY).trigger()
         verify(accountGenerateTask).synAccountGenerate()
 
-        // 触发一次只该碰一个任务：串到别的任务上就是一次静默的越权执行。
         verifyNoMoreInteractions(areaInfoTask, carCapInfoTask, ownerArchiveTask, accountGenerateTask)
     }
 }

@@ -25,7 +25,7 @@ import top.foxball.cartask.service.UserService
 import java.time.LocalDateTime
 
 @Service
-/** 用户账户服务，负责凭据编码及用户信息一致性校验。 */
+
 class UserServiceImpl(
     private val userRepository: UserRepository,
     private val departmentRepository: DepartmentRepository,
@@ -38,13 +38,13 @@ class UserServiceImpl(
     private val auditService: AuditService? = null,
     private val roleRepository: RoleRepository? = null,
 ) : UserService {
-
-    /** 将单条创建委托给批量创建路径，复用一致的校验和密码编码。 */
+    
+    
     @Transactional
     override fun create(command: UserService.CreateCommand): UserService.UserData =
         createBatch(listOf(command)).single()
-
-    /** 校验用户名和邮箱唯一性后批量创建用户，并统一记录创建时间。 */
+    
+    
     @Transactional
     override fun createBatch(commands: List<UserService.CreateCommand>): List<UserService.UserData> {
         require(commands.isNotEmpty()) { "用户列表不能为空" }
@@ -57,7 +57,6 @@ class UserServiceImpl(
             roleAssignmentPolicy.validateAssignment(command.role)
             require(!userRepository.existsByUsername(command.username)) { "用户名已存在" }
             require(!userRepository.existsByEmail(command.email)) { "邮箱已存在" }
-            // 手机号是短信登录与重置密码的凭据；数据库上另有唯一约束兜底，这里先查一次是为了给出可读提示。
             command.phone?.trim()?.takeIf(String::isNotEmpty)?.let { phone ->
                 require(!userRepository.existsByPhone(phone)) { "该手机号已被其他账号绑定" }
             }
@@ -73,7 +72,6 @@ class UserServiceImpl(
                 role = assignedRoles.mapNotNull { SecurityRole.normalizeOrNull(it.name) }.firstOrNull()
                     ?: SecurityRole.normalize(command.role)
                 enabled = command.enabled
-                // 与更新路径同一口径：去空白、空串存 null。
                 phone = command.phone?.trim()?.takeIf(String::isNotEmpty)
                 gender = command.gender
                 jobTitle = command.jobTitle?.trim()?.takeIf(String::isNotEmpty)
@@ -109,12 +107,12 @@ class UserServiceImpl(
         }
         return savedUsers.map(::toData)
     }
-
-    /** 按 ID 查询用户并映射为不含密码的返回数据。 */
+    
+    
     @Transactional
     override fun get(id: Long): UserService.UserData = toData(findUser(id))
-
-    /** 保持请求 ID 顺序地批量查询用户，并拒绝缺失记录。 */
+    
+    
     @Transactional
     override fun getBatch(ids: List<Long>): List<UserService.UserData> {
         require(ids.isNotEmpty()) { "用户 ID 列表不能为空" }
@@ -123,32 +121,23 @@ class UserServiceImpl(
         require(missingIds.isEmpty()) { "用户不存在: ${missingIds.joinToString(",")}" }
         return ids.map { toData(usersById.getValue(it)) }
     }
-
-    /**
-     * 校验分页参数后返回用户分页数据。
-     *
-     * 这里同时承担数据范围过滤：Excel 导出用户是靠循环调用本方法捞全量的，范围过滤放在这一层，
-     * 接口与导出就都受同一套规则约束，不需要在导出侧再写一遍。
-     */
+    
+    
     @Transactional
     override fun list(page: Int, pageSize: Int): UserService.PageData {
         require(page >= 1) { "页码必须大于 0" }
         require(pageSize in 1..100) { "每页数量必须在 1 到 100 之间" }
         val scope = dataScopeResolver.current()
         val pageable = PageRequest.of(page - 1, pageSize)
-        // 范围必须下推到 SQL：本方法返回 totalElements，事后过滤会让总数失真，
-        // 而导出的 while 循环是照着这个总数捞的，少捞了也不会报错。
         val result = when (scope.kind) {
             ScopeKind.ALL -> userRepository.findAll(pageable)
-
+            
             ScopeKind.DEPARTMENTS -> if (scope.departmentIds.isEmpty()) {
                 Page.empty<User>(pageable)
             } else {
                 userRepository.findAllByDepartment_IdIn(scope.departmentIds, pageable)
             }
-
-            // 本人范围只会被普通用户命中，而普通用户本就没有用户管理权限；
-            // 这里只返回本人，避免一旦将来放开权限就直接看到全员。
+            
             ScopeKind.SELF -> {
                 val self = userRepository.findById(requireNotNull(scope.userId)).orElse(null)
                 if (self == null) Page.empty<User>(pageable) else PageImpl(listOf(self), pageable, 1)
@@ -156,13 +145,13 @@ class UserServiceImpl(
         }
         return UserService.PageData(result.content.map(::toData), page, pageSize, result.totalElements)
     }
-
-    /** 将单条更新委托给批量更新路径，保证规则一致。 */
+    
+    
     @Transactional
     override fun update(id: Long, command: UserService.UpdateCommand): UserService.UserData =
         updateBatch(listOf(id), command).single()
-
-    /** 校验更新字段与唯一约束后批量更新用户。 */
+    
+    
     @Transactional
     override fun updateBatch(ids: List<Long>, command: UserService.UpdateCommand): List<UserService.UserData> {
         require(ids.isNotEmpty()) { "用户 ID 列表不能为空" }
@@ -175,8 +164,6 @@ class UserServiceImpl(
             "至少提供一个待更新字段"
         }
         val users = getBatch(ids).map { findUser(it.id) }
-        // 手机号是短信登录与重置密码的凭据，管理员改他人手机号必须留下改前/改后；
-        // 改密的审计已经是高风险动作，凭据改写不能只有一条「用户资料已更新」。
         val phoneInCommand = command.phone != null
         val beforeById = users.associate {
             it.id!! to buildMap<String, Any?> {
@@ -188,8 +175,6 @@ class UserServiceImpl(
             }
         }
         roleAssignmentPolicy.validateManagement(users.map { it.role })
-        // 范围校验放在服务层：JSON、表单与批量三个更新入口共用本方法，写在一处就不会出现
-        // 「新加的入口忘了加校验」；这里也是手机号唯一的越权改写入口，手机号本身是登录凭据。
         val scope = dataScopeResolver.current()
         users.forEach { scopeGuard.requireUserInScope(it.department?.id, scope) }
         requireActiveSuperAdminRemains(users) { user ->
@@ -207,8 +192,6 @@ class UserServiceImpl(
             require(users.all { it.email == email } || !userRepository.existsByEmail(email)) { "邮箱已存在" }
         }
         command.credential?.let { require(it.isNotBlank()) { "凭据不能为空" } }
-        // 手机号是短信登录与重置密码的凭据，重复绑定会让人分不清验证码该发给谁。
-        // 这里按 ID 排除自身，逐个用户查一次；数据库上另有唯一约束兜底并发。
         command.phone?.let { phone ->
             val normalized = phone.trim()
             users.forEach { user ->
@@ -237,8 +220,6 @@ class UserServiceImpl(
                 }
             }
             command.enabled?.let { user.enabled = it }
-            // 去空白后落库：不去的话「 138… 」与「138…」在唯一约束下算两个值，实际却是同一个登录凭据。
-            // 空串一律存 null，避免只允许存在一条的空手机号行。
             command.phone?.let { user.phone = it.trim().takeIf(String::isNotEmpty) }
             command.gender?.let { user.gender = it }
             command.departmentId?.let { departmentId ->
@@ -289,12 +270,12 @@ class UserServiceImpl(
         }
         return savedUsers.map(::toData)
     }
-
-    /** 将单条删除委托给批量删除路径。 */
+    
+    
     @Transactional
     override fun delete(id: Long) = deleteBatch(listOf(id))
-
-    /** 查询所有目标用户后批量删除，避免静默忽略不存在的 ID。 */
+    
+    
     @Transactional
     override fun deleteBatch(ids: List<Long>) {
         require(ids.distinct().size == ids.size) { "用户 ID 不能重复" }
@@ -315,45 +296,25 @@ class UserServiceImpl(
             )
         }
     }
-
+    
     @Transactional
-    /**
-     * existsByUsername：查询或读取相关数据。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param username 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     override fun existsByUsername(username: String): Boolean = userRepository.existsByUsername(username)
-
+    
     @Transactional
-    /**
-     * findExistingUsernames：查询或读取相关数据。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param usernames 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     override fun findExistingUsernames(usernames: Collection<String>): Set<String> {
         if (usernames.isEmpty()) return emptySet()
         return userRepository.findAllByUsernameIn(usernames).map { it.username }.toSet()
     }
-
-    /** 查找用户；不存在时抛出参数错误。 */
+    
+    
     private fun findUser(id: Long): User = userRepository.findById(id)
         .orElseThrow { IllegalArgumentException("用户不存在: $id") }
-
-    /**
-     * requireActiveSuperAdminRemains：校验输入、状态或访问条件。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param users 参与本次处理的输入参数。
-     * @param remainsActiveSuperAdmin 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     private fun requireActiveSuperAdminRemains(
         users: Collection<User>,
         remainsActiveSuperAdmin: (User) -> Boolean,
@@ -369,8 +330,8 @@ class UserServiceImpl(
             throw AccessDeniedException("不能禁用、降级或删除最后一个启用的超级管理员")
         }
     }
-
-    /** 将实体映射为不暴露密码哈希的服务返回数据。 */
+    
+    
     private fun toData(user: User): UserService.UserData = UserService.UserData(
         id = user.id!!,
         username = user.username,
@@ -388,15 +349,8 @@ class UserServiceImpl(
         updatedAt = user.updatedAt,
         jobTitle = user.jobTitle,
     )
-
-    /**
-     * resolveRoles：转换、构建或格式化数据。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param roleIds 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     private fun resolveRoles(roleIds: List<Long>?): MutableSet<top.foxball.cartask.entity.Role> {
         if (roleIds == null) return linkedSetOf()
         require(roleIds.distinct().size == roleIds.size) { "角色 ID 不能重复" }

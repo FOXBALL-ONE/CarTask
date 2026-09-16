@@ -17,7 +17,6 @@ class SynchronizationControllerSecurityTests {
             "synchronizeOwners" to "(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('owner:sync')",
             "synchronizeAccounts" to "(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('account:sync')",
             "syncHistory" to "(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('sync-history:read')",
-            // 周期是全局调度配置，部门管理不该改，因此这里只放平台管理与超级管理员。
             "syncSchedules" to "(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('sync-schedule:manage')",
             "updateSyncSchedule" to "(hasRole('SUPER_ADMIN') or hasRole('ADMIN')) and hasAuthority('sync-schedule:manage')",
         )

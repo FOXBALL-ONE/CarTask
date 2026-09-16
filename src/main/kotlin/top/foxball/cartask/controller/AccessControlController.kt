@@ -17,17 +17,29 @@ data class AccessControlView(
     val name: String,
     val phone: String?,
     @param:JsonProperty("personNumber") val personNumber: String?,
+    
     @param:JsonProperty("faceInfo") val faceInfo: String?,
+    
     @param:JsonProperty("accessControlList") val accessControlList: String?,
+    
     @param:JsonProperty("accessControlPermissionId") val accessControlPermissionId: Long?,
+    
     @param:JsonProperty("accessControlPermissionName") val accessControlPermissionName: String?,
+    
     @param:JsonProperty("departmentId") val departmentId: Long?,
+    
     @param:JsonProperty("departmentName") val departmentName: String?,
+    
     @param:JsonProperty("upTime") val upTime: LocalDateTime?,
+    
     @param:JsonProperty("endTime") val endTime: LocalDateTime?,
+    
     @param:JsonProperty("reviewStatus") val reviewStatus: String,
+    
     @param:JsonProperty("synchronizedLoading") val synchronizedLoading: Boolean,
+    
     @param:JsonProperty("createdAt") val createdAt: LocalDateTime?,
+    
     @param:JsonProperty("updatedAt") val updatedAt: LocalDateTime?,
 ) {
     companion object {
@@ -48,8 +60,9 @@ data class AccessControlView(
             faceInfo = entity.faceInfo,
             accessControlList = entity.accessControlList,
             accessControlPermissionId = entity.accessControlPermission?.id,
-            accessControlPermissionName = entity.accessControlPermission
-                ?.let { permission -> uninitializedAsNull { permission.accessControlName } },
+            accessControlPermissionName = entity.accessControlPermission?.let {
+                permission -> uninitializedAsNull { permission.accessControlName }
+            },
             departmentId = entity.department?.id,
             departmentName = entity.department?.name,
             upTime = entity.upTime,
@@ -134,8 +147,7 @@ class AccessControlController(
         @PathVariable id: Long,
         @RequestParam approved: Boolean,
         @RequestParam(name = "review_reason") reason: String,
-    ): ResponseEntity<Response> =
-        responseBuilder.ok().data(service.review(id, approved, reason).toView()).build()
+    ): ResponseEntity<Response> = responseBuilder.ok().data(service.review(id, approved, reason).toView()).build()
     
     @PostMapping("/{id}/sync")
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('access-control:sync')")

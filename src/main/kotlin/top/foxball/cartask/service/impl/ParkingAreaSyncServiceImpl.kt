@@ -25,13 +25,8 @@ class ParkingAreaSyncServiceImpl(
     private val objectMapper: ObjectMapper,
 ) : ParkingAreaSyncService {
     @Transactional
-    /**
-     * synchronize：执行数据同步、探测或文件处理。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     override fun synchronize(): ParkingAreaSyncResult {
         if (!executionLock.tryLock()) {
             throw ParkingAreaSyncInProgressException()
@@ -41,7 +36,7 @@ class ParkingAreaSyncServiceImpl(
             require(response.code == 0) {
                 "Keytop 停车区域接口返回失败：${response.code ?: "未知"} ${response.message.orEmpty()}".trim()
             }
-
+            
             val container = unwrap(response.data)
             val lotDetail = parseLotDetail(container)
             val areas = parseAreas(container)
@@ -56,7 +51,7 @@ class ParkingAreaSyncServiceImpl(
                     totalPlaceCount = lotDetail?.totalPlaceCount,
                 )
             }
-
+            
             val existingZones = zoneTypeRepository.findAllByZoneCodeInOrZoneCodeIsNull(areas.keys)
             val existingByCode = existingZones
                 .filter { it.zoneCode != null }
@@ -66,7 +61,7 @@ class ParkingAreaSyncServiceImpl(
             val changedZones = mutableListOf<ZoneType>()
             var createdCount = 0
             var updatedCount = 0
-
+            
             areas.forEach { (code, area) ->
                 val existing = existingByCode[code] ?: legacyZones.firstOrNull {
                     it !in consumedLegacyZones && it.zoneName == area.name
@@ -105,7 +100,7 @@ class ParkingAreaSyncServiceImpl(
                     }
                 }
             }
-
+            
             if (changedZones.isNotEmpty()) {
                 zoneTypeRepository.saveAll(changedZones)
             }
@@ -121,22 +116,20 @@ class ParkingAreaSyncServiceImpl(
             executionLock.unlock()
         }
     }
-
-    /** 兼容科拓历史响应：data 可能是 JSON 字符串，也可能已经是 JSON 节点。 */
+    
+    
     private fun unwrap(data: JsonNode?): JsonNode? {
         if (data == null || data.isNull) return null
         return if (data.isString) objectMapper.readTree(data.asString()) else data
     }
-
-    /**
-     * 兼容科拓历史响应：areaInfo 可能是 JSON 字符串，也可能已经是 JSON 节点。
-     */
+    
+    
     private fun parseAreas(container: JsonNode?): Map<String, Area> {
         if (container == null) return emptyMap()
         val areaNode = container.get("areaInfo") ?: container.get("areas") ?: container
         val parsed = if (areaNode.isString) objectMapper.readTree(areaNode.asString()) else areaNode
         if (!parsed.isArray) return emptyMap()
-
+        
         val areas = linkedMapOf<String, Area>()
         parsed.forEach { area ->
             val code = (area.get("areaCode") ?: area.get("area_code"))?.asString()?.trim()
@@ -151,8 +144,8 @@ class ParkingAreaSyncServiceImpl(
         }
         return areas
     }
-
-    /** 解析总车位、parkArea 等车场详情；字段缺失或 data 不是对象时返回 null。 */
+    
+    
     private fun parseLotDetail(container: JsonNode?): LotDetail? {
         if (container == null || !container.isObject) return null
         val totalNode = container.get("totalPlaceCount") ?: container.get("total_place_count")
@@ -162,8 +155,8 @@ class ParkingAreaSyncServiceImpl(
         require(totalPlaceCount == null || totalPlaceCount >= 0) { "Keytop 总车位数量不能为负数：$container" }
         return LotDetail(totalPlaceCount, parkAreaNode?.asString())
     }
-
-    /** 幂等保存停车场详情；名称优先取配置 keytop.park-name，未配置时使用车场编号。响应中缺失的字段不覆盖已有值。 */
+    
+    
     private fun saveLot(detail: LotDetail?, areaCount: Int): ParkingLot? {
         if (detail == null && areaCount == 0) return null
         val parkCode = properties.parkId.trim()
@@ -178,17 +171,17 @@ class ParkingAreaSyncServiceImpl(
         lot.areaCount = areaCount
         return parkingLotRepository.save(lot)
     }
-
+    
     private data class Area(
         val name: String,
         val placeCount: Int,
     )
-
+    
     private data class LotDetail(
         val totalPlaceCount: Int?,
         val parkArea: String?,
     )
-
+    
     private companion object {
         val logger = LoggerFactory.getLogger(ParkingAreaSyncServiceImpl::class.java)
         val executionLock = ReentrantLock()

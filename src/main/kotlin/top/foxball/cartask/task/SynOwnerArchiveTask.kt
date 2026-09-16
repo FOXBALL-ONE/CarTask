@@ -29,15 +29,7 @@ data class OwnerArchiveResult(
     val executedAt: LocalDateTime,
 )
 
-/**
- * 从车辆进出记录里补建系统缺失的车主信息：以近 [ACTIVE_WINDOW_DAYS] 天内有进出记录的车牌为数据源
- * （数据库层面按车牌去重），对系统没有车主档案的车牌回查科拓 `getCardInfoByUser`，
- * 用返回的卡号、姓名、手机号新建车主档案（ParkingOwner），并把车牌登记到该车主名下
- * （新建或修正 ParkingPlate 的归属），使账号生成任务和后续执行直接命中档案。
- *
- * 车主按手机号判重，卡号作为次选依据：同一手机号对应多个车牌时只建一条车主档案。
- * 已经是「有效车牌档案 + 在营车主」的车牌直接跳过，本任务只做补建，不做更新。
- */
+
 @Component
 class SynOwnerArchiveTask(
     private val parkingPlateRepository: ParkingPlateRepository,
@@ -48,10 +40,8 @@ class SynOwnerArchiveTask(
     private val keytopService: KeytopService? = null,
     private val objectMapper: ObjectMapper? = null,
 ) {
-    /**
-     * 定时入口。周期由 [SyncScheduleCatalog] 注册、[SyncScheduleScheduler] 按 cron 触发，
-     * 不再用 @Scheduled 固定：周期要能在页面上改。
-     */
+    
+    
     fun synOwnerArchive() {
         AuditRequestContext.withRun {
             try {
@@ -63,19 +53,12 @@ class SynOwnerArchiveTask(
             }
         }
     }
-
-    /** 手动执行一次车主档案补建。 */
+    
+    
     @Transactional(noRollbackFor = [RuntimeException::class])
     fun generate(): OwnerArchiveResult = generate(SyncTaskRun.Trigger.MANUAL)
-
-    /**
-     * generate：执行当前模块中的业务操作。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param trigger 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     private fun generate(trigger: SyncTaskRun.Trigger): OwnerArchiveResult {
         if (!executionLock.tryLock()) {
             throw AccountGenerateInProgressException()
@@ -99,20 +82,13 @@ class SynOwnerArchiveTask(
             executionLock.unlock()
         }
     }
-
-    /**
-     * generateInternal：执行当前模块中的业务操作。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param startedAt 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     private fun generateInternal(startedAt: LocalDateTime): OwnerArchiveResult {
         var createdOwnerCount = 0
         var linkedPlateCount = 0
         var skippedCount = 0
-
+        
         val activePlates = accessRecordRepository
             .findDistinctCarNumbersSince(startedAt.minusDays(ACTIVE_WINDOW_DAYS))
             .mapNotNull(PlateNumbers::normalize)
@@ -122,20 +98,18 @@ class SynOwnerArchiveTask(
             logger.info("近 {} 天没有车辆进出记录，本次不补建车主档案", ACTIVE_WINDOW_DAYS)
             return OwnerArchiveResult(0, 0, 0, LocalDateTime.now())
         }
-
-        // 车牌档案按归一化车牌建索引；停用档案一并保留，避免为已停用车牌重复插入同一个车牌号。
+        
         val plateByKey = parkingPlateRepository.findAll()
             .asSequence()
             .mapNotNull { plate -> PlateNumbers.normalize(plate.plate)?.let { it to plate } }
             .toMap(mutableMapOf())
         val owners = parkingOwnerRepository.findAll()
         val ownerById = owners.associateBy { requireNotNull(it.id) }.toMutableMap()
-        // 补建车主前按手机号和卡号判重：手机号是账号登录名，卡号在库里还有唯一约束。
         val ownerByPhone = owners
             .mapNotNull { owner -> owner.phone.trim().takeIf(String::isNotEmpty)?.let { it to owner } }
             .toMap(mutableMapOf())
         val ownerByCardId = owners.associateBy { it.cardId }.toMutableMap()
-
+        
         activePlates.forEachIndexed { index, plate ->
             syncTaskProgressService.update(TASK_KEY, index, activePlates.size)
             val archive = plateByKey[plate]
@@ -149,7 +123,7 @@ class SynOwnerArchiveTask(
                 skippedCount++
                 return@forEachIndexed
             }
-
+            
             val card = fetchCardOwner(plate) ?: run {
                 skippedCount++
                 logger.warn("科拓没有返回车牌 {} 的卡片信息，跳过补建车主", plate)
@@ -177,7 +151,7 @@ class SynOwnerArchiveTask(
                 logger.warn("跳过已停用车主：{}，车主 ID: {}", owner.name, owner.id)
                 return@forEachIndexed
             }
-
+            
             val now = LocalDateTime.now()
             val pending = archive ?: ParkingPlate().apply {
                 this.plate = plate
@@ -193,7 +167,7 @@ class SynOwnerArchiveTask(
             linkedPlateCount++
         }
         syncTaskProgressService.update(TASK_KEY, activePlates.size, activePlates.size)
-
+        
         logger.info(
             "车主档案补建完成：新建车主 {} 个，关联车牌 {} 个，跳过 {} 个",
             createdOwnerCount,
@@ -202,11 +176,8 @@ class SynOwnerArchiveTask(
         )
         return OwnerArchiveResult(createdOwnerCount, linkedPlateCount, skippedCount, LocalDateTime.now())
     }
-
-    /**
-     * 回查科拓卡片信息接口，取出补建车主档案需要的卡号、姓名和手机号。
-     * 无卡片车辆（例如临时车）平台不返回卡片数据，单个车牌查询失败也不影响其余车牌。
-     */
+    
+    
     private fun fetchCardOwner(plate: String): KeytopOwnerCard? {
         val service = keytopService ?: return null
         val mapper = objectMapper ?: return null
@@ -225,33 +196,14 @@ class SynOwnerArchiveTask(
             null
         }
     }
-
-    /**
-     * firstText：执行当前模块中的业务操作。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param node 参与本次处理的输入参数。
-     * @param names 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     private fun firstText(node: JsonNode, vararg names: String): String? = names.asSequence()
         .mapNotNull { node.get(it) }
         .firstOrNull { !it.isNull && !it.isMissingNode && it.asString().isNotBlank() }
         ?.asString()
-
-    /**
-     * recordHistory：执行当前模块中的业务操作。
-     *
-     * 这是供当前类内部调用的辅助函数，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param trigger 参与本次处理的输入参数。
-     * @param status 参与本次处理的输入参数。
-     * @param startedAt 参与本次处理的输入参数。
-     * @param result 参与本次处理的输入参数。
-     * @param summary 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     private fun recordHistory(
         trigger: SyncTaskRun.Trigger,
         status: SyncTaskRun.Status,
@@ -278,17 +230,17 @@ class SynOwnerArchiveTask(
             logger.warn("写入车主档案补建执行历史失败", exception)
         }
     }
-
-    /** 科拓卡片信息中用于补建车主档案的字段。 */
+    
+    
     private data class KeytopOwnerCard(val cardId: String, val name: String, val phone: String)
-
+    
     companion object {
         const val TASK_KEY = "owner.archive.generate"
         const val TASK_NAME = "车主档案补建"
         const val SYNC_DEPARTMENT = "同步车主"
         const val STATUS_ENABLED = 1
-
-        /** 车主档案补建数据源的进出记录回溯天数。 */
+        
+        
         const val ACTIVE_WINDOW_DAYS = 30L
         val logger = LoggerFactory.getLogger(SynOwnerArchiveTask::class.java)
         val executionLock = ReentrantLock()

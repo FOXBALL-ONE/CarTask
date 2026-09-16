@@ -11,10 +11,10 @@ import org.springframework.security.authentication.BadCredentialsException
 import org.springframework.security.crypto.password.PasswordEncoder
 import top.foxball.cartask.repository.UserRepository
 
-/**
- * 短信验证码发送的前置条件：必须先通过图形验证码校验，
- * 校验失败或用途非法时都不得真正发出短信（避免绕过图形验证码刷短信）。
- */
+
+
+
+
 class SmsSendCaptchaTests {
     private val captchaService = mock<CaptchaService>()
     private val smsVerificationService = mock<SmsVerificationService>()
@@ -71,7 +71,6 @@ class SmsSendCaptchaTests {
 
     @Test
     fun `短信验证被临时关闭时连图形验证码一起跳过`() {
-        // 这一步存在的意义是拦住刷短信；不再发短信后还要求图形验证码，与开关的语义正好相反。
         whenever(smsVerificationService.verificationSkipped).thenReturn(true)
 
         service.sendSmsCode(AuthService.SmsSendCommand("13800138000", "CHANGE_PHONE", null, null))

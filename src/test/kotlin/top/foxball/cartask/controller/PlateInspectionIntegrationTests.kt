@@ -56,7 +56,6 @@ class PlateInspectionIntegrationTests(
         assertEquals(201, result.statusCode.value())
         val renewed = plates.findByPlate("京A12345")!!
         assertEquals(LocalDate.parse("2026-05-20"), renewed.inspectionDate)
-        // 表里没填有效期时按年检日期起一年推算。
         assertEquals(LocalDate.parse("2027-05-20"), renewed.inspectionValidUntil)
         assertEquals("上线检验", renewed.inspectionRemark)
         val explicit = plates.findByPlate("京B00001")!!
@@ -98,7 +97,6 @@ class PlateInspectionIntegrationTests(
             .contains("年检有效期不能早于年检日期"))
         assertNull(plates.findByPlate("京D00003")!!.inspectionDate)
 
-        // 间隔符写法不同导致归一化后重号的档案只能是重复登记，拒绝而不是随便挑一辆改。
         savePlate("京K00009", owner)
         savePlate("京K·00009", owner)
         assertTrue(importError(listOf(listOf("京K00009", "是", "2026-05-20", "", "")))
@@ -121,7 +119,6 @@ class PlateInspectionIntegrationTests(
         }
         XSSFWorkbook(controller.export("plate-inspections").body!!.byteArray.inputStream()).use { workbook ->
             val sheet = workbook.getSheet("数据")
-            // 同一个内存库里的其它用例也会建车牌，按车牌号找这一行，不依赖行序。
             val row = sheet.asSequence().first { cellText(it, 1) == "京F00005" }
             assertEquals("有效", cellText(row, 4))
             assertEquals("是", cellText(row, 5))
@@ -142,7 +139,6 @@ class PlateInspectionIntegrationTests(
         assertEquals(LocalDate.now(), renewed.inspectionDate)
         assertEquals(LocalDate.now().plusYears(1), renewed.inspectionValidUntil)
 
-        // 新增车牌时同样能带上年检信息：只给年检日期，有效期由后端推算。
         val created = api.createPlate(PlateRequest(
             plate = "京J00008", owner = owner.name, ownerId = owner.id, status = 1, regDate = "2026-09-01",
             inspected = true, inspectionDate = "2026-08-15",
@@ -220,14 +216,14 @@ class PlateInspectionIntegrationTests(
         assertEquals("未年检", listPlates("未年检").single { it.get("plate").asText() == "京L00012" }.get("inspectionStatus").asText())
     }
 
-    /** 列表响应里的 PageData 是端点内的局部类型，按 JSON 断言字段与筛选结果。 */
+    
     private fun listPlates(inspectionStatus: String?): List<JsonNode> = objectMapper
         .valueToTree<JsonNode>(api.listPlates(null, null, inspectionStatus, 1, 100).body!!.data)
         .get("items")
         .values()
         .toList()
 
-    /** 用给定数据行生成一份单工作表的年检导入文件。 */
+    
     private fun workbook(rows: List<List<String>>): ByteArray {
         val headers = listOf("车牌号", "是否已年检", "年检日期", "年检有效期至", "备注")
         val output = ByteArrayOutputStream()

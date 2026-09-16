@@ -67,8 +67,6 @@ class PermissionCatalogInitializerTests {
 
         PermissionCatalogInitializer(permissionRepository, roleRepository).write()
 
-        // 不能用 any{} 做补授：它在第一个 true 之后就短路，一次缺两个权限时只会补上一个，
-        // 剩下的要等下次重启——中间这段时间对应功能一直 403。这条用例锁住这个行为。
         val granted = admin.permissions.map { it.code }.toSet()
         assertTrue(
             granted.containsAll(listOf("owner:sync", "gate-person:review", "gate-person:export", "sync-schedule:manage")),
@@ -93,7 +91,6 @@ class PermissionCatalogInitializerTests {
 
         PermissionCatalogInitializer(permissionRepository, roleRepository).write()
 
-        // 权限集非空才会走补授分支；空集会命中整段赋值的分支，那样 any{} 的短路照样能过。
         val granted = deptAdmin.permissions.map { it.code }.toSet()
         assertTrue(
             granted.containsAll(listOf("vehicle-record:read", "gate-person:review", "gate-person:export")),
@@ -143,7 +140,6 @@ class PermissionCatalogInitializerTests {
                     "owner:manage",
                     "plate:manage",
                     "gate-person:read",
-                    // 审核与导出从 gate-person:manage 拆出来之后，部门管理仍然要有这两项能力。
                     "gate-person:review",
                     "gate-person:export",
                     "user:create",
@@ -164,7 +160,6 @@ class PermissionCatalogInitializerTests {
             "position:read",
             "dictionary:manage",
             "backup:manage",
-            // 同步周期是全局调度配置，部门管理不该改。
             "sync-schedule:manage",
         )
         assertTrue(
@@ -184,7 +179,6 @@ class PermissionCatalogInitializerTests {
 
         PermissionCatalogInitializer(permissionRepository, roleRepository).write()
 
-        // 备份产物是整库 SQL 加全部附件（含生物特征照片与口令散列），只留给超级管理员。
         assertTrue(
             admin.permissions.none { it.code == "backup:manage" },
             "平台管理不应获得数据备份权限，实际：${admin.permissions.map { it.code }}",
@@ -203,8 +197,6 @@ class PermissionCatalogInitializerTests {
         PermissionCatalogInitializer(permissionRepository, roleRepository).write()
 
         val granted = user.permissions.map { it.code }.toSet()
-        // 普通用户要能看到自己的进出记录；这些接口本身按本人范围过滤，所以给读权限不越权。
-        // file:read 同理：不给的话「看到自己的人脸照片/抓拍图」这条设计意图永远落不了地。
         assertTrue(
             granted.containsAll(
                 listOf("dashboard:read", "vehicle-record:read", "person-record:read", "file:read")

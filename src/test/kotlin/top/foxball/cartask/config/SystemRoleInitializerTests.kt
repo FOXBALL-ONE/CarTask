@@ -16,7 +16,7 @@ import top.foxball.cartask.repository.RoleRepository
 class SystemRoleInitializerTests {
     private val roleRepository = mock<RoleRepository>()
 
-    /** 按角色编码返回预置角色，未预置的编码返回 null（模拟全新库）。 */
+    
     private fun prepare(vararg roles: Role) {
         val byName = roles.associateBy { it.name.uppercase() }
         whenever(roleRepository.findByNameIgnoreCase(any())).thenAnswer { invocation ->

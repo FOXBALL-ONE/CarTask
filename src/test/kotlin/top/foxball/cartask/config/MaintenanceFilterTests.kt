@@ -72,7 +72,6 @@ class MaintenanceFilterTests {
         filter.doFilter(request("/api/users"), response, MockFilterChain())
         assertEquals(200, response.status)
 
-        // 请求处理期间拿到的是读锁，如果 finally 里没还，备份将永远等不到写锁。
         val acquired = CountDownLatch(1)
         val backup = thread { gate.runExclusive { acquired.countDown() } }
         assertTrue(acquired.await(5, TimeUnit.SECONDS), "请求结束后读锁没有被释放")

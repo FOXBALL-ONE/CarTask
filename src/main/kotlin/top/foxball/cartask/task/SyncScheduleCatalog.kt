@@ -5,12 +5,7 @@ import org.springframework.stereotype.Component
 import top.foxball.cartask.keytop.KeytopProperties
 import java.time.ZoneId
 
-/**
- * 一个可以被改周期的同步任务。
- *
- * [key] 直接取自各任务自己的 `TASK_KEY` 常量，而不是另写一份字面量：周期和执行历史在页面上
- * 是按这个键对上的，两处各写一遍迟早会漂。
- */
+
 data class SyncScheduleDefinition(
     val key: String,
     val name: String,
@@ -19,12 +14,7 @@ data class SyncScheduleDefinition(
     val trigger: () -> Unit,
 )
 
-/**
- * 可调周期的同步任务目录。
- *
- * 默认周期全部来自配置（环境变量），目录本身只负责把「有哪些任务、默认怎么跑、怎么触发」
- * 汇总到一处；是否存在覆盖值由 [top.foxball.cartask.service.SyncScheduleService] 决定。
- */
+
 @Component
 class SyncScheduleCatalog(
     private val synAreaInfoTask: SynAreaInfoTask,
@@ -32,8 +22,6 @@ class SyncScheduleCatalog(
     private val synOwnerArchiveTask: SynOwnerArchiveTask,
     private val synAccountGenerateTask: SynAccountGenerateTask,
     keytopProperties: KeytopProperties,
-    // 这两项原本只写在 @Scheduled 的占位符里，没有对应的 properties 类；沿用原有键名，
-    // 不改配置路径，避免破坏外部按 app.*-cron 写的覆盖。
     @Value("\${app.owner-archive-cron:0 45 2 * * *}") ownerArchiveCron: String,
     @Value("\${app.account-generate-cron:0 0 3 * * *}") accountGenerateCron: String,
 ) {
@@ -74,21 +62,14 @@ class SyncScheduleCatalog(
             trigger = { synAccountGenerateTask.synAccountGenerate() },
         ),
     )
-
+    
     private val byKey = definitions.associateBy { it.key }
-
-    /**
-     * find：查询或读取相关数据。
-     *
-     * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。
-     * 调用过程中会沿用当前模块已有的校验、事务和异常传播约定，不改变原有业务行为。
-     * @param key 参与本次处理的输入参数。
-     * @return 返回函数声明类型对应的处理结果；无返回值时表示操作已完成。
-     */
+    
+    
     fun find(key: String): SyncScheduleDefinition? = byKey[key]
-
+    
     companion object {
-        /** 与原 @Scheduled 注解上的 zone 保持一致，改周期不改变 cron 的解释时区。 */
+        
         val ZONE: ZoneId = ZoneId.of("Asia/Shanghai")
     }
 }

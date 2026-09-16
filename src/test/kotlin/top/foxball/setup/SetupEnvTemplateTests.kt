@@ -88,7 +88,6 @@ class SetupEnvTemplateTests {
             ),
         )
 
-        // 重复的 Origin 只留一份：白名单里有重复项会让后续排查误以为配了两处。
         assertEquals("https://park.example.com", parsed["CORS_ALLOWED_ORIGINS"])
     }
 

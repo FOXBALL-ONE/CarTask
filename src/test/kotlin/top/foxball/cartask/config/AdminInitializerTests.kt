@@ -116,7 +116,7 @@ class AdminInitializerTests {
         verify(userRepository, never()).save(any())
     }
 
-    /** 旧版本把默认管理员建成了平台管理，存量库重启时必须修回来，而不只是对新建账号生效。 */
+    
     @Test
     fun `已有的平台管理账号在未强制写入时也提为超级管理员`() {
         val role = Role().apply { name = SecurityRole.SUPER_ADMIN }
@@ -171,13 +171,12 @@ class AdminInitializerTests {
         verify(userRepository).save(existing)
     }
 
-    /**
-     * 权限是按角色行填充的，跑在角色初始化之前会让这个管理员拿到一个零权限角色。
-     * 同序监听器的注册顺序不确定，所以这里锁死顺序。
-     *
-     * 顺序用 Spring 自己的监听器适配器来读，而不是直接读注解：ApplicationListenerMethodAdapter
-     * 只看 write() 方法上的 @Order，标到类上会静默退回最低优先级，那样这里就会排到权限字典之后。
-     */
+
+
+
+
+
+
     @Test
     fun `运行顺序在角色初始化之后、权限字典之前`() {
         fun orderOf(bean: Any) = ApplicationListenerMethodAdapter(
