@@ -32,6 +32,17 @@ class OnlinePresenceService(
     }
 
     /**
+     * 把用户从在线集合里摘掉。
+     *
+     * 只动这份「最近有请求」的名单：真正让人下线的是撤销会话（token version 自增），
+     * 这里只是让名单立刻少人，否则要等满 STALE_AFTER_SECONDS 心跳过期才消失。
+     */
+    fun remove(userIds: Collection<Long>) {
+        if (userIds.isEmpty()) return
+        redisTemplate.opsForZSet().remove(PRESENCE_KEY, *userIds.map(Long::toString).toTypedArray())
+    }
+
+    /**
      * onlineUsers：处理请求、事件或异常流程。
      *
      * 这是当前模块对外提供的处理入口，负责完成既定业务规则下的参数处理、核心计算和结果返回。

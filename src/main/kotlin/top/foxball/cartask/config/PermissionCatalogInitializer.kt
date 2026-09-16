@@ -131,6 +131,7 @@ class PermissionCatalogInitializer(
             "user:role-assign",
             "audit:delete",
             "backup:manage",
+            "online-user:logout",
         )
         
         
@@ -165,6 +166,7 @@ class PermissionCatalogInitializer(
             "dictionary:manage",
             "backup:manage",
             "sync-schedule:manage",
+            "online-user:logout",
         )
         
         

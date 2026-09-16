@@ -35,6 +35,7 @@ object PermissionCatalog {
         Definition("user:create", "新增用户"),
         Definition("user:update", "编辑用户"),
         Definition("user:disable", "停用或删除用户"),
+        Definition("online-user:logout", "强制在线用户登出"),
         Definition("user:role-assign", "分配用户角色"),
         Definition("role:read", "查看角色"),
         Definition("role:manage", "管理角色"),

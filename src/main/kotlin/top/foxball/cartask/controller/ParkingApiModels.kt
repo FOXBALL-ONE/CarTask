@@ -225,3 +225,9 @@ data class ManagedDepartmentItem(
     @param:JsonProperty("department_id") val departmentId: Long? = null,
     @param:JsonProperty("include_descendants") val includeDescendants: Boolean = false,
 )
+
+
+/** 强制登出的目标用户；支持一次提交多个，前端即在线名册的多选。 */
+data class ForceLogoutRequest(
+    @param:JsonProperty("user_ids") val userIds: List<Long>? = null,
+)

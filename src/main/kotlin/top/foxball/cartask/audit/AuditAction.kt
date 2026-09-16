@@ -21,6 +21,8 @@ enum class AuditAction(
     AUTH_LOGIN_SUCCEEDED("AUTH_LOGIN_SUCCEEDED", AuditEvent.Category.AUTHENTICATION, AuditEvent.RiskLevel.MEDIUM),
     AUTH_LOGIN_FAILED("AUTH_LOGIN_FAILED", AuditEvent.Category.AUTHENTICATION, AuditEvent.RiskLevel.MEDIUM),
     AUTH_LOGOUT("AUTH_LOGOUT", AuditEvent.Category.AUTHENTICATION, AuditEvent.RiskLevel.HIGH),
+    /** 管理员在在线用户页强制踢人：与被踢者自己登出区分开，便于事后查是谁动的手。 */
+    AUTH_FORCED_LOGOUT("AUTH_FORCED_LOGOUT", AuditEvent.Category.AUTHENTICATION, AuditEvent.RiskLevel.HIGH),
     AUTH_PASSWORD_CHANGED("AUTH_PASSWORD_CHANGED", AuditEvent.Category.AUTHENTICATION, AuditEvent.RiskLevel.HIGH),
     
     
