@@ -467,7 +467,7 @@ onBeforeUnmount(() => {
 }
 
 .live-indicator i, .health-badge i {
-  background: #059669;
+  background: var(--success);
   border-radius: 50%;
   height: 6px;
   width: 6px;
@@ -551,15 +551,15 @@ onBeforeUnmount(() => {
 }
 
 .overview-metric--memory::before {
-  background: #0891b2;
+  background: var(--cyan);
 }
 
 .overview-metric--heap::before {
-  background: #7c3aed;
+  background: var(--violet);
 }
 
 .overview-metric--gc::before {
-  background: #d97706;
+  background: var(--warning);
 }
 
 .overview-metric__label {
@@ -576,15 +576,15 @@ onBeforeUnmount(() => {
 }
 
 .overview-metric--memory .material-icons-outlined {
-  color: #0891b2;
+  color: var(--cyan);
 }
 
 .overview-metric--heap .material-icons-outlined {
-  color: #7c3aed;
+  color: var(--violet);
 }
 
 .overview-metric--gc .material-icons-outlined {
-  color: #d97706;
+  color: var(--warning);
 }
 
 .overview-metric > strong {
@@ -675,15 +675,15 @@ onBeforeUnmount(() => {
 }
 
 .panel-heading__icon--violet {
-  color: #7c3aed;
+  color: var(--violet);
 }
 
 .panel-heading__icon--amber {
-  color: #d97706;
+  color: var(--warning);
 }
 
 .panel-heading__icon--green {
-  color: #059669;
+  color: var(--success);
 }
 
 .panel-heading__icon--red {
@@ -844,7 +844,7 @@ onBeforeUnmount(() => {
 }
 
 .memory-usage--non-heap .usage-rail span {
-  background: #7c3aed;
+  background: var(--violet);
 }
 
 .key-value-grid--jvm > div:nth-last-child(-n+2) {
@@ -889,7 +889,7 @@ onBeforeUnmount(() => {
 }
 
 .gc-row b {
-  color: #d97706;
+  color: var(--warning);
   font-family: Consolas, "SFMono-Regular", monospace;
   font-size: 15px;
   font-weight: 600;
@@ -907,8 +907,8 @@ onBeforeUnmount(() => {
 }
 
 .health-badge--up {
-  background: color-mix(in srgb, #059669 10%, var(--card));
-  color: #047857;
+  background: color-mix(in srgb, var(--success) 10%, var(--card));
+  color: var(--success-text);
 }
 
 .health-badge--down {

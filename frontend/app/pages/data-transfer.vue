@@ -381,7 +381,7 @@ function showMessage(text: string, type: "success" | "error" = "success") {
 
 .upload-button {
   background: var(--primary);
-  color: #fff;
+  color: var(--on-solid);
   margin-top: 10px;
   position: relative;
 }
@@ -422,7 +422,7 @@ function showMessage(text: string, type: "success" | "error" = "success") {
 }
 
 .feedback {
-  color: #059669;
+  color: var(--success);
   margin: 14px 0 0;
 }
 

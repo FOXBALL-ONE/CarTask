@@ -402,12 +402,12 @@ async function removeSpot(spot: Spot) {
 }
 
 .tag--green {
-  background: var(--green-soft, #dcfce7);
-  color: var(--green, #15803d);
+  background: var(--green-soft);
+  color: var(--green);
 }
 
 .tag--red {
-  background: var(--red-soft, #fee2e2);
+  background: var(--red-soft);
   color: var(--red);
 }
 

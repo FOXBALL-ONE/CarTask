@@ -377,7 +377,7 @@ onMounted(loadDepartments);
 
 .button--primary {
   background: var(--primary);
-  color: #fff;
+  color: var(--on-solid);
 }
 
 .button--ghost {
@@ -449,7 +449,7 @@ onMounted(loadDepartments);
 }
 
 .tree-icon {
-  color: #ea580c;
+  color: var(--orange);
   font-size: 18px;
 }
 
@@ -481,19 +481,19 @@ onMounted(loadDepartments);
 }
 
 .tag--gray {
-  background: #f4f4f5;
+  background: var(--neutral-soft);
   color: var(--text-sub);
   margin-left: 4px;
 }
 
 .tag--green {
-  background: #ecfdf5;
-  color: #059669;
+  background: var(--success-soft);
+  color: var(--success);
 }
 
 .tag--red {
-  background: #fef2f2;
-  color: #dc2626;
+  background: var(--danger-soft);
+  color: var(--danger);
 }
 
 .tree-meta {
@@ -523,7 +523,7 @@ onMounted(loadDepartments);
 }
 
 .row-act--danger:hover {
-  background: #fef2f2;
+  background: var(--danger-soft);
   color: var(--red);
 }
 
@@ -576,7 +576,7 @@ onMounted(loadDepartments);
 }
 
 :deep(.tree-icon) {
-  color: #ea580c;
+  color: var(--orange);
   font-size: 18px;
 }
 
@@ -611,19 +611,19 @@ onMounted(loadDepartments);
 }
 
 :deep(.tag--gray) {
-  background: #f4f4f5;
+  background: var(--neutral-soft);
   color: var(--text-sub);
   margin-left: 4px;
 }
 
 :deep(.tag--green) {
-  background: #ecfdf5;
-  color: #059669;
+  background: var(--success-soft);
+  color: var(--success);
 }
 
 :deep(.tag--red) {
-  background: #fef2f2;
-  color: #dc2626;
+  background: var(--danger-soft);
+  color: var(--danger);
 }
 
 :deep(.row-act), :deep(.icon-button) {
@@ -646,7 +646,7 @@ onMounted(loadDepartments);
 }
 
 :deep(.row-act--danger:hover) {
-  background: #fef2f2;
+  background: var(--danger-soft);
   color: var(--red);
 }
 

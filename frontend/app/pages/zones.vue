@@ -404,7 +404,7 @@ onMounted(() => {
 }
 
 .code-tag {
-  background: #f4f4f5;
+  background: var(--neutral-soft);
   color: var(--text-sub);
 }
 
@@ -417,12 +417,12 @@ onMounted(() => {
 }
 
 .status-tag--normal {
-  background: #f0fdf4;
-  color: #059669;
+  background: var(--success-soft);
+  color: var(--success);
 }
 
 .status-tag--normal::before {
-  background: #059669;
+  background: var(--success);
   border-radius: 50%;
   content: "";
   height: 5px;
@@ -430,12 +430,12 @@ onMounted(() => {
 }
 
 .status-tag--disabled {
-  background: #fef2f2;
-  color: #dc2626;
+  background: var(--danger-soft);
+  color: var(--danger);
 }
 
 .status-tag--disabled::before {
-  background: #dc2626;
+  background: var(--danger);
   border-radius: 50%;
   content: "";
   height: 5px;
@@ -453,7 +453,7 @@ onMounted(() => {
 }
 
 .state--error {
-  color: #dc2626;
+  color: var(--danger);
 }
 
 .pagination {

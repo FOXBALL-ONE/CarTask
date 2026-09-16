@@ -5,7 +5,7 @@
                  collapsed ? 'justify-center px-0 max-[768px]:justify-start max-[768px]:px-4' : 'px-4']"
     >
       <div
-          :class="['grid shrink-0 place-items-center rounded-[10px] bg-[var(--primary)] font-bold text-white',
+          :class="['grid shrink-0 place-items-center rounded-[10px] bg-[var(--primary)] font-bold text-[var(--on-solid)]',
                    collapsed ? 'size-9 text-[18px] max-[768px]:size-10 max-[768px]:text-[20px]' : 'size-10 text-[20px]']"
       >
         {{ logoMark }}

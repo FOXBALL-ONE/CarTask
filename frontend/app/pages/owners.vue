@@ -420,7 +420,7 @@ useScopeRefresh(loadOwners);
 
 .button--primary {
   background: var(--primary);
-  color: #fff;
+  color: var(--on-solid);
 }
 
 .button--soft {
@@ -506,12 +506,12 @@ useScopeRefresh(loadOwners);
 }
 
 .tag--green {
-  background: var(--green-soft, #dcfce7);
-  color: var(--green, #15803d);
+  background: var(--green-soft);
+  color: var(--green);
 }
 
 .tag--red {
-  background: var(--red-soft, #fee2e2);
+  background: var(--red-soft);
   color: var(--red);
 }
 
@@ -521,7 +521,7 @@ useScopeRefresh(loadOwners);
 }
 
 .tag--gray {
-  background: #f4f4f5;
+  background: var(--neutral-soft);
   color: var(--text-sub);
 }
 
@@ -548,7 +548,7 @@ useScopeRefresh(loadOwners);
 }
 
 .row-action--danger:hover {
-  background: #fef2f2;
+  background: var(--danger-soft);
   color: var(--red);
 }
 

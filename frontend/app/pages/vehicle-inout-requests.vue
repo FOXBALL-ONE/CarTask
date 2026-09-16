@@ -834,7 +834,7 @@ useScopeRefresh(loadRequests);
 
 .button--primary {
   background: var(--primary);
-  color: #fff;
+  color: var(--on-solid);
 }
 
 .button--soft {
@@ -862,17 +862,17 @@ useScopeRefresh(loadRequests);
 }
 
 .notice {
-  background: #f0fdf4;
-  border: 1px solid #059669;
+  background: var(--success-soft);
+  border: 1px solid var(--success);
   border-radius: 6px;
-  color: #059669;
+  color: var(--success);
   font-size: 13px;
   margin: 0 0 14px;
   padding: 9px 12px;
 }
 
 .notice--error {
-  background: #fef2f2;
+  background: var(--danger-soft);
   border-color: var(--red);
   color: var(--red);
 }
@@ -949,8 +949,8 @@ useScopeRefresh(loadRequests);
 }
 
 .tag--green {
-  background: #dcfce7;
-  color: #15803d;
+  background: var(--success-tint);
+  color: var(--green);
 }
 
 .tag--blue {
@@ -959,17 +959,17 @@ useScopeRefresh(loadRequests);
 }
 
 .tag--orange {
-  background: #fff7ed;
-  color: #ea580c;
+  background: var(--warning-soft);
+  color: var(--orange);
 }
 
 .tag--red {
-  background: #fee2e2;
+  background: var(--danger-tint);
   color: var(--red);
 }
 
 .tag--gray {
-  background: #f4f4f5;
+  background: var(--neutral-soft);
   color: var(--text-sub);
 }
 

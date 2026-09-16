@@ -369,7 +369,7 @@ onMounted(loadPositions);
 
 .button--primary {
   background: var(--primary);
-  color: #fff;
+  color: var(--on-solid);
 }
 
 .button--soft {
@@ -441,7 +441,7 @@ onMounted(loadPositions);
 }
 
 .code-tag {
-  background: #f4f4f5;
+  background: var(--neutral-soft);
   color: var(--text-sub);
 }
 
@@ -453,21 +453,21 @@ onMounted(loadPositions);
 }
 
 .status-tag--normal {
-  background: #f0fdf4;
-  color: #059669;
+  background: var(--success-soft);
+  color: var(--success);
 }
 
 .status-tag--normal::before {
-  background: #059669;
+  background: var(--success);
 }
 
 .status-tag--disabled {
-  background: #fef2f2;
-  color: #dc2626;
+  background: var(--danger-soft);
+  color: var(--danger);
 }
 
 .status-tag--disabled::before {
-  background: #dc2626;
+  background: var(--danger);
 }
 
 .code-tag::before {
@@ -504,8 +504,8 @@ onMounted(loadPositions);
 }
 
 .row-action--danger:hover {
-  background: #fef2f2;
-  color: #dc2626;
+  background: var(--danger-soft);
+  color: var(--danger);
 }
 
 .row-action .material-icons-outlined {
@@ -519,7 +519,7 @@ onMounted(loadPositions);
 }
 
 .state--error, .form-error {
-  color: #dc2626;
+  color: var(--danger);
 }
 
 .pagination {
@@ -626,7 +626,7 @@ onMounted(loadPositions);
 }
 
 .field em {
-  color: #dc2626;
+  color: var(--danger);
   font-style: normal;
 }
 

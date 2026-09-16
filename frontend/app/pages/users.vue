@@ -871,7 +871,7 @@ useScopeRefresh(initialize);
 
 .button--primary {
   background: var(--primary);
-  color: #fff;
+  color: var(--on-solid);
 }
 
 .button--soft {
@@ -955,7 +955,7 @@ useScopeRefresh(initialize);
 }
 
 .status-switch {
-  background: #d4d4d8;
+  background: var(--neutral-strong);
   border: 0;
   border-radius: 18px;
   cursor: pointer;
@@ -966,7 +966,7 @@ useScopeRefresh(initialize);
 }
 
 .status-switch span {
-  background: #fff;
+  background: var(--card);
   border-radius: 50%;
   display: block;
   height: 14px;
@@ -975,7 +975,7 @@ useScopeRefresh(initialize);
 }
 
 .status-switch.enabled {
-  background: #059669;
+  background: var(--success);
 }
 
 .status-switch.enabled span {
@@ -1001,8 +1001,8 @@ useScopeRefresh(initialize);
 }
 
 .row-action--danger:hover {
-  background: #fef2f2;
-  color: #dc2626;
+  background: var(--danger-soft);
+  color: var(--danger);
 }
 
 .row-action .material-icons-outlined {
@@ -1016,7 +1016,7 @@ useScopeRefresh(initialize);
 }
 
 .state--error, .form-error {
-  color: #dc2626;
+  color: var(--danger);
 }
 
 .pagination {
@@ -1135,7 +1135,7 @@ useScopeRefresh(initialize);
 }
 
 .field em {
-  color: #dc2626;
+  color: var(--danger);
   font-style: normal;
 }
 

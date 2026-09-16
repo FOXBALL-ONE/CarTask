@@ -611,7 +611,7 @@ async function submitSmsLogin() {
 
 /* 立柱指示灯：闭杆红灯，抬杆绿灯 */
 .gate__light {
-  background: #ef4444;
+  background: var(--danger);
   border-radius: 50%;
   bottom: 20px;
   box-shadow: 0 0 5px rgb(239 68 68 / 45%);
@@ -982,5 +982,37 @@ async function submitSmsLogin() {
   .login__btn:hover:not(:disabled) {
     transform: none;
   }
+}
+
+/* ==========================================================================
+   深色：同一套道闸，场地换成夜间
+   与浅色逐项对应，只改颜色值：场地转深、卡片抬起一级、车位线与描边改成浅色叠加，
+   强调色跟着全局令牌一起提亮，栏杆黄（路面标线色）两种主题下都够亮，不动。
+   ========================================================================== */
+[data-theme="dark"] .login-page {
+  --g-bg: #18181b;
+  --g-bg-glow: rgb(96 165 250 / 14%);
+  --g-lane: rgb(250 250 250 / 8%);
+  --g-panel: #27272a;
+  --g-surface: rgb(0 0 0 / 20%); /* 比卡片还深一档，分段控件轨道与代码底色才缩得进去 */
+  --g-inset: rgb(0 0 0 / 14%);
+  --g-line: rgb(250 250 250 / 9%);
+  --g-line-strong: #3f3f46;
+  --g-text: #fafafa;
+  --g-sub: #d4d4d8;
+  --g-mute: #a1a1aa;
+  --g-accent: #60a5fa;
+  --g-accent-text: #93c5fd;
+  --g-post: #a1a1aa; /* 立柱：浅色下是深灰，深色下反过来用浅灰才立得住 */
+  --g-danger: #f87171;
+  --g-danger-bg: #3b2023;
+  --g-danger-border: #6b3438;
+  --g-card-shadow: 0 18px 48px rgb(0 0 0 / 45%);
+}
+
+/* 登录按钮的渐变仍然只取深蓝两档。深色下 --g-accent-text 提亮成了浅蓝，白字压上去读不出来，
+   而这条按钮的对比度取舍与主题无关，所以把浅色的两个值写回来，不跟着变量走。 */
+[data-theme="dark"] .login-page .login__btn {
+  background: linear-gradient(180deg, #2563eb, #1d4ed8);
 }
 </style>

@@ -28,7 +28,7 @@
             <div class="chart-card__title">可停区域</div>
             <div class="chart-legend">
               <span class="legend__item"><span class="legend__dot" style="background: var(--primary);"/>已用</span>
-              <span class="legend__item"><span class="legend__dot" style="background: #e4e4e7;"/>空闲</span>
+              <span class="legend__item"><span class="legend__dot" style="background: var(--border-strong);"/>空闲</span>
             </div>
           </div>
           <div v-if="parkingAreas.length" class="bars">
@@ -189,6 +189,7 @@ const DONUT_CENTER = 90;
 const FREE_TIP_COLOR = "#16a34a";
 
 const http = useHttp();
+const {isDark} = useTheme();
 const dashboard = ref<Dashboard>();
 const loading = ref(true);
 const loadError = ref("");
@@ -280,6 +281,7 @@ function drawLineChart(canvas: HTMLCanvasElement, series: TrendSeries[], labels:
   const computedStyle = getComputedStyle(document.documentElement);
   const borderColor = computedStyle.getPropertyValue("--border").trim() || "#f0f0f0";
   const textMuteColor = computedStyle.getPropertyValue("--text-mute").trim() || "#a1a1aa";
+  const cardColor = computedStyle.getPropertyValue("--card").trim() || "#fff";
 
   context.strokeStyle = borderColor;
   context.lineWidth = 1;
@@ -348,7 +350,7 @@ function drawLineChart(canvas: HTMLCanvasElement, series: TrendSeries[], labels:
     context.stroke();
 
     points.forEach((point) => {
-      context.fillStyle = "#ffffff";
+      context.fillStyle = cardColor;
       context.strokeStyle = item.color;
       context.lineWidth = 2;
       context.beginPath();
@@ -439,6 +441,11 @@ watch(dashboard, () => {
   nextTick(redrawCharts);
 });
 
+// 画布的坐标轴、刻度与端点颜色读的是 CSS 变量，切换主题后不重画就会停在旧配色上。
+watch(isDark, () => {
+  nextTick(redrawCharts);
+});
+
 onMounted(() => {
   void loadDashboard();
   window.addEventListener("resize", handleResize);
@@ -524,7 +531,7 @@ onUnmounted(() => {
 }
 
 .stat-card:hover {
-  border-color: #d4d4d8;
+  border-color: var(--neutral-strong);
   transform: translateY(-2px);
 }
 
@@ -812,41 +819,41 @@ onUnmounted(() => {
   color: var(--red);
 }
 
-:global([data-theme="dark"]) .stat-card--blue {
+[data-theme="dark"] .stat-card--blue {
   background: #2563eb;
 }
 
-:global([data-theme="dark"]) .stat-card--green {
+[data-theme="dark"] .stat-card--green {
   background: #059669;
 }
 
-:global([data-theme="dark"]) .stat-card--orange {
+[data-theme="dark"] .stat-card--orange {
   background: #d97706;
 }
 
-:global([data-theme="dark"]) .stat-card--red {
+[data-theme="dark"] .stat-card--red {
   background: #dc2626;
 }
 
-:global([data-theme="dark"]) .stat-card__delta.up {
+[data-theme="dark"] .stat-card__delta.up {
   background: rgb(255 255 255 / 20%);
 }
 
-:global([data-theme="dark"]) .stat-card__delta.down {
+[data-theme="dark"] .stat-card__delta.down {
   background: rgb(0 0 0 / 20%);
 }
 
-:global([data-theme="dark"]) .bar-free {
+[data-theme="dark"] .bar-free {
   background: #3f3f46;
 }
 
-:global([data-theme="dark"]) .chart-tip {
+[data-theme="dark"] .chart-tip {
   background: #3f3f46;
   border-color: rgb(255 255 255 / 8%);
   color: #f4f4f5;
 }
 
-:global([data-theme="dark"]) .chart-tip__row span {
+[data-theme="dark"] .chart-tip__row span {
   color: rgb(244 244 245 / 55%);
 }
 

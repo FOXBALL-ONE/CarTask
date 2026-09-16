@@ -1048,8 +1048,8 @@ onBeforeUnmount(() => {
 }
 
 .sync-card--success .state-badge {
-  background: color-mix(in srgb, #059669 12%, var(--card));
-  color: #059669;
+  background: color-mix(in srgb, var(--success) 12%, var(--card));
+  color: var(--success);
 }
 
 .sync-card--error .state-badge {
@@ -1058,75 +1058,75 @@ onBeforeUnmount(() => {
 }
 
 .sync-card--records .sync-card__icon {
-  background: color-mix(in srgb, #059669 12%, var(--card));
-  color: #047857;
+  background: color-mix(in srgb, var(--success) 12%, var(--card));
+  color: var(--success-text);
 }
 
 .sync-card--records .endpoint__mark {
-  color: #047857;
+  color: var(--success-text);
 }
 
 .sync-card--records .endpoint__mark--remote {
-  background: #047857;
-  border-color: #047857;
-  color: #fff;
+  background: var(--success-text);
+  border-color: var(--success-text);
+  color: var(--on-solid);
 }
 
 .sync-card--records .conduit__packet {
-  background: #059669;
-  border-color: color-mix(in srgb, #059669 20%, var(--card));
+  background: var(--success);
+  border-color: color-mix(in srgb, var(--success) 20%, var(--card));
 }
 
 .sync-card--records .sync-route--running .conduit__line {
-  background: color-mix(in srgb, #059669 25%, var(--card));
+  background: color-mix(in srgb, var(--success) 25%, var(--card));
 }
 
 .sync-card--accounts .sync-card__icon {
-  background: color-mix(in srgb, #d97706 12%, var(--card));
-  color: #b45309;
+  background: color-mix(in srgb, var(--warning) 12%, var(--card));
+  color: var(--warning-text);
 }
 
 .sync-card--accounts .endpoint__mark {
-  color: #b45309;
+  color: var(--warning-text);
 }
 
 .sync-card--accounts .endpoint__mark--remote {
-  background: #d97706;
-  border-color: #d97706;
-  color: #fff;
+  background: var(--warning);
+  border-color: var(--warning);
+  color: var(--on-solid);
 }
 
 .sync-card--accounts .conduit__packet {
-  background: #d97706;
-  border-color: color-mix(in srgb, #d97706 20%, var(--card));
+  background: var(--warning);
+  border-color: color-mix(in srgb, var(--warning) 20%, var(--card));
 }
 
 .sync-card--accounts .sync-route--running .conduit__line {
-  background: color-mix(in srgb, #d97706 25%, var(--card));
+  background: color-mix(in srgb, var(--warning) 25%, var(--card));
 }
 
 .sync-card--owners .sync-card__icon {
-  background: color-mix(in srgb, #7c3aed 12%, var(--card));
-  color: #6d28d9;
+  background: color-mix(in srgb, var(--violet) 12%, var(--card));
+  color: var(--violet-text);
 }
 
 .sync-card--owners .endpoint__mark {
-  color: #6d28d9;
+  color: var(--violet-text);
 }
 
 .sync-card--owners .endpoint__mark--remote {
-  background: #7c3aed;
-  border-color: #7c3aed;
-  color: #fff;
+  background: var(--violet);
+  border-color: var(--violet);
+  color: var(--on-solid);
 }
 
 .sync-card--owners .conduit__packet {
-  background: #7c3aed;
-  border-color: color-mix(in srgb, #7c3aed 20%, var(--card));
+  background: var(--violet);
+  border-color: color-mix(in srgb, var(--violet) 20%, var(--card));
 }
 
 .sync-card--owners .sync-route--running .conduit__line {
-  background: color-mix(in srgb, #7c3aed 25%, var(--card));
+  background: color-mix(in srgb, var(--violet) 25%, var(--card));
 }
 
 .sync-route {
@@ -1167,7 +1167,7 @@ onBeforeUnmount(() => {
 .endpoint__mark--remote {
   background: var(--primary);
   border-color: var(--primary);
-  color: #fff;
+  color: var(--on-solid);
 }
 
 .endpoint__mark .material-icons-outlined {
@@ -1257,11 +1257,11 @@ onBeforeUnmount(() => {
 }
 
 .feedback--success {
-  background: color-mix(in srgb, #059669 10%, var(--card));
+  background: color-mix(in srgb, var(--success) 10%, var(--card));
 }
 
 .feedback--success .material-icons-outlined {
-  color: #059669;
+  color: var(--success);
 }
 
 .feedback--error {
@@ -1319,7 +1319,7 @@ onBeforeUnmount(() => {
 
 .sync-button {
   background: var(--primary);
-  color: #fff;
+  color: var(--on-solid);
   width: 100%;
 }
 
@@ -1505,8 +1505,8 @@ onBeforeUnmount(() => {
 }
 
 .history-chip--ok {
-  background: color-mix(in srgb, #059669 12%, var(--card));
-  color: #059669;
+  background: color-mix(in srgb, var(--success) 12%, var(--card));
+  color: var(--success);
 }
 
 .history-chip--fail {
@@ -1554,11 +1554,11 @@ onBeforeUnmount(() => {
 }
 
 .metric--created::before {
-  background: #059669;
+  background: var(--success);
 }
 
 .metric--updated::before {
-  background: #d97706;
+  background: var(--warning);
 }
 
 .metric--quiet::before {
@@ -1566,7 +1566,7 @@ onBeforeUnmount(() => {
 }
 
 .metric--photo::before {
-  background: #059669;
+  background: var(--success);
 }
 
 .metric--retry::before {
@@ -1574,7 +1574,7 @@ onBeforeUnmount(() => {
 }
 
 .metric--owner::before {
-  background: #7c3aed;
+  background: var(--violet);
 }
 
 .metric--linked::before {
@@ -1622,15 +1622,15 @@ onBeforeUnmount(() => {
 }
 
 .sync-note--records > .material-icons-outlined {
-  color: #047857;
+  color: var(--success-text);
 }
 
 .sync-note--accounts > .material-icons-outlined {
-  color: #b45309;
+  color: var(--warning-text);
 }
 
 .sync-note--owners > .material-icons-outlined {
-  color: #6d28d9;
+  color: var(--violet-text);
 }
 
 .schedule-panel {

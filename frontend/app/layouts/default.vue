@@ -38,7 +38,7 @@
             <input v-model="searchQuery" aria-label="搜索功能" placeholder="搜索功能..." type="search">
           </label>
           <button class="icon-btn" title="切换主题" type="button" @click="toggleTheme">
-            <span class="material-icons-outlined">{{ darkTheme ? 'light_mode' : 'dark_mode' }}</span>
+            <span class="material-icons-outlined">{{ isDark ? 'light_mode' : 'dark_mode' }}</span>
           </button>
           <button class="icon-btn badge" title="通知" type="button">
             <span class="material-icons-outlined">notifications_none</span><span class="badge__dot">5</span>
@@ -94,9 +94,9 @@
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+const {isDark, toggle: toggleTheme} = useTheme();
 const sidebarCollapsed = ref(false);
 const mobileSidebarOpen = ref(false);
-const darkTheme = ref(false);
 const userMenuOpen = ref(false);
 const searchQuery = ref("");
 const systemName = ref("Admin Pro");
@@ -257,12 +257,6 @@ function handleSettings(action: "config" | "backup" | "about") {
   void navigate(action === "config" ? "logs" : action === "backup" ? "backup" : "about");
 }
 
-function toggleTheme() {
-  darkTheme.value = !darkTheme.value;
-  document.documentElement.dataset.theme = darkTheme.value ? "dark" : "light";
-  localStorage.setItem("theme", darkTheme.value ? "dark" : "light");
-}
-
 async function toggleFullscreen() {
   if (document.fullscreenElement) {
     await document.exitFullscreen();
@@ -283,10 +277,7 @@ async function logout() {
 
 onMounted(() => {
   const storedSystemName = localStorage.getItem("sysName");
-  const storedTheme = localStorage.getItem("theme");
   if (storedSystemName) systemName.value = storedSystemName;
-  darkTheme.value = storedTheme === "dark";
-  document.documentElement.dataset.theme = darkTheme.value ? "dark" : "light";
   authStore.restoreSession();
 });
 
@@ -308,43 +299,6 @@ watch(
 <style scoped>
 :global(html), :global(body), :global(#__nuxt) {
   min-height: 100%;
-}
-
-:global(body) {
-  background: var(--bg);
-  color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-  font-size: 13px;
-}
-
-:global([data-theme="light"]), .app-shell {
-  --primary: #2563eb;
-  --primary-soft: #eff4ff;
-  --bg: #fafafa;
-  --card: #fff;
-  --text: #18181b;
-  --text-sub: #71717a;
-  --text-mute: #a1a1aa;
-  --border: #f0f0f0;
-  --border-strong: #e4e4e7;
-  --red: #dc2626;
-  --sidebar-w: 220px;
-  --sidebar-w-min: 64px;
-  --topbar-h: 56px;
-  --tr: 0.2s ease;
-}
-
-:global([data-theme="dark"]) {
-  --primary: #60a5fa;
-  --primary-soft: #172554;
-  --bg: #18181b;
-  --card: #27272a;
-  --text: #fafafa;
-  --text-sub: #d4d4d8;
-  --text-mute: #a1a1aa;
-  --border: #3f3f46;
-  --border-strong: #52525b;
-  --red: #f87171;
 }
 
 .app-shell {
@@ -416,7 +370,7 @@ watch(
   background: var(--red);
   border: 1.5px solid var(--card);
   border-radius: 7px;
-  color: #fff;
+  color: var(--on-solid);
   display: flex;
   font-size: 9px;
   height: 14px;
@@ -572,7 +526,7 @@ watch(
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 8px;
-  box-shadow: 0 8px 24px rgb(0 0 0 / 12%);
+  box-shadow: var(--shadow-pop);
   min-width: 180px;
   padding: 6px;
   position: absolute;

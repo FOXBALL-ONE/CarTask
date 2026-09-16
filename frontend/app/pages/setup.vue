@@ -1170,7 +1170,7 @@ onMounted(async () => {
 .step--done .step__marker {
   background: var(--s-ok);
   border-color: var(--s-ok);
-  color: #fff;
+  color: var(--on-solid);
 }
 
 .step--done .step__title {
@@ -1192,7 +1192,7 @@ onMounted(async () => {
   background: var(--s-ok);
   border-color: var(--s-ok);
   box-shadow: 0 0 0 3px rgb(5 150 105 / 15%);
-  color: #fff;
+  color: var(--on-solid);
 }
 
 .step--active .step__title {
@@ -1412,7 +1412,7 @@ onMounted(async () => {
 .alert--ok {
   background: var(--s-ok-bg);
   border: 1px solid rgb(5 150 105 / 22%);
-  color: #047857;
+  color: var(--success-text);
 }
 
 .gate__card .alert {
@@ -1461,7 +1461,7 @@ onMounted(async () => {
   background: var(--s-ok-bg);
   border: 1px solid rgb(5 150 105 / 22%);
   border-radius: 4px;
-  color: #047857;
+  color: var(--success-text);
   font-size: 11px;
   padding: 2px 8px;
 }
@@ -1576,5 +1576,40 @@ onMounted(async () => {
   .gate__card, .shell, .mark--spin {
     animation: none;
   }
+}
+
+/* ==========================================================================
+   深色：与登录页同一套夜间场地
+   变量逐项对应浅色，只改颜色值。层次关系照旧：右侧面板是最亮的一层，
+   左侧轨道再深一档，与浅色下「面板 #fff、轨道 #f8fafc」的先后一致。
+   栏杆黄（路面标线色）两种主题下都够亮，不动。
+   ========================================================================== */
+[data-theme="dark"] .setup-page {
+  --s-bg: #18181b;
+  --s-bg-glow: rgb(96 165 250 / 14%);
+  --s-lane: rgb(250 250 250 / 8%);
+  --s-panel: #27272a;
+  --s-surface: rgb(0 0 0 / 20%); /* 比面板更深一档：提示块、代码底色、悬停态都靠它缩进去 */
+  --s-inset: rgb(0 0 0 / 14%); /* 步骤轨道：比面板深一点，但比 surface 浅 */
+  --s-line: rgb(250 250 250 / 9%);
+  --s-line-strong: #3f3f46;
+  --s-text: #fafafa;
+  --s-sub: #d4d4d8;
+  --s-mute: #a1a1aa;
+  --s-accent: #60a5fa;
+  --s-accent-text: #93c5fd;
+  --s-post: #a1a1aa; /* 立柱：浅色下是深灰，深色下反过来用浅灰才立得住 */
+  --s-ok: #68d4a6;
+  --s-ok-bg: #15352a;
+  --s-danger: #f87171;
+  --s-danger-bg: #3b2023;
+  --s-danger-border: #6b3438;
+  --s-card-shadow: 0 18px 48px rgb(0 0 0 / 45%);
+}
+
+/* 主按钮的渐变同样只取深蓝两档。深色下 --s-accent-text 提亮成了浅蓝，白字压上去读不出来，
+   而这条按钮的对比度取舍与主题无关，所以把浅色的两个值写回来，不跟着变量走。 */
+[data-theme="dark"] .setup-page .btn--primary {
+  background: linear-gradient(180deg, #2563eb, #1d4ed8);
 }
 </style>

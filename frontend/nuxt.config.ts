@@ -24,8 +24,18 @@ export default defineNuxtConfig({
                     tagPriority: 'high',
                 },
             ],
+            script: [
+                {
+                    // 主题要在首次绘制前定下来，否则深色用户会先闪一帧浅色。
+                    // 放在这里而不是布局的 onMounted：那时页面已经画完了。
+                    innerHTML: '(function(){try{var t=localStorage.getItem("theme");if(t==="dark"||t==="light"){document.documentElement.dataset.theme=t}}catch(e){}})()',
+                    tagPriority: 'critical',
+                },
+            ],
         },
     },
+
+    css: ['~/assets/css/theme.css'],
 
     modules: [
         '@nuxt/eslint',

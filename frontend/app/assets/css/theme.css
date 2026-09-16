@@ -1,0 +1,167 @@
+/*
+ * 全站主题令牌。浅色值挂在 :root 上，深色值挂在 html[data-theme="dark"] 上。
+ *
+ * 为什么是 :root 而不是 .app-shell：令牌必须比外壳更早、更广地存在。
+ * 挂在 .app-shell 上时，元素自身声明的浅色值会压过从 html 继承下来的深色值，
+ * 深色主题等于没生效；而且登录页等外壳之外的节点拿不到任何变量。
+ *
+ * 语义色的四个变体分工：
+ *   --x         强调色本体：图标、进度条、强调文字
+ *   --x-soft    浅底：状态标签、提示条的背景
+ *   --x-border  浅底上的描边
+ *   --x-text    浅底上的文字色
+ * 深色主题下强调色整体提亮，所以实心填充上的文字用 --on-solid 而不是写死 #fff。
+ */
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+
+  --primary: #2563eb;
+  --primary-soft: #eff4ff;
+  --primary-border: #bfdbfe;
+  --on-solid: #fff;
+
+  --bg: #fafafa;
+  --card: #fff;
+  --text: #18181b;
+  --text-sub: #71717a;
+  --text-mute: #a1a1aa;
+  --border: #f0f0f0;
+  --border-strong: #e4e4e7;
+  --neutral-soft: #f4f4f5;
+  --neutral-tint: #e4e4e7;
+  --neutral-strong: #d4d4d8;
+
+  --success: #059669;
+  --success-soft: #ecfdf5;
+  --success-tint: #dcfce7;
+  --success-border: #a7f3d0;
+  --success-text: #047857;
+
+  --red: #dc2626;
+  --danger: #dc2626;
+  --danger-soft: #fef2f2;
+  --danger-tint: #fee2e2;
+  --danger-border: #fecaca;
+  --danger-text: #b42318;
+
+  --warning: #d97706;
+  --warning-soft: #fff7ed;
+  --warning-tint: #ffedd5;
+  --warning-border: #fed7aa;
+  --warning-text: #b45309;
+
+  --info: #2563eb;
+  --info-soft: #eff6ff;
+  --info-border: #bfdbfe;
+  --info-text: #1d4ed8;
+
+  --violet: #7c3aed;
+  --violet-soft: #f5f3ff;
+  --violet-border: #ddd6fe;
+  --violet-text: #6d28d9;
+
+  --cyan: #0891b2;
+  --cyan-soft: #ecfeff;
+  --cyan-border: #a5f3fc;
+  --cyan-text: #0e7490;
+
+  /* 页面既有的 --green / --orange 约定。原先只写成 var(--green, #15803d) 的回退值，
+     变量本身并不存在，等于永远走回退；这里补上定义，深色才有得可换。 */
+  --green: #15803d;
+  --orange: #ea580c;
+  /* 页面已有的 var(--green-soft, …) / var(--red-soft, …) 回退值，变量本身原先并不存在。 */
+  --green-soft: #dcfce7;
+  --red-soft: #fee2e2;
+
+  --shadow-pop: 0 8px 24px rgb(0 0 0 / 12%);
+  --shadow-soft: 0 2px 8px rgb(0 0 0 / 8%);
+
+  --sidebar-w: 220px;
+  --sidebar-w-min: 64px;
+  --topbar-h: 56px;
+  --tr: 0.2s ease;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --primary: #60a5fa;
+  --primary-soft: #172554;
+  --primary-border: #1e3a8a;
+  /* 深色下强调色是亮色，实心按钮上的文字必须反过来用深色。 */
+  --on-solid: #18181b;
+
+  --bg: #18181b;
+  --card: #27272a;
+  --text: #fafafa;
+  --text-sub: #d4d4d8;
+  --text-mute: #a1a1aa;
+  --border: #3f3f46;
+  --border-strong: #52525b;
+  --neutral-soft: #3f3f46;
+  --neutral-tint: #52525b;
+  --neutral-strong: #71717a;
+
+  --success: #68d4a6;
+  --success-soft: #15352a;
+  --success-tint: #123c35;
+  --success-border: #1f5c46;
+  --success-text: #a5e2c4;
+
+  --red: #f87171;
+  --danger: #f87171;
+  --danger-soft: #3b2023;
+  --danger-tint: #4a262a;
+  --danger-border: #6b3438;
+  --danger-text: #f4c9c2;
+
+  --warning: #f3ae5e;
+  --warning-soft: #38291a;
+  --warning-tint: #45321f;
+  --warning-border: #6b4a2a;
+  --warning-text: #f7cd9b;
+
+  --info: #60a5fa;
+  --info-soft: #172554;
+  --info-border: #1e3a8a;
+  --info-text: #93c5fd;
+
+  --violet: #a78bfa;
+  --violet-soft: #2e1065;
+  --violet-border: #4c1d95;
+  --violet-text: #c4b5fd;
+
+  --cyan: #67e8f9;
+  --cyan-soft: #083344;
+  --cyan-border: #155e75;
+  --cyan-text: #a5f3fc;
+
+  --green: #4ade80;
+  --orange: #fb923c;
+  --green-soft: #123c35;
+  --red-soft: #4a262a;
+
+  --shadow-pop: 0 8px 24px rgb(0 0 0 / 45%);
+  --shadow-soft: 0 2px 8px rgb(0 0 0 / 35%);
+}
+
+/*
+ * 主题切换是给 <html> 加 data-theme，切换过程中给背景和文字加过渡，
+ * 避免整页颜色硬切造成的闪烁感。只过渡这两个属性，不波及布局。
+ */
+html {
+  background: var(--bg);
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 13px;
+}
+
+/* 原生滚动条跟随主题，否则深色页面右侧会挂一条亮色滚动条。 */
+* {
+  scrollbar-color: var(--border-strong) transparent;
+}

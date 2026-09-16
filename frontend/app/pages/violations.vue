@@ -1173,7 +1173,7 @@ onMounted(() => {
   align-items: center;
   background: var(--primary);
   border-radius: 8px;
-  color: #fff;
+  color: var(--on-solid);
   display: flex;
   font-size: 20px;
   height: 38px;
@@ -1269,7 +1269,7 @@ onMounted(() => {
   background: var(--danger);
   border: 2px solid var(--card);
   border-radius: 50%;
-  box-shadow: 0 0 0 2px rgb(196 63 63 / 18%);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--danger) 18%, transparent);
   height: 10px;
   position: absolute;
   right: -1px;
@@ -1406,7 +1406,7 @@ onMounted(() => {
 
 .button--primary {
   background: var(--primary);
-  color: #fff
+  color: var(--on-solid)
 }
 
 .button--primary:hover {
@@ -1715,8 +1715,8 @@ onMounted(() => {
 }
 
 .spinner--button {
-  border-color: rgb(255 255 255 / 35%);
-  border-top-color: #fff;
+  border-color: color-mix(in srgb, var(--on-solid) 35%, transparent);
+  border-top-color: var(--on-solid);
   height: 13px;
   width: 13px
 }
@@ -1808,7 +1808,7 @@ onMounted(() => {
   align-items: center;
   background: var(--primary);
   border-radius: 9px;
-  color: #fff;
+  color: var(--on-solid);
   display: flex;
   height: 44px;
   justify-content: center;
@@ -1937,7 +1937,7 @@ onMounted(() => {
   align-items: center;
   background: var(--danger);
   border-radius: 8px;
-  color: #fff;
+  color: var(--on-solid);
   display: flex;
   height: 38px;
   justify-content: center;
@@ -2538,7 +2538,7 @@ onMounted(() => {
   }
 }
 
-:global([data-theme="dark"]) .violation-page {
+[data-theme="dark"] .violation-page {
   --amber: #f3ae5e;
   --amber-soft: #38291a;
   --danger: #ff8181;
@@ -2547,7 +2547,13 @@ onMounted(() => {
   --success-soft: #15352a
 }
 
-:global([data-theme="dark"]) .rule-overview {
+[data-theme="dark"] .score-chip {
+  /* 分值胶囊原本是浅蓝底深蓝字，深色下必须反过来，否则是黑底上的一块白斑。 */
+  background: #172554;
+  color: #93c5fd
+}
+
+[data-theme="dark"] .rule-overview {
   background: linear-gradient(120deg, #1e293b, var(--card))
 }
 </style>

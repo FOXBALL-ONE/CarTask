@@ -998,7 +998,7 @@ useScopeRefresh(loadData);
 
 .btn--primary {
   background: var(--primary);
-  color: #fff;
+  color: var(--on-solid);
 }
 
 .btn--soft {
@@ -1026,17 +1026,17 @@ useScopeRefresh(loadData);
 }
 
 .notice {
-  background: var(--green-soft, #f0fdf4);
-  border: 1px solid var(--green, #059669);
+  background: var(--success-soft);
+  border: 1px solid var(--success);
   border-radius: 6px;
-  color: var(--green, #059669);
+  color: var(--success);
   font-size: 13px;
   margin: 0 0 14px;
   padding: 9px 12px;
 }
 
 .notice--error {
-  background: var(--red-soft, #fef2f2);
+  background: var(--danger-soft);
   border-color: var(--red);
   color: var(--red);
 }
@@ -1141,12 +1141,12 @@ table.table {
 }
 
 .tag--green {
-  background: var(--green-soft, #f0fdf4);
-  color: var(--green, #059669);
+  background: var(--success-soft);
+  color: var(--success);
 }
 
 .tag--green::before {
-  background: var(--green, #059669);
+  background: var(--success);
 }
 
 .tag--blue {
@@ -1159,16 +1159,16 @@ table.table {
 }
 
 .tag--orange {
-  background: var(--orange-soft, #fff7ed);
-  color: var(--orange, #ea580c);
+  background: var(--warning-soft);
+  color: var(--orange);
 }
 
 .tag--orange::before {
-  background: var(--orange, #ea580c);
+  background: var(--orange);
 }
 
 .tag--red {
-  background: var(--red-soft, #fef2f2);
+  background: var(--danger-soft);
   color: var(--red);
 }
 
@@ -1232,7 +1232,7 @@ table.table {
 .page-btn.active {
   background: var(--primary);
   border-color: var(--primary);
-  color: #fff;
+  color: var(--on-solid);
 }
 
 .page-btn:disabled {

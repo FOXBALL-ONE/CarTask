@@ -354,13 +354,13 @@ onMounted(loadHistory);
 }
 
 .tag--green {
-  background: #ecfdf5;
-  color: #059669
+  background: var(--success-soft);
+  color: var(--success)
 }
 
 .tag--red {
-  background: #fef2f2;
-  color: #dc2626
+  background: var(--danger-soft);
+  color: var(--danger)
 }
 
 .tag--blue {
@@ -369,7 +369,7 @@ onMounted(loadHistory);
 }
 
 .tag--gray {
-  background: #f4f4f5;
+  background: var(--neutral-soft);
   color: var(--text-sub)
 }
 
@@ -427,7 +427,7 @@ onMounted(loadHistory);
 .page-btn.active {
   background: var(--primary);
   border-color: var(--primary);
-  color: #fff
+  color: var(--on-solid)
 }
 
 .page-btn:disabled {

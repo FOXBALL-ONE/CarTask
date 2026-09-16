@@ -630,10 +630,10 @@ onBeforeUnmount(stopCountdown);
 
 .notice {
   align-items: center;
-  background: #fff7ed;
-  border: 1px solid #fed7aa;
+  background: var(--warning-soft);
+  border: 1px solid var(--warning-border);
   border-radius: 8px;
-  color: #9a3412;
+  color: var(--warning-text);
   display: flex;
   gap: 8px;
   margin-bottom: 16px;
@@ -698,7 +698,7 @@ onBeforeUnmount(stopCountdown);
   border-radius: 50%;
   bottom: 0;
   box-shadow: 0 2px 8px rgb(0 0 0 / 15%);
-  color: #fff;
+  color: var(--on-solid);
   cursor: pointer;
   display: flex;
   height: 36px;
@@ -999,7 +999,7 @@ onBeforeUnmount(stopCountdown);
 
 .btn--primary {
   background: var(--primary);
-  color: #fff;
+  color: var(--on-solid);
 }
 
 .btn--primary:disabled {
@@ -1023,7 +1023,7 @@ onBeforeUnmount(stopCountdown);
 }
 
 .form-success {
-  color: #059669;
+  color: var(--success);
   margin: 0 0 14px;
 }
 

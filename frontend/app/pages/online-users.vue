@@ -35,23 +35,6 @@
         </div>
       </article>
 
-      <article class="pulse-card">
-        <div class="pulse-card__top"><span class="card-kicker">PULSE WINDOW</span><span
-            class="pulse-card__time">{{ lastUpdatedLabel }}</span></div>
-        <div aria-hidden="true" class="pulse-visual">
-          <span class="pulse-visual__ring pulse-visual__ring--outer"/>
-          <span class="pulse-visual__ring pulse-visual__ring--inner"/>
-          <span class="pulse-visual__core"><span class="material-icons-outlined">sensors</span></span>
-        </div>
-        <p>服务端正在收集每一次已认证请求，在线状态不会写入业务数据库。</p>
-      </article>
-
-      <article class="snapshot-card">
-        <span class="card-kicker">SNAPSHOT</span>
-        <div class="snapshot-card__value"><strong>{{ capturedAtLabel }}</strong><span>最近采样</span></div>
-        <div class="snapshot-line"><span>刷新频率</span><b>2s</b></div>
-        <div class="snapshot-line"><span>在线定义</span><b>≤ {{ staleAfterSeconds }}s</b></div>
-      </article>
     </section>
 
     <section class="roster-panel">
@@ -103,21 +86,16 @@ interface OnlineResponse {
 const http = useHttp();
 const authStore = useAuthStore();
 const onlineUsers = ref<OnlineUser[]>([]);
-const capturedAt = ref("");
 const staleAfterSeconds = ref(10);
 const loading = ref(false);
 const errorMessage = ref("");
 let refreshTimer: ReturnType<typeof setInterval> | undefined;
-
-const lastUpdatedLabel = computed(() => capturedAt.value ? formatTime(capturedAt.value) : "等待采样");
-const capturedAtLabel = computed(() => capturedAt.value ? formatTime(capturedAt.value) : "—");
 
 async function loadOnlineUsers() {
   loading.value = true;
   try {
     const result = await http.get<OnlineResponse>("/online-users");
     onlineUsers.value = result.items || [];
-    capturedAt.value = result.captured_at || new Date().toISOString();
     staleAfterSeconds.value = result.stale_after_seconds || 10;
     errorMessage.value = "";
   } catch (error) {
@@ -129,14 +107,6 @@ async function loadOnlineUsers() {
 
 function initials(value: string) {
   return value.trim().slice(0, 2).toUpperCase() || "?";
-}
-
-function formatTime(value: string) {
-  return new Intl.DateTimeFormat("zh-CN", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit"
-  }).format(new Date(value));
 }
 
 function relativeTime(value: string) {
@@ -169,7 +139,13 @@ onBeforeUnmount(() => {
   --line: #d7e7e1;
   --mint: #dff7eb;
   --signal: #16a36b;
+  /* 实心色块（计数卡底色）与强调正文分开：深色下前者要保持深绿，后者必须提亮。 */
   --deep: #123c35;
+  --strong: #123c35;
+  --surface: var(--card);
+  --chip-bg: #f0f8f4;
+  --chip-border: #d4ebe0;
+  --chip-text: #33745b;
   min-height: 100%;
   padding: 30px 32px 42px;
   background: #f7fbf9;
@@ -209,10 +185,10 @@ onBeforeUnmount(() => {
 
 .heading-status {
   align-items: center;
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 999px;
-  color: var(--deep);
+  color: var(--strong);
   display: flex;
   font-size: 12px;
   gap: 8px;
@@ -221,7 +197,7 @@ onBeforeUnmount(() => {
 }
 
 .heading-status--error {
-  color: #b42318;
+  color: var(--danger-text);
 }
 
 .status-dot, .online-dot, .pulse-dot {
@@ -291,13 +267,13 @@ onBeforeUnmount(() => {
 .signal-grid {
   display: grid;
   gap: 14px;
-  grid-template-columns: minmax(260px, 1.15fr) minmax(270px, 1fr) minmax(220px, .8fr);
+  grid-template-columns: minmax(0, 1fr);
   margin: 0 auto 18px;
   max-width: 1240px;
 }
 
-.count-card, .pulse-card, .snapshot-card, .roster-panel {
-  background: #fff;
+.count-card, .roster-panel {
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 14px;
   overflow: hidden;
@@ -314,18 +290,19 @@ onBeforeUnmount(() => {
 .count-card__halo {
   border: 1px solid rgb(164 244 205 / 24%);
   border-radius: 50%;
-  height: 230px;
+  /* 卡片现在是整行宽，装饰弧要跟着放大，否则右侧会空掉。 */
+  height: 320px;
   position: absolute;
-  right: -58px;
-  top: -60px;
-  width: 230px;
+  right: -70px;
+  top: -140px;
+  width: 320px;
 }
 
 .count-card__halo::after {
   border: 1px solid rgb(164 244 205 / 16%);
   border-radius: 50%;
   content: "";
-  inset: 24px;
+  inset: 34px;
   position: absolute;
 }
 
@@ -373,124 +350,6 @@ onBeforeUnmount(() => {
 .pulse-dot {
   animation: blink 1.8s ease-in-out infinite;
   box-shadow: 0 0 0 4px rgb(93 226 157 / 14%);
-}
-
-.pulse-card {
-  min-height: 220px;
-  padding: 22px;
-  position: relative;
-}
-
-.pulse-card__top {
-  align-items: center;
-  display: flex;
-  justify-content: space-between;
-}
-
-.pulse-card__time {
-  color: var(--muted);
-  font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 11px;
-}
-
-.pulse-visual {
-  height: 123px;
-  margin: 2px auto 0;
-  position: relative;
-  width: 170px;
-}
-
-.pulse-visual__ring {
-  border: 1px solid #9fdfc0;
-  border-radius: 50%;
-  left: 50%;
-  position: absolute;
-  top: 50%;
-  transform: translate(-50%, -50%);
-}
-
-.pulse-visual__ring--outer {
-  animation: breathe 2.4s ease-in-out infinite;
-  height: 112px;
-  opacity: .55;
-  width: 112px;
-}
-
-.pulse-visual__ring--inner {
-  height: 76px;
-  opacity: .7;
-  width: 76px;
-}
-
-.pulse-visual__core {
-  align-items: center;
-  background: var(--mint);
-  border: 7px solid #fff;
-  border-radius: 50%;
-  box-shadow: 0 0 0 1px #a5e2c4;
-  color: var(--signal);
-  display: flex;
-  height: 52px;
-  justify-content: center;
-  left: 50%;
-  position: absolute;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  width: 52px;
-}
-
-.pulse-visual__core .material-icons-outlined {
-  font-size: 24px;
-}
-
-.pulse-card p {
-  color: var(--muted);
-  font-size: 11px;
-  line-height: 1.55;
-  margin: 0;
-  text-align: center;
-}
-
-.snapshot-card {
-  min-height: 220px;
-  padding: 22px;
-}
-
-.snapshot-card__value {
-  border-bottom: 1px solid var(--line);
-  display: grid;
-  gap: 4px;
-  padding: 20px 0 18px;
-}
-
-.snapshot-card__value strong {
-  color: var(--deep);
-  font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 25px;
-  letter-spacing: -.06em;
-}
-
-.snapshot-card__value span, .snapshot-line span {
-  color: var(--muted);
-  font-size: 11px;
-}
-
-.snapshot-line {
-  align-items: center;
-  border-bottom: 1px solid var(--line);
-  display: flex;
-  justify-content: space-between;
-  padding: 11px 0;
-}
-
-.snapshot-line:last-child {
-  border-bottom: 0;
-}
-
-.snapshot-line b {
-  color: var(--deep);
-  font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 12px;
 }
 
 .roster-panel {
@@ -580,7 +439,7 @@ onBeforeUnmount(() => {
 }
 
 .roster-identity strong {
-  color: var(--deep);
+  color: var(--strong);
   font-size: 13px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -593,10 +452,10 @@ onBeforeUnmount(() => {
 }
 
 .roster-role {
-  background: #f0f8f4;
-  border: 1px solid #d4ebe0;
+  background: var(--chip-bg);
+  border: 1px solid var(--chip-border);
   border-radius: 5px;
-  color: #33745b;
+  color: var(--chip-text);
   display: inline-flex;
   font-family: "SFMono-Regular", Consolas, monospace;
   font-size: 10px;
@@ -671,15 +530,8 @@ onBeforeUnmount(() => {
   }
 }
 
-@keyframes breathe {
-  50% {
-    opacity: .2;
-    transform: translate(-50%, -50%) scale(1.08);
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .spinning, .pulse-dot, .pulse-visual__ring--outer {
+  .spinning, .pulse-dot {
     animation: none;
   }
 }
@@ -687,18 +539,6 @@ onBeforeUnmount(() => {
 @media (max-width: 900px) {
   .presence-page {
     padding: 22px 18px 32px;
-  }
-
-  .signal-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .count-card {
-    grid-row: span 2;
-  }
-
-  .snapshot-card {
-    min-height: auto;
   }
 
   .roster-row {
@@ -720,14 +560,6 @@ onBeforeUnmount(() => {
     align-self: flex-start;
   }
 
-  .signal-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .count-card {
-    grid-row: auto;
-  }
-
   .roster-heading, .roster-list {
     padding-left: 15px;
     padding-right: 15px;
@@ -747,5 +579,46 @@ onBeforeUnmount(() => {
     padding-left: 15px;
     padding-right: 15px;
   }
+}
+
+/* ==========================================================================
+   深色：同一套绿调，明暗关系整体翻面
+   底色取偏绿的近黑而不是通用 --bg，卡片比底色抬起一级，浅绿填充改成深绿填充，
+   强调色提亮到能在深底上读出。--deep 是计数卡的实心品牌色块，两种主题下都保持深绿，
+   所以卡片内部的浅绿文字与装饰线一律不动。
+   ========================================================================== */
+[data-theme="dark"] .presence-page {
+  --ink: #eef5f2;
+  --muted: #93aaa3;
+  --line: #2a3833;
+  --mint: #17332a;
+  --signal: #4fd39a;
+  --strong: #eef5f2;
+  --surface: #1b2421;
+  --chip-bg: #17332a;
+  --chip-border: #2a3833;
+  --chip-text: #4fd39a;
+  background: #121a17;
+}
+
+/* 错误提示与错误心跳点沿用全局危险色，避免深色下留一块浅红底。 */
+[data-theme="dark"] .error-banner {
+  background: var(--danger-soft);
+  border-color: var(--danger-border);
+  color: var(--danger-text);
+}
+
+[data-theme="dark"] .heading-status--error .status-dot {
+  background: var(--danger);
+}
+
+[data-theme="dark"] .roster-avatar {
+  border-color: var(--line);
+}
+
+/* 序号与页脚在浅色下是低对比灰绿，深色下要跟着提亮一档才读得清。 */
+[data-theme="dark"] .roster-index,
+[data-theme="dark"] .roster-footer {
+  color: var(--muted);
 }
 </style>

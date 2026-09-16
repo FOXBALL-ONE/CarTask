@@ -390,7 +390,7 @@ onBeforeUnmount(stopProgressPolling);
 
 .button--primary {
   background: var(--primary);
-  color: #fff;
+  color: var(--on-solid);
 }
 
 .button .material-icons-outlined {
@@ -479,7 +479,7 @@ onBeforeUnmount(stopProgressPolling);
 }
 
 .feedback {
-  color: #059669;
+  color: var(--success);
   margin: 14px 0 0;
 }
 

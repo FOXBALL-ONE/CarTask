@@ -185,7 +185,7 @@ onBeforeUnmount(() => {
   align-items: center;
   background: var(--primary);
   border-radius: 12px;
-  color: #fff;
+  color: var(--on-solid);
   display: flex;
   flex: 0 0 52px;
   font-size: 24px;
@@ -212,10 +212,10 @@ onBeforeUnmount(() => {
 }
 
 .state-badge {
-  background: color-mix(in srgb, #059669 12%, var(--card));
+  background: color-mix(in srgb, var(--success) 12%, var(--card));
   border: 1px solid transparent;
   border-radius: 4px;
-  color: #059669;
+  color: var(--success);
   font-size: 11px;
   padding: 3px 9px;
 }
