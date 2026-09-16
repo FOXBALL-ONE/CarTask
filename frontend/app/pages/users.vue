@@ -699,118 +699,6 @@ useScopeRefresh(initialize);
   margin: 6px 16px 8px;
 }
 
-.department-row {
-  align-items: center;
-  background-color: transparent;
-  /* 每条导轨画在对应层级祖先展开箭头的中线上：左侧起始 8px + 箭头半宽 9px */
-  background-image: repeating-linear-gradient(to right, var(--border-strong) 0 1px, transparent 1px 16px);
-  background-position: 17px 0;
-  background-repeat: no-repeat;
-  background-size: calc(var(--dept-level, 0) * 16px) 100%;
-  border-radius: 6px;
-  display: flex;
-  margin: 0 8px;
-  min-height: 34px;
-  padding-left: calc(8px + var(--dept-level, 0) * 16px);
-  padding-right: 6px;
-  position: relative;
-  transition: background-color var(--tr);
-}
-
-.department-row__spacer {
-  flex: none;
-  width: 18px;
-}
-
-.department-row__toggle {
-  align-items: center;
-  background: transparent;
-  border: 0;
-  border-radius: 4px;
-  color: var(--text-mute);
-  cursor: pointer;
-  display: flex;
-  flex: none;
-  font: inherit;
-  height: 22px;
-  justify-content: center;
-  padding: 0;
-  width: 18px;
-}
-
-.department-row__toggle .material-icons-outlined {
-  font-size: 18px;
-  transition: transform var(--tr);
-}
-
-.department-row.expanded .department-row__toggle .material-icons-outlined {
-  transform: rotate(90deg);
-}
-
-.department-row__select {
-  align-items: center;
-  background: transparent;
-  border: 0;
-  color: var(--text-sub);
-  cursor: pointer;
-  display: flex;
-  flex: 1;
-  font: inherit;
-  gap: 7px;
-  min-width: 0;
-  padding: 7px 0 7px 3px;
-  text-align: left;
-}
-
-.department-row__select .material-icons-outlined {
-  color: var(--text-mute);
-  flex: none;
-  font-size: 16px;
-}
-
-.department-row--group .department-name {
-  color: var(--text);
-  font-weight: 500;
-}
-
-.department-row--group .department-row__select .material-icons-outlined {
-  color: var(--text-sub);
-}
-
-.department-row:hover {
-  background-color: var(--bg);
-}
-
-.department-row:hover .department-row__select {
-  color: var(--text);
-}
-
-.department-row.active {
-  background-color: var(--primary-soft);
-}
-
-.department-row.active::before {
-  background: var(--primary);
-  border-radius: 0 2px 2px 0;
-  content: "";
-  height: 18px;
-  left: 0;
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 3px;
-}
-
-.department-row.active .department-row__select, .department-row.active .department-name, .department-row.active .department-row__select .material-icons-outlined, .department-row.active .department-row__toggle {
-  color: var(--primary);
-}
-
-.department-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .department-empty {
   color: var(--text-mute);
   font-size: 12px;
@@ -1204,5 +1092,132 @@ useScopeRefresh(initialize);
   color: var(--text-sub);
   font-size: 11px;
   font-weight: 550;
+}
+</style>
+
+<style>
+/*
+ * 部门树的行由本文件内的 DepartmentNode 组件产出，而它是用渲染函数（h）写的，
+ * 不走模板编译：scoped 的作用域属性只会被 Vue 加到子组件的根元素上（这里是一个
+ * 无类名的包裹 div），行本身拿不到 data-v-*。结果就是 .department-row 那一整组
+ * 规则（flex、缩进、导轨、悬停与选中态）对所有部门节点都不生效，只剩「全部部门」
+ * 那一行有样式——看起来就是整列贴在最左边、没有树形层级。
+ *
+ * 所以这些规则只能写成不带 scoped 的全局样式。全部锚定在 .department-panel 下：
+ * 这个类只有本页用（departments.vue 也有 .department-name，不锚定会互相串味）。
+ */
+.department-panel .department-row {
+  align-items: center;
+  background-color: transparent;
+  /* 每条导轨画在对应层级祖先展开箭头的中线上：左侧起始 8px + 箭头半宽 9px */
+  background-image: repeating-linear-gradient(to right, var(--border-strong) 0 1px, transparent 1px 16px);
+  background-position: 17px 0;
+  background-repeat: no-repeat;
+  background-size: calc(var(--dept-level, 0) * 16px) 100%;
+  border-radius: 6px;
+  display: flex;
+  margin: 0 8px;
+  min-height: 34px;
+  padding-left: calc(8px + var(--dept-level, 0) * 16px);
+  padding-right: 6px;
+  position: relative;
+  transition: background-color var(--tr);
+}
+
+.department-panel .department-row__spacer {
+  flex: none;
+  width: 18px;
+}
+
+.department-panel .department-row__toggle {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  color: var(--text-mute);
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  font: inherit;
+  height: 22px;
+  justify-content: center;
+  padding: 0;
+  width: 18px;
+}
+
+.department-panel .department-row__toggle .material-icons-outlined {
+  font-size: 18px;
+  transition: transform var(--tr);
+}
+
+.department-panel .department-row.expanded .department-row__toggle .material-icons-outlined {
+  transform: rotate(90deg);
+}
+
+.department-panel .department-row__select {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: var(--text-sub);
+  cursor: pointer;
+  display: flex;
+  flex: 1;
+  font: inherit;
+  gap: 7px;
+  min-width: 0;
+  padding: 7px 0 7px 3px;
+  text-align: left;
+}
+
+.department-panel .department-row__select .material-icons-outlined {
+  color: var(--text-mute);
+  flex: none;
+  font-size: 16px;
+}
+
+.department-panel .department-row--group .department-name {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.department-panel .department-row--group .department-row__select .material-icons-outlined {
+  color: var(--text-sub);
+}
+
+.department-panel .department-row:hover {
+  background-color: var(--bg);
+}
+
+.department-panel .department-row:hover .department-row__select {
+  color: var(--text);
+}
+
+.department-panel .department-row.active {
+  background-color: var(--primary-soft);
+}
+
+.department-panel .department-row.active::before {
+  background: var(--primary);
+  border-radius: 0 2px 2px 0;
+  content: "";
+  height: 18px;
+  left: 0;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+}
+
+.department-panel .department-row.active .department-row__select,
+.department-panel .department-row.active .department-name,
+.department-panel .department-row.active .department-row__select .material-icons-outlined,
+.department-panel .department-row.active .department-row__toggle {
+  color: var(--primary);
+}
+
+.department-panel .department-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>
