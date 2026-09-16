@@ -27,25 +27,21 @@
         <article class="overview-metric overview-metric--cpu">
           <div class="overview-metric__label"><span class="material-icons-outlined">memory</span>系统 CPU</div>
           <strong>{{ formatPercent(snapshot.system.system_cpu_load) }}</strong>
-          <div class="metric-track"><span :style="{ width: usageWidth(snapshot.system.system_cpu_load) }"/></div>
           <small>应用进程 {{ formatPercent(snapshot.system.process_cpu_load) }}</small>
         </article>
         <article class="overview-metric overview-metric--memory">
           <div class="overview-metric__label"><span class="material-icons-outlined">dns</span>物理内存</div>
           <strong>{{ formatBytes(snapshot.system.physical_memory.used) }}</strong>
-          <div class="metric-track"><span :style="{ width: memoryWidth(snapshot.system.physical_memory) }"/></div>
           <small>总计 {{ formatBytes(snapshot.system.physical_memory.max) }}</small>
         </article>
         <article class="overview-metric overview-metric--heap">
           <div class="overview-metric__label"><span class="material-icons-outlined">data_object</span>JVM 堆内存</div>
           <strong>{{ formatBytes(snapshot.jvm.heap_memory.used) }}</strong>
-          <div class="metric-track"><span :style="{ width: memoryWidth(snapshot.jvm.heap_memory) }"/></div>
           <small>最大 {{ formatBytes(snapshot.jvm.heap_memory.max) }}</small>
         </article>
         <article class="overview-metric overview-metric--gc">
           <div class="overview-metric__label"><span class="material-icons-outlined">auto_delete</span>GC 累计耗时</div>
           <strong>{{ formatDuration(gcTime) }}</strong>
-          <div class="metric-track"><span :style="{ width: gcActivityWidth }"/></div>
           <small>{{ gcCount.toLocaleString("zh-CN") }} 次回收</small>
         </article>
       </section>
@@ -330,7 +326,6 @@ let refreshTimer: ReturnType<typeof setInterval> | undefined;
 
 const gcCount = computed(() => snapshot.value?.garbageCollectors.reduce((total, collector) => total + Math.max(0, collector.collection_count), 0) ?? 0);
 const gcTime = computed(() => snapshot.value?.garbageCollectors.reduce((total, collector) => total + Math.max(0, collector.collection_time_millis), 0) ?? 0);
-const gcActivityWidth = computed(() => `${Math.min(100, Math.max(4, gcCount.value ? Math.log10(gcCount.value + 1) * 23 : 4))}%`);
 
 async function loadSnapshot() {
   loading.value = true;
@@ -353,10 +348,6 @@ async function loadSnapshot() {
 function memoryWidth(usage: UsageData) {
   const limit = usage.max > 0 ? usage.max : usage.committed;
   return limit > 0 ? `${Math.min(100, Math.max(0, usage.used / limit * 100))}%` : "0%";
-}
-
-function usageWidth(value: number | null) {
-  return value === null ? "0%" : `${Math.min(100, Math.max(0, value * 100))}%`;
 }
 
 function formatBytes(value: number | null) {
@@ -631,18 +622,6 @@ onBeforeUnmount(() => {
   height: 100%;
   min-width: 2px;
   transition: width .35s ease;
-}
-
-.overview-metric--memory .metric-track span {
-  background: #0891b2;
-}
-
-.overview-metric--heap .metric-track span {
-  background: #7c3aed;
-}
-
-.overview-metric--gc .metric-track span {
-  background: #d97706;
 }
 
 .monitor-grid {
