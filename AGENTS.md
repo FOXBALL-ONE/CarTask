@@ -1,13 +1,16 @@
-# ShopMall Project Instructions
+# CarTask Project Instructions
 
 ## Git Commit Conventions
 
 - Write Git commit subjects and body descriptions in Simplified Chinese. Conventional Commit type and
   scope prefixes, such as `feat(frontend):`, may remain in English.
 
+## IDE Integration Priority
+
+- For builds, retrieving instance log output, and database operations, prefer IntelliJ IDEA MCP capabilities.
+
 ## Frontend Directory Responsibilities
 
-- `AdminPanelUI/` is the administration frontend used by administrators and internal operators.
 - `frontend/` is the customer-facing frontend used by ShopMall customers.
 - Place frontend changes in the directory matching the intended audience; do not treat these two
   applications as interchangeable.
