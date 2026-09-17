@@ -23,6 +23,7 @@ import top.foxball.cartask.scope.ScopeQuerySupport
 import top.foxball.cartask.service.DashboardSpotStatsService
 import top.foxball.cartask.service.DepartmentService
 import top.foxball.cartask.service.FileService
+import top.foxball.cartask.service.GeoIpService
 import top.foxball.cartask.service.PositionService
 import top.foxball.cartask.shared.*
 import java.math.BigDecimal
@@ -56,6 +57,7 @@ class ParkingApiController(
     private val scopeQuerySupport: ScopeQuerySupport,
     private val scopeGuard: ScopeGuard,
     private val dashboardSpotStatsService: DashboardSpotStatsService,
+    private val geoIpService: GeoIpService,
 ) {
     @GetMapping("/depts")
     @PreAuthorize("hasAuthority('department:read')")
@@ -1379,11 +1381,7 @@ class ParkingApiController(
                 userAgent.contains("Linux", true) -> "Linux"
                 else -> null
             }
-            val location = it.sourceIp?.let { ip ->
-                val privateNetwork = ip == "127.0.0.1" || ip == "::1" || ip.startsWith("10.") ||
-                        ip.startsWith("192.168.") || Regex("^172\\.(1[6-9]|2[0-9]|3[0-1])\\.").containsMatchIn(ip)
-                if (privateNetwork) "内网" else "外网"
-            }
+            val location = geoIpService.getLocation(it.sourceIp)
             val message = when (it.action) {
                 "AUTH_LOGIN_SUCCEEDED" -> "登录成功"
                 "AUTH_LOGIN_FAILED" -> "登录失败"

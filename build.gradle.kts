@@ -46,6 +46,7 @@ dependencies {
         // SAXNotRecognizedException、整个日志配置静默失效。此处排除以保住默认 JAXP 实现。
         exclude(group = "pull-parser", module = "pull-parser")
     }
+    implementation("org.lionsoul:ip2region:2.7.0")
     compileOnly("org.projectlombok:lombok")
     developmentOnly("org.springframework.boot:spring-boot-devtools")
     runtimeOnly("org.postgresql:postgresql")

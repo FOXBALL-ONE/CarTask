@@ -109,3 +109,7 @@ keytop:
   car-cap-info-overlap-window: ${KEYTOP_CAR_CAP_INFO_OVERLAP_WINDOW:30m}
   car-cap-info-reconciliation-window: ${KEYTOP_CAR_CAP_INFO_RECONCILIATION_WINDOW:72h}
   car-cap-info-reconciliation-cron: ${KEYTOP_CAR_CAP_INFO_RECONCILIATION_CRON:0 30 3 * * *}
+
+amap:
+  api:
+    key: ${AMAP_API_KEY:}
