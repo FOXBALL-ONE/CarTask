@@ -2,11 +2,11 @@ package top.foxball.cartask.task
 
 import jakarta.annotation.PreDestroy
 import org.slf4j.LoggerFactory
-import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.event.ApplicationReadyEvent
 import org.springframework.context.event.EventListener
 import org.springframework.scheduling.TaskScheduler
+import org.springframework.scheduling.annotation.EnableScheduling
 import org.springframework.scheduling.support.CronTrigger
 import org.springframework.stereotype.Component
 import org.springframework.transaction.event.TransactionPhase
@@ -24,28 +24,22 @@ class SyncScheduleScheduler(
     private val catalog: SyncScheduleCatalog,
     private val syncScheduleService: SyncScheduleService,
     private val maintenanceGate: MaintenanceGate,
-    private val taskSchedulerProvider: ObjectProvider<TaskScheduler>,
+    private val taskScheduler: TaskScheduler,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
     private val jobs = ConcurrentHashMap<String, ScheduledFuture<*>>()
     
     @EventListener(ApplicationReadyEvent::class)
-    
-    
+
+
     fun scheduleAll() {
-        val scheduler = taskSchedulerProvider.ifAvailable
-        if (scheduler == null) {
-            log.warn("容器里没有 TaskScheduler，同步任务不会按周期自动触发")
-            return
-        }
-        catalog.definitions.forEach { register(it.key, scheduler) }
+        catalog.definitions.forEach { register(it.key) }
     }
-    
-    
+
+
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     fun onScheduleChanged(event: SyncScheduleChangedEvent) {
-        val scheduler = taskSchedulerProvider.ifAvailable ?: return
-        register(event.taskKey, scheduler)
+        register(event.taskKey)
     }
     
     @PreDestroy
@@ -56,8 +50,8 @@ class SyncScheduleScheduler(
         jobs.clear()
     }
     
-    
-    private fun register(taskKey: String, scheduler: TaskScheduler) {
+
+    private fun register(taskKey: String) {
         val definition = catalog.find(taskKey)
         if (definition == null) {
             log.warn("同步任务 {} 不在可调周期目录里，跳过注册", taskKey)
@@ -71,7 +65,7 @@ class SyncScheduleScheduler(
             return
         }
         jobs.remove(taskKey)?.cancel(false)
-        val scheduled = scheduler.schedule({ runGuarded(definition) }, trigger)
+        val scheduled = taskScheduler.schedule({ runGuarded(definition) }, trigger)
         if (scheduled == null) {
             log.warn("同步任务「{}」注册失败，调度器没有返回任务句柄", definition.name)
             return

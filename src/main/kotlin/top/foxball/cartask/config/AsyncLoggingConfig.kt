@@ -2,7 +2,7 @@ package top.foxball.cartask.config
 
 /**
  * AsyncLoggingConfig 组件。
- * 
+ *
  * 负责实现该文件声明的配置、领域模型或基础设施能力。
  */
 
@@ -25,15 +25,15 @@ import java.util.concurrent.ThreadPoolExecutor
  */
 class AsyncLoggingConfig {
     @Bean("operationLogExecutor")
-            
-            
+
+
             /**
              * operationLogExecutor 函数：执行与该组件职责相关的业务操作。
              * 参数和返回值遵循调用方与领域服务之间的约定。
              */
     fun operationLogExecutor(properties: LoggingProperties): ThreadPoolTaskExecutor = ThreadPoolTaskExecutor().apply {
-        corePoolSize = 2
-        maxPoolSize = 8
+        corePoolSize = 4
+        maxPoolSize = 16
         queueCapacity = properties.queueSize.coerceAtLeast(128)
         keepAliveSeconds = 60
         setThreadNamePrefix("operation-log-")
@@ -60,6 +60,17 @@ class AsyncLoggingConfig {
                 }
             }
         }
+        setRejectedExecutionHandler(ThreadPoolExecutor.CallerRunsPolicy())
+        initialize()
+    }
+
+    @Bean("syncTaskExecutor")
+    fun syncTaskExecutor(): ThreadPoolTaskExecutor = ThreadPoolTaskExecutor().apply {
+        corePoolSize = 3
+        maxPoolSize = 8
+        queueCapacity = 256
+        keepAliveSeconds = 60
+        setThreadNamePrefix("sync-task-")
         setRejectedExecutionHandler(ThreadPoolExecutor.CallerRunsPolicy())
         initialize()
     }

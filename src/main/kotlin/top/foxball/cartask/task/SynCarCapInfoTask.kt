@@ -2,7 +2,6 @@ package top.foxball.cartask.task
 
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
-import org.springframework.transaction.annotation.Transactional
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.ObjectMapper
 import top.foxball.cartask.audit.AuditRequestContext
@@ -60,7 +59,11 @@ class SynCarCapInfoTask(
 ) {
     
     
-    @Transactional(noRollbackFor = [RuntimeException::class])
+    // 注意：这三个入口不能包 @Transactional——内部会分页调用科拓接口、逐条下载抓拍图片，
+    // 都是慢速网络 IO；如果外层持有一个数据库事务，这条连接会被同步过程占住几十秒到几分钟，
+    // 在 HikariCP 连接数有限的情况下会把登录等其它请求一起饿死。每条记录的 save() 本身就是
+    // 独立提交的小事务，且调用方本就接受"处理到哪算哪、不整体回滚"（历史上这里标的是
+    // noRollbackFor），拆开完全等价。
     fun synCarCapInfoList() {
         AuditRequestContext.withRun {
             try {
@@ -72,13 +75,11 @@ class SynCarCapInfoTask(
             }
         }
     }
-    
-    
-    @Transactional(noRollbackFor = [RuntimeException::class])
+
+
     fun synchronize(): CarCapInfoSyncResult = executeIncremental(SyncTaskRun.Trigger.MANUAL)
-    
-    
-    @Transactional(noRollbackFor = [RuntimeException::class])
+
+
     fun reconcileCarCapInfoList() {
         AuditRequestContext.withRun {
             try {
@@ -131,7 +132,7 @@ class SynCarCapInfoTask(
     }
     
     
-    @Transactional(readOnly = true)
+    // 同样不能包事务：内部会调科拓接口，理由见 synCarCapInfoList 上的注释。
     fun previewSynchronization(): CarCapInfoSyncPreview {
         if (!executionLock.tryLock()) {
             throw VehicleAccessRecordSyncInProgressException()
