@@ -21,7 +21,7 @@
         </div>
       </header>
       <div class="card__body card__body--filters">
-        <div class="toolbar"><input v-model.trim="currentFilters.keyword" :placeholder="activeTab === 'op' ? '操作人 / 描述' : '账号 / IP'" class="input"
+        <div class="toolbar"><input v-model.trim="currentFilters.keyword" :placeholder="activeTab === 'op' ? '操作人 / 描述' : '账号 / IP / 地点'" class="input"
                                     type="search"
                                     @keyup.enter="search"><select v-if="activeTab === 'op'"
                                                                   v-model="operationFilters.module" aria-label="日志模块"
@@ -171,7 +171,7 @@ const filteredOperationLogs = computed(() => {
 });
 const filteredLoginLogs = computed(() => {
   const keyword = loginFilters.keyword.toLowerCase();
-  return loginLogs.value.filter((log) => (!keyword || `${log.user}${log.ip || ""}`.toLowerCase().includes(keyword)) && (!loginFilters.status || log.status === loginFilters.status));
+  return loginLogs.value.filter((log) => (!keyword || `${log.user}${log.ip || ""}${log.location || ""}`.toLowerCase().includes(keyword)) && (!loginFilters.status || log.status === loginFilters.status));
 });
 const activeRows = computed(() => activeTab.value === "op" ? filteredOperationLogs.value : filteredLoginLogs.value);
 const activeTotal = computed(() => activeTab.value === "op" ? operationTotal.value : loginTotal.value);
