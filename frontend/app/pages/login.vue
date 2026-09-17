@@ -11,7 +11,6 @@
         </div>
         <div class="login__brand">
           <div id="loginTitle" class="login__title">{{ sysName }}</div>
-          <p class="login__subtitle">车辆出入管理平台</p>
         </div>
       </header>
 
@@ -215,7 +214,7 @@ const router = useRouter();
 const authStore = useAuthStore();
 
 // 系统名称（可由系统设置修改），与原版 localStorage.sysName 逻辑一致。
-const sysName = ref("Admin Pro");
+const sysName = ref("福清市车务管理系统");
 const form = reactive({
   username: "",
   password: "",

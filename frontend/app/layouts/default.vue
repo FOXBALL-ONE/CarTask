@@ -99,7 +99,7 @@ const sidebarCollapsed = ref(false);
 const mobileSidebarOpen = ref(false);
 const userMenuOpen = ref(false);
 const searchQuery = ref("");
-const systemName = ref("Admin Pro");
+const systemName = ref("福清市车务管理系统");
 const userName = computed(() => authStore.user?.username || "超级管理员");
 const userRole = computed(() => authStore.user?.role || "admin");
 const userAvatar = computed(() => authStore.avatar);
