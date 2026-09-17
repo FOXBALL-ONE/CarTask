@@ -1581,17 +1581,17 @@ class ParkingApiController(
         val accessRecords = accessRecordRepository.findAll(
             Specification.where(scopeQuerySupport.accessRecordSpec(scope)).and(todaySpec),
         )
-        val inoutLabels = listOf("00:00", "04:00", "08:00", "12:00", "16:00", "20:00")
+        val inoutLabels = (0..23).map { String.format("%02d:00", it) }
         val inoutTrend = Trend(
             inoutLabels, listOf(
                 Series(
                     "进场",
-                    inoutLabels.mapIndexed { index, _ -> accessRecords.count { it.inAndOut == AccessRecord.InAndOut.IN && it.inAndOutTime.hour / 4 == index } },
+                    inoutLabels.mapIndexed { index, _ -> accessRecords.count { it.inAndOut == AccessRecord.InAndOut.IN && it.inAndOutTime.hour == index } },
                     "#38BDF8"
                 ),
                 Series(
                     "出场",
-                    inoutLabels.mapIndexed { index, _ -> accessRecords.count { it.inAndOut == AccessRecord.InAndOut.OUT && it.inAndOutTime.hour / 4 == index } },
+                    inoutLabels.mapIndexed { index, _ -> accessRecords.count { it.inAndOut == AccessRecord.InAndOut.OUT && it.inAndOutTime.hour == index } },
                     "#6EE7B7"
                 ),
             )
