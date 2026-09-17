@@ -39,7 +39,7 @@ out/
 
 ### Kotlin ###
 .kotlin
-/.env
+/.e
 # 配置引导写出的口令与密钥备份，以及填到一半的引导草稿，都不入库
 /.env.bak.*
 /.setup-draft.json
@@ -52,4 +52,4 @@ out/
 /.codex/
 /.claude/
 /.mcp.json
-/.en1
+/.env
