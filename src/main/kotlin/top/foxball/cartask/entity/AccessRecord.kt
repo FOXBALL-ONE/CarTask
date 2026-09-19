@@ -141,6 +141,7 @@ class AccessRecord {
     }
     
     enum class PhotoSyncStatus {
+        PENDING,
         LOCAL,
         FAILED,
         NOT_AVAILABLE,

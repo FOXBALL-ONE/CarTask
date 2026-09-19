@@ -14,8 +14,8 @@ import top.foxball.cartask.keytop.KeytopProperties
 import top.foxball.cartask.keytop.KeytopService
 import top.foxball.cartask.repository.AccessRecordRepository
 import top.foxball.cartask.repository.ParkingPlateRepository
-import top.foxball.cartask.repository.SyncCheckpointRepository
 import top.foxball.cartask.service.FileService
+import top.foxball.cartask.service.SyncCheckpointService
 import top.foxball.cartask.service.SyncTaskHistoryService
 import top.foxball.cartask.service.SyncTaskProgressService
 import top.foxball.cartask.service.SyncTaskRunCommand
@@ -52,7 +52,7 @@ class SynCarCapInfoTask(
     private val objectMapper: ObjectMapper,
     private val keytopProperties: KeytopProperties,
     private val fileService: FileService,
-    private val syncCheckpointRepository: SyncCheckpointRepository,
+    private val syncCheckpointService: SyncCheckpointService,
     private val syncTaskHistoryService: SyncTaskHistoryService,
     private val syncTaskProgressService: SyncTaskProgressService = SyncTaskProgressService(),
     private val parkingPlateRepository: ParkingPlateRepository,
@@ -140,7 +140,7 @@ class SynCarCapInfoTask(
         try {
             validateSynchronizationConfiguration()
             val syncEndTime = LocalDateTime.now()
-            val checkpoint = syncCheckpointRepository.findFirstBySyncKey(SYNC_KEY)
+            val checkpoint = syncCheckpointService.find(SYNC_KEY)
             val checkpointTime = checkpoint?.cursorTime
             val startTime = incrementalStartTime(checkpointTime, syncEndTime)
             val response = keytopService.getCarInoutInfo(
@@ -165,7 +165,7 @@ class SynCarCapInfoTask(
         }
     }
     
-    
+
     private fun synchronizeIncrementally(): CarCapInfoSyncResult {
         if (!executionLock.tryLock()) {
             throw VehicleAccessRecordSyncInProgressException()
@@ -173,21 +173,20 @@ class SynCarCapInfoTask(
         try {
             validateSynchronizationConfiguration()
             val syncEndTime = LocalDateTime.now()
-            val checkpoint = syncCheckpointRepository.findBySyncKey(SYNC_KEY)
-                ?: SyncCheckpoint().apply { syncKey = SYNC_KEY }
+            val checkpoint = syncCheckpointService.loadOrCreate(SYNC_KEY)
             val startTime = incrementalStartTime(checkpoint.cursorTime, syncEndTime)
             val batchId = UUID.randomUUID().toString()
             checkpoint.status = SyncCheckpoint.Status.RUNNING
             checkpoint.lastBatchId = batchId
             checkpoint.lastError = null
-            syncCheckpointRepository.save(checkpoint)
+            syncCheckpointService.save(checkpoint)
             val result = synchronizeRange(startTime, syncEndTime, TASK_KEY)
             checkpoint.cursorTime = syncEndTime
             checkpoint.cursorExternalId = null
             checkpoint.status = SyncCheckpoint.Status.SUCCESS
             checkpoint.lastSuccessAt = LocalDateTime.now()
             checkpoint.lastError = null
-            syncCheckpointRepository.save(checkpoint)
+            syncCheckpointService.save(checkpoint)
             logger.info(
                 "车辆进出记录同步完成：处理 {} 条，查询区间：{} 至 {}",
                 result.processedCount,
@@ -202,11 +201,10 @@ class SynCarCapInfoTask(
                 cursorTime = requireNotNull(checkpoint.cursorTime),
             )
         } catch (exception: RuntimeException) {
-            val checkpoint = syncCheckpointRepository.findBySyncKey(SYNC_KEY)
-            if (checkpoint != null) {
+            syncCheckpointService.find(SYNC_KEY)?.let { checkpoint ->
                 checkpoint.status = SyncCheckpoint.Status.FAILED
                 checkpoint.lastError = exception.message?.take(2048) ?: exception.javaClass.simpleName
-                syncCheckpointRepository.save(checkpoint)
+                syncCheckpointService.save(checkpoint)
             }
             throw exception
         } finally {
@@ -223,9 +221,8 @@ class SynCarCapInfoTask(
             validateSynchronizationConfiguration()
             val syncEndTime = LocalDateTime.now()
             val startTime = syncEndTime.minus(keytopProperties.carCapInfoReconciliationWindow)
-            val checkpoint = syncCheckpointRepository.findBySyncKey(SYNC_KEY)
-            if (checkpoint == null) {
-                syncCheckpointRepository.save(SyncCheckpoint().apply { syncKey = SYNC_KEY })
+            if (syncCheckpointService.find(SYNC_KEY) == null) {
+                syncCheckpointService.save(SyncCheckpoint().apply { syncKey = SYNC_KEY })
             }
             val result = synchronizeRange(startTime, syncEndTime, RECONCILIATION_TASK_KEY)
             logger.info(
@@ -248,50 +245,57 @@ class SynCarCapInfoTask(
     
     
     private fun synchronizeRange(startTime: LocalDateTime, syncEndTime: LocalDateTime, taskKey: String): ProcessResult {
-        retryFailedPhotos()
-        val firstPage = keytopService.getCarInoutInfo(
-            pageIndex = 1,
-            pageSize = keytopProperties.carCapInfoPageSize,
-            startTime = startTime,
-            endTime = syncEndTime,
-        )
-        require(firstPage.code == 0) {
-            "Keytop 车辆进出接口返回失败：${firstPage.code ?: "未知"} ${firstPage.message.orEmpty()}".trim()
-        }
-        val firstData = parseData(firstPage.data)
-        val totalCount = firstData.totalCount
-        val pages = if (totalCount != null) {
-            ceil(totalCount.toDouble() / keytopProperties.carCapInfoPageSize).toInt().coerceAtLeast(1)
-        } else {
-            1
-        }
-        val seen = mutableMapOf<String, AccessRecord>()
-        var result = processRecords(firstData.records, seen)
-        var synchronizedCount = result.processedCount
-        syncTaskProgressService.update(taskKey, synchronizedCount, totalCount)
-        var localPhotoCount = result.localPhotoCount
-        var failedPhotoCount = result.failedPhotoCount
-        var pageIndex = 2
-        while (pageIndex <= pages || (totalCount == null && firstData.records.size >= keytopProperties.carCapInfoPageSize)) {
-            val response = keytopService.getCarInoutInfo(
-                pageIndex = pageIndex,
+        VehiclePhotoDownloadCoordinator(
+            concurrency = keytopProperties.carCapInfoPhotoDownloadConcurrency,
+            startInterval = keytopProperties.carCapInfoPhotoDownloadInterval,
+            fileService = fileService,
+            accessRecordRepository = accessRecordRepository,
+        ).use { coordinator ->
+            retryFailedPhotos(coordinator)
+            val firstPage = keytopService.getCarInoutInfo(
+                pageIndex = 1,
                 pageSize = keytopProperties.carCapInfoPageSize,
                 startTime = startTime,
                 endTime = syncEndTime,
             )
-            require(response.code == 0) {
-                "Keytop 车辆进出接口第 ${pageIndex} 页返回失败：${response.code ?: "未知"} ${response.message.orEmpty()}".trim()
+            require(firstPage.code == 0) {
+                "Keytop 车辆进出接口返回失败：${firstPage.code ?: "未知"} ${firstPage.message.orEmpty()}".trim()
             }
-            val data = parseData(response.data)
-            result = processRecords(data.records, seen)
-            synchronizedCount += result.processedCount
+            val firstData = parseData(firstPage.data)
+            val totalCount = firstData.totalCount
+            val pages = if (totalCount != null) {
+                ceil(totalCount.toDouble() / keytopProperties.carCapInfoPageSize).toInt().coerceAtLeast(1)
+            } else {
+                1
+            }
+            val seen = mutableMapOf<String, AccessRecord>()
+            var result = processRecords(firstData.records, seen, coordinator)
+            var synchronizedCount = result.processedCount
             syncTaskProgressService.update(taskKey, synchronizedCount, totalCount)
-            localPhotoCount += result.localPhotoCount
-            failedPhotoCount += result.failedPhotoCount
-            if (totalCount == null && data.records.size < keytopProperties.carCapInfoPageSize) break
-            pageIndex++
+            var localPhotoCount = result.localPhotoCount
+            var failedPhotoCount = result.failedPhotoCount
+            var pageIndex = 2
+            while (pageIndex <= pages || (totalCount == null && firstData.records.size >= keytopProperties.carCapInfoPageSize)) {
+                val response = keytopService.getCarInoutInfo(
+                    pageIndex = pageIndex,
+                    pageSize = keytopProperties.carCapInfoPageSize,
+                    startTime = startTime,
+                    endTime = syncEndTime,
+                )
+                require(response.code == 0) {
+                    "Keytop 车辆进出接口第 ${pageIndex} 页返回失败：${response.code ?: "未知"} ${response.message.orEmpty()}".trim()
+                }
+                val data = parseData(response.data)
+                result = processRecords(data.records, seen, coordinator)
+                synchronizedCount += result.processedCount
+                syncTaskProgressService.update(taskKey, synchronizedCount, totalCount)
+                localPhotoCount += result.localPhotoCount
+                failedPhotoCount += result.failedPhotoCount
+                if (totalCount == null && data.records.size < keytopProperties.carCapInfoPageSize) break
+                pageIndex++
+            }
+            return ProcessResult(synchronizedCount, localPhotoCount, failedPhotoCount)
         }
-        return ProcessResult(synchronizedCount, localPhotoCount, failedPhotoCount)
     }
     
     
@@ -345,10 +349,10 @@ class SynCarCapInfoTask(
     private fun processRecords(
         records: List<JsonNode>,
         seen: MutableMap<String, AccessRecord>,
+        coordinator: VehiclePhotoDownloadCoordinator,
     ): ProcessResult {
         var processed = 0
-        var localPhotoCount = 0
-        var failedPhotoCount = 0
+        val photoTasks = mutableListOf<VehiclePhotoDownloadCoordinator.PhotoDownloadTask>()
         val platesByNormalizedNumber = parkingPlateRepository
             .findAll()
             .groupBy { PlateNumbers.normalize(it.plate) }
@@ -362,7 +366,12 @@ class SynCarCapInfoTask(
                 ?: accessRecordRepository.findBySourceRecordId(key)
                 ?: accessRecordRepository.findByIdentity(record.carNumber, record.inAndOut, record.inAndOutTime)
             val stored = if (existing == null) {
-                applyPhoto(record, importPhoto(record))
+                record.photoSyncStatus = if (record.sourcePhotoUrl?.trim().isNullOrBlank()) {
+                    AccessRecord.PhotoSyncStatus.NOT_AVAILABLE
+                } else {
+                    AccessRecord.PhotoSyncStatus.PENDING
+                }
+                record.photoUrl = record.sourcePhotoUrl
                 accessRecordRepository.save(record)
                 seen[key] = record
                 record
@@ -381,8 +390,15 @@ class SynCarCapInfoTask(
                 existing.gateName = record.gateName
                 val sourceChanged = existing.sourcePhotoUrl != record.sourcePhotoUrl
                 existing.sourcePhotoUrl = record.sourcePhotoUrl
-                if (sourceChanged || existing.photoSyncStatus != AccessRecord.PhotoSyncStatus.LOCAL) {
-                    applyPhoto(existing, importPhoto(existing))
+                if (sourceChanged && record.sourcePhotoUrl?.trim().isNullOrBlank()) {
+                    existing.photoSyncStatus = AccessRecord.PhotoSyncStatus.NOT_AVAILABLE
+                    existing.photoUrl = record.sourcePhotoUrl
+                } else if (sourceChanged || existing.photoSyncStatus !in setOf(
+                        AccessRecord.PhotoSyncStatus.LOCAL,
+                        AccessRecord.PhotoSyncStatus.PENDING
+                    )) {
+                    existing.photoSyncStatus = AccessRecord.PhotoSyncStatus.PENDING
+                    existing.photoUrl = record.sourcePhotoUrl
                 }
                 existing.feeAmount = record.feeAmount
                 existing.recordStatus = record.recordStatus
@@ -397,9 +413,19 @@ class SynCarCapInfoTask(
                 parkingPlateRepository.save(plate)
             }
             processed++
-            if (stored.photoSyncStatus == AccessRecord.PhotoSyncStatus.LOCAL) localPhotoCount++
-            if (stored.photoSyncStatus == AccessRecord.PhotoSyncStatus.FAILED) failedPhotoCount++
+            if (stored.photoSyncStatus == AccessRecord.PhotoSyncStatus.PENDING) {
+                photoTasks.add(
+                    VehiclePhotoDownloadCoordinator.PhotoDownloadTask(
+                        recordId = requireNotNull(stored.id),
+                        sourcePhotoUrl = stored.sourcePhotoUrl,
+                        plateNumber = stored.carNumber,
+                    )
+                )
+            }
         }
+        val downloadResult = coordinator.downloadBatch(photoTasks)
+        val localPhotoCount = downloadResult.successCount
+        val failedPhotoCount = downloadResult.failedCount
         return ProcessResult(processed, localPhotoCount, failedPhotoCount)
     }
     
@@ -546,54 +572,31 @@ class SynCarCapInfoTask(
     ).joinToString("|")
     
     
-    private fun retryFailedPhotos() {
-        accessRecordRepository.findTop100ByPhotoSyncStatusOrderByIdAsc(AccessRecord.PhotoSyncStatus.FAILED)
-            .forEach { record ->
-                applyPhoto(record, importPhoto(record))
-                accessRecordRepository.save(record)
-            }
-    }
-    
-    
-    private fun importPhoto(record: AccessRecord): PhotoImportResult {
-        val url = record.sourcePhotoUrl?.trim()
-        if (url.isNullOrBlank()) {
-            return PhotoImportResult(null, AccessRecord.PhotoSyncStatus.NOT_AVAILABLE, null)
-        }
-        if (!url.startsWith("http://") && !url.startsWith("https://")) {
-            return PhotoImportResult(url, AccessRecord.PhotoSyncStatus.NOT_AVAILABLE, null)
-        }
-        return runCatching {
-            PhotoImportResult(
-                fileService.importRemote(
-                    url,
-                    FileService.FileOrigin(
-                        businessType = StoredFile.BUSINESS_VEHICLE_PLATE,
-                        businessId = PlateNumbers.normalize(record.carNumber),
-                    ),
-                ).downloadUrl,
-                AccessRecord.PhotoSyncStatus.LOCAL,
-                null
+    private fun retryFailedPhotos(coordinator: VehiclePhotoDownloadCoordinator) {
+        val retryRecords = accessRecordRepository.findTop100ByPhotoSyncStatusInOrderByIdAsc(
+            listOf(AccessRecord.PhotoSyncStatus.FAILED, AccessRecord.PhotoSyncStatus.PENDING)
+        )
+        if (retryRecords.isEmpty()) return
+
+        val retryTasks = retryRecords.map { record ->
+            VehiclePhotoDownloadCoordinator.PhotoDownloadTask(
+                recordId = requireNotNull(record.id),
+                sourcePhotoUrl = record.sourcePhotoUrl,
+                plateNumber = record.carNumber,
             )
         }
-            .getOrElse { exception ->
-                logger.warn("车辆进出抓拍图片下载失败，保留源地址：{}", url, exception)
-                PhotoImportResult(
-                    url,
-                    AccessRecord.PhotoSyncStatus.FAILED,
-                    exception.message?.take(2048) ?: exception.javaClass.simpleName
-                )
-            }
+
+        val result = coordinator.downloadBatch(retryTasks)
+        logger.info(
+            "重试历史失败图片：提交 {} 个，成功 {}，失败 {}，跳过 {}",
+            retryTasks.size,
+            result.successCount,
+            result.failedCount,
+            result.skippedCount
+        )
     }
-    
-    
-    private fun applyPhoto(record: AccessRecord, photo: PhotoImportResult) {
-        record.photoUrl = photo.localOrFallbackUrl
-        record.photoSyncStatus = photo.status
-        record.photoSyncError = photo.error
-    }
-    
-    
+
+
     private fun parseReleaseChannel(node: JsonNode): AccessRecord.ReleaseChannel? {
         val raw = firstText(node, "passType", "pass_type", "releaseChannel", "release_channel")
             ?.trim()?.lowercase() ?: return null
@@ -652,13 +655,7 @@ class SynCarCapInfoTask(
         val localPhotoCount: Int,
         val failedPhotoCount: Int,
     )
-    
-    private data class PhotoImportResult(
-        val localOrFallbackUrl: String?,
-        val status: AccessRecord.PhotoSyncStatus,
-        val error: String?,
-    )
-    
+
     companion object {
         val logger = LoggerFactory.getLogger(SynCarCapInfoTask::class.java)
         val executionLock = ReentrantLock()

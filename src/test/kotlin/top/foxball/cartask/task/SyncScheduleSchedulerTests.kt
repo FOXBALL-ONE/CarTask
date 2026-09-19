@@ -10,7 +10,6 @@ import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.verifyNoInteractions
 import org.mockito.kotlin.whenever
-import org.springframework.beans.factory.ObjectProvider
 import org.springframework.scheduling.TaskScheduler
 import org.springframework.scheduling.Trigger
 import org.springframework.scheduling.support.CronTrigger
@@ -41,14 +40,14 @@ class SyncScheduleSchedulerTests {
 
     private val future = mock<ScheduledFuture<Any>>()
     private val taskScheduler = mock<TaskScheduler>()
-    private val provider = mock<ObjectProvider<TaskScheduler>>()
     private val service = mock<SyncScheduleService>()
     private val gate = MaintenanceGate()
 
-    private fun scheduler() = SyncScheduleScheduler(catalog, service, gate, provider)
+    private fun scheduler(): SyncScheduleScheduler {
+        return SyncScheduleScheduler(catalog, service, gate, taskScheduler)
+    }
 
     private fun stubScheduling() {
-        whenever(provider.ifAvailable).thenReturn(taskScheduler)
         catalog.definitions.forEach { whenever(service.cronFor(it.key)).thenReturn(it.defaultCron) }
         whenever(taskScheduler.schedule(any<Runnable>(), any<Trigger>())).thenReturn(future)
     }
@@ -87,15 +86,6 @@ class SyncScheduleSchedulerTests {
         stubScheduling()
 
         scheduler().onScheduleChanged(SyncScheduleChangedEvent("no.such.task"))
-
-        verify(taskScheduler, never()).schedule(any<Runnable>(), any<Trigger>())
-    }
-
-    @Test
-    fun `没有可用调度器时安静跳过而不是让应用起不来`() {
-        whenever(provider.ifAvailable).thenReturn(null)
-
-        scheduler().scheduleAll()
 
         verify(taskScheduler, never()).schedule(any<Runnable>(), any<Trigger>())
     }

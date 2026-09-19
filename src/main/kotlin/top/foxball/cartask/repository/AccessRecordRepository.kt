@@ -32,6 +32,11 @@ interface AccessRecordRepository : JpaRepository<AccessRecord, Long>, JpaSpecifi
     fun findTop100ByPhotoSyncStatusOrderByIdAsc(
         photoSyncStatus: AccessRecord.PhotoSyncStatus,
     ): List<AccessRecord>
+
+
+    fun findTop100ByPhotoSyncStatusInOrderByIdAsc(
+        photoSyncStatuses: List<AccessRecord.PhotoSyncStatus>,
+    ): List<AccessRecord>
     
     
     fun countByPhotoSyncStatus(photoSyncStatus: AccessRecord.PhotoSyncStatus): Long

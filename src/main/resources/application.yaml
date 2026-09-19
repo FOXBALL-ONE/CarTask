@@ -120,6 +120,16 @@ keytop:
   car-cap-info-overlap-window: ${KEYTOP_CAR_CAP_INFO_OVERLAP_WINDOW:30m}
   car-cap-info-reconciliation-window: ${KEYTOP_CAR_CAP_INFO_RECONCILIATION_WINDOW:72h}
   car-cap-info-reconciliation-cron: ${KEYTOP_CAR_CAP_INFO_RECONCILIATION_CRON:0 30 3 * * *}
+  car-cap-info-photo-download-interval: ${KEYTOP_CAR_CAP_INFO_PHOTO_DOWNLOAD_INTERVAL:200ms}
+  car-cap-info-photo-download-concurrency: ${KEYTOP_CAR_CAP_INFO_PHOTO_DOWNLOAD_CONCURRENCY:4}
+  plate-sync-cron: ${KEYTOP_PLATE_SYNC_CRON:*/30 * * * * *}
+  plate-reconcile-cron: ${KEYTOP_PLATE_RECONCILE_CRON:0 0 * * * *}
+  plate-sync-batch-size: ${KEYTOP_PLATE_SYNC_BATCH_SIZE:20}
+  plate-sync-max-attempts: ${KEYTOP_PLATE_SYNC_MAX_ATTEMPTS:8}
+  plate-sync-default-valid-from: ${KEYTOP_PLATE_SYNC_DEFAULT_VALID_FROM:}
+  plate-sync-default-valid-to: ${KEYTOP_PLATE_SYNC_DEFAULT_VALID_TO:2099-12-31T23:59:59}
+  plate-sync-operator-id: ${KEYTOP_PLATE_SYNC_OPERATOR_ID:1}
+  plate-sync-operator-name: ${KEYTOP_PLATE_SYNC_OPERATOR_NAME:carTask}
 
 amap:
   api:
