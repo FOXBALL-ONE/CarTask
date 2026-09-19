@@ -9,6 +9,7 @@ import top.foxball.cartask.shared.PlateNumbers
 import java.time.Duration
 import java.util.concurrent.*
 import java.util.concurrent.atomic.AtomicLong
+import java.util.ArrayDeque
 
 /**
  * 车辆图片下载协调器。
@@ -34,7 +35,7 @@ class VehiclePhotoDownloadCoordinator(
                 isDaemon = false
             }
         },
-        ThreadPoolExecutor.CallerRunsPolicy()
+        ThreadPoolExecutor.AbortPolicy()
     )
 
     private val rateLimiter = RateLimiter(startInterval)
@@ -50,18 +51,13 @@ class VehiclePhotoDownloadCoordinator(
     fun downloadBatch(tasks: List<PhotoDownloadTask>): DownloadBatchResult {
         if (tasks.isEmpty()) return DownloadBatchResult(0, 0, 0)
 
-        val futures = tasks.map { task ->
-            executor.submit<PhotoDownloadResult> {
-                rateLimiter.acquire()
-                downloadSingle(task)
-            }
-        }
-
         var successCount = 0
         var failedCount = 0
         var skippedCount = 0
 
-        futures.forEach { future ->
+        // 只保留一个不超过并行数的 Future 窗口，避免拒绝策略让提交线程越过并发上限执行任务。
+        val futures = ArrayDeque<Future<PhotoDownloadResult>>(concurrency)
+        fun collect(future: Future<PhotoDownloadResult>) {
             try {
                 when (future.get()) {
                     PhotoDownloadResult.SUCCESS -> successCount++
@@ -73,6 +69,15 @@ class VehiclePhotoDownloadCoordinator(
                 failedCount++
             }
         }
+
+        tasks.forEach { task ->
+            if (futures.size >= concurrency) collect(futures.removeFirst())
+            futures.addLast(executor.submit<PhotoDownloadResult> {
+                rateLimiter.acquire()
+                downloadSingle(task)
+            })
+        }
+        while (futures.isNotEmpty()) collect(futures.removeFirst())
 
         return DownloadBatchResult(successCount, failedCount, skippedCount)
     }
