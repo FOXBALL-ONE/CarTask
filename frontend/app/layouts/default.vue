@@ -159,6 +159,7 @@ const pageLabels: Record<string, string> = {
   about: "关于系统",
   profile: "个人中心",
   password: "修改密码",
+  "system-config": "系统配置",
 };
 const routePages: Record<string, string> = {
   "/": "dashboard",
@@ -185,6 +186,7 @@ const routePages: Record<string, string> = {
   "/backup": "backup",
   "/about": "about",
   "/profile": "profile",
+  "/system-config": "system-config",
 };
 const pagePaths: Record<string, string> = {
   dashboard: "/",
@@ -211,6 +213,7 @@ const pagePaths: Record<string, string> = {
   backup: "/backup",
   about: "/about",
   profile: "/profile",
+  "system-config": "/system-config",
 };
 // 不使用外壳的页面：登录与配置引导都在会话之外，任何一条侧边栏或顶栏都是多余的。
 const isLoginPage = computed(() => route.path === "/login" || route.path === "/setup");
@@ -254,7 +257,7 @@ async function openPasswordTab() {
 }
 
 function handleSettings(action: "config" | "backup" | "about") {
-  void navigate(action === "config" ? "logs" : action === "backup" ? "backup" : "about");
+  void navigate(action === "config" ? "system-config" : action === "backup" ? "backup" : "about");
 }
 
 async function toggleFullscreen() {

@@ -78,7 +78,7 @@
           v-show="settingsOpen && !collapsed"
           class="absolute bottom-2.5 left-[calc(100%+8px)] z-[200] min-w-[180px] rounded-lg border border-[var(--border)] bg-[var(--card)] p-1.5 shadow-[0_8px_24px_rgba(0,0,0,0.12)]"
       >
-        <button :class="dropdownItemClass" type="button" @click="emit('settings', 'config')">
+        <button v-if="isSuperAdmin" :class="dropdownItemClass" type="button" @click="emit('settings', 'config')">
           <span class="material-icons-outlined text-[18px] leading-none text-[var(--text-sub)]">build</span>系统配置
         </button>
         <button v-if="isSuperAdmin" :class="dropdownItemClass" type="button" @click="emit('settings', 'backup')">
