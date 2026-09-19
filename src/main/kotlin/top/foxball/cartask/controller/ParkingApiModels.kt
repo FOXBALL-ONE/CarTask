@@ -187,6 +187,10 @@ data class StoredPlate(
     
     val inspectionStatus: String,
     val inspectionRemark: String?,
+    @param:JsonProperty("keytop_card_id") val keytopCardId: Long? = null,
+    @param:JsonProperty("keytop_sync_status") val keytopSyncStatus: String = "PENDING",
+    @param:JsonProperty("keytop_last_synced_at") val keytopLastSyncedAt: String? = null,
+    @param:JsonProperty("keytop_last_error") val keytopLastError: String? = null,
 )
 
 data class StoredGatePerson(

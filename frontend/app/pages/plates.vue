@@ -2,11 +2,12 @@
   <section class="page">
     <header class="page__header">
       <div><h1 class="page__title">车牌信息</h1>
-        <p class="page__desc">管理车牌、车主关联与车辆年检信息</p></div>
+        <p class="page__desc">管理车牌、车主关联、车辆年检与月卡通行权限</p></div>
       <button v-if="can('plate:manage')" class="button button--primary" type="button" @click="openCreate"><span
           class="material-icons-outlined">add</span>新增车牌
       </button>
     </header>
+    <p v-if="notice" class="notice"><span class="material-icons-outlined">check_circle</span>{{ notice }}</p>
     <section class="card">
       <div class="toolbar">
         <input v-model="keyword" class="input" placeholder="编号 / 车牌号 / 车主" type="search" @keyup.enter="search">
@@ -20,6 +21,15 @@
           <option value="有效">年检有效</option>
           <option value="已过期">年检已过期</option>
           <option value="未年检">未年检</option>
+        </select>
+        <select v-model="keytopSyncStatus" aria-label="月卡同步状态" class="select">
+          <option value="">全部月卡状态</option>
+          <option value="SYNCED">已同步</option>
+          <option value="PENDING">待同步</option>
+          <option value="PROCESSING">同步中</option>
+          <option value="FAILED">同步失败</option>
+          <option value="BLOCKED">需处理</option>
+          <option value="DELETE_PENDING">待撤销</option>
         </select>
         <div class="toolbar__right">
           <button class="button button--soft" type="button" @click="search"><span
@@ -44,6 +54,7 @@
             <th>年检状态</th>
             <th>年检有效期</th>
             <th>状态</th>
+            <th>月卡同步</th>
             <th>操作</th>
           </tr>
           </thead>
@@ -63,16 +74,24 @@
                 plate.status === 1 ? "正常" : "停用"
               }}</span></td>
             <td>
+              <span :class="syncTag(plate.keytopSyncStatus)" class="tag" :title="plate.keytopLastError || undefined">
+                {{ syncLabel(plate.keytopSyncStatus) }}
+              </span>
+              <small v-if="plate.keytopCardId" class="sync-card">卡号 {{ plate.keytopCardId }}</small>
+            </td>
+            <td>
               <button v-if="can('plate:manage')" class="row-action" title="年检登记" type="button"
                       @click="openInspection(plate)"><span class="material-icons-outlined">fact_check</span></button>
               <button v-if="can('plate:manage')" class="row-action" title="编辑" type="button" @click="openEdit(plate)">
                 <span class="material-icons-outlined">edit</span></button>
               <button v-if="can('plate:manage')" class="row-action row-action--danger" title="删除" type="button"
                       @click="removePlate(plate)"><span class="material-icons-outlined">delete</span></button>
+              <button v-if="can('plate:sync:retry') && retryable(plate.keytopSyncStatus)" class="row-action" title="重试月卡同步"
+                      type="button" @click="retrySync(plate)"><span class="material-icons-outlined">sync</span></button>
             </td>
           </tr>
           <tr v-if="plates.length === 0">
-            <td class="empty" colspan="9">暂无数据</td>
+            <td class="empty" colspan="10">暂无数据</td>
           </tr>
           </tbody>
         </table>
@@ -154,7 +173,11 @@ interface Plate {
   inspectionDate: string | null;
   inspectionValidUntil: string | null;
   inspectionStatus: string;
-  inspectionRemark: string | null
+  inspectionRemark: string | null;
+  keytopCardId: number | null;
+  keytopSyncStatus: string;
+  keytopLastSyncedAt: string | null;
+  keytopLastError: string | null;
 }
 
 interface PlateList {
@@ -172,6 +195,7 @@ const {can} = usePermission();
 const keyword = ref("");
 const status = ref("");
 const inspectionStatus = ref("");
+const keytopSyncStatus = ref("");
 const page = ref(1);
 const pageSizes = [30, 40, 50];
 const pageSize = ref(30);
@@ -185,6 +209,7 @@ const inspectionMode = ref(false);
 const editingId = ref<number | null>(null);
 const saving = ref(false);
 const formError = ref("");
+const notice = ref("");
 const form = reactive({
   plate: "",
   ownerId: null as number | null,
@@ -209,6 +234,18 @@ function inspectionTag(state: string) {
   return state === "有效" ? "tag--green" : state === "已过期" ? "tag--red" : "tag--gray";
 }
 
+function syncLabel(state: string) {
+  return ({SYNCED: "已同步", PENDING: "待同步", PROCESSING: "同步中", FAILED: "同步失败", BLOCKED: "需处理", DELETE_PENDING: "待撤销", DELETED: "已撤销"} as Record<string, string>)[state] || state || "待同步";
+}
+
+function syncTag(state: string) {
+  return state === "SYNCED" || state === "DELETED" ? "tag--green" : state === "FAILED" || state === "BLOCKED" ? "tag--red" : "tag--gray";
+}
+
+function retryable(state: string) {
+  return ["FAILED", "BLOCKED", "PENDING", "DELETE_PENDING"].includes(state);
+}
+
 async function loadPlates() {
   loading.value = true;
   errorMessage.value = "";
@@ -217,6 +254,7 @@ async function loadPlates() {
       keyword: keyword.value || undefined,
       status: status.value || undefined,
       inspectionStatus: inspectionStatus.value || undefined,
+      keytop_sync_status: keytopSyncStatus.value || undefined,
       page: page.value,
       pageSize: pageSize.value
     });
@@ -242,8 +280,20 @@ function resetFilters() {
   keyword.value = "";
   status.value = "";
   inspectionStatus.value = "";
+  keytopSyncStatus.value = "";
   page.value = 1;
   void loadPlates();
+}
+
+async function retrySync(plate: Plate) {
+  notice.value = "";
+  try {
+    await http.post(`/plates/${plate.id}/keytop-sync/retry`, undefined, {payloadMode: "json"});
+    notice.value = `车牌 ${plate.plate} 的月卡同步已重新排队`;
+    await loadPlates();
+  } catch (error) {
+    errorMessage.value = (error as { statusMessage?: string }).statusMessage || "月卡同步重试失败";
+  }
 }
 
 function changePage(nextPage: number) {
@@ -391,6 +441,19 @@ useScopeRefresh(loadPlates);
   overflow: hidden;
 }
 
+.notice {
+  align-items: center;
+  color: var(--green);
+  display: flex;
+  font-size: 13px;
+  gap: 6px;
+  margin: -8px 0 16px;
+}
+
+.notice .material-icons-outlined {
+  font-size: 17px;
+}
+
 .toolbar {
   align-items: center;
   display: flex;
@@ -480,7 +543,7 @@ useScopeRefresh(loadPlates);
 .table {
   border-collapse: collapse;
   font-size: 13px;
-  min-width: 920px;
+  min-width: 1040px;
   width: 100%;
 }
 
@@ -545,6 +608,13 @@ useScopeRefresh(loadPlates);
 .tag--gray {
   background: var(--neutral-soft);
   color: var(--text-sub);
+}
+
+.sync-card {
+  color: var(--text-mute);
+  display: block;
+  font-size: 11px;
+  margin-top: 3px;
 }
 
 .row-action, .icon-button {

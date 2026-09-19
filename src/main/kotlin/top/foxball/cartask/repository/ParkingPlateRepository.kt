@@ -19,4 +19,6 @@ interface ParkingPlateRepository : JpaRepository<ParkingPlate, Long> {
     
     
     fun existsByPlateAndIdNot(plate: String, id: Long): Boolean
+
+    fun findByKeytopCardId(keytopCardId: Long): ParkingPlate?
 }

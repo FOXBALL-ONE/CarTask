@@ -132,6 +132,8 @@ class PermissionCatalogInitializer(
             "audit:delete",
             "backup:manage",
             "online-user:logout",
+            "system-config:read",
+            "system-config:write",
         )
         
         
@@ -146,6 +148,8 @@ class PermissionCatalogInitializer(
             "vehicle-inout-request:apply",
             "vehicle-inout-request:review",
             "vehicle-inout-request:sync",
+            "plate:sync:retry",
+            "plate:sync:reconcile",
         )
         
         
@@ -182,6 +186,7 @@ class PermissionCatalogInitializer(
             "vehicle-inout-request:apply",
             "vehicle-inout-request:review",
             "vehicle-inout-request:sync",
+            "plate:sync:retry",
         )
         
         

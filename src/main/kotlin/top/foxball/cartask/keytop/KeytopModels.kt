@@ -15,6 +15,7 @@ data class KeytopResponse(
     val code: Int?,
     val message: String?,
     val data: JsonNode?,
+    val requestId: String? = null,
 )
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -80,5 +81,4 @@ data class KeytopRefundCarCardFeeRequest(
     val freeNumber: Int = 0,
     val remark: String = "有效期缩短",
 )
-
 

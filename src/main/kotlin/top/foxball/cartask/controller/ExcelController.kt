@@ -22,6 +22,7 @@ import top.foxball.cartask.scope.ScopeQuerySupport
 import top.foxball.cartask.service.DepartmentService
 import top.foxball.cartask.service.DeviceService
 import top.foxball.cartask.service.PositionService
+import top.foxball.cartask.service.PlateKeytopSyncService
 import top.foxball.cartask.service.UserService
 import top.foxball.cartask.shared.GatePersonFields
 import top.foxball.cartask.shared.PlateNumbers
@@ -360,6 +361,7 @@ class ExcelController(
     private val scopeQuerySupport: ScopeQuerySupport,
     private val excelResourcePolicy: ExcelResourcePolicy,
     private val auditService: AuditService,
+    private val plateKeytopSyncService: PlateKeytopSyncService,
 ) {
     @GetMapping("/{resource}/template")
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and ((#resource == 'users' and hasAuthority('user:read')) or (#resource == 'positions' and hasAuthority('position:read')) or (#resource == 'owners' and hasAuthority('owner:read')) or (#resource == 'spots' and hasAuthority('spot:read')) or (#resource == 'plates' and hasAuthority('plate:read')) or (#resource == 'plate-inspections' and hasAuthority('plate:read')) or (#resource == 'devices' and hasAuthority('device:read')) or (#resource == 'gate-persons' and hasAuthority('gate-person:read')))")
@@ -1048,6 +1050,7 @@ class ExcelController(
                     val now = LocalDateTime.now()
                     entities.forEach { it.createdAt = now; it.updatedAt = now }
                     val imported = plateRepository.saveAll(entities)
+                    imported.forEach { plateKeytopSyncService.enqueueAfterChange(it, null, 0, null) }
                     val allOwners = ownerRepository.findAll()
                     val allPlates = plateRepository.findAll()
                     val allSpots = spotRepository.findAll()

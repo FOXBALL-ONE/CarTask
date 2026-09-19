@@ -27,10 +27,14 @@ object PermissionCatalog {
     
     const val SYSTEM_MONITOR_READ = "system-monitor:read"
     const val LEGACY_SYSTEM_MONITOR_READ = "system:monitor:read"
-    
+    const val SYSTEM_CONFIG_READ = "system-config:read"
+    const val SYSTEM_CONFIG_WRITE = "system-config:write"
+
     val definitions = listOf(
         Definition("dashboard:read", "查看仪表盘"),
         Definition(SYSTEM_MONITOR_READ, "查看系统监控"),
+        Definition(SYSTEM_CONFIG_READ, "查看系统配置"),
+        Definition(SYSTEM_CONFIG_WRITE, "修改系统配置"),
         Definition("user:read", "查看用户"),
         Definition("user:create", "新增用户"),
         Definition("user:update", "编辑用户"),
@@ -52,6 +56,9 @@ object PermissionCatalog {
         Definition("spot:manage", "管理车位"),
         Definition("plate:read", "查看车牌"),
         Definition("plate:manage", "管理车牌"),
+        Definition("plate:sync:read", "查看车牌月卡同步"),
+        Definition("plate:sync:retry", "重试车牌月卡同步"),
+        Definition("plate:sync:reconcile", "执行车牌月卡对账"),
         Definition("vehicle-inout-request:read", "查看车辆进出申请"),
         Definition("vehicle-inout-request:apply", "登记车辆进出申请"),
         Definition("vehicle-inout-request:review", "审核车辆进出申请"),

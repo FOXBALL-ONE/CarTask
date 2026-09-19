@@ -225,7 +225,10 @@ const permissions: PermissionGroup[] = [
     }, {
       key: "plates",
       name: "车牌信息",
-      ops: [{label: "查看", code: "plate:read"}, {label: "管理", code: "plate:manage"}]
+      ops: [{label: "查看", code: "plate:read"}, {label: "管理", code: "plate:manage"}, {
+        label: "查看月卡同步",
+        code: "plate:sync:read"
+      }, {label: "重试月卡同步", code: "plate:sync:retry"}, {label: "执行月卡对账", code: "plate:sync:reconcile"}]
     }, {
       key: "vehicle-inout-requests",
       name: "进出申请",

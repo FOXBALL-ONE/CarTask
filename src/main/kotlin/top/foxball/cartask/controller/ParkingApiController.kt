@@ -25,11 +25,13 @@ import top.foxball.cartask.service.DepartmentService
 import top.foxball.cartask.service.FileService
 import top.foxball.cartask.service.GeoIpService
 import top.foxball.cartask.service.PositionService
+import top.foxball.cartask.service.PlateKeytopSyncService
 import top.foxball.cartask.shared.*
 import java.math.BigDecimal
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.util.*
+
 
 
 @RestController
@@ -58,6 +60,7 @@ class ParkingApiController(
     private val scopeGuard: ScopeGuard,
     private val dashboardSpotStatsService: DashboardSpotStatsService,
     private val geoIpService: GeoIpService,
+    private val plateKeytopSyncService: PlateKeytopSyncService,
 ) {
     @GetMapping("/depts")
     @PreAuthorize("hasAuthority('department:read')")
@@ -357,6 +360,7 @@ class ParkingApiController(
     
     @PutMapping("/owners/{id}")
     @PreAuthorize("hasAuthority('owner:manage')")
+    @Transactional
             
             
             /** updateOwner：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
@@ -364,6 +368,8 @@ class ParkingApiController(
         val scope = scopeGuard.currentScope()
         val owner = scopeGuard.requireVisibleRow(ownerRepository.findById(id).orElse(null), scope, "车主不存在")
         val previousName = owner.name
+        val previousPhone = owner.phone
+        val affectedPlates = plateRepository.findAll().filter { it.ownerId == id }
         body.cardId?.let {
             require(!ownerRepository.existsByCardIdAndIdNot(it, id)) { "车主卡号已存在" }; owner.cardId = it
         }
@@ -389,6 +395,16 @@ class ParkingApiController(
             plateRepository.flush()
         }
         val saved = ownerRepository.save(owner)
+        if (owner.name != previousName || owner.phone != previousPhone) {
+            affectedPlates.forEach { plate ->
+                plateKeytopSyncService.enqueueAfterChange(
+                    plate = plate,
+                    previousPlate = plate.plate,
+                    previousStatus = plate.status,
+                    previousCardId = plate.keytopCardId,
+                )
+            }
+        }
         return responseBuilder.ok().data(
             StoredOwner(
                 requireNotNull(saved.id),
@@ -557,7 +573,8 @@ class ParkingApiController(
         @RequestParam(required = false) status: Int?,
         @RequestParam(name = "inspectionStatus", required = false) inspectionStatus: String?,
         @RequestParam(defaultValue = "1") page: Int,
-        @RequestParam(name = "pageSize", defaultValue = "8") pageSize: Int
+        @RequestParam(name = "pageSize", defaultValue = "8") pageSize: Int,
+        @RequestParam(name = "keytop_sync_status", required = false) keytopSyncStatus: String? = null,
     ): ResponseEntity<Response> {
         require(page >= 1) { "页码必须大于 0" }
         require(pageSize in 1..100) { "每页数量必须在 1 到 100 之间" }
@@ -577,7 +594,7 @@ class ParkingApiController(
             ) || it.owner.contains(
                 keyword,
                 true
-            )) && (status == null || it.status == status) && (inspectionStatus.isNullOrBlank() || VehicleInspection.status(
+            )) && (status == null || it.status == status) && (keytopSyncStatus.isNullOrBlank() || it.keytopSyncStatus.name == keytopSyncStatus) && (inspectionStatus.isNullOrBlank() || VehicleInspection.status(
                 it.inspectionDate,
                 it.inspectionValidUntil,
                 today
@@ -594,7 +611,11 @@ class ParkingApiController(
                 it.inspectionDate?.toString(),
                 it.inspectionValidUntil?.toString(),
                 VehicleInspection.status(it.inspectionDate, it.inspectionValidUntil, today),
-                it.inspectionRemark
+                it.inspectionRemark,
+                it.keytopCardId,
+                it.keytopSyncStatus.name,
+                it.keytopLastSyncedAt?.toString(),
+                it.keytopLastError,
             )
         }
         val from = ((page - 1).coerceAtLeast(0) * pageSize.coerceAtLeast(1)).coerceAtMost(filtered.size)
@@ -604,6 +625,7 @@ class ParkingApiController(
     
     @PostMapping("/plates")
     @PreAuthorize("hasAuthority('plate:manage')")
+    @Transactional
             
             
             /** createPlate：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
@@ -626,6 +648,7 @@ class ParkingApiController(
         require(plate.status == 0 || plate.status == 1) { "状态必须为 0 或 1" }
         applyInspection(plate, body)
         val saved = plateRepository.save(plate)
+        plateKeytopSyncService.enqueueAfterChange(saved, null, 0, null)
         refreshOwnerCounts()
         return responseBuilder.created().data(
             StoredPlate(
@@ -639,19 +662,28 @@ class ParkingApiController(
                 saved.inspectionDate?.toString(),
                 saved.inspectionValidUntil?.toString(),
                 VehicleInspection.status(saved.inspectionDate, saved.inspectionValidUntil, LocalDate.now()),
-                saved.inspectionRemark
+                saved.inspectionRemark,
+                saved.keytopCardId,
+                saved.keytopSyncStatus.name,
+                saved.keytopLastSyncedAt?.toString(),
+                saved.keytopLastError,
             )
         ).build()
     }
     
     @PutMapping("/plates/{id}")
     @PreAuthorize("hasAuthority('plate:manage')")
+    @Transactional
             
             
             /** updatePlate：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun updatePlate(@PathVariable id: Long, @RequestBody body: PlateRequest): ResponseEntity<Response> {
         val scope = scopeGuard.currentScope()
         val plate = scopeGuard.requireVisiblePlate(plateRepository.findById(id).orElse(null), scope, "车牌不存在")
+        val previousPlate = plate.plate
+        val previousStatus = plate.status
+        val previousOwnerId = plate.ownerId
+        val previousCardId = plate.keytopCardId
         body.plate?.let {
             require(!plateRepository.existsByPlateAndIdNot(it, id)) { "车牌号已存在" }
             plate.plate = it
@@ -668,6 +700,9 @@ class ParkingApiController(
         require(plate.status == 0 || plate.status == 1) { "状态必须为 0 或 1" }
         applyInspection(plate, body)
         val saved = plateRepository.save(plate)
+        if (previousPlate != saved.plate || previousStatus != saved.status || previousOwnerId != saved.ownerId) {
+            plateKeytopSyncService.enqueueAfterChange(saved, previousPlate, previousStatus, previousCardId)
+        }
         refreshOwnerCounts()
         return responseBuilder.ok().data(
             StoredPlate(
@@ -681,24 +716,53 @@ class ParkingApiController(
                 saved.inspectionDate?.toString(),
                 saved.inspectionValidUntil?.toString(),
                 VehicleInspection.status(saved.inspectionDate, saved.inspectionValidUntil, LocalDate.now()),
-                saved.inspectionRemark
+                saved.inspectionRemark,
+                saved.keytopCardId,
+                saved.keytopSyncStatus.name,
+                saved.keytopLastSyncedAt?.toString(),
+                saved.keytopLastError,
             )
         ).build()
     }
     
     @DeleteMapping("/plates/{id}")
     @PreAuthorize("hasAuthority('plate:manage')")
+    @Transactional
             
             
             /** deletePlate：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun deletePlate(@PathVariable id: Long): ResponseEntity<Response> {
-        scopeGuard.requireVisiblePlate(
+        val plate = scopeGuard.requireVisiblePlate(
             plateRepository.findById(id).orElse(null),
             scopeGuard.currentScope(),
             "车牌不存在"
         )
+        val sync = plateKeytopSyncService.enqueueDelete(plate)
         plateRepository.deleteById(id); refreshOwnerCounts()
-        return responseBuilder.ok().message("删除成功").data(mapOf("id" to id)).build()
+        return responseBuilder.ok().message("删除成功，月卡将在后台撤销").data(
+            mapOf("id" to id, "keytop_sync_status" to "DELETE_PENDING", "keytop_sync_task_id" to sync.taskId)
+        ).build()
+    }
+
+    @PostMapping("/plates/{id}/keytop-sync/retry")
+    @PreAuthorize("hasAuthority('plate:sync:retry')")
+    fun retryPlateKeytopSync(@PathVariable id: Long): ResponseEntity<Response> {
+        scopeGuard.requireVisiblePlate(
+            plateRepository.findById(id).orElse(null),
+            scopeGuard.currentScope(),
+            "车牌不存在",
+        )
+        val result = plateKeytopSyncService.retry(id)
+        return responseBuilder.ok().message("月卡同步已重新排队").data(
+            mapOf("plate_id" to result.plateId, "keytop_sync_status" to result.status.name, "task_id" to result.taskId)
+        ).build()
+    }
+
+    @PostMapping("/plates/keytop-sync/reconcile")
+    @PreAuthorize("hasAuthority('plate:sync:reconcile')")
+    fun reconcilePlateKeytopSync(): ResponseEntity<Response> {
+        val queued = plateKeytopSyncService.reconcile()
+        return responseBuilder.ok().message("月卡对账完成").data(mapOf("queued" to queued)).build()
     }
     
     @GetMapping("/gate-persons")

@@ -7,7 +7,6 @@ package top.foxball.cartask.keytop
  */
 
 import org.slf4j.LoggerFactory
-import org.slf4j.MarkerFactory
 import org.springframework.http.MediaType
 import org.springframework.http.client.SimpleClientHttpRequestFactory
 import org.springframework.stereotype.Service
@@ -368,13 +367,11 @@ class KeytopServiceImpl(
         val requestUrl = "${properties.baseUrl.trimEnd('/')}$path"
         val startedAt = System.nanoTime()
         logger.info(
-            RAW_PAYLOAD_MARKER,
-            "Keytop HTTP 请求原文: method=POST, url={}, service_code={}, req_id={}, version={}, body={}",
+            "Keytop HTTP 请求: method=POST, url={}, service_code={}, req_id={}, version={}",
             requestUrl,
             serviceCode,
             request["reqId"],
             properties.version,
-            requestBody,
         )
         
         val body = try {
@@ -387,14 +384,12 @@ class KeytopServiceImpl(
                     val responseBody = response.bodyTo(String::class.java)
                     val durationMs = (System.nanoTime() - startedAt) / 1_000_000
                     logger.info(
-                        RAW_PAYLOAD_MARKER,
-                        "Keytop HTTP 响应原文: url={}, service_code={}, req_id={}, status={}, duration_ms={}, body={}",
+                        "Keytop HTTP 响应: url={}, service_code={}, req_id={}, status={}, duration_ms={}",
                         requestUrl,
                         serviceCode,
                         request["reqId"],
                         response.statusCode.value(),
                         durationMs,
-                        responseBody,
                     )
                     if (response.statusCode.isError) {
                         throw IllegalStateException("Keytop HTTP request failed with status ${response.statusCode}")
@@ -416,6 +411,7 @@ class KeytopServiceImpl(
             code = (json.get("code") ?: json.get("resCode"))?.asInt(),
             message = (json.get("message") ?: json.get("resMsg"))?.asString(),
             data = json.get("data"),
+            requestId = request["reqId"]?.toString(),
         )
     }
     
@@ -427,7 +423,6 @@ class KeytopServiceImpl(
     
     private companion object {
         val PROTOCOL_TIME: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
-        val RAW_PAYLOAD_MARKER = MarkerFactory.getMarker("KEYTOP_RAW_PAYLOAD")
     }
 }
 

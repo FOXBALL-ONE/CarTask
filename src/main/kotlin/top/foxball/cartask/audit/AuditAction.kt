@@ -78,6 +78,7 @@ enum class AuditAction(
     
     
     VEHICLE_INOUT_REQUEST_SYNCED("VEHICLE_INOUT_REQUEST_SYNCED", AuditEvent.Category.DEVICE, AuditEvent.RiskLevel.HIGH),
+    PLATE_KEYTOP_SYNCED("PLATE_KEYTOP_SYNCED", AuditEvent.Category.DEVICE, AuditEvent.RiskLevel.HIGH),
     ACCESS_RECORD_CORRECTED(
         "ACCESS_RECORD_CORRECTED",
         AuditEvent.Category.ACCESS_RECORD,
