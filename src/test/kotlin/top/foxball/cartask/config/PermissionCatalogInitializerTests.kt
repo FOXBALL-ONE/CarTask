@@ -223,4 +223,22 @@ class PermissionCatalogInitializerTests {
         assertEquals(PermissionCatalog.SYSTEM_MONITOR_READ, legacyMonitor.code)
         verify(permissionRepository).save(legacyMonitor)
     }
+
+    @Test
+    fun `启动时迁移旧版车牌同步权限并保留角色关联`() {
+        val legacy = Permission().apply { code = "plate:sync:retry"; name = "重试车牌月卡同步" }
+        val admin = top.foxball.cartask.entity.Role().apply {
+            name = "ADMIN"
+            permissions = linkedSetOf(legacy)
+        }
+        whenever(permissionRepository.findAll()).thenReturn(listOf(legacy), listOf(legacy))
+        whenever(roleRepository.findAll()).thenReturn(listOf(admin))
+        whenever(roleRepository.findByNameIgnoreCase("ADMIN")).thenReturn(admin)
+
+        PermissionCatalogInitializer(permissionRepository, roleRepository).write()
+
+        assertEquals("plate-sync:retry", legacy.code)
+        assertTrue(admin.permissions.contains(legacy))
+        verify(permissionRepository).save(legacy)
+    }
 }

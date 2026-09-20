@@ -40,6 +40,7 @@ class PermissionCatalogInitializer(
              */
     fun write() {
         val existingPermissions = permissionRepository.findAll().toMutableList()
+        migrateLegacyPermissionCodes(existingPermissions)
         val legacyMonitorPermission = existingPermissions.singleOrNull { permission ->
             permission.code.equals(PermissionCatalog.LEGACY_SYSTEM_MONITOR_READ, ignoreCase = true)
         }
@@ -122,6 +123,26 @@ class PermissionCatalogInitializer(
         }
         return changed
     }
+
+    private fun migrateLegacyPermissionCodes(existingPermissions: MutableList<Permission>) {
+        LEGACY_PERMISSION_CODES.forEach { (legacyCode, currentCode) ->
+            val legacy = existingPermissions.singleOrNull { it.code.equals(legacyCode, ignoreCase = true) } ?: return@forEach
+            val current = existingPermissions.singleOrNull { it.code.equals(currentCode, ignoreCase = true) }
+            if (current == null) {
+                legacy.code = currentCode
+                permissionRepository.save(legacy)
+                return@forEach
+            }
+            roleRepository.findAll().forEach { role ->
+                if (role.permissions.remove(legacy)) {
+                    role.permissions.add(current)
+                    roleRepository.save(role)
+                }
+            }
+            permissionRepository.delete(legacy)
+            existingPermissions.remove(legacy)
+        }
+    }
     
     private companion object {
         
@@ -148,8 +169,8 @@ class PermissionCatalogInitializer(
             "vehicle-inout-request:apply",
             "vehicle-inout-request:review",
             "vehicle-inout-request:sync",
-            "plate:sync:retry",
-            "plate:sync:reconcile",
+            "plate-sync:retry",
+            "plate-sync:reconcile",
         )
         
         
@@ -186,7 +207,7 @@ class PermissionCatalogInitializer(
             "vehicle-inout-request:apply",
             "vehicle-inout-request:review",
             "vehicle-inout-request:sync",
-            "plate:sync:retry",
+            "plate-sync:retry",
         )
         
         
@@ -195,6 +216,12 @@ class PermissionCatalogInitializer(
             "vehicle-record:read",
             "person-record:read",
             "file:read",
+        )
+
+        val LEGACY_PERMISSION_CODES = mapOf(
+            "plate:sync:read" to "plate-sync:read",
+            "plate:sync:retry" to "plate-sync:retry",
+            "plate:sync:reconcile" to "plate-sync:reconcile",
         )
     }
 }

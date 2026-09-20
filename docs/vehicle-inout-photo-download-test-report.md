@@ -14,7 +14,7 @@
 也不会往真车场灌数据、往真图床拉图。
 
 - 应用通过 IDEA 运行配置 `CarTaskApplication` 启动，用 `APP_ENV_FILE` 指向
-  `docs/photo-download-test/.env.phototest`，项目根目录那份真实 `.env` 全程没被写入。
+  `docs/photo-download-test/.env.phototest`，项目根目录那份真实 `../.env` 全程没被写入。
 - 数据库用为本次实测新建的 `cartask_phototest`。开发库 `cartask` 与 `cartesktest`
   全程没有任何连接（`pg_stat_activity` 可查），更没有被建表/清表。
 - 假图床每张图固定耗时 400ms，并记录每次请求的**起始时刻**和**起始时刻在飞几个**，
@@ -192,7 +192,7 @@ failed_photo_count = 5
 `Duration.parse("PT$raw")`，ISO-8601 只认 `H`/`M`/`S`/`D`，不认 `MS`，
 `PT200MS` 直接抛异常。裸数字分支只匹配纯数字，`200ms` 落不到那儿。
 
-**影响范围**：只有系统配置页这一条写入路径。直接改 `.env` 写 `200ms` 是正常的
+**影响范围**：只有系统配置页这一条写入路径。直接改 `../.env` 写 `200ms` 是正常的
 （Spring 的 `Duration` 绑定认毫秒，启动期那两条校验也正常），
 所以表现为「配置文件里能写、页面上存不回去」，两个入口行为不一致。
 

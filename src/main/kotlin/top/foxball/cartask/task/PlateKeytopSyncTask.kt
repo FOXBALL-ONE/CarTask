@@ -3,7 +3,6 @@ package top.foxball.cartask.task
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 import top.foxball.cartask.service.PlateKeytopSyncService
-import top.foxball.cartask.keytop.KeytopSyncRateLimiter
 import top.foxball.cartask.service.SyncTaskHistoryService
 import top.foxball.cartask.service.SyncTaskProgressService
 import top.foxball.cartask.service.SyncTaskRunCommand
@@ -15,7 +14,6 @@ class PlateKeytopSyncTask(
     private val plateKeytopSyncService: PlateKeytopSyncService,
     private val syncTaskHistoryService: SyncTaskHistoryService,
     private val syncTaskProgressService: SyncTaskProgressService,
-    private val keytopSyncRateLimiter: KeytopSyncRateLimiter? = null,
 ) {
     @Scheduled(cron = "\${keytop.plate-sync-cron:*/30 * * * * *}")
     fun synchronize() {
@@ -26,18 +24,14 @@ class PlateKeytopSyncTask(
 
     @Scheduled(cron = "\${keytop.plate-reconcile-cron:0 0 * * * *}")
     fun reconcile() {
-        val snapshot = keytopSyncRateLimiter?.snapshot()
-        if (snapshot == null) plateKeytopSyncService.reconcile()
-        else keytopSyncRateLimiter.withSnapshot(snapshot) { plateKeytopSyncService.reconcile() }
+        plateKeytopSyncService.reconcile()
     }
 
     private fun run(trigger: SyncTaskRun.Trigger): PlateKeytopSyncResult {
         val startedAt = LocalDateTime.now()
         syncTaskProgressService.start(TASK_KEY, TASK_NAME, startedAt)
         return try {
-            val snapshot = keytopSyncRateLimiter?.snapshot()
-            val processedCount = if (snapshot == null) plateKeytopSyncService.processBatch()
-            else keytopSyncRateLimiter.withSnapshot(snapshot) { plateKeytopSyncService.processBatch() }
+            val processedCount = plateKeytopSyncService.processBatch()
             val result = PlateKeytopSyncResult(processedCount, LocalDateTime.now())
             syncTaskHistoryService.record(
                 SyncTaskRunCommand(

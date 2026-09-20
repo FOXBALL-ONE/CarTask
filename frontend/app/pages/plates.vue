@@ -86,7 +86,7 @@
                 <span class="material-icons-outlined">edit</span></button>
               <button v-if="can('plate:manage')" class="row-action row-action--danger" title="删除" type="button"
                       @click="removePlate(plate)"><span class="material-icons-outlined">delete</span></button>
-              <button v-if="can('plate:sync:retry') && retryable(plate.keytopSyncStatus)" class="row-action" title="重试月卡同步"
+              <button v-if="can('plate-sync:retry') && retryable(plate.keytopSyncStatus)" class="row-action" title="重试月卡同步"
                       type="button" @click="retrySync(plate)"><span class="material-icons-outlined">sync</span></button>
             </td>
           </tr>

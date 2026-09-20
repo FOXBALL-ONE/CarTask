@@ -745,7 +745,7 @@ class ParkingApiController(
     }
 
     @PostMapping("/plates/{id}/keytop-sync/retry")
-    @PreAuthorize("hasAuthority('plate:sync:retry')")
+    @PreAuthorize("hasAuthority('plate-sync:retry')")
     fun retryPlateKeytopSync(@PathVariable id: Long): ResponseEntity<Response> {
         scopeGuard.requireVisiblePlate(
             plateRepository.findById(id).orElse(null),
@@ -759,7 +759,7 @@ class ParkingApiController(
     }
 
     @PostMapping("/plates/keytop-sync/reconcile")
-    @PreAuthorize("hasAuthority('plate:sync:reconcile')")
+    @PreAuthorize("hasAuthority('plate-sync:reconcile')")
     fun reconcilePlateKeytopSync(): ResponseEntity<Response> {
         val queued = plateKeytopSyncService.reconcile()
         return responseBuilder.ok().message("月卡对账完成").data(mapOf("queued" to queued)).build()

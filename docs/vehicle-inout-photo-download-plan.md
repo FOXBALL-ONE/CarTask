@@ -54,6 +54,7 @@
 
 ```yaml
 keytop:
+  sync-request-interval: ${KEYTOP_SYNC_REQUEST_INTERVAL:200ms}
   car-cap-info-photo-download-interval: ${KEYTOP_CAR_CAP_INFO_PHOTO_DOWNLOAD_INTERVAL:200ms}
   car-cap-info-photo-download-concurrency: ${KEYTOP_CAR_CAP_INFO_PHOTO_DOWNLOAD_CONCURRENCY:4}
 ```
@@ -62,6 +63,7 @@ keytop:
 
 | 配置 | 类型 | 默认值 | 建议范围 | 说明 |
 | --- | --- | --- | --- | --- |
+| `syncRequestInterval` | `Duration` | `200ms` | `0ms` 至 `60s` | 所有同步任务 Keytop 请求的最小启动间隔 |
 | `carCapInfoPhotoDownloadInterval` | `Duration` | `200ms` | `0ms` 至 `60s` | 全局两次图片下载请求的最小启动间隔 |
 | `carCapInfoPhotoDownloadConcurrency` | `Int` | `4` | `1` 至 `16` | 同时进行的图片下载数 |
 
@@ -90,14 +92,14 @@ min(并行下载数 / 平均单次下载耗时, 1 / 下载启动间隔)
 
 第一版复用现有系统配置能力，不新增配置表：
 
-1. 将两个环境变量加入 `SystemConfigService` 的可编辑白名单。
-2. 在系统配置页增加两个字段。
-3. 保存时写入 `.env`。
-4. 按现有流程重载服务后生效。
+1. 将图片下载限速和同步任务 Keytop 请求间隔加入 `SystemConfigService` 的可编辑白名单。
+2. 在系统配置页增加限频配置字段。
+3. 保存时写入 `../.env`。
+4. 图片下载限速和 Keytop 请求间隔保存后由下一次同步任务读取，其他启动期配置仍按现有流程重载后生效。
 
-配置属性在应用启动时绑定，因此配置保存后必须重载服务；正在执行的同步可能被重启中断。应在页面上明确提示，建议在当前同步完成后再重载。
+动态限频配置不修改正在运行任务的快照；正在执行的任务继续使用启动时读取的间隔和并发数，下一次任务使用新值。
 
-每次同步开始时读取并固定本次运行的配置快照。重载后启动的新任务使用新值，已经开始的任务不动态改变线程池大小或限速参数。
+每次同步开始时读取并固定本次运行的配置快照。下一次任务使用新值，已经开始的任务不动态改变线程池大小或限速参数。
 
 ## 5. 推荐架构
 
@@ -265,14 +267,14 @@ plateNumber
 
 ### 8.3 若后续需要免重启调整
 
-免重启调整不应直接修改 `@ConfigurationProperties` Bean。后续可以增加一个线程安全的运行时设置服务：
+免重启调整不应直接修改 `@ConfigurationProperties` Bean。本期通过线程安全的运行时设置服务实现：
 
-- 启动时从 `KeytopProperties` 初始化。
-- 管理接口校验后更新 `AtomicReference`。
+- 从 `.env` 和 `KeytopProperties` 默认值读取当前设置。
+- 管理接口校验后持久化新值。
 - 新同步任务读取设置快照。
 - 下载执行器采用任务级并发控制，不能在运行中直接改变固定线程池大小。
 
-该模式需要补充配置持久化和多实例一致性设计，建议作为第二阶段，不与本期的低风险改造混合实现。
+配置持久化仍使用 `.env`；当前限速保证单实例内生效，多实例部署时需要另行增加分布式限流。
 
 ## 9. 日志、监控与历史
 
