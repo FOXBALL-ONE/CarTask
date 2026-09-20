@@ -14,6 +14,7 @@ import top.foxball.cartask.task.SynAccountGenerateTask
 import top.foxball.cartask.task.SynAreaInfoTask
 import top.foxball.cartask.task.SynCarCapInfoTask
 import top.foxball.cartask.task.SynOwnerArchiveTask
+import top.foxball.cartask.task.PlateKeytopSyncTask
 import java.time.LocalDateTime
 
 
@@ -45,13 +46,14 @@ class SynchronizationController(
     private val synCarCapInfoTask: SynCarCapInfoTask,
     private val synOwnerArchiveTask: SynOwnerArchiveTask,
     private val synAccountGenerateTask: SynAccountGenerateTask,
+    private val plateKeytopSyncTask: PlateKeytopSyncTask,
     private val syncTaskHistoryService: SyncTaskHistoryService,
     private val syncScheduleService: SyncScheduleService,
     private val responseBuilder: ResponseBuilder,
     private val syncTaskProgressService: SyncTaskProgressService = SyncTaskProgressService(),
 ) {
     @GetMapping("/progress")
-    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAnyAuthority('dictionary:sync', 'vehicle-record:sync', 'owner:sync', 'account:sync')")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAnyAuthority('dictionary:sync', 'vehicle-record:sync', 'owner:sync', 'account:sync', 'plate-sync:reconcile')")
             
             
             /** syncProgress：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
@@ -204,6 +206,19 @@ class SynchronizationController(
             .message("车辆业主账号生成完成")
             .data(rs)
             .build()
+    }
+
+    @PostMapping("/monthly-cards")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('plate-sync:reconcile')")
+    fun synchronizeMonthlyCards(): ResponseEntity<Response> {
+        data class Response(
+            @param:JsonProperty("processed_count") val processedCount: Int,
+            @param:JsonProperty("executed_at") val executedAt: LocalDateTime,
+        )
+
+        val result = plateKeytopSyncTask.synchronizeManually()
+        val rs = Response(result.processedCount, result.executedAt)
+        return responseBuilder.ok().message("车辆月卡同步完成").data(rs).build()
     }
     
     

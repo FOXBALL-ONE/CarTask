@@ -16,6 +16,10 @@ interface ParkingPlateKeytopSyncTaskRepository : JpaRepository<ParkingPlateKeyto
 
     fun findByStatus(status: ParkingPlateKeytopSyncTask.Status): List<ParkingPlateKeytopSyncTask>
 
+    fun findByStatusInOrderByUpdatedAtDesc(
+        statuses: Collection<ParkingPlateKeytopSyncTask.Status>,
+    ): List<ParkingPlateKeytopSyncTask>
+
     fun findByPlateIdAndVersionAndOperation(
         plateId: Long,
         version: Long,

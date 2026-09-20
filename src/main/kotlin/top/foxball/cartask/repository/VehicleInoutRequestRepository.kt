@@ -4,6 +4,7 @@ import org.springframework.data.jpa.repository.JpaRepository
 import top.foxball.cartask.entity.VehicleInoutRequest
 
 interface VehicleInoutRequestRepository : JpaRepository<VehicleInoutRequest, Long> {
+    fun findBySyncStatusOrderByUpdatedAtDesc(status: VehicleInoutRequest.SyncStatus): List<VehicleInoutRequest>
     
     
     fun existsByPlateNormalizedAndStatusIn(

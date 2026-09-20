@@ -24,7 +24,7 @@ const routePermissions: Record<string, string[]> = {
     "/person-records": ["person-record:read"],
     "/vehicle-records": ["vehicle-record:read"],
     "/violations": ["violation:read"],
-    "/synchronizations": ["dictionary:sync", "vehicle-record:sync", "owner:sync", "account:sync"],
+    "/synchronizations": ["dictionary:sync", "vehicle-record:sync", "owner:sync", "account:sync", "plate-sync:reconcile"],
     "/sync-history": ["sync-history:read"],
     "/system-monitor": ["system-monitor:read"],
     "/logs": ["audit:read"],

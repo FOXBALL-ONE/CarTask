@@ -240,7 +240,7 @@ const navigation: { title: string; items: NavigationItem[] }[] = [
         icon: "sync_alt",
         page: "synchronizations",
         route: "/synchronizations",
-        permissions: ["dictionary:sync", "vehicle-record:sync", "owner:sync", "account:sync"],
+        permissions: ["dictionary:sync", "vehicle-record:sync", "owner:sync", "account:sync", "plate-sync:reconcile"],
       },
       {
         label: "同步历史",

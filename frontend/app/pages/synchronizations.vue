@@ -78,6 +78,30 @@
       </aside>
     </article>
 
+    <article v-if="can('plate-sync:reconcile')" :class="`sync-card--${monthlyCardState}`" class="sync-card">
+      <div class="sync-card__main">
+        <header class="sync-card__header">
+          <div class="sync-card__icon"><span class="material-icons-outlined">credit_card</span></div>
+          <div>
+            <div class="sync-card__title-row"><h2>车辆月卡</h2><span aria-live="polite" class="state-badge">{{ monthlyCardStateLabel }}</span></div>
+            <p>处理车牌档案产生的科拓月卡新增、修改和删除任务，确保本地车牌与外部通行权限保持一致。</p>
+            <div v-if="progressFor('plate.keytop.sync')?.running" class="progress">
+              <div :style="{ width: progressPercent('plate.keytop.sync') + '%' }" class="progress__bar"/>
+              <span>{{ progressText('plate.keytop.sync') }}</span>
+            </div>
+          </div>
+        </header>
+        <div :class="{ 'sync-route--running': monthlyCardRunning }" class="sync-route">
+          <div class="endpoint"><span class="endpoint__mark endpoint__mark--remote"><span class="material-icons-outlined">cloud</span></span><span><small>数据来源</small><strong>本地车牌档案</strong></span></div>
+          <div aria-hidden="true" class="conduit"><span class="conduit__line"/><span class="conduit__packet"/><span class="material-icons-outlined conduit__arrow">arrow_forward</span></div>
+          <div class="endpoint endpoint--target"><span class="endpoint__mark"><span class="material-icons-outlined">credit_card</span></span><span><small>写入目标</small><strong>科拓车辆月卡</strong></span></div>
+        </div>
+        <div v-if="monthlyCardSyncState === 'error' && !monthlyCardRunning" class="feedback feedback--error" role="alert"><span class="material-icons-outlined">error_outline</span><div><strong>同步未完成</strong><p>{{ monthlyCardErrorMessage }}</p></div></div>
+        <div v-else-if="monthlyCardSyncState === 'success' && !monthlyCardRunning" class="feedback feedback--success" role="status"><span class="material-icons-outlined">check_circle_outline</span><div><strong>同步完成</strong><p>本次处理 {{ monthlyCardResult?.processed_count ?? 0 }} 条月卡任务。</p></div></div>
+      </div>
+      <aside class="sync-card__action"><p class="action-label">本次操作</p><p class="action-copy">立即处理待同步月卡任务，后台定时同步计划不会受到影响。</p><button :disabled="monthlyCardRunning" class="sync-button" type="button" @click="runMonthlyCardSynchronization"><span :class="{ spinning: monthlyCardRunning }" class="material-icons-outlined">{{ monthlyCardRunning ? 'sync' : 'sync_alt' }}</span>{{ monthlyCardRunning ? "正在同步..." : "立即同步" }}</button></aside>
+    </article>
+
     <article v-if="can('vehicle-record:sync')" :class="`sync-card--${accessRecordCardState}`"
              class="sync-card sync-card--records">
       <div class="sync-card__main">
@@ -385,6 +409,23 @@
       </ul>
     </section>
 
+    <section v-if="can('plate-sync:reconcile')" aria-live="polite" class="history-panel">
+      <header class="history-panel__header">
+        <p class="history-panel__label">车辆月卡 · 近期执行</p>
+        <NuxtLink class="history-panel__link" to="/sync-history">全部记录<span class="material-icons-outlined">chevron_right</span></NuxtLink>
+      </header>
+      <p v-if="historyUnavailable" class="history-panel__empty">执行历史读取失败，需要「查看同步执行历史」权限。</p>
+      <p v-else-if="monthlyCardHistory.length === 0" class="history-panel__empty">暂无月卡同步执行记录。</p>
+      <ul v-else class="history-list">
+        <li v-for="run in monthlyCardHistory" :key="run.id" class="history-list__row">
+          <span class="history-list__time">{{ formatDateTime(run.started_at) }}</span>
+          <span :class="run.trigger === 'MANUAL' ? 'history-chip--manual' : 'history-chip--schedule'" class="history-chip">{{ run.trigger === 'MANUAL' ? '手动' : '定时' }}</span>
+          <span :class="run.status === 'SUCCESS' ? 'history-chip--ok' : 'history-chip--fail'" class="history-chip">{{ run.status === 'SUCCESS' ? '成功' : '失败' }}</span>
+          <span :title="run.error || run.summary || ''" class="history-list__summary">{{ run.error || run.summary || '—' }}</span>
+        </li>
+      </ul>
+    </section>
+
     <section v-if="can('account:sync')" aria-live="polite" class="result-panel result-panel--accounts">
       <header class="result-panel__header">
         <div>
@@ -584,6 +625,7 @@ interface OwnerArchiveResult {
   skipped_count: number;
   executed_at: string;
 }
+interface MonthlyCardSyncResult { processed_count: number; executed_at: string }
 
 interface SyncTaskRunRecord {
   id: number;
@@ -622,6 +664,10 @@ const ownerArchiveErrorMessage = ref("");
 const ownerArchiveResult = ref<OwnerArchiveResult | null>(null);
 const ownerArchiveHistory = ref<SyncTaskRunRecord[]>([]);
 const accountHistory = ref<SyncTaskRunRecord[]>([]);
+const monthlyCardHistory = ref<SyncTaskRunRecord[]>([]);
+const monthlyCardSyncState = ref<SyncState>("idle");
+const monthlyCardErrorMessage = ref("");
+const monthlyCardResult = ref<MonthlyCardSyncResult | null>(null);
 const historyUnavailable = ref(false);
 
 interface SyncProgress {
@@ -715,9 +761,11 @@ const parkingAreaRunning = computed(() => syncState.value === "running" || progr
 const accessRecordRunning = computed(() => accessRecordSyncState.value === "running" || progressFor("car_cap_info.sync", "car_cap_info.reconciliation")?.running === true);
 const accountRunning = computed(() => accountSyncState.value === "running" || progressFor("account.generate")?.running === true);
 const ownerArchiveRunning = computed(() => ownerArchiveSyncState.value === "running" || progressFor("owner.archive.generate")?.running === true);
+const monthlyCardRunning = computed(() => monthlyCardSyncState.value === "running" || progressFor("plate.keytop.sync")?.running === true);
 const parkingAreaCardState = computed<SyncState>(() => parkingAreaRunning.value ? "running" : syncState.value);
 const accessRecordCardState = computed<SyncState>(() => accessRecordRunning.value ? "running" : accessRecordSyncState.value);
 const accountCardState = computed<SyncState>(() => accountRunning.value ? "running" : accountSyncState.value);
+const monthlyCardState = computed<SyncState>(() => monthlyCardRunning.value ? "running" : monthlyCardSyncState.value);
 const ownerArchiveCardState = computed<SyncState>(() => ownerArchiveRunning.value ? "running" : ownerArchiveSyncState.value);
 const parkingAreaStateLabel = computed(() => ({
   idle: "待执行",
@@ -767,6 +815,7 @@ const accountStateLabel = computed(() => ({
   success: "已完成",
   error: "执行失败",
 })[accountCardState.value]);
+const monthlyCardStateLabel = computed(() => ({ idle: "待执行", running: "同步中", success: "已完成", error: "执行失败" })[monthlyCardState.value]);
 const accountResultSummary = computed(() => {
   if (!accountResult.value) return "本地数据未发生变化。";
   const {created_count, skipped_count, failed_count} = accountResult.value;
@@ -846,14 +895,29 @@ async function runOwnerArchiveGeneration() {
   }
 }
 
+async function runMonthlyCardSynchronization() {
+  monthlyCardSyncState.value = "running";
+  monthlyCardErrorMessage.value = "";
+  try {
+    monthlyCardResult.value = await http.post<MonthlyCardSyncResult>("/synchronizations/monthly-cards");
+    monthlyCardSyncState.value = "success";
+  } catch (error) {
+    monthlyCardErrorMessage.value = (error as { statusMessage?: string }).statusMessage || "无法连接月卡同步服务，请稍后重试。";
+    monthlyCardSyncState.value = "error";
+  } finally {
+    void loadSyncHistory();
+  }
+}
+
 async function loadSyncHistory() {
   try {
-    const [owners, accounts] = await Promise.all([
+    const [owners, monthlyCards, accounts] = await Promise.all([
       http.get<SyncTaskHistoryResponse>("/synchronizations/history", {
         page: 1,
         page_size: 5,
         task_key: "owner.archive.generate"
       }),
+      http.get<SyncTaskHistoryResponse>("/synchronizations/history", { page: 1, page_size: 5, task_key: "plate.keytop.sync" }),
       http.get<SyncTaskHistoryResponse>("/synchronizations/history", {
         page: 1,
         page_size: 5,
@@ -861,6 +925,7 @@ async function loadSyncHistory() {
       }),
     ]);
     ownerArchiveHistory.value = owners.runs || [];
+    monthlyCardHistory.value = monthlyCards.runs || [];
     accountHistory.value = accounts.runs || [];
     historyUnavailable.value = false;
   } catch {

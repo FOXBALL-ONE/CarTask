@@ -21,6 +21,7 @@ class SyncScheduleCatalog(
     private val synCarCapInfoTask: SynCarCapInfoTask,
     private val synOwnerArchiveTask: SynOwnerArchiveTask,
     private val synAccountGenerateTask: SynAccountGenerateTask,
+    private val plateKeytopSyncTask: PlateKeytopSyncTask,
     keytopProperties: KeytopProperties,
     @Value("\${app.owner-archive-cron:0 45 2 * * *}") ownerArchiveCron: String,
     @Value("\${app.account-generate-cron:0 0 3 * * *}") accountGenerateCron: String,
@@ -46,6 +47,13 @@ class SyncScheduleCatalog(
             description = "回补超过增量回看窗口才在上游可见的进出记录，不推进增量检查点。",
             defaultCron = keytopProperties.carCapInfoReconciliationCron,
             trigger = { synCarCapInfoTask.reconcileCarCapInfoList() },
+        ),
+        SyncScheduleDefinition(
+            key = PlateKeytopSyncTask.TASK_KEY,
+            name = PlateKeytopSyncTask.TASK_NAME,
+            description = "处理待同步的有效车牌月卡，并将成功、失败或阻塞状态回写到车牌档案。",
+            defaultCron = keytopProperties.plateSyncCron,
+            trigger = { plateKeytopSyncTask.synchronize() },
         ),
         SyncScheduleDefinition(
             key = SynOwnerArchiveTask.TASK_KEY,

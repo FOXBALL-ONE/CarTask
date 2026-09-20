@@ -7,6 +7,9 @@ import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.web.bind.annotation.*
 import top.foxball.cartask.entity.VehicleInoutRequest
 import top.foxball.cartask.service.VehicleInoutRequestService
+import top.foxball.cartask.repository.ParkingPlateKeytopSyncTaskRepository
+import top.foxball.cartask.repository.VehicleInoutRequestRepository
+import top.foxball.cartask.entity.ParkingPlateKeytopSyncTask
 import top.foxball.cartask.shared.Response
 import top.foxball.cartask.shared.ResponseBuilder
 import java.time.LocalDate
@@ -78,6 +81,8 @@ data class VehicleInoutRequestCancelBody(
 class VehicleInoutRequestController(
     private val service: VehicleInoutRequestService,
     private val responseBuilder: ResponseBuilder,
+    private val vehicleInoutRequestRepository: VehicleInoutRequestRepository,
+    private val plateKeytopSyncTaskRepository: ParkingPlateKeytopSyncTaskRepository,
 ) {
     
     @GetMapping
@@ -206,6 +211,58 @@ class VehicleInoutRequestController(
             request.reviewReason,
             request.syncedAt,
         )
+        return responseBuilder.ok().data(rs).build()
+    }
+
+    @GetMapping("/monthly-card-failures")
+    @PreAuthorize("hasAuthority('vehicle-inout-request:read')")
+    fun monthlyCardFailures(): ResponseEntity<Response> {
+        data class FailureData(
+            val id: String,
+            @param:JsonProperty("occurred_at") val occurredAt: LocalDateTime,
+            val plate: String,
+            val owner: String,
+            @param:JsonProperty("card_name") val cardName: String?,
+            val operation: String,
+            val status: String,
+            val reason: String,
+        )
+
+        val manualFailures = vehicleInoutRequestRepository
+            .findBySyncStatusOrderByUpdatedAtDesc(VehicleInoutRequest.SyncStatus.FAILED)
+            .map { request ->
+                FailureData(
+                    id = "request-${request.id}",
+                    occurredAt = request.syncedAt ?: request.updatedAt,
+                    plate = request.plate,
+                    owner = request.owner,
+                    cardName = request.cardName,
+                    operation = "手动下发",
+                    status = "失败",
+                    reason = request.syncMessage ?: "月卡下发失败",
+                )
+            }
+        val taskFailures = plateKeytopSyncTaskRepository
+            .findByStatusInOrderByUpdatedAtDesc(
+                listOf(
+                    ParkingPlateKeytopSyncTask.Status.RETRYING,
+                    ParkingPlateKeytopSyncTask.Status.DEAD,
+                    ParkingPlateKeytopSyncTask.Status.BLOCKED,
+                ),
+            )
+            .map { task ->
+                FailureData(
+                    id = "task-${task.id}",
+                    occurredAt = task.updatedAt,
+                    plate = task.plateNo,
+                    owner = task.ownerName,
+                    cardName = null,
+                    operation = if (task.operation == ParkingPlateKeytopSyncTask.Operation.DELETE) "自动删除月卡" else "自动同步月卡",
+                    status = task.status.name,
+                    reason = task.lastError ?: "月卡同步失败",
+                )
+            }
+        val rs = (manualFailures + taskFailures).sortedByDescending { it.occurredAt }
         return responseBuilder.ok().data(rs).build()
     }
     

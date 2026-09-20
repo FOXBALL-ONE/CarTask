@@ -33,7 +33,24 @@
         </div>
       </div>
 
-      <div v-if="loading" class="state">正在加载申请数据...</div>
+      <div v-if="activeTab === 'monthly-card-failures'" class="table-wrap">
+        <table class="table">
+          <thead><tr><th>发生时间</th><th>车牌号</th><th>车主</th><th>月卡</th><th>操作</th><th>状态</th><th>原因</th></tr></thead>
+          <tbody>
+          <tr v-for="failure in monthlyCardFailures" :key="failure.id">
+            <td class="muted">{{ formatDateTime(failure.occurred_at) }}</td>
+            <td><strong class="primary-text">{{ failure.plate }}</strong></td>
+            <td>{{ failure.owner }}</td>
+            <td>{{ failure.card_name || '-' }}</td>
+            <td>{{ failure.operation }}</td>
+            <td><span class="tag tag--danger">{{ failure.status }}</span></td>
+            <td class="wrap-text">{{ failure.reason }}</td>
+          </tr>
+          <tr v-if="monthlyCardFailures.length === 0"><td class="empty" colspan="7">暂无月卡异常记录</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div v-else-if="loading" class="state">正在加载申请数据...</div>
       <div v-else-if="errorMessage" class="state state--error">{{ errorMessage }}</div>
       <div v-else class="table-wrap">
         <table class="table">
@@ -346,12 +363,24 @@ const tabs = [
   {key: "pending", label: "待审核"},
   {key: "approved", label: "已通过"},
   {key: "synced", label: "已下发"},
+  {key: "monthly-card-failures", label: "月卡异常"},
 ];
 const activeTab = ref("all");
 const keyword = ref("");
 const page = ref(1);
 const pageSize = 8;
 const requests = ref<Request[]>([]);
+interface MonthlyCardFailure {
+  id: string;
+  occurred_at: string;
+  plate: string;
+  owner: string;
+  card_name: string | null;
+  operation: string;
+  status: string;
+  reason: string;
+}
+const monthlyCardFailures = ref<MonthlyCardFailure[]>([]);
 const total = ref(0);
 const loading = ref(true);
 const errorMessage = ref("");
@@ -424,6 +453,11 @@ async function loadRequests() {
   loading.value = true;
   errorMessage.value = "";
   try {
+    if (activeTab.value === "monthly-card-failures") {
+      monthlyCardFailures.value = await http.get<MonthlyCardFailure[]>("/vehicle-inout-requests/monthly-card-failures");
+      total.value = monthlyCardFailures.value.length;
+      return;
+    }
     const filters = tabFilters();
     const result = await http.get<RequestList>("/vehicle-inout-requests", {
       keyword: keyword.value || undefined,
