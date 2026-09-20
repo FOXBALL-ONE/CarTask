@@ -108,7 +108,10 @@
       </div>
       <footer v-if="!loading && !errorMessage" class="pagination"><span class="pagination__info">共 {{
           activeTotal
-        }} 条</span>
+        }} 条</span><label class="pagination__size">每页<select v-model.number="pageSize" aria-label="每页展示条数"
+                                                                class="select" @change="changePageSize">
+        <option v-for="size in pageSizes" :key="size" :value="size">{{ size }} 条</option>
+      </select></label>
         <button :disabled="page <= 1" class="page-btn" type="button" @click="changePage(page - 1)"><span
             class="material-icons-outlined">chevron_left</span></button>
         <button v-for="pageNumber in pageNumbers" :key="pageNumber" :class="{ active: pageNumber === page }"
@@ -153,7 +156,8 @@ interface LogList<T> {
 
 const http = useHttp();
 const {can} = usePermission();
-const pageSize = 8;
+const pageSizes = [30, 40, 50];
+const pageSize = ref(30);
 const activeTab = ref<"op" | "lg">("op");
 const operationLogs = ref<OperationLog[]>([]);
 const loginLogs = ref<LoginLog[]>([]);
@@ -175,7 +179,7 @@ const filteredLoginLogs = computed(() => {
 });
 const activeRows = computed(() => activeTab.value === "op" ? filteredOperationLogs.value : filteredLoginLogs.value);
 const activeTotal = computed(() => activeTab.value === "op" ? operationTotal.value : loginTotal.value);
-const totalPages = computed(() => Math.max(1, Math.ceil(activeTotal.value / pageSize)));
+const totalPages = computed(() => Math.max(1, Math.ceil(activeTotal.value / pageSize.value)));
 const pageNumbers = computed(() => Array.from({length: totalPages.value}, (_, index) => index + 1).slice(Math.max(0, page.value - 3), page.value + 2));
 const pagedOperationLogs = computed(() => filteredOperationLogs.value);
 const pagedLoginLogs = computed(() => filteredLoginLogs.value);
@@ -207,6 +211,11 @@ function changePage(nextPage: number) {
   void loadLogs();
 }
 
+function changePageSize() {
+  page.value = 1;
+  void loadLogs();
+}
+
 async function clearCurrent() {
   if (!window.confirm(`确认清空所有${activeTab.value === "op" ? "操作" : "登录"}日志？`)) return;
   try {
@@ -227,12 +236,12 @@ async function loadLogs() {
       module: operationFilters.module || undefined,
       status: operationFilters.status || undefined,
       page: page.value,
-      pageSize
+      pageSize: pageSize.value
     }), http.get<LogList<LoginLog>>("/login-logs", {
       keyword: loginFilters.keyword || undefined,
       status: loginFilters.status || undefined,
       page: page.value,
-      pageSize
+      pageSize: pageSize.value
     })]);
     operationLogs.value = operationResult.items || [];
     operationTotal.value = operationResult.total || 0;
@@ -514,6 +523,20 @@ onMounted(loadLogs);
   color: var(--text-sub);
   font-size: 12px;
   margin-right: auto
+}
+
+.pagination__size {
+  align-items: center;
+  color: var(--text-sub);
+  display: flex;
+  font-size: 12px;
+  gap: 6px
+}
+
+.pagination__size .select {
+  font-size: 12px;
+  height: 28px;
+  padding: 0 4px 0 8px
 }
 
 .page-btn {
