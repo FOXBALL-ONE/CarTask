@@ -44,6 +44,7 @@ class SynOwnerArchiveTask(
 ) {
     
     
+    /** 定时补建车主档案，并在已有任务运行时跳过本次触发。 */
     fun synOwnerArchive() {
         AuditRequestContext.withRun {
             try {
@@ -58,9 +59,11 @@ class SynOwnerArchiveTask(
     
     
     @Transactional(noRollbackFor = [RuntimeException::class])
+    /** 手动补建车主档案，并返回车主和车牌处理统计。 */
     fun generate(): OwnerArchiveResult = generate(SyncTaskRun.Trigger.MANUAL)
     
     
+    /** 在互斥锁和历史记录包装下执行车主档案补建。 */
     private fun generate(trigger: SyncTaskRun.Trigger): OwnerArchiveResult {
         if (!executionLock.tryLock()) {
             throw AccountGenerateInProgressException()
@@ -88,6 +91,7 @@ class SynOwnerArchiveTask(
     }
     
     
+    /** 回查近期活跃车牌的 Keytop 卡片，并创建或关联本地车主档案。 */
     private fun generateInternal(startedAt: LocalDateTime): OwnerArchiveResult {
         var createdOwnerCount = 0
         var linkedPlateCount = 0
@@ -182,6 +186,7 @@ class SynOwnerArchiveTask(
     }
     
     
+    /** 查询指定车牌的 Keytop 卡片并解析为本地车主所需字段。 */
     private fun fetchCardOwner(plate: String): KeytopOwnerCard? {
         val service = keytopService ?: return null
         val mapper = objectMapper ?: return null
@@ -202,12 +207,14 @@ class SynOwnerArchiveTask(
     }
     
     
+    /** 按候选字段名读取第一个非空文本值，兼容 Keytop 不同字段命名。 */
     private fun firstText(node: JsonNode, vararg names: String): String? = names.asSequence()
         .mapNotNull { node.get(it) }
         .firstOrNull { !it.isNull && !it.isMissingNode && it.asString().isNotBlank() }
         ?.asString()
     
     
+    /** 写入车主档案补建历史，历史故障不影响已完成的数据处理。 */
     private fun recordHistory(
         trigger: SyncTaskRun.Trigger,
         status: SyncTaskRun.Status,

@@ -74,6 +74,7 @@ class SyncScheduleCatalog(
     private val byKey = definitions.associateBy { it.key }
     
     
+    /** 按任务键查找调度定义，未知任务返回空值。 */
     fun find(key: String): SyncScheduleDefinition? = byKey[key]
     
     companion object {

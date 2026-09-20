@@ -19,6 +19,7 @@ class SynAreaInfoTask(
 ) {
     
     
+    /** 定时触发停车区域同步，并将并发执行异常转换为跳过日志。 */
     fun synAreaInfo() {
         AuditRequestContext.withRun {
             try {
@@ -32,9 +33,11 @@ class SynAreaInfoTask(
     }
     
     
+    /** 手动执行停车区域同步，并标记执行来源为人工触发。 */
     fun synchronize(): ParkingAreaSyncResult = synchronize(SyncTaskRun.Trigger.MANUAL)
     
     
+    /** 统一处理停车区域同步的进度、限频快照、历史记录和收尾清理。 */
     private fun synchronize(trigger: SyncTaskRun.Trigger): ParkingAreaSyncResult {
         val startedAt = LocalDateTime.now()
         syncTaskProgressService.start(TASK_KEY, TASK_NAME, startedAt)
@@ -73,6 +76,7 @@ class SynAreaInfoTask(
     }
     
     
+    /** 将本次停车区域同步的结果或异常写入同步历史，历史写入失败不影响主流程。 */
     private fun recordHistory(
         trigger: SyncTaskRun.Trigger,
         status: SyncTaskRun.Status,

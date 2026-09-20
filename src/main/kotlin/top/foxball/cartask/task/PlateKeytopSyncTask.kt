@@ -16,17 +16,21 @@ class PlateKeytopSyncTask(
     private val syncTaskProgressService: SyncTaskProgressService,
 ) {
     @Scheduled(cron = "\${keytop.plate-sync-cron:*/30 * * * * *}")
+    /** 定时处理一批待同步的车牌月卡任务。 */
     fun synchronize() {
         run(SyncTaskRun.Trigger.SCHEDULED)
     }
 
+    /** 手动处理一批车牌月卡任务，并返回处理数量。 */
     fun synchronizeManually(): PlateKeytopSyncResult = run(SyncTaskRun.Trigger.MANUAL)
 
     @Scheduled(cron = "\${keytop.plate-reconcile-cron:0 0 * * * *}")
+    /** 定时对账 Keytop 月卡状态，并为发现差异的车牌重新排队。 */
     fun reconcile() {
         plateKeytopSyncService.reconcile()
     }
 
+    /** 执行月卡同步任务的公共包装逻辑，包括进度、历史和异常处理。 */
     private fun run(trigger: SyncTaskRun.Trigger): PlateKeytopSyncResult {
         val startedAt = LocalDateTime.now()
         syncTaskProgressService.start(TASK_KEY, TASK_NAME, startedAt)

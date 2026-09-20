@@ -66,6 +66,7 @@ class SynCarCapInfoTask(
     // 在 HikariCP 连接数有限的情况下会把登录等其它请求一起饿死。每条记录的 save() 本身就是
     // 独立提交的小事务，且调用方本就接受"处理到哪算哪、不整体回滚"（历史上这里标的是
     // noRollbackFor），拆开完全等价。
+    /** 定时执行车辆进出记录增量同步，并在任务冲突时跳过本次触发。 */
     fun synCarCapInfoList() {
         AuditRequestContext.withRun {
             try {
@@ -79,9 +80,11 @@ class SynCarCapInfoTask(
     }
 
 
+    /** 手动执行车辆进出记录增量同步。 */
     fun synchronize(): CarCapInfoSyncResult = executeIncremental(SyncTaskRun.Trigger.MANUAL)
 
 
+    /** 定时执行车辆进出记录补偿同步，不推进增量检查点。 */
     fun reconcileCarCapInfoList() {
         AuditRequestContext.withRun {
             try {
@@ -95,6 +98,7 @@ class SynCarCapInfoTask(
     }
     
     
+    /** 为增量同步填充任务标识并委托统一执行包装器。 */
     private fun executeIncremental(trigger: SyncTaskRun.Trigger): CarCapInfoSyncResult = execute(
         trigger = trigger,
         taskKey = TASK_KEY,
@@ -103,6 +107,7 @@ class SynCarCapInfoTask(
     )
     
     
+    /** 为补偿同步填充任务标识并委托统一执行包装器。 */
     private fun executeReconciliation(trigger: SyncTaskRun.Trigger): CarCapInfoSyncResult = execute(
         trigger = trigger,
         taskKey = RECONCILIATION_TASK_KEY,
@@ -111,6 +116,7 @@ class SynCarCapInfoTask(
     )
     
     
+    /** 固定本次限频快照，维护进度并记录成功或失败历史。 */
     private fun execute(
         trigger: SyncTaskRun.Trigger,
         taskKey: String,
@@ -137,6 +143,7 @@ class SynCarCapInfoTask(
     
     
     // 同样不能包事务：内部会调科拓接口，理由见 synCarCapInfoList 上的注释。
+    /** 只查询待同步数量和时间范围，不写入检查点或车辆记录。 */
     fun previewSynchronization(): CarCapInfoSyncPreview {
         val snapshot = keytopSyncRateLimiter?.snapshot()
         if (!executionLock.tryLock()) {
@@ -182,6 +189,7 @@ class SynCarCapInfoTask(
     }
     
 
+    /** 按检查点和重叠窗口拉取增量记录，成功后推进检查点。 */
     private fun synchronizeIncrementally(): CarCapInfoSyncResult {
         if (!executionLock.tryLock()) {
             throw VehicleAccessRecordSyncInProgressException()
@@ -229,6 +237,7 @@ class SynCarCapInfoTask(
     }
     
     
+    /** 按补偿窗口重新拉取历史记录，发现的数据只做本地收敛。 */
     private fun synchronizeReconciliation(): CarCapInfoSyncResult {
         if (!executionLock.tryLock()) {
             throw VehicleAccessRecordSyncInProgressException()
@@ -260,6 +269,7 @@ class SynCarCapInfoTask(
     }
     
     
+    /** 分页读取 Keytop 车辆进出记录，并按页完成入库与图片下载屏障。 */
     private fun synchronizeRange(startTime: LocalDateTime, syncEndTime: LocalDateTime, taskKey: String): ProcessResult {
         val rateLimitSnapshot = keytopSyncRateLimiter?.snapshot()
         VehiclePhotoDownloadCoordinator(
@@ -318,11 +328,13 @@ class SynCarCapInfoTask(
     }
     
     
+    /** 根据检查点计算增量查询起点，首次同步默认回看初始天数。 */
     private fun incrementalStartTime(checkpointTime: LocalDateTime?, syncEndTime: LocalDateTime): LocalDateTime =
         checkpointTime?.minus(keytopProperties.carCapInfoOverlapWindow)
             ?: syncEndTime.minusDays(INITIAL_SYNC_DAYS)
     
     
+    /** 校验车辆进出同步所需的分页配置。 */
     private fun validateSynchronizationConfiguration() {
         require(keytopProperties.carCapInfoPageSize in 1..1000) {
             "车辆进出记录同步分页大小必须在 1 到 1000 之间"
@@ -330,6 +342,7 @@ class SynCarCapInfoTask(
     }
     
     
+    /** 将车辆进出同步统计和异常摘要写入执行历史。 */
     private fun recordHistory(
         taskKey: String,
         taskName: String,
@@ -365,6 +378,7 @@ class SynCarCapInfoTask(
     }
     
     
+    /** 解析并去重一页记录，保存元数据后提交图片下载任务。 */
     private fun processRecords(
         records: List<JsonNode>,
         seen: MutableMap<String, AccessRecord>,
@@ -449,6 +463,7 @@ class SynCarCapInfoTask(
     }
     
     
+    /** 将 Keytop 原始 JSON 节点映射为本地车辆进出记录。 */
     private fun parseRecord(node: JsonNode): AccessRecord? {
         val time = firstText(node, "capTime", "cap_time", "inAndOutTime", "in_and_out_time", "captureTime", "time")
             ?.let(::parseTime)
@@ -532,6 +547,7 @@ class SynCarCapInfoTask(
     }
     
     
+    /** 解析车辆进出方向，并兼容数字、英文和中文表达。 */
     private fun parseDirection(node: JsonNode): AccessRecord.InAndOut? {
         val raw = firstText(node, "inAndOut", "in_and_out", "direction", "capFlag", "cap_flag", "type")
             ?.trim()?.lowercase() ?: return null
@@ -556,6 +572,7 @@ class SynCarCapInfoTask(
     }
     
     
+    /** 读取并规范化通行类型字段，空值时返回空。 */
     private fun parsePassType(node: JsonNode): String? {
         val raw = firstText(node, "passType", "pass_type", "releaseType", "release_type")
             ?.trim() ?: return null
@@ -568,11 +585,13 @@ class SynCarCapInfoTask(
     }
     
     
+    /** 从多个候选字段解析车辆类型并转换为展示名称。 */
     private fun parseVehicleTypeName(node: JsonNode): String? = AccessRecord.displayVehicleTypeName(
         firstText(node, "vehicleType", "vehicle_type", "carTypeName", "car_type_name", "carType", "car_type")?.trim(),
     )
     
     
+    /** 根据上游交通记录标识和关键字段构造稳定去重键。 */
     private fun buildSourceRecordId(
         trafficId: String?,
         capFlag: String?,
@@ -591,6 +610,7 @@ class SynCarCapInfoTask(
     ).joinToString("|")
     
     
+    /** 扫描历史失败或待处理图片，并通过当前协调器统一重试。 */
     private fun retryFailedPhotos(coordinator: VehiclePhotoDownloadCoordinator) {
         val retryRecords = accessRecordRepository.findTop100ByPhotoSyncStatusInOrderByIdAsc(
             listOf(AccessRecord.PhotoSyncStatus.FAILED, AccessRecord.PhotoSyncStatus.PENDING)
@@ -616,6 +636,7 @@ class SynCarCapInfoTask(
     }
 
 
+    /** 解析放行渠道字段，未知值不强行映射为有效枚举。 */
     private fun parseReleaseChannel(node: JsonNode): AccessRecord.ReleaseChannel? {
         val raw = firstText(node, "passType", "pass_type", "releaseChannel", "release_channel")
             ?.trim()?.lowercase() ?: return null
@@ -628,6 +649,7 @@ class SynCarCapInfoTask(
     }
     
     
+    /** 按 ISO 或 Keytop 协议格式解析时间文本。 */
     private fun parseTime(raw: String): LocalDateTime? {
         val value = raw.trim()
         return try {
@@ -642,12 +664,14 @@ class SynCarCapInfoTask(
     }
     
     
+    /** 从 JSON 中按候选名称取第一个非空文本字段。 */
     private fun firstText(node: JsonNode, vararg names: String): String? = names.asSequence()
         .mapNotNull { node.get(it) }
         .firstOrNull { !it.isNull && !it.isMissingNode && it.asString().isNotBlank() }
         ?.asString()
     
     
+    /** 解包 Keytop 返回的 data 节点并解析总数与记录列表。 */
     private fun parseData(data: JsonNode?): ParsedData {
         if (data == null || data.isNull) return ParsedData(emptyList(), 0)
         var container = if (data.isTextual) objectMapper.readTree(data.asString()) else data

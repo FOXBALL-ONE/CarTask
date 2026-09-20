@@ -48,6 +48,7 @@ class VehiclePhotoDownloadCoordinator(
      * @param tasks 待下载的记录 ID 和源地址列表
      * @return 下载统计：成功数、失败数、跳过数
      */
+    /** 将一批图片任务按有界窗口提交，并等待全部任务完成后汇总结果。 */
     fun downloadBatch(tasks: List<PhotoDownloadTask>): DownloadBatchResult {
         if (tasks.isEmpty()) return DownloadBatchResult(0, 0, 0)
 
@@ -57,6 +58,7 @@ class VehiclePhotoDownloadCoordinator(
 
         // 只保留一个不超过并行数的 Future 窗口，避免拒绝策略让提交线程越过并发上限执行任务。
         val futures = ArrayDeque<Future<PhotoDownloadResult>>(concurrency)
+        /** 收集单个异步结果，将异常转换为失败计数而不影响其它任务。 */
         fun collect(future: Future<PhotoDownloadResult>) {
             try {
                 when (future.get()) {
@@ -83,6 +85,7 @@ class VehiclePhotoDownloadCoordinator(
     }
 
 
+    /** 下载单张抓拍图片并更新车辆进出记录的同步状态。 */
     private fun downloadSingle(task: PhotoDownloadTask): PhotoDownloadResult {
         try {
             val record = accessRecordRepository.findById(task.recordId).orElse(null)
@@ -131,6 +134,7 @@ class VehiclePhotoDownloadCoordinator(
     }
 
 
+    /** 关闭图片下载线程池，等待已提交任务完成后再强制停止。 */
     override fun close() {
         executor.shutdown()
         try {
@@ -179,6 +183,7 @@ class VehiclePhotoDownloadCoordinator(
         private val nextAvailable = AtomicLong(0)
 
 
+        /** 原子预占下一次请求时间，保证并发下载的全局启动间隔。 */
         fun acquire() {
             if (intervalNanos <= 0) return
 

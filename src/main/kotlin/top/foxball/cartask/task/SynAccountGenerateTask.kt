@@ -41,6 +41,7 @@ class SynAccountGenerateTask(
 ) {
     
     
+    /** 定时生成车辆业主账号；任务冲突时跳过本次执行。 */
     fun synAccountGenerate() {
         AuditRequestContext.withRun {
             try {
@@ -55,9 +56,11 @@ class SynAccountGenerateTask(
     
     
     @Transactional(noRollbackFor = [RuntimeException::class])
+    /** 手动生成车辆业主账号，并返回创建、跳过和失败统计。 */
     fun generate(): AccountGenerateResult = generate(SyncTaskRun.Trigger.MANUAL)
     
     
+    /** 在互斥锁和历史记录包装下执行账号生成任务。 */
     private fun generate(trigger: SyncTaskRun.Trigger): AccountGenerateResult {
         if (!executionLock.tryLock()) {
             throw AccountGenerateInProgressException()
@@ -82,6 +85,7 @@ class SynAccountGenerateTask(
     }
     
     
+    /** 查询近期活跃车牌，校验车主数据并为缺失账号的业主建号。 */
     private fun generateInternal(startedAt: LocalDateTime): AccountGenerateResult {
         var createdCount = 0
         var skippedCount = 0
@@ -169,6 +173,7 @@ class SynAccountGenerateTask(
     }
     
     
+    /** 按部门名称从缓存获取部门，不存在时生成稳定编码并创建部门。 */
     private fun ensureDepartment(name: String, cache: MutableMap<String, Department>): Department? {
         val departmentName = name.trim().takeIf(String::isNotEmpty) ?: return null
         return cache.getOrPut(departmentName) {
@@ -188,6 +193,7 @@ class SynAccountGenerateTask(
     }
     
     
+    /** 写入账号生成任务历史，历史异常仅记录日志并不回滚任务结果。 */
     private fun recordHistory(
         trigger: SyncTaskRun.Trigger,
         status: SyncTaskRun.Status,
