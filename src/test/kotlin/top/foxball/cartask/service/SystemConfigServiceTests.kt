@@ -133,4 +133,27 @@ class SystemConfigServiceTests {
 
         assertEquals("车场 #1", envValues()["SMS_SIGN_NAME"])
     }
+
+
+    @Test
+    fun `Keytop 同步限频支持毫秒配置并写入环境文件`() {
+        val service = service("KEYTOP_SYNC_REQUEST_INTERVAL=200ms\n")
+
+        service.write(mapOf("KEYTOP_SYNC_REQUEST_INTERVAL" to "1s"))
+
+        assertEquals("1s", envValues()["KEYTOP_SYNC_REQUEST_INTERVAL"])
+        assertEquals("1s", service.read()["KEYTOP_SYNC_REQUEST_INTERVAL"])
+    }
+
+
+    @Test
+    fun `Keytop 同步限频拒绝超过上限`() {
+        val service = service()
+
+        val failure = assertFailsWith<IllegalArgumentException> {
+            service.write(mapOf("KEYTOP_SYNC_REQUEST_INTERVAL" to "61s"))
+        }
+
+        assertTrue(failure.message.orEmpty().contains("60"))
+    }
 }

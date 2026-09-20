@@ -12,6 +12,7 @@ import top.foxball.cartask.entity.SyncTaskRun
 import top.foxball.cartask.handler.VehicleAccessRecordSyncInProgressException
 import top.foxball.cartask.keytop.KeytopProperties
 import top.foxball.cartask.keytop.KeytopService
+import top.foxball.cartask.keytop.KeytopSyncRateLimiter
 import top.foxball.cartask.repository.AccessRecordRepository
 import top.foxball.cartask.repository.ParkingPlateRepository
 import top.foxball.cartask.service.FileService
@@ -56,6 +57,7 @@ class SynCarCapInfoTask(
     private val syncTaskHistoryService: SyncTaskHistoryService,
     private val syncTaskProgressService: SyncTaskProgressService = SyncTaskProgressService(),
     private val parkingPlateRepository: ParkingPlateRepository,
+    private val keytopSyncRateLimiter: KeytopSyncRateLimiter? = null,
 ) {
     
     
@@ -118,7 +120,9 @@ class SynCarCapInfoTask(
         val startedAt = LocalDateTime.now()
         syncTaskProgressService.start(taskKey, taskName, startedAt)
         try {
-            val result = synchronization()
+            val snapshot = keytopSyncRateLimiter?.snapshot()
+            val result = if (snapshot == null) synchronization()
+            else keytopSyncRateLimiter.withSnapshot(snapshot, synchronization)
             recordHistory(taskKey, taskName, trigger, SyncTaskRun.Status.SUCCESS, startedAt, result, null)
             return result
         } catch (exception: VehicleAccessRecordSyncInProgressException) {
@@ -134,6 +138,7 @@ class SynCarCapInfoTask(
     
     // 同样不能包事务：内部会调科拓接口，理由见 synCarCapInfoList 上的注释。
     fun previewSynchronization(): CarCapInfoSyncPreview {
+        val snapshot = keytopSyncRateLimiter?.snapshot()
         if (!executionLock.tryLock()) {
             throw VehicleAccessRecordSyncInProgressException()
         }
@@ -143,12 +148,23 @@ class SynCarCapInfoTask(
             val checkpoint = syncCheckpointService.find(SYNC_KEY)
             val checkpointTime = checkpoint?.cursorTime
             val startTime = incrementalStartTime(checkpointTime, syncEndTime)
-            val response = keytopService.getCarInoutInfo(
-                pageIndex = 1,
-                pageSize = 1,
-                startTime = startTime,
-                endTime = syncEndTime,
-            )
+            val response = if (snapshot == null) {
+                keytopService.getCarInoutInfo(
+                    pageIndex = 1,
+                    pageSize = 1,
+                    startTime = startTime,
+                    endTime = syncEndTime,
+                )
+            } else {
+                keytopSyncRateLimiter.withSnapshot(snapshot) {
+                    keytopService.getCarInoutInfo(
+                        pageIndex = 1,
+                        pageSize = 1,
+                        startTime = startTime,
+                        endTime = syncEndTime,
+                    )
+                }
+            }
             require(response.code == 0) {
                 "Keytop 车辆进出接口预检失败：${response.code ?: "未知"} ${response.message.orEmpty()}".trim()
             }
@@ -245,9 +261,12 @@ class SynCarCapInfoTask(
     
     
     private fun synchronizeRange(startTime: LocalDateTime, syncEndTime: LocalDateTime, taskKey: String): ProcessResult {
+        val rateLimitSnapshot = keytopSyncRateLimiter?.snapshot()
         VehiclePhotoDownloadCoordinator(
-            concurrency = keytopProperties.carCapInfoPhotoDownloadConcurrency,
-            startInterval = keytopProperties.carCapInfoPhotoDownloadInterval,
+            concurrency = rateLimitSnapshot?.photoDownloadConcurrency
+                ?: keytopProperties.carCapInfoPhotoDownloadConcurrency,
+            startInterval = rateLimitSnapshot?.photoDownloadInterval
+                ?: keytopProperties.carCapInfoPhotoDownloadInterval,
             fileService = fileService,
             accessRecordRepository = accessRecordRepository,
         ).use { coordinator ->

@@ -114,6 +114,7 @@ keytop:
   app-secret: ${KEYTOP_APP_SECRET:}
   version: ${KEYTOP_VERSION:1.0.0}
   timeout: ${KEYTOP_TIMEOUT:30s}
+  sync-request-interval: ${KEYTOP_SYNC_REQUEST_INTERVAL:200ms}
   area-sync-cron: ${KEYTOP_AREA_SYNC_CRON:0 0 2 * * *}
   car-cap-info-sync-cron: ${KEYTOP_CAR_CAP_INFO_SYNC_CRON:0 */5 * * * *}
   car-cap-info-page-size: ${KEYTOP_CAR_CAP_INFO_PAGE_SIZE:100}

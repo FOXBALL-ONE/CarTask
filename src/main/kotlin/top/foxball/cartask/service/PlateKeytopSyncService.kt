@@ -15,6 +15,7 @@ import top.foxball.cartask.keytop.KeytopPlateNo
 import top.foxball.cartask.keytop.KeytopProperties
 import top.foxball.cartask.keytop.KeytopResponse
 import top.foxball.cartask.keytop.KeytopService
+import top.foxball.cartask.keytop.KeytopSyncRateLimiter
 import top.foxball.cartask.repository.ParkingPlateKeytopSyncTaskRepository
 import top.foxball.cartask.repository.ParkingOwnerRepository
 import top.foxball.cartask.repository.ParkingPlateRepository
@@ -41,6 +42,7 @@ class PlateKeytopSyncService(
     private val keytopService: KeytopService,
     private val keytopProperties: KeytopProperties,
     private val objectMapper: ObjectMapper,
+    private val keytopSyncRateLimiter: KeytopSyncRateLimiter? = null,
 ) {
     private val running = AtomicBoolean(false)
     private val logger = LoggerFactory.getLogger(javaClass)
@@ -119,15 +121,19 @@ class PlateKeytopSyncService(
     fun processBatch(): Int {
         if (!running.compareAndSet(false, true)) return 0
         return try {
-            ensurePendingTasks()
-            resetStaleTasks()
-            var processed = 0
-            while (processed < keytopProperties.plateSyncBatchSize) {
-                val task = claimNext() ?: break
-                process(task)
-                processed++
+            val snapshot = keytopSyncRateLimiter?.snapshot()
+            val runBatch = {
+                ensurePendingTasks()
+                resetStaleTasks()
+                var processed = 0
+                while (processed < keytopProperties.plateSyncBatchSize) {
+                    val task = claimNext() ?: break
+                    process(task)
+                    processed++
+                }
+                processed
             }
-            processed
+            if (snapshot == null) runBatch() else keytopSyncRateLimiter.withSnapshot(snapshot, runBatch)
         } finally {
             running.set(false)
         }
@@ -151,20 +157,24 @@ class PlateKeytopSyncService(
     }
 
     fun reconcile(): Int {
-        var queued = 0
-        plateRepository.findAll().filter { it.status == STATUS_ENABLED }.forEach { plate ->
-            val normalized = PlateNumbers.normalize(plate.plate) ?: return@forEach
-            val response = runCatching { keytopService.getCarCardInfo(normalized) }.getOrElse {
-                logger.warn("对账查询 Keytop 月卡失败：plate={}", normalized, it)
-                return@forEach
+        val snapshot = keytopSyncRateLimiter?.snapshot()
+        val reconcile = {
+            var queued = 0
+            plateRepository.findAll().filter { it.status == STATUS_ENABLED }.forEach { plate ->
+                val normalized = PlateNumbers.normalize(plate.plate) ?: return@forEach
+                val response = runCatching { keytopService.getCarCardInfo(normalized) }.getOrElse {
+                    logger.warn("对账查询 Keytop 月卡失败：plate={}", normalized, it)
+                    return@forEach
+                }
+                val card = if (response.code == SUCCESS_CODE) parseCard(response.data, normalized) else null
+                if (card?.cardId != plate.keytopCardId || card?.plateNo != normalized || plate.keytopSyncStatus != ParkingPlate.KeytopSyncStatus.SYNCED) {
+                    enqueueAfterChange(plate, plate.plate, STATUS_ENABLED, plate.keytopCardId)
+                    queued++
+                }
             }
-            val card = if (response.code == SUCCESS_CODE) parseCard(response.data, normalized) else null
-            if (card?.cardId != plate.keytopCardId || card?.plateNo != normalized || plate.keytopSyncStatus != ParkingPlate.KeytopSyncStatus.SYNCED) {
-                enqueueAfterChange(plate, plate.plate, STATUS_ENABLED, plate.keytopCardId)
-                queued++
-            }
+            queued
         }
-        return queued
+        return if (snapshot == null) reconcile() else keytopSyncRateLimiter.withSnapshot(snapshot, reconcile)
     }
 
     private fun claimNext(): ParkingPlateKeytopSyncTask? {

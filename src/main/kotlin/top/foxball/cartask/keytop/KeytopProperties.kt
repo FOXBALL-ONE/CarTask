@@ -20,6 +20,7 @@ data class KeytopProperties(
     val appSecret: String = "",
     val version: String = "1.0.0",
     val timeout: Duration = Duration.ofSeconds(30),
+    val syncRequestInterval: Duration = Duration.ofMillis(200),
     val areaSyncCron: String = "0 0 2 * * *",
     val carCapInfoSyncCron: String = "0 */5 * * * *",
     val carCapInfoPageSize: Int = 100,
@@ -39,6 +40,8 @@ data class KeytopProperties(
 ) {
     init {
         require(!carCapInfoOverlapWindow.isNegative) { "车辆进出记录同步回看时长不能为负数" }
+        require(!syncRequestInterval.isNegative) { "Keytop 同步请求限频间隔不能为负数" }
+        require(syncRequestInterval <= Duration.ofSeconds(60)) { "Keytop 同步请求限频间隔不能超过 60 秒" }
         require(!carCapInfoReconciliationWindow.isNegative && !carCapInfoReconciliationWindow.isZero) {
             "车辆进出记录补偿同步回看时长必须大于零"
         }

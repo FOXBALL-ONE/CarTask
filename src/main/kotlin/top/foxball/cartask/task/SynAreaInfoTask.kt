@@ -6,6 +6,7 @@ import top.foxball.cartask.audit.AuditRequestContext
 import top.foxball.cartask.entity.SyncTaskRun
 import top.foxball.cartask.handler.ParkingAreaSyncInProgressException
 import top.foxball.cartask.service.*
+import top.foxball.cartask.keytop.KeytopSyncRateLimiter
 import java.time.LocalDateTime
 
 
@@ -14,6 +15,7 @@ class SynAreaInfoTask(
     private val parkingAreaSyncService: ParkingAreaSyncService,
     private val syncTaskHistoryService: SyncTaskHistoryService,
     private val syncTaskProgressService: SyncTaskProgressService = SyncTaskProgressService(),
+    private val keytopSyncRateLimiter: KeytopSyncRateLimiter? = null,
 ) {
     
     
@@ -37,7 +39,9 @@ class SynAreaInfoTask(
         val startedAt = LocalDateTime.now()
         syncTaskProgressService.start(TASK_KEY, TASK_NAME, startedAt)
         try {
-            val result = parkingAreaSyncService.synchronize()
+            val snapshot = keytopSyncRateLimiter?.snapshot()
+            val result = if (snapshot == null) parkingAreaSyncService.synchronize()
+            else keytopSyncRateLimiter.withSnapshot(snapshot) { parkingAreaSyncService.synchronize() }
             if (result.lotName != null) {
                 logger.info(
                     "停车场详情已保存：{}，总车位 {}",

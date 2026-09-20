@@ -3,7 +3,7 @@
     <header class="page__header">
       <div>
         <h1 class="page__title">系统配置</h1>
-        <p class="page__desc">修改运行参数，保存后重载使其生效</p>
+        <p class="page__desc">限频配置从下一次同步任务生效，其他运行参数保存后需重载</p>
       </div>
       <div class="page__actions">
         <button :disabled="loading || saving" class="button button--ghost button--sm" type="button" @click="loadConfig">
@@ -107,11 +107,17 @@
 
       <section class="card">
         <header class="card__head">
-          <h2 class="card__title">车辆进出记录图片下载</h2>
-          <span class="card__hint">科拓接口限速配置</span>
+          <h2 class="card__title">同步任务 Keytop 限频</h2>
+          <span class="card__hint">动态配置</span>
         </header>
         <div class="card__body">
           <div class="form-grid">
+            <label class="field">
+              <span class="field__label">Keytop 请求启动间隔</span>
+              <input v-model.trim="form.KEYTOP_SYNC_REQUEST_INTERVAL" class="input" :disabled="!canManage"
+                     placeholder="200ms">
+              <span class="field__hint">所有同步任务共享的两次 Keytop 请求启动时间最小间隔。示例：200ms、1s、30s；0ms 表示不主动限速。</span>
+            </label>
             <label class="field">
               <span class="field__label">图片下载启动间隔</span>
               <input v-model.trim="form.KEYTOP_CAR_CAP_INFO_PHOTO_DOWNLOAD_INTERVAL" class="input" :disabled="!canManage"
@@ -133,7 +139,7 @@
       </p>
 
       <div class="footer-bar">
-        <p class="footer-bar__note">配置保存在服务端 .env 文件中，保存后需要重载才能生效。</p>
+        <p class="footer-bar__note">配置保存在服务端 .env 文件中；Keytop 限频从下一次同步开始生效，其他配置需重载。</p>
         <button v-if="canManage" :disabled="saving" class="button button--primary" type="button" @click="saveConfig">
           <span class="material-icons-outlined">save</span>{{ saving ? "保存中..." : "保存配置" }}
         </button>
@@ -155,11 +161,17 @@
             <p class="modal__hint">预计 10~30 秒。重启期间页面会短暂无法访问，连接恢复后自动刷新。</p>
           </template>
           <template v-else>
-            <p>配置已写入 .env，但尚未生效。需要重载服务才能应用新的配置。</p>
-            <p class="modal__hint">重载会重启后端进程，正在进行的同步任务会中断，约 10~30 秒后恢复。</p>
+            <template v-if="reloadRequired">
+              <p>配置已写入 .env，但尚未生效。需要重载服务才能应用新的配置。</p>
+              <p class="modal__hint">重载会重启后端进程，正在进行的同步任务会中断，约 10~30 秒后恢复。</p>
+            </template>
+            <template v-else>
+              <p>配置已保存。新的限频设置会从下一次同步任务开始使用。</p>
+              <p class="modal__hint">正在运行的同步任务继续使用启动时读取的限频快照，不会中途改变。</p>
+            </template>
           </template>
         </div>
-        <footer v-if="!reloading" class="modal__foot">
+        <footer v-if="!reloading && reloadRequired" class="modal__foot">
           <button class="button button--ghost" type="button" @click="reloadVisible = false">稍后手动重载</button>
           <button class="button button--primary" type="button" @click="reloadNow">立即重载</button>
         </footer>
@@ -182,6 +194,7 @@ interface SystemConfigForm {
   FILE_BASE_URL: string;
   KEYTOP_CAR_CAP_INFO_PHOTO_DOWNLOAD_INTERVAL: string;
   KEYTOP_CAR_CAP_INFO_PHOTO_DOWNLOAD_CONCURRENCY: string;
+  KEYTOP_SYNC_REQUEST_INTERVAL: string;
 }
 
 const http = useHttp();
@@ -193,6 +206,7 @@ const loading = ref(true);
 const saving = ref(false);
 const reloading = ref(false);
 const reloadVisible = ref(false);
+const reloadRequired = ref(true);
 const loadError = ref("");
 const saveError = ref("");
 
@@ -208,7 +222,10 @@ const form = reactive<SystemConfigForm>({
   FILE_BASE_URL: "",
   KEYTOP_CAR_CAP_INFO_PHOTO_DOWNLOAD_INTERVAL: "200ms",
   KEYTOP_CAR_CAP_INFO_PHOTO_DOWNLOAD_CONCURRENCY: "4",
+  KEYTOP_SYNC_REQUEST_INTERVAL: "200ms",
 });
+
+let lastLoadedConfig: SystemConfigForm = {...form};
 
 async function loadConfig() {
   loading.value = true;
@@ -220,6 +237,7 @@ async function loadConfig() {
       const value = values?.[key];
       if (typeof value === "string") form[key as keyof SystemConfigForm] = value;
     });
+    lastLoadedConfig = {...form};
   } catch (error) {
     loadError.value = (error as { statusMessage?: string }).statusMessage || "配置读取失败";
   } finally {
@@ -232,6 +250,14 @@ async function saveConfig() {
   saveError.value = "";
   try {
     await http.put("/system/config", {...form}, {payloadMode: "json"});
+    reloadRequired.value = Object.keys(form).some((key) => {
+      if (
+        key === "KEYTOP_SYNC_REQUEST_INTERVAL"
+        || key === "KEYTOP_CAR_CAP_INFO_PHOTO_DOWNLOAD_INTERVAL"
+        || key === "KEYTOP_CAR_CAP_INFO_PHOTO_DOWNLOAD_CONCURRENCY"
+      ) return false;
+      return lastLoadedConfig[key as keyof SystemConfigForm] !== form[key as keyof SystemConfigForm];
+    });
     // 保存后服务端会把密钥重新按掩码返回，这里同步一次，避免继续拿着明文。
     await loadConfig();
     reloadVisible.value = true;

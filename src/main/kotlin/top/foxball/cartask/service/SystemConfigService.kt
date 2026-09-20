@@ -28,7 +28,8 @@ class SystemConfigService(
 
     /** read：返回所有可编辑项的当前生效值；密钥一律以掩码返回，避免明文回显到浏览器。 */
     fun read(): Map<String, String> = EDITABLE_KEYS.associateWith { key ->
-        val value = environment.getProperty(propertyKey(key)).orEmpty()
+        val fileValue = DotenvLoader.read(DotenvLoader.defaultPath())[key]
+        val value = fileValue ?: environment.getProperty(propertyKey(key)).orEmpty()
         if (key in SECRET_KEYS && value.isNotBlank()) MASK else value
     }
 
@@ -78,29 +79,43 @@ class SystemConfigService(
         }
 
         values["KEYTOP_CAR_CAP_INFO_PHOTO_DOWNLOAD_INTERVAL"]?.let { raw ->
-            if (raw.isNotBlank()) {
-                val interval = parseDuration(raw)
-                require(!interval.isNegative) { "图片下载间隔不能为负数" }
-                require(interval <= java.time.Duration.ofSeconds(60)) { "图片下载间隔不能超过 60 秒" }
-            }
+            require(raw.isNotBlank()) { "图片下载间隔不能为空" }
+            val interval = parseDuration(raw)
+            require(!interval.isNegative) { "图片下载间隔不能为负数" }
+            require(interval <= java.time.Duration.ofSeconds(60)) { "图片下载间隔不能超过 60 秒" }
         }
 
         values["KEYTOP_CAR_CAP_INFO_PHOTO_DOWNLOAD_CONCURRENCY"]?.let { raw ->
-            if (raw.isNotBlank()) {
-                val concurrency = raw.toIntOrNull()
-                    ?: throw IllegalArgumentException("图片下载并行数必须是整数")
-                require(concurrency in 1..16) { "图片下载并行数必须在 1 到 16 之间" }
-            }
+            require(raw.isNotBlank()) { "图片下载并行数不能为空" }
+            val concurrency = raw.toIntOrNull()
+                ?: throw IllegalArgumentException("图片下载并行数必须是整数")
+            require(concurrency in 1..16) { "图片下载并行数必须在 1 到 16 之间" }
+        }
+
+        values["KEYTOP_SYNC_REQUEST_INTERVAL"]?.let { raw ->
+            require(raw.isNotBlank()) { "Keytop 同步请求限频间隔不能为空" }
+            val interval = parseDuration(raw)
+            require(!interval.isNegative) { "Keytop 同步请求限频间隔不能为负数" }
+            require(interval <= java.time.Duration.ofSeconds(60)) { "Keytop 同步请求限频间隔不能超过 60 秒" }
         }
     }
 
 
     private fun parseDuration(raw: String): java.time.Duration {
         return try {
-            if (raw.matches(Regex("\\d+"))) {
-                java.time.Duration.ofMillis(raw.toLong())
+            val value = raw.trim()
+            val match = Regex("^(\\d+)(ms|s|m|h|d)?$", RegexOption.IGNORE_CASE).matchEntire(value)
+            if (match == null) {
+                java.time.Duration.parse(value)
             } else {
-                java.time.Duration.parse("PT$raw".uppercase())
+                when (match.groupValues[2].lowercase()) {
+                    "", "ms" -> java.time.Duration.ofMillis(match.groupValues[1].toLong())
+                    "s" -> java.time.Duration.ofSeconds(match.groupValues[1].toLong())
+                    "m" -> java.time.Duration.ofMinutes(match.groupValues[1].toLong())
+                    "h" -> java.time.Duration.ofHours(match.groupValues[1].toLong())
+                    "d" -> java.time.Duration.ofDays(match.groupValues[1].toLong())
+                    else -> error("unknown duration unit")
+                }
             }
         } catch (exception: Exception) {
             throw IllegalArgumentException("无法解析时长格式：$raw（示例：200ms、1s、30s）")
@@ -164,6 +179,7 @@ class SystemConfigService(
             "FILE_BASE_URL",
             "KEYTOP_CAR_CAP_INFO_PHOTO_DOWNLOAD_INTERVAL",
             "KEYTOP_CAR_CAP_INFO_PHOTO_DOWNLOAD_CONCURRENCY",
+            "KEYTOP_SYNC_REQUEST_INTERVAL",
         )
 
 
@@ -185,6 +201,7 @@ class SystemConfigService(
             "FILE_BASE_URL" to "app.file.base-url",
             "KEYTOP_CAR_CAP_INFO_PHOTO_DOWNLOAD_INTERVAL" to "keytop.car-cap-info-photo-download-interval",
             "KEYTOP_CAR_CAP_INFO_PHOTO_DOWNLOAD_CONCURRENCY" to "keytop.car-cap-info-photo-download-concurrency",
+            "KEYTOP_SYNC_REQUEST_INTERVAL" to "keytop.sync-request-interval",
         )
     }
 }

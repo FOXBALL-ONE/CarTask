@@ -44,6 +44,7 @@ class VehicleInoutRequestServiceImpl(
     private val auditService: AuditService,
     private val stateWriter: VehicleInoutRequestStateWriter,
     private val archiveService: VehicleInoutArchiveService,
+    private val keytopSyncRateLimiter: KeytopSyncRateLimiter? = null,
 ) : VehicleInoutRequestService {
     
     @Transactional(readOnly = true)
@@ -242,6 +243,12 @@ class VehicleInoutRequestServiceImpl(
     
     
     override fun synchronize(id: Long): VehicleInoutRequestService.SyncOutcome {
+        val snapshot = keytopSyncRateLimiter?.snapshot()
+        return if (snapshot == null) synchronizeInternal(id)
+        else keytopSyncRateLimiter.withSnapshot(snapshot) { synchronizeInternal(id) }
+    }
+
+    private fun synchronizeInternal(id: Long): VehicleInoutRequestService.SyncOutcome {
         val request = requireVisible(id)
         require(request.status == VehicleInoutRequest.Status.APPROVED) { "只有已通过的申请可以下发给科拓" }
         require(request.syncStatus != VehicleInoutRequest.SyncStatus.SYNCED) { "该申请已下发给科拓，无需重复下发" }

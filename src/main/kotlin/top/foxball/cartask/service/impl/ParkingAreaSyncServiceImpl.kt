@@ -10,6 +10,7 @@ import top.foxball.cartask.entity.type.ZoneType
 import top.foxball.cartask.handler.ParkingAreaSyncInProgressException
 import top.foxball.cartask.keytop.KeytopProperties
 import top.foxball.cartask.keytop.KeytopService
+import top.foxball.cartask.keytop.KeytopSyncRateLimiter
 import top.foxball.cartask.repository.ParkingLotRepository
 import top.foxball.cartask.repository.ZoneTypeRepository
 import top.foxball.cartask.service.ParkingAreaSyncResult
@@ -23,11 +24,15 @@ class ParkingAreaSyncServiceImpl(
     private val parkingLotRepository: ParkingLotRepository,
     private val properties: KeytopProperties,
     private val objectMapper: ObjectMapper,
+    private val keytopSyncRateLimiter: KeytopSyncRateLimiter? = null,
 ) : ParkingAreaSyncService {
     @Transactional
     
     
     override fun synchronize(): ParkingAreaSyncResult {
+        if (keytopSyncRateLimiter != null && !keytopSyncRateLimiter.hasSnapshot()) {
+            return keytopSyncRateLimiter.withSnapshot(keytopSyncRateLimiter.snapshot()) { synchronize() }
+        }
         if (!executionLock.tryLock()) {
             throw ParkingAreaSyncInProgressException()
         }

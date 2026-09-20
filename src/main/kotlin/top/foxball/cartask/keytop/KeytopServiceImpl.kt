@@ -26,6 +26,7 @@ class KeytopServiceImpl(
     restClientBuilder: RestClient.Builder,
     private val properties: KeytopProperties,
     private val objectMapper: ObjectMapper,
+    private val syncRateLimiter: KeytopSyncRateLimiter? = null,
 ) : KeytopService {
     private val requestFactory = SimpleClientHttpRequestFactory().apply {
         setConnectTimeout(properties.timeout)
@@ -352,6 +353,7 @@ class KeytopServiceImpl(
     
     
     private fun post(path: String, serviceCode: String, business: Map<String, Any?>): KeytopResponse {
+        syncRateLimiter?.acquire()
         val request = LinkedHashMap<String, Any?>()
         request["appId"] = properties.appId
         request["parkId"] = properties.parkId

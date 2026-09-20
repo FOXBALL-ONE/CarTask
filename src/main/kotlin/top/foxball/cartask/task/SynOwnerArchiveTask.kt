@@ -11,6 +11,7 @@ import top.foxball.cartask.entity.ParkingPlate
 import top.foxball.cartask.entity.SyncTaskRun
 import top.foxball.cartask.handler.AccountGenerateInProgressException
 import top.foxball.cartask.keytop.KeytopService
+import top.foxball.cartask.keytop.KeytopSyncRateLimiter
 import top.foxball.cartask.repository.AccessRecordRepository
 import top.foxball.cartask.repository.ParkingOwnerRepository
 import top.foxball.cartask.repository.ParkingPlateRepository
@@ -39,6 +40,7 @@ class SynOwnerArchiveTask(
     private val syncTaskProgressService: SyncTaskProgressService = SyncTaskProgressService(),
     private val keytopService: KeytopService? = null,
     private val objectMapper: ObjectMapper? = null,
+    private val keytopSyncRateLimiter: KeytopSyncRateLimiter? = null,
 ) {
     
     
@@ -66,7 +68,9 @@ class SynOwnerArchiveTask(
         val startedAt = LocalDateTime.now()
         syncTaskProgressService.start(TASK_KEY, TASK_NAME, startedAt)
         try {
-            val result = generateInternal(startedAt)
+            val snapshot = keytopSyncRateLimiter?.snapshot()
+            val result = if (snapshot == null) generateInternal(startedAt)
+            else keytopSyncRateLimiter.withSnapshot(snapshot) { generateInternal(startedAt) }
             recordHistory(trigger, SyncTaskRun.Status.SUCCESS, startedAt, result) {
                 "新建车主 ${result.createdOwnerCount} 个，关联车牌 ${result.linkedPlateCount} 个，" +
                         "跳过 ${result.skippedCount} 个"
