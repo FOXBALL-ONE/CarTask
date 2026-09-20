@@ -46,11 +46,12 @@ class SecurityConfig(
             .authorizeHttpRequests {
                 it.requestMatchers(
                     "/api/auth/login",
-                    "/api/auth/captcha",
                     "/api/auth/sms/**",
                     "/api/setup/status",
                     "/error",
                 ).permitAll()
+                // 反向代理或客户端可能保留末尾斜杠；验证码接口必须和登录接口一样始终允许匿名调用。
+                it.requestMatchers(HttpMethod.GET, "/api/auth/captcha", "/api/auth/captcha/**").permitAll()
                 it.requestMatchers(HttpMethod.POST, "/api/auth/logout").authenticated()
                 it.requestMatchers("/api/users/**").authenticated()
                 it.requestMatchers(HttpMethod.GET, "/api/project/**").permitAll()
@@ -59,6 +60,7 @@ class SecurityConfig(
                     "/api/tags/**",
                     "/api/customer-reviews/**",
                     "/api/announcements/**",
+                    "/api/commute-routes/public",
                     "/api/home/recommendations",
                 ).permitAll()
                 it.requestMatchers("/api/files/**").authenticated()

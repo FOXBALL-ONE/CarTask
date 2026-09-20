@@ -80,12 +80,12 @@ function isLogoutEndpoint(url: string): boolean {
 }
 
 /**
- * 登录前的免认证接口（短信发送等）。
+ * 登录前的免认证接口（图形验证码、短信发送等）。
  * 这些接口用 401 表达「图形验证码/凭据不正确」，而不是「登录态失效」，
  * 因此不能走 token 失效清理流程。
  */
 function isPreLoginEndpoint(url: string): boolean {
-    return /\/(?:api\/)?auth\/sms\//.test(requestPath(url));
+    return /\/(?:api\/)?auth\/(?:captcha(?:\/|$)|sms\/)/.test(requestPath(url));
 }
 
 function isAuthenticationEndpoint(url: string): boolean {
@@ -237,7 +237,14 @@ export const useHttp = (baseURL?: string) => {
         const send = async () => {
             const requestHeaders = new Headers(fetchOptions.headers as HeadersInit | undefined);
             const authorization = normalizeAuthorization(authToken.value);
-            if (authorization && !requestHeaders.has("Authorization")) {
+            // 登录、图形验证码与短信接口必须作为匿名请求发送。否则登录页残留的旧 JWT
+            // 会先经过服务端的改密过滤器，验证码还没进 Controller 就收到 403。
+            if (
+                authorization
+                && !isLoginEndpoint(url)
+                && !isPreLoginEndpoint(url)
+                && !requestHeaders.has("Authorization")
+            ) {
                 requestHeaders.set("Authorization", authorization);
             }
 

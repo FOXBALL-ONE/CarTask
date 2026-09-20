@@ -61,7 +61,16 @@ class PasswordChangeRequiredFilter : OncePerRequestFilter() {
     
     private companion object {
         
-        val ALLOWED_PREFIXES = listOf("/api/profile", "/api/auth/logout", "/api/auth/session")
+        // 登录前端可能留有一个要求改密的旧 JWT。验证码、登录和短信流程仍是匿名入口，
+        // 不能因为该 JWT 被这个过滤器提前拦成 403。
+        val ALLOWED_PREFIXES = listOf(
+            "/api/profile",
+            "/api/auth/logout",
+            "/api/auth/session",
+            "/api/auth/captcha",
+            "/api/auth/login",
+            "/api/auth/sms/",
+        )
     }
 }
 

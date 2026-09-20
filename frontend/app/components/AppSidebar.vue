@@ -235,6 +235,8 @@ const navigation: { title: string; items: NavigationItem[] }[] = [
   {
     title: "系统",
     items: [
+      {label: "宣传通告", icon: "campaign", page: "announcements", route: "/announcements", roles: ["SUPER_ADMIN", "ADMIN"]},
+      {label: "通勤路线", icon: "route", page: "commute-routes-admin", route: "/commute-routes-admin", roles: ["SUPER_ADMIN", "ADMIN"]},
       {
         label: "数据同步",
         icon: "sync_alt",

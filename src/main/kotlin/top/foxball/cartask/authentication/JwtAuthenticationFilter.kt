@@ -42,6 +42,18 @@ class JwtAuthenticationFilter(
 ) : OncePerRequestFilter() {
     private val log = LoggerFactory.getLogger(javaClass)
     private val tokenResolver = DefaultBearerTokenResolver()
+
+    /**
+     * 登录启动接口必须彻底按匿名请求处理。浏览器可能在跳回登录页时仍带着旧 JWT；
+     * 若继续解析它，待改密或失效会话会在验证码生成前返回 403/401。
+     */
+    override fun shouldNotFilter(request: HttpServletRequest): Boolean {
+        val path = request.requestURI.orEmpty()
+        return path == "/api/auth/captcha" ||
+            path == "/api/auth/captcha/" ||
+            path == "/api/auth/login" ||
+            path.startsWith("/api/auth/sms/")
+    }
     
     
     /** doFilterInternal：执行认证组件中的一项具体操作，完成输入校验并返回处理结果。 */

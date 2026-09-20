@@ -25,7 +25,7 @@ class AuthController(
     private val smsVerificationService: SmsVerificationService,
 ) {
     
-    @GetMapping("/captcha")
+    @GetMapping("/captcha", "/captcha/")
             /** captcha：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun captcha(): ResponseEntity<Response> {
         val captcha = captchaService.generate()

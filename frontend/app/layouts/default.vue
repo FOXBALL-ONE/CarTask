@@ -160,6 +160,8 @@ const pageLabels: Record<string, string> = {
   profile: "个人中心",
   password: "修改密码",
   "system-config": "系统配置",
+  announcements: "宣传通告",
+  "commute-routes-admin": "通勤路线",
 };
 const routePages: Record<string, string> = {
   "/": "dashboard",
@@ -187,6 +189,8 @@ const routePages: Record<string, string> = {
   "/about": "about",
   "/profile": "profile",
   "/system-config": "system-config",
+  "/announcements": "announcements",
+  "/commute-routes-admin": "commute-routes-admin",
 };
 const pagePaths: Record<string, string> = {
   dashboard: "/",
@@ -214,15 +218,19 @@ const pagePaths: Record<string, string> = {
   about: "/about",
   profile: "/profile",
   "system-config": "/system-config",
+  announcements: "/announcements",
+  "commute-routes-admin": "/commute-routes-admin",
 };
 // 不使用外壳的页面：登录与配置引导都在会话之外，任何一条侧边栏或顶栏都是多余的。
-const isLoginPage = computed(() => route.path === "/login" || route.path === "/setup");
+const isLoginPage = computed(() => route.path === "/login" || route.path === "/setup" || route.path === "/commute-routes" || route.path === "/public-announcements");
 const activePage = computed(() => typeof route.query.page === "string" ? route.query.page : (routePages[route.path] ?? "dashboard"));
 const activePageLabel = computed(() => pageLabels[activePage.value] ?? "仪表盘");
 const userInitial = computed(() => userName.value.trim().charAt(0).toUpperCase() || "A");
 
 useHead({
-  title: () => (route.path === "/setup" ? "系统配置引导" : isLoginPage.value ? "登录" : `${activePageLabel.value} - ${systemName.value}`),
+  title: () => route.path === "/commute-routes" || route.path === "/public-announcements"
+      ? (route.path === "/commute-routes" ? "通勤路线" : "宣传通告")
+      : (route.path === "/setup" ? "系统配置引导" : isLoginPage.value ? "登录" : `${activePageLabel.value} - ${systemName.value}`),
   link: [{rel: "stylesheet", href: "https://fonts.googleapis.com/icon?family=Material+Icons+Outlined"}],
 });
 
