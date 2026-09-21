@@ -1,7 +1,7 @@
 package top.itneko.keytop
 
-import tools.jackson.databind.JsonNode
-import tools.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.ObjectMapper
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.atomic.AtomicLong
@@ -204,7 +204,7 @@ class KeytopMockStore(private val objectMapper: ObjectMapper) {
     private fun firstPlate(): String? = cards.values.asSequence().flatMap { plates(it).asSequence() }
         .mapNotNull { it["plateNo"] as? String }.firstOrNull()
     
-    private fun JsonNode.textValue(name: String): String? = get(name)?.takeUnless { it.isNull }?.asString()
+    private fun JsonNode.textValue(name: String): String? = get(name)?.takeUnless { it.isNull }?.asText()
     private fun JsonNode.intValue(name: String): Int? = get(name)?.takeUnless { it.isNull }?.asInt()
     private fun JsonNode.longValue(name: String): Long? = get(name)?.takeUnless { it.isNull }?.asLong()
     
