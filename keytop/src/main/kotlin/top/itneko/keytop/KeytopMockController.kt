@@ -3,8 +3,8 @@ package top.itneko.keytop
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
-import tools.jackson.databind.JsonNode
-import tools.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.ObjectMapper
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.time.Instant
@@ -15,7 +15,9 @@ import java.util.*
 class KeytopMockController(
     private val properties: KeytopMockProperties,
     private val objectMapper: ObjectMapper,
+    private val service: KeytopMockService,
 ) {
+    @Deprecated("Use KeytopMockService instead")
     private val store = KeytopMockStore(objectMapper)
     
     @PostMapping("/api/wec/GetCarCardList")
@@ -24,11 +26,11 @@ class KeytopMockController(
             val pageIndex = request.requiredInt("pageIndex")
             val pageSize = request.requiredInt("pageSize")
             require(pageIndex > 0 && pageSize > 0) { "pageIndex和pageSize必须大于0" }
-            val all = store.listCards()
+            val all = service.listCards()
             success(
                 mapOf(
                     "pageIndex" to pageIndex,
-                    "carCardList" to page(all, pageIndex, pageSize),
+                    "carCardList" to page(cardToView(all), pageIndex, pageSize),
                     "pageSize" to pageSize,
                     "totalCount" to all.size
                 )
@@ -38,53 +40,53 @@ class KeytopMockController(
     @PostMapping("/api/wec/AddCarCardNo")
     fun addCarCard(@RequestHeader version: String?, @RequestBody request: JsonNode) =
         handle(version, request, "addCarCardNo") {
-            val card = store.addCard(
+            val card = service.addCard(
                 request.requiredJson("cardInfo"),
                 request.requiredJson("carLotList"),
                 request.requiredJson("plateNoInfo")
             )
-            success(card)
+            success(cardToView(card))
         }
-    
+
     @PostMapping("/api/wec/GetCarCardInfo")
     fun getCarCardInfo(@RequestHeader version: String?, @RequestBody request: JsonNode) =
         handle(version, request, "getCarCardInfo") {
             val card =
-                request.longValue("cardId")?.let(store::card) ?: store.cardByPlate(request.requiredText("plateNo"))
-            success(card)
+                request.longValue("cardId")?.let(service::getCard) ?: service.getCardByPlate(request.requiredText("plateNo"))
+            success(cardToView(card))
         }
-    
+
     @PostMapping("/api/wec/ModifyCarCardNo")
     fun modifyCarCard(@RequestHeader version: String?, @RequestBody request: JsonNode) =
         handle(version, request, "modifyCarCardNo") {
-            val card = store.updateCard(
+            val card = service.updateCard(
                 request.requiredJson("cardInfo"),
                 request.requiredJson("carLotList"),
                 request.requiredJson("plateNoInfo")
             )
-            success(card)
+            success(cardToView(card))
         }
-    
+
     @PostMapping("/api/wec/DelCarCardInfo")
     fun deleteCarCard(@RequestHeader version: String?, @RequestBody request: JsonNode) =
         handle(version, request, "delCarCardInfo") {
-            store.deleteCard(request.requiredLong("cardId"))
+            service.deleteCard(request.requiredLong("cardId"))
             success(emptyMap<String, Any>())
         }
-    
+
     @PostMapping("/api/wec/PayCarCardFee")
     fun payCarCard(@RequestHeader version: String?, @RequestBody request: JsonNode) =
         handle(version, request, "payCarCardFee") {
             val cardId = request.requiredLong("cardId")
-            store.updateValidity(cardId, request.requiredText("validFrom"), request.requiredText("validTo"))
+            service.updateValidity(cardId, request.requiredText("validFrom"), request.requiredText("validTo"))
             success(mapOf("cardId" to cardId, "orderNo" to request.requiredText("orderNo")))
         }
-    
+
     @PostMapping("/api/wec/RefundCarCardFee")
     fun refundCarCard(@RequestHeader version: String?, @RequestBody request: JsonNode) =
         handle(version, request, "refundCarCardFee") {
             val cardId = request.requiredLong("cardId")
-            store.updateValidity(cardId, request.requiredText("validFrom"), request.requiredText("validTo"))
+            service.updateValidity(cardId, request.requiredText("validFrom"), request.requiredText("validTo"))
             success(
                 mapOf(
                     "cardId" to cardId,
@@ -93,20 +95,20 @@ class KeytopMockController(
                 )
             )
         }
-    
+
     @PostMapping("/api/carCard/GetCardInfoByUser")
     fun getCardInfoByUser(@RequestHeader version: String?, @RequestBody request: JsonNode) =
         handle(version, request, "getCardInfoByUser") {
-            success(store.userCard(request.requiredText("plateNo")))
+            success(service.getUserCard(request.requiredText("plateNo")))
         }
-    
+
     @PostMapping("/api/wec/GetCarInoutInfo")
     fun getCarInoutInfo(@RequestHeader version: String?, @RequestBody request: JsonNode) =
         handle(version, request, "getCarInoutInfo") {
             val pageIndex = request.requiredInt("pageIndex")
             val pageSize = request.requiredInt("pageSize")
             require(pageIndex > 0 && pageSize > 0) { "pageIndex和pageSize必须大于0" }
-            val records = store.inoutRecords(request.textValue("plateNo"))
+            val records = service.inoutRecords(request.textValue("plateNo"))
             success(
                 mapOf(
                     "pageIndex" to pageIndex,
@@ -160,47 +162,51 @@ class KeytopMockController(
             val pageIndex = request.requiredInt("pageIndex")
             val pageSize = request.requiredInt("pageSize")
             require(pageIndex > 0 && pageSize > 0) { "pageIndex和pageSize必须大于0" }
-            val all = store.blacklistList(request.textValue("plateNo"))
+            val all = service.blacklistList(request.textValue("plateNo"))
             success(
                 mapOf(
                     "pageIndex" to pageIndex,
                     "pageSize" to pageSize,
                     "totalCount" to all.size,
-                    "carBlackList" to page(all, pageIndex, pageSize)
+                    "carBlackList" to page(all.map(::blacklistItemToView), pageIndex, pageSize)
                 )
             )
         }
-    
+
     @PostMapping("/api/blacklist/AddCarBlackInfo")
     fun addBlacklist(@RequestHeader version: String?, @RequestBody request: JsonNode) =
         handle(version, request, "addCarBlackInfo") {
             success(
-                store.addBlacklist(
-                    request.requiredText("plateNo"), request.requiredText("reason"), request.textValue("remark") ?: ""
+                blacklistItemToView(
+                    service.addBlacklist(
+                        request.requiredText("plateNo"), request.requiredText("reason"), request.textValue("remark") ?: ""
+                    )
                 )
             )
         }
-    
+
     @PostMapping("/api/blacklist/ModifyCarBlackInfo")
     fun modifyBlacklist(@RequestHeader version: String?, @RequestBody request: JsonNode) =
         handle(version, request, "modifyCarBlackInfo") {
             success(
-                store.updateBlacklist(
-                    request.requiredLong("id"),
-                    request.requiredText("plateNo"),
-                    request.requiredText("reason"),
-                    request.textValue("remark") ?: ""
+                blacklistItemToView(
+                    service.updateBlacklist(
+                        request.requiredLong("id"),
+                        request.requiredText("plateNo"),
+                        request.requiredText("reason"),
+                        request.textValue("remark") ?: ""
+                    )
                 )
             )
         }
-    
+
     @PostMapping("/api/blacklist/DelCarBlackInfo")
     fun deleteBlacklist(@RequestHeader version: String?, @RequestBody request: JsonNode) =
         handle(version, request, "delCarBlackInfo") {
             val id = request.longValue("id")
             val plateNo = request.textValue("plateNo")
             require(id != null || !plateNo.isNullOrBlank()) { "id或plateNo至少提供一个" }
-            store.deleteBlacklist(id, plateNo)
+            service.deleteBlacklist(id, plateNo)
             success(emptyMap<String, Any>())
         }
     
@@ -213,7 +219,7 @@ class KeytopMockController(
         validate(version, request, serviceCode)
         return ResponseEntity.ok(
             mapOf(
-                "resCode" to "0", "resMsg" to "成功", "data" to objectMapper.writeValueAsString(action())
+                "resCode" to "0", "resMsg" to "成功", "data" to action()
             )
         )
     }
@@ -233,13 +239,11 @@ class KeytopMockController(
     
     private fun sign(request: JsonNode): String {
         val fields = TreeMap<String, String>()
-        request.properties().forEach { entry ->
-            val name = entry.key
-            val value = entry.value
-            if (name == "key" || name == "appId" || value.isNull || value.isContainer || (value.isString && value.asString()
+        request.fields().forEach { (name, value) ->
+            if (name == "key" || name == "appId" || value.isNull || value.isContainerNode() || (value.isTextual && value.asText()
                     .isEmpty())
             ) return@forEach
-            fields[name] = value.asString()
+            fields[name] = value.asText()
         }
         val plain = fields.entries.joinToString("&") { "${it.key}=${it.value}" } + "&" + properties.appSecret
         return MessageDigest.getInstance("MD5").digest(plain.toByteArray(StandardCharsets.UTF_8))
@@ -248,32 +252,85 @@ class KeytopMockController(
     
     private fun JsonNode.requiredText(name: String): String =
         textValue(name)?.takeIf { it.isNotBlank() } ?: throw IllegalArgumentException("字段不能为空: $name")
-    
+
     private fun JsonNode.requiredInt(name: String): Int =
         intValue(name) ?: throw IllegalArgumentException("字段不能为空: $name")
-    
+
     private fun JsonNode.requiredLong(name: String): Long =
         longValue(name) ?: throw IllegalArgumentException("字段不能为空: $name")
-    
+
     private fun JsonNode.requiredJson(name: String): JsonNode = requiredText(name).let(objectMapper::readTree)
-    private fun JsonNode.textValue(name: String): String? = get(name)?.takeUnless { it.isNull }?.asString()
+    private fun JsonNode.textValue(name: String): String? = get(name)?.takeUnless { it.isNull }?.asText()
     private fun JsonNode.intValue(name: String): Int? = get(name)?.takeUnless { it.isNull }?.asInt()
     private fun JsonNode.longValue(name: String): Long? = get(name)?.takeUnless { it.isNull }?.asLong()
     private fun <T> page(values: List<T>, pageIndex: Int, pageSize: Int): List<T> =
         values.drop((pageIndex - 1) * pageSize).take(pageSize)
-    
+
     private fun <T> success(value: T): T = value
+
+    private fun cardToView(card: CarCard): Map<String, Any?> = mapOf(
+        "cardId" to card.cardId,
+        "cardName" to card.cardName,
+        "updateUser" to card.updateUser,
+        "userName" to card.userName,
+        "useName" to card.useName,
+        "tel" to card.tel,
+        "email" to card.email,
+        "roomId" to card.roomId,
+        "remak" to card.remak,
+        "contact" to card.contact,
+        "assist" to card.assist,
+        "validCount" to card.validCount,
+        "fullCarNoStr" to card.fullCarNoStr,
+        "merchantId" to card.merchantId,
+        "imageUrl" to card.imageUrl,
+        "lotCount" to card.lotCount,
+        "cardState" to card.cardState,
+        "state" to card.state,
+        "lastUpdateTime" to card.lastUpdateTime.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
+        "effectiveTime" to card.effectiveTime,
+        "validFrom" to card.validFrom,
+        "validTo" to card.validTo,
+        "plateNoInfo" to card.plateNoInfo.map { mapOf(
+            "id" to it.id,
+            "cardId" to it.cardId,
+            "plateNo" to it.plateNo,
+            "etcNo" to it.etcNo,
+            "remark" to it.remark,
+            "plateState" to it.plateState,
+        ) },
+        "carLotList" to card.carLotList.map { mapOf(
+            "id" to it.id,
+            "cardId" to it.cardId,
+            "lotName" to it.lotName,
+            "carType" to it.carType,
+            "sequence" to it.sequence,
+            "areaName" to it.areaName,
+            "areaId" to it.areaId(),
+            "lotCount" to it.lotCount,
+        ) },
+    )
+
+    private fun cardToView(cards: List<CarCard>): List<Map<String, Any?>> = cards.map(::cardToView)
+
+    private fun blacklistItemToView(item: BlacklistItem): Map<String, Any?> = mapOf(
+        "id" to item.id,
+        "plateNo" to item.plateNo,
+        "reason" to item.reason,
+        "remark" to item.remark,
+        "createTime" to item.createTime.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
+    )
 }
 
 @RestControllerAdvice
 class KeytopMockExceptionHandler {
     @ExceptionHandler(IllegalArgumentException::class)
-    fun badRequest(exception: IllegalArgumentException): ResponseEntity<Map<String, Any?>> =
-        ResponseEntity.status(HttpStatus.BAD_REQUEST)
-            .body(mapOf("resCode" to "400", "resMsg" to (exception.message ?: "请求无效"), "data" to "{}"))
-    
+    fun badRequest(exception: IllegalArgumentException): Map<String, Any?> =
+        mapOf("resCode" to "400", "resMsg" to (exception.message ?: "请求无效"), "data" to emptyMap<String, Any>())
+
     @ExceptionHandler(Exception::class)
-    fun serverError(exception: Exception): ResponseEntity<Map<String, Any?>> =
-        ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-            .body(mapOf("resCode" to "500", "resMsg" to (exception.message ?: "服务异常"), "data" to "{}"))
+    fun serverError(exception: Exception): Map<String, Any?> {
+        exception.printStackTrace()
+        return mapOf("resCode" to "500", "resMsg" to (exception.message ?: "服务异常"), "data" to emptyMap<String, Any>())
+    }
 }
