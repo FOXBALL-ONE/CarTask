@@ -1,0 +1,40 @@
+spring:
+  application:
+    name: keytop-mock
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+  datasource:
+    url: jdbc:h2:mem:keytop;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=PostgreSQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+keytop:
+  mock:
+    version: "1.0.0"
+    appId: 12250
+    parkId: "591007282"
+    appSecret: "your-secret-key"
+
+server:
+  port: 8091
+
+logging:
+  level:
+    root: INFO
+    top.itneko.keytop: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
