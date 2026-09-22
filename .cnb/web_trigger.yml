@@ -1,0 +1,6 @@
+branch:
+  - reg: ^master$
+    buttons:
+      - name: 构建并发布
+        description: 使用 master 分支最新提交构建前后端并发布 Release 制品
+        event: web_trigger_release
