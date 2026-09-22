@@ -27,18 +27,24 @@
       script: bash ./gradlew clean bootJar --no-daemon
     - name: 准备发布制品
       script: |
-        set -euo pipefail
+        set -eu
         mkdir -p dist
         test -d frontend/.output
         tar -czf "dist/frontend-${CNB_COMMIT}.tar.gz" -C frontend .output
 
-        shopt -s nullglob
-        jars=(build/libs/*.jar)
-        if [ "${#jars[@]}" -ne 1 ]; then
-          echo "Expected exactly one bootJar in build/libs, found ${#jars[@]}" >&2
+        jar_count=0
+        jar_path=''
+        for jar in build/libs/*.jar; do
+          if [ -f "$jar" ]; then
+            jar_count=$((jar_count + 1))
+            jar_path="$jar"
+          fi
+        done
+        if [ "$jar_count" -ne 1 ]; then
+          echo "Expected exactly one bootJar in build/libs, found $jar_count" >&2
           exit 1
         fi
-        cp "${jars[0]}" "dist/backend-${CNB_COMMIT}.jar"
+        cp "$jar_path" "dist/backend-${CNB_COMMIT}.jar"
     - name: 创建 Release
       type: git:release
       options:
