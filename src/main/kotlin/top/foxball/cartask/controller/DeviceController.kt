@@ -140,6 +140,8 @@ class DeviceController(
             sourcePage++
         } while (allDevices.size < sourceTotal)
         val filtered = allDevices.asSequence()
+            .filter { it.brand.equals("Hikvision", ignoreCase = true) || it.brand == "海康威视" }
+            .filter { it.deviceType == "门禁设备" }
             .filter {
                 keyword.isNullOrBlank() || it.deviceCode?.contains(
                     keyword,

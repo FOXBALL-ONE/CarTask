@@ -19,6 +19,7 @@ class DeviceServiceImpl(
     
     override fun create(entity: Device): Device {
         require(entityId(entity) == null) { "创建记录时不能指定 ID" }
+        requireSupportedDevice(entity)
         return repository.save(entity)
     }
     
@@ -28,6 +29,7 @@ class DeviceServiceImpl(
     override fun createBatch(entities: List<Device>): List<Device> {
         require(entities.isNotEmpty()) { "创建列表不能为空" }
         require(entities.all { entityId(it) == null }) { "创建记录时不能指定 ID" }
+        entities.forEach(::requireSupportedDevice)
         return repository.saveAll(entities)
     }
     
@@ -68,6 +70,7 @@ class DeviceServiceImpl(
         val current = repository.findById(id)
             .orElseThrow { IllegalArgumentException("记录不存在: $id") }
         copyEditableProperties(entity, current)
+        requireSupportedDevice(current)
         return repository.save(current)
     }
     
@@ -85,6 +88,7 @@ class DeviceServiceImpl(
         val updated = entities.map { incoming ->
             val current = currentById.getValue(entityId(incoming))
             copyEditableProperties(incoming, current)
+            requireSupportedDevice(current)
             current
         }
         return repository.saveAll(updated)
@@ -141,5 +145,13 @@ class DeviceServiceImpl(
             .forEach { property ->
                 targetWrapper.setPropertyValue(property, sourceWrapper.getPropertyValue(property))
             }
+    }
+
+    private fun requireSupportedDevice(device: Device) {
+        require(device.brand.equals("Hikvision", ignoreCase = true) || device.brand == "海康威视") {
+            "设备品牌仅支持海康威视（Hikvision）"
+        }
+        require(device.deviceType == "门禁设备") { "设备类型仅支持门禁设备" }
+        device.brand = "Hikvision"
     }
 }

@@ -775,7 +775,9 @@ class ExcelController(
             devices += result.content
             deviceTotal = result.totalElements
         }
-        val deviceRows = devices.map {
+        val deviceRows = devices.filter {
+            (it.brand.equals("Hikvision", ignoreCase = true) || it.brand == "海康威视") && it.deviceType == "门禁设备"
+        }.map {
             DeviceExportRow(
                 requireNotNull(it.id),
                 it.deviceCode,
