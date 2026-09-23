@@ -626,7 +626,7 @@ async function submitSmsLogin() {
   box-shadow: 0 0 6px rgb(34 197 94 / 55%);
 }
 
-/* 栏杆：黄黑标线，绕右端转轴抬起 */
+/* 栏杆：黄黑标线，绕右端转轴向上抬起 */
 .gate__arm {
   background: repeating-linear-gradient(115deg, var(--g-mark) 0 8px, #1f2937 8px 16px);
   border-radius: 3px;
@@ -641,7 +641,7 @@ async function submitSmsLogin() {
 }
 
 .gate--open .gate__arm {
-  transform: rotate(-58deg);
+  transform: rotate(90deg);
 }
 
 /* ====== 登录方式：分段控件 ====== */
