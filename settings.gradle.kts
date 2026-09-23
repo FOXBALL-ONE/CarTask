@@ -8,4 +8,4 @@ pluginManagement {
     }
 }
 
-rootProject.name = "carTask"
+rootProject.name = "CarTask"
