@@ -2,7 +2,7 @@
   <section class="page">
     <header class="page__header">
       <div><h1 class="page__title">设备管理</h1>
-        <p class="page__desc">管理门禁设备和车场设备</p></div>
+        <p class="page__desc">管理门禁设备</p></div>
       <button v-if="can('device:manage')" class="btn btn--primary btn--sm" type="button" @click="openCreate"><span
           class="material-icons-outlined">add</span>新增设备
       </button>
@@ -56,12 +56,8 @@
             <td>{{ String(device.id).padStart(4, "0") }}</td>
             <td><strong class="device-code">{{ device.code }}</strong></td>
             <td>{{ device.name }}</td>
-            <td><span :class="device.type === '门禁设备' ? 'tag--blue' : 'tag--orange'" class="tag">{{
-                device.type
-              }}</span></td>
-            <td><span :class="device.brand === 'Hikvision' ? 'tag--blue' : 'tag--green'" class="tag">{{
-                device.brand
-              }}</span></td>
+            <td><span class="tag tag--blue">{{ device.type }}</span></td>
+            <td><span class="tag tag--blue">{{ device.brand }}</span></td>
             <td class="text-sub">{{ device.model || "-" }}</td>
             <td>{{ device.location || "-" }}</td>
             <td class="text-sub nowrap">{{ device.installDate || "-" }}</td>
@@ -108,12 +104,8 @@
               v-model.trim="form.name" class="input" required></label>
             <label class="field"><span class="field__label">设备类型</span><select v-model="form.type" class="select">
               <option>门禁设备</option>
-              <option>车场设备</option>
-            </select></label><label class="field"><span class="field__label">品牌</span><select v-model="form.brand"
-                                                                                                class="select">
-            <option value="Hikvision">Hikvision（海康威视）</option>
-            <option value="Keytop">Keytop（科拓）</option>
-          </select></label>
+            </select></label><label class="field"><span class="field__label">品牌</span><input
+              class="input" value="Hikvision（海康威视）" readonly></label>
             <label class="field"><span class="field__label">安装位置</span><input v-model.trim="form.location"
                                                                                   class="input"></label><label
               class="field"><span class="field__label">安装时间</span><input v-model="form.installDate" class="input"
@@ -121,25 +113,16 @@
           </div>
           <section class="perm-section">
             <header class="perm-section__head"><h3 class="perm-section__title">连接配置</h3></header>
-            <p class="connection-hint">根据品牌类型填写对应的连接参数，保存后系统将连接平台获取设备型号、状态等信息</p>
+            <p class="connection-hint">填写海康威视设备的连接参数</p>
             <div class="form-grid">
-              <template v-if="form.brand === 'Hikvision'"><label class="field full"><span class="field__label">Host（IP / Domain）</span><input
+              <label class="field full"><span class="field__label">Host（IP / Domain）</span><input
                   v-model.trim="form.host" class="input"
                   placeholder="https://api2.hik-cloud.com 或 192.168.1.201"></label><label class="field"><span
                   class="field__label">Username</span><input v-model.trim="form.username" class="input"
                                                              placeholder="设备用户名"></label><label class="field"><span
                   class="field__label">Password</span><input v-model="form.password" class="input"
                                                              placeholder="设备密码"
-                                                             type="password"></label></template>
-              <template v-else><label class="field"><span class="field__label">AppId</span><input
-                  v-model.trim="form.appId" class="input" placeholder="科拓AppId"></label><label class="field"><span
-                  class="field__label">ParkId</span><input v-model.trim="form.parkId" class="input"
-                                                           placeholder="科拓车场ID"></label><label
-                  class="field full"><span class="field__label">AppSecret</span><input v-model="form.appSecret"
-                                                                                       class="input"
-                                                                                       placeholder="科拓AppSecret"
-                                                                                       type="password"></label>
-              </template>
+                                                             type="password"></label>
             </div>
           </section>
           <div class="form-grid form-grid--remark"><label class="field full"><span
@@ -190,9 +173,6 @@ interface DeviceForm {
   host: string;
   username: string;
   password: string;
-  appId: string;
-  parkId: string;
-  appSecret: string;
   remark: string;
   model: string;
   status: number | null;
@@ -225,9 +205,6 @@ const form = reactive<DeviceForm>({
   host: "",
   username: "",
   password: "",
-  appId: "",
-  parkId: "",
-  appSecret: "",
   remark: "",
   model: "",
   status: null,
@@ -250,8 +227,8 @@ function statusClass(status: number | null) {
   return status === 1 ? "tag--green" : status === 0 ? "tag--red" : "tag--gray";
 }
 
-function modelFor(brand: string) {
-  const models = brand === "Hikvision" ? ["DS-K1T642", "DS-K1T201", "DS-K1T801", "DS-2CD2T86"] : ["KT-CR200", "KT-GT300", "KT-LS100", "KT-CP50"];
+function modelFor() {
+  const models = ["DS-K1T642", "DS-K1T201", "DS-K1T801", "DS-2CD2T86"];
   return models[Math.floor(Math.random() * models.length)];
 }
 
@@ -273,9 +250,6 @@ function resetForm() {
     host: "",
     username: "",
     password: "",
-    appId: "",
-    parkId: "",
-    appSecret: "",
     remark: "",
     model: "",
     status: null,
@@ -341,9 +315,6 @@ function openEdit(device: Device) {
     host: device.ip || "",
     username: "",
     password: "",
-    appId: "",
-    parkId: "",
-    appSecret: "",
     remark: device.remark || "",
     model: device.model || "",
     status: device.status,
@@ -366,7 +337,7 @@ async function saveDevice() {
     name: form.name,
     type: form.type,
     brand: form.brand,
-    model: form.model || modelFor(form.brand),
+    model: form.model || modelFor(),
     location: form.location || "-",
     ip: form.host || "-",
     installDate: form.installDate || "1970-01-01",
