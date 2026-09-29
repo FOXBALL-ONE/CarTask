@@ -104,8 +104,17 @@
             </button>
           </div>
         </div>
+        <div class="login__pow" aria-live="polite">
+          <span>{{ powStatusText }}</span>
+          <button
+              v-if="pow.status === 'manual' || pow.status === 'failed'"
+              class="login__pow-btn"
+              type="button"
+              @click="manualPow('LOGIN')"
+          >点击验证</button>
+        </div>
         <button
-            :disabled="busy || authStore.captchaLoading || !authStore.captchaToken"
+            :disabled="busy"
             class="login__btn"
             type="submit"
         >{{ busy ? "登录中..." : "登 录" }}
@@ -189,6 +198,15 @@
           </div>
         </div>
         <p v-else class="login__notice">短信验证已临时关闭，填写手机号即可登录。</p>
+        <div v-if="authStore.smsVerificationEnabled" class="login__pow" aria-live="polite">
+          <span>{{ powStatusText }}</span>
+          <button
+              v-if="pow.status === 'manual' || pow.status === 'failed'"
+              class="login__pow-btn"
+              type="button"
+              @click="manualPow('SMS_SEND')"
+          >点击验证</button>
+        </div>
         <button
             :disabled="busy"
             class="login__btn"
@@ -212,6 +230,8 @@
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+const pow = usePowVerification();
+const pendingPow = ref<{ powChallengeId: string; powNonce: string } | null>(null);
 
 // 系统名称（可由系统设置修改），与原版 localStorage.sysName 逻辑一致。
 const sysName = ref("福清市车务管理系统");
@@ -229,6 +249,12 @@ const mode = ref<"password" | "sms">("password");
 /** 登录成功后的抬杆动效状态；期间按钮保持「登录中」避免闪回可点。 */
 const gateOpen = ref(false);
 const busy = computed(() => authStore.loading || gateOpen.value);
+const powStatusText = computed(() => {
+  if (pow.status.value === "running") return `正在进行安全验证（${pow.attempts.value} 次计算）`;
+  if (pow.status.value === "verified") return "安全验证已完成";
+  if (pow.status.value === "manual") return "自动验证未完成，可手动点击重试或使用图形验证码";
+  return "登录前会自动完成安全验证";
+});
 // 与后端 SmsVerificationService.SEND_INTERVAL 保持一致的重发倒计时。
 const SMS_RESEND_SECONDS = 60;
 const smsCountdown = ref(0);
@@ -286,6 +312,24 @@ async function passGate() {
 // 从后端获取验证码；点击图片可刷新。与原版一致：刷新期间保留旧图，失败才显示「获取失败」。
 async function genCaptcha() {
   await authStore.refreshCaptcha();
+}
+
+async function manualPow(purpose: "LOGIN" | "SMS_SEND") {
+  authStore.clearError();
+  try {
+    pendingPow.value = await pow.verify(purpose, "MANUAL");
+  } catch (error) {
+    authStore.setError(error instanceof Error ? error.message : "人机验证失败");
+  }
+}
+
+async function proofFor(purpose: "LOGIN" | "SMS_SEND") {
+  if (pendingPow.value) {
+    const proof = pendingPow.value;
+    pendingPow.value = null;
+    return proof;
+  }
+  return await pow.verifyWithFallback(purpose);
 }
 
 function stopCountdown() {
@@ -365,10 +409,14 @@ async function submitLogin() {
   const username = form.username.trim();
   const password = form.password.trim();
   const captchaAnswer = form.captcha.trim();
-
-  if (!captchaAnswer) {
-    authStore.setError("请输入验证码答案");
-    return;
+  let proof: { powChallengeId: string; powNonce: string } | undefined;
+  try {
+    proof = await proofFor("LOGIN");
+  } catch {
+    if (!captchaAnswer) {
+      authStore.setError("自动验证未完成，请点击验证或输入图形验证码");
+      return;
+    }
   }
 
   try {
@@ -376,6 +424,7 @@ async function submitLogin() {
       username,
       password,
       captchaAnswer,
+      ...proof,
     });
 
     await passGate();
@@ -401,13 +450,16 @@ async function sendSmsCode() {
     authStore.setError("手机号格式无效");
     return;
   }
-  if (!captchaAnswer) {
-    authStore.setError("请输入图形验证码答案");
+  let proof: { powChallengeId: string; powNonce: string } | undefined;
+  try {
+    proof = await proofFor("SMS_SEND");
+  } catch {
+    authStore.setError("短信登录必须先完成人机验证");
     return;
   }
 
   try {
-    await authStore.sendSmsCode({phone, captchaAnswer});
+    await authStore.sendSmsCode({phone, captchaAnswer, ...proof});
   } catch {
     // 校验未通过：换一张验证码并清空答案，避免拿旧 token 反复重试。
     smsForm.captcha = "";
@@ -851,6 +903,33 @@ async function submitSmsLogin() {
   margin-top: 14px;
   padding: 8px 12px;
   text-align: center;
+}
+
+.login__pow {
+  align-items: center;
+  color: var(--g-mute);
+  display: flex;
+  font-size: 12px;
+  gap: 10px;
+  justify-content: space-between;
+  margin: -2px 0 14px;
+  min-height: 28px;
+}
+
+.login__pow-btn {
+  background: transparent;
+  border: 1px solid var(--g-line-strong);
+  border-radius: 7px;
+  color: var(--g-accent-text);
+  cursor: pointer;
+  font: inherit;
+  padding: 5px 10px;
+}
+
+.login__pow-btn:hover,
+.login__pow-btn:focus-visible {
+  border-color: var(--g-accent);
+  outline: none;
 }
 
 .login__error {

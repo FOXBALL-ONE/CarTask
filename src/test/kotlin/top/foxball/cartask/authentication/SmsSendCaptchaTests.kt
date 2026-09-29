@@ -17,6 +17,7 @@ import top.foxball.cartask.repository.UserRepository
 
 class SmsSendCaptchaTests {
     private val captchaService = mock<CaptchaService>()
+    private val powVerificationService = mock<PowVerificationService>()
     private val smsVerificationService = mock<SmsVerificationService>()
     private val service = AuthServiceImpl(
         userRepository = mock<UserRepository>(),
@@ -27,6 +28,7 @@ class SmsSendCaptchaTests {
         loginAttemptLimiter = mock<LoginAttemptLimiter>(),
         rolePermissionService = mock<RolePermissionService>(),
         smsVerificationService = smsVerificationService,
+        powVerificationService = powVerificationService,
     )
 
     @Test
@@ -42,6 +44,33 @@ class SmsSendCaptchaTests {
 
         verify(captchaService).verify("token-1", "1234")
         verify(smsVerificationService).send("13800138000", SmsVerificationService.Purpose.LOGIN)
+    }
+
+    @Test
+    fun `短信登录发送短信必须校验POW`() {
+        service.sendSmsCode(
+            AuthService.SmsSendCommand(
+                phone = "13800138000",
+                purpose = "LOGIN",
+                captchaToken = null,
+                captchaAnswer = null,
+                powChallengeId = "challenge-1",
+                powNonce = "42",
+            ),
+        )
+
+        verify(powVerificationService).verify("challenge-1", "SMS_SEND", "42")
+        verify(captchaService, never()).verify(any(), any())
+        verify(smsVerificationService).send("13800138000", SmsVerificationService.Purpose.LOGIN)
+    }
+
+    @Test
+    fun `短信登录缺少POW时拒绝且不发送短信`() {
+        assertThrows(AuthenticationInfrastructureException::class.java) {
+            service.sendSmsCode(AuthService.SmsSendCommand("13800138000", "LOGIN", "token-1", "1234"))
+        }
+
+        verify(smsVerificationService, never()).send(any(), any())
     }
 
     @Test

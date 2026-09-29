@@ -84,6 +84,9 @@ class SystemConfigService(
             require(!interval.isNegative) { "图片下载间隔不能为负数" }
             require(interval <= java.time.Duration.ofSeconds(60)) { "图片下载间隔不能超过 60 秒" }
         }
+        require(!(values["POW_REPLACE_CAPTCHA"].toBoolean() && values["POW_COMBINE_CAPTCHA"].toBoolean())) {
+            "POW 替换图形验证码与双重验证不能同时开启"
+        }
 
         values["KEYTOP_CAR_CAP_INFO_PHOTO_DOWNLOAD_CONCURRENCY"]?.let { raw ->
             require(raw.isNotBlank()) { "图片下载并行数不能为空" }
@@ -176,6 +179,9 @@ class SystemConfigService(
             "SMS_ACCESS_KEY_SECRET",
             "SMS_SIGN_NAME",
             "SMS_TEMPLATE_CODE",
+            "POW_ENABLED",
+            "POW_REPLACE_CAPTCHA",
+            "POW_COMBINE_CAPTCHA",
             "FILE_BASE_URL",
             "KEYTOP_CAR_CAP_INFO_PHOTO_DOWNLOAD_INTERVAL",
             "KEYTOP_CAR_CAP_INFO_PHOTO_DOWNLOAD_CONCURRENCY",
@@ -186,7 +192,10 @@ class SystemConfigService(
         val SECRET_KEYS = setOf("SMS_ACCESS_KEY_SECRET")
 
 
-        val BOOLEAN_KEYS = setOf("CORS_ALLOW_CREDENTIALS", "SMS_ENABLED", "SMS_SKIP_VERIFICATION")
+        val BOOLEAN_KEYS = setOf(
+            "CORS_ALLOW_CREDENTIALS", "SMS_ENABLED", "SMS_SKIP_VERIFICATION",
+            "POW_ENABLED", "POW_REPLACE_CAPTCHA", "POW_COMBINE_CAPTCHA",
+        )
 
 
         val PROPERTY_KEYS = mapOf(
@@ -198,6 +207,9 @@ class SystemConfigService(
             "SMS_ACCESS_KEY_SECRET" to "cartask.sms.access-key-secret",
             "SMS_SIGN_NAME" to "cartask.sms.sign-name",
             "SMS_TEMPLATE_CODE" to "cartask.sms.template-code",
+            "POW_ENABLED" to "cartask.security.pow.enabled",
+            "POW_REPLACE_CAPTCHA" to "cartask.security.pow.replace-captcha",
+            "POW_COMBINE_CAPTCHA" to "cartask.security.pow.combine-captcha",
             "FILE_BASE_URL" to "app.file.base-url",
             "KEYTOP_CAR_CAP_INFO_PHOTO_DOWNLOAD_INTERVAL" to "keytop.car-cap-info-photo-download-interval",
             "KEYTOP_CAR_CAP_INFO_PHOTO_DOWNLOAD_CONCURRENCY" to "keytop.car-cap-info-photo-download-concurrency",

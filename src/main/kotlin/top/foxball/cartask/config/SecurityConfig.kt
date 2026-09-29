@@ -47,6 +47,7 @@ class SecurityConfig(
                 it.requestMatchers(
                     "/api/auth/login",
                     "/api/auth/sms/**",
+                    "/api/verification/pow/**",
                     "/api/setup/status",
                     "/error",
                 ).permitAll()
