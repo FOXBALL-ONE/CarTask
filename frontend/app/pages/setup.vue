@@ -130,18 +130,33 @@
 
         <!-- 1. 数据库 -->
         <div v-if="currentStep.id === 'database'" class="form">
+          <div class="form__row form__row--host">
+            <label class="field">
+              <span class="field__label">地址</span>
+              <div class="field__wrap">
+                <span class="material-icons-outlined">dns</span>
+                <input v-model="database.host" class="field__input" placeholder="127.0.0.1" spellcheck="false">
+              </div>
+            </label>
+            <label class="field">
+              <span class="field__label">端口</span>
+              <div class="field__wrap">
+                <span class="material-icons-outlined">tag</span>
+                <input v-model="database.port" class="field__input" inputmode="numeric" placeholder="5432">
+              </div>
+            </label>
+          </div>
           <label class="field">
-            <span class="field__label">连接串</span>
+            <span class="field__label">数据库名</span>
             <div class="field__wrap">
-              <span class="material-icons-outlined">link</span>
-              <input v-model="database.url" class="field__input" placeholder="jdbc:postgresql://主机:5432/cartask"
-                     spellcheck="false">
+              <span class="material-icons-outlined">database</span>
+              <input v-model="database.name" class="field__input" placeholder="cartask" spellcheck="false">
             </div>
             <span class="field__hint">数据库需要先在服务器上创建好；表结构由服务首次启动时自动建立。</span>
           </label>
           <div class="form__row">
             <label class="field">
-              <span class="field__label">用户名</span>
+              <span class="field__label">账户</span>
               <div class="field__wrap">
                 <span class="material-icons-outlined">person</span>
                 <input v-model="database.username" autocomplete="off" class="field__input" placeholder="postgres">
@@ -509,7 +524,7 @@ const doneSteps = ref<Set<StepId>>(new Set());
 const RESTART_POLL_ATTEMPTS = 90;
 const RESTART_POLL_INTERVAL_MS = 1000;
 
-const database = reactive({url: "", username: "", password: ""});
+const database = reactive({host: "", port: "5432", name: "", username: "", password: ""});
 const redis = reactive({host: "", port: "6379", password: ""});
 const keytop = reactive({base_url: "", app_id: "", park_id: "", park_name: "", app_secret: ""});
 const storage = reactive({storage_root: "./st", base_url: ""});
@@ -536,7 +551,7 @@ const nextLabel = computed(() =>
 );
 
 const review = computed(() => [
-  {label: "数据库", value: database.url, masked: false},
+  {label: "数据库", value: databaseLocation(), masked: false},
   {label: "数据库账号", value: database.username, masked: false},
   {label: "数据库密码", value: "", masked: hasSecret("DB_PASSWORD") || Boolean(database.password)},
   {label: "Redis", value: redis.host ? `${redis.host}:${redis.port}` : "", masked: false},
@@ -562,10 +577,58 @@ function hasSecret(key: string): boolean {
   return savedSecrets.value.has(key);
 }
 
+/** 把实施人员填写的连接信息转换为后端和 .env 继续使用的 PostgreSQL JDBC URL。 */
+function databaseUrl(): string {
+  const host = database.host.trim();
+  const jdbcHost = host.includes(":") && !host.startsWith("[") ? `[${host}]` : host;
+  return `jdbc:postgresql://${jdbcHost}:${database.port.trim()}/${database.name.trim()}`;
+}
+
+function databaseLocation(): string {
+  if (!database.host.trim() && !database.name.trim()) {
+    return "";
+  }
+  return `${database.host.trim()}:${database.port.trim()}/${database.name.trim()}`;
+}
+
+/** 兼容已经保存在草稿中的 JDBC URL，只把本页需要编辑的标准连接部分回填出来。 */
+function applyDatabaseUrl(value: string | undefined) {
+  if (!value) {
+    return;
+  }
+  try {
+    const parsed = new URL(value.replace(/^jdbc:/, ""));
+    if (parsed.protocol !== "postgresql:") {
+      return;
+    }
+    database.host = parsed.hostname;
+    database.port = parsed.port || "5432";
+    database.name = decodeURIComponent(parsed.pathname.replace(/^\//, ""));
+  } catch {
+    // 非标准旧连接串仍保留在草稿中；用户可在当前拆分字段中重新填写并验证。
+  }
+}
+
+function validateDatabase() {
+  if (!database.host.trim()) {
+    throw new Error("数据库地址不能为空");
+  }
+  const port = Number(database.port);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error("数据库端口必须是 1 到 65535 之间的整数");
+  }
+  if (!database.name.trim()) {
+    throw new Error("数据库名不能为空");
+  }
+  if (!database.username.trim()) {
+    throw new Error("数据库账户不能为空");
+  }
+}
+
 /** 把草稿回填到表单。回填过程不算「改动」，否则刚进页面每一步都会被判成需要重新验证。 */
 function applyDraft(values: Record<string, string>, secrets: string[], completed: SetupStepId[]) {
   applyingDraft.value = true;
-  database.url = values.DB_URL ?? database.url;
+  applyDatabaseUrl(values.DB_URL);
   database.username = values.DB_USERNAME ?? database.username;
   redis.host = values.REDIS_HOST ?? redis.host;
   redis.port = values.REDIS_PORT || redis.port;
@@ -664,7 +727,12 @@ function markDone(id: StepId, message: string) {
 async function verifyCurrent(): Promise<void> {
   const id = currentStep.value.id;
   if (id === "database") {
-    const result = await setup.verifyDatabase({...database});
+    validateDatabase();
+    const result = await setup.verifyDatabase({
+      url: databaseUrl(),
+      username: database.username,
+      password: database.password,
+    });
     markDone(
         "database",
         `已连接 ${result.product} ${result.version} · 库 ${result.database} · ` +
