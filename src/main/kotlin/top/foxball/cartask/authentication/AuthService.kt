@@ -39,6 +39,8 @@ interface AuthService {
         @param:JsonProperty("password") val password: CredentialValue,
         @param:JsonProperty("captchaToken") val captchaToken: String?,
         @param:JsonProperty("captchaAnswer") val captchaAnswer: String?,
+        @param:JsonProperty("powChallengeId") val powChallengeId: String? = null,
+        @param:JsonProperty("powNonce") val powNonce: String? = null,
     )
     
     /**
@@ -68,6 +70,8 @@ interface AuthService {
         @param:JsonProperty("purpose") val purpose: String?,
         @param:JsonProperty("captchaToken") val captchaToken: String?,
         @param:JsonProperty("captchaAnswer") val captchaAnswer: String?,
+        @param:JsonProperty("powChallengeId") val powChallengeId: String? = null,
+        @param:JsonProperty("powNonce") val powNonce: String? = null,
     )
     
     /**
@@ -141,12 +145,23 @@ class AuthServiceImpl(
     private val rolePermissionService: RolePermissionService,
     private val auditService: AuditService? = null,
     private val smsVerificationService: SmsVerificationService,
+    private val powVerificationService: PowVerificationService? = null,
+    private val powProperties: PowProperties = PowProperties(),
 ) : AuthService {
     
     
     /** login：执行认证组件中的一项具体操作，完成输入校验并返回处理结果。 */
     override fun login(command: AuthService.LoginCommand): AuthService.LoginData {
-        captchaService.verify(command.captchaToken, command.captchaAnswer)
+        powProperties.validate()
+        val hasPow = !command.powChallengeId.isNullOrBlank() || !command.powNonce.isNullOrBlank()
+        if (powProperties.requiresPow()) {
+            if (!hasPow) throw BadCredentialsException("请先完成人机验证")
+            powVerificationService?.verify(command.powChallengeId, "LOGIN", command.powNonce)
+                ?: throw AuthenticationInfrastructureException("POW 人机验证未配置")
+        }
+        if (powProperties.requiresCaptcha()) {
+            captchaService.verify(command.captchaToken, command.captchaAnswer)
+        }
         loginAttemptLimiter.check(command.username)
         val user: User
         val role: String
@@ -233,7 +248,21 @@ class AuthServiceImpl(
             else -> throw IllegalArgumentException("短信验证码用途无效")
         }
         if (!smsVerificationService.verificationSkipped) {
-            captchaService.verify(command.captchaToken, command.captchaAnswer)
+            powProperties.validate()
+            val hasPow = !command.powChallengeId.isNullOrBlank() || !command.powNonce.isNullOrBlank()
+            if (purpose == SmsVerificationService.Purpose.LOGIN) {
+                if (powProperties.requiresPow() && !hasPow) throw BadCredentialsException("请先完成人机验证")
+                if (powProperties.requiresPow()) {
+                    powVerificationService?.verify(command.powChallengeId, "SMS_SEND", command.powNonce)
+                        ?: throw AuthenticationInfrastructureException("POW 人机验证未配置")
+                }
+                if (powProperties.requiresCaptcha()) captchaService.verify(command.captchaToken, command.captchaAnswer)
+            } else if (hasPow) {
+                powVerificationService?.verify(command.powChallengeId, "SMS_SEND", command.powNonce)
+                    ?: throw AuthenticationInfrastructureException("POW 人机验证未配置")
+            } else {
+                captchaService.verify(command.captchaToken, command.captchaAnswer)
+            }
         }
         smsVerificationService.send(command.phone, purpose)
     }

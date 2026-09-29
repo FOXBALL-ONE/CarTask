@@ -36,6 +36,8 @@ interface LoginPayload {
     password: string;
     captchaToken: string;
     captchaAnswer: string;
+    powChallengeId?: string;
+    powNonce?: string;
 }
 
 interface SmsSendPayload {
@@ -43,6 +45,8 @@ interface SmsSendPayload {
     captchaAnswer: string;
     /** 短信用途；后端按用途分别存放验证码，登录与换绑手机号互不覆盖。 */
     purpose?: "LOGIN" | "CHANGE_PHONE";
+    powChallengeId?: string;
+    powNonce?: string;
 }
 
 interface SmsLoginPayload {

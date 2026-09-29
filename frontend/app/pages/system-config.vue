@@ -107,6 +107,41 @@
 
       <section class="card">
         <header class="card__head">
+          <h2 class="card__title">人机验证</h2>
+          <span class="card__hint">POW / 图形验证码</span>
+        </header>
+        <div class="card__body">
+          <div class="form-grid">
+            <label class="field">
+              <span class="field__label">启用 POW 验证</span>
+              <select v-model="form.POW_ENABLED" class="select" :disabled="!canManage">
+                <option value="true">是</option>
+                <option value="false">否</option>
+              </select>
+              <span class="field__hint">关闭后恢复仅图形验证码模式。</span>
+            </label>
+            <label class="field">
+              <span class="field__label">POW 替换图形验证码</span>
+              <select v-model="form.POW_REPLACE_CAPTCHA" class="select" :disabled="!canManage">
+                <option value="true">是</option>
+                <option value="false">否</option>
+              </select>
+              <span class="field__hint">启用时，POW 单独作为验证方式。</span>
+            </label>
+            <label class="field">
+              <span class="field__label">POW 与图形验证码一起验证</span>
+              <select v-model="form.POW_COMBINE_CAPTCHA" class="select" :disabled="!canManage">
+                <option value="true">是</option>
+                <option value="false">否</option>
+              </select>
+              <span class="field__hint">启用时两种验证都必须通过；不能与替换模式同时开启。</span>
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <header class="card__head">
           <h2 class="card__title">同步任务 Keytop 限频</h2>
           <span class="card__hint">动态配置</span>
         </header>
@@ -191,6 +226,9 @@ interface SystemConfigForm {
   SMS_ACCESS_KEY_SECRET: string;
   SMS_SIGN_NAME: string;
   SMS_TEMPLATE_CODE: string;
+  POW_ENABLED: string;
+  POW_REPLACE_CAPTCHA: string;
+  POW_COMBINE_CAPTCHA: string;
   FILE_BASE_URL: string;
   KEYTOP_CAR_CAP_INFO_PHOTO_DOWNLOAD_INTERVAL: string;
   KEYTOP_CAR_CAP_INFO_PHOTO_DOWNLOAD_CONCURRENCY: string;
@@ -219,6 +257,9 @@ const form = reactive<SystemConfigForm>({
   SMS_ACCESS_KEY_SECRET: "",
   SMS_SIGN_NAME: "",
   SMS_TEMPLATE_CODE: "",
+  POW_ENABLED: "true",
+  POW_REPLACE_CAPTCHA: "true",
+  POW_COMBINE_CAPTCHA: "false",
   FILE_BASE_URL: "",
   KEYTOP_CAR_CAP_INFO_PHOTO_DOWNLOAD_INTERVAL: "200ms",
   KEYTOP_CAR_CAP_INFO_PHOTO_DOWNLOAD_CONCURRENCY: "4",

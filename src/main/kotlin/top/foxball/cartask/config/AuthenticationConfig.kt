@@ -14,10 +14,11 @@ import top.foxball.cartask.audit.AuditRequestContextFilter
 import top.foxball.cartask.authentication.JwtAuthenticationFilter
 import top.foxball.cartask.authentication.JwtProperties
 import top.foxball.cartask.authentication.LoginRateLimitProperties
+import top.foxball.cartask.authentication.PowProperties
 import java.time.Clock
 
 @Configuration
-@EnableConfigurationProperties(JwtProperties::class, LoginRateLimitProperties::class, CorsProperties::class)
+@EnableConfigurationProperties(JwtProperties::class, LoginRateLimitProperties::class, CorsProperties::class, PowProperties::class)
 /**
  * AuthenticationConfig 的职责说明。
  * 该类型封装相关业务状态、依赖及操作流程。
