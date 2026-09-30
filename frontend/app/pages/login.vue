@@ -76,7 +76,7 @@
             >
           </div>
         </div>
-        <div class="login__field">
+        <div v-if="authStore.verificationMode.captcha_required" class="login__field">
           <label class="login__label" for="loginCaptcha">验证码</label>
           <div class="login__captcha-row">
             <div class="login__input-wrap">
@@ -104,8 +104,8 @@
             </button>
           </div>
         </div>
-        <div class="login__pow" aria-live="polite">
-          <span>{{ powStatusText }}</span>
+        <div v-if="authStore.verificationMode.pow_enabled" class="login__pow" aria-live="polite">
+          <span>{{ authStore.verificationModeLoading ? "正在读取验证模式..." : powStatusText }}</span>
           <button
               v-if="pow.status === 'manual' || pow.status === 'failed'"
               class="login__pow-btn"
@@ -114,7 +114,7 @@
           >点击验证</button>
         </div>
         <button
-            :disabled="busy"
+            :disabled="busy || authStore.verificationModeLoading"
             class="login__btn"
             type="submit"
         >{{ busy ? "登录中..." : "登 录" }}
@@ -144,7 +144,7 @@
             >
           </div>
         </div>
-        <div v-if="authStore.smsVerificationEnabled" class="login__field">
+        <div v-if="authStore.smsVerificationEnabled && authStore.verificationMode.captcha_required" class="login__field">
           <label class="login__label" for="smsCaptcha">图形验证码</label>
           <div class="login__captcha-row">
             <div class="login__input-wrap">
@@ -189,7 +189,7 @@
             </div>
             <button
                 id="smsSendBtn"
-                :disabled="smsSendDisabled"
+                :disabled="smsSendDisabled || authStore.verificationModeLoading"
                 class="login__sms-btn"
                 type="button"
                 @click="sendSmsCode"
@@ -198,8 +198,8 @@
           </div>
         </div>
         <p v-else class="login__notice">短信验证已临时关闭，填写手机号即可登录。</p>
-        <div v-if="authStore.smsVerificationEnabled" class="login__pow" aria-live="polite">
-          <span>{{ powStatusText }}</span>
+        <div v-if="authStore.smsVerificationEnabled && authStore.verificationMode.pow_enabled" class="login__pow" aria-live="polite">
+          <span>{{ authStore.verificationModeLoading ? "正在读取验证模式..." : powStatusText }}</span>
           <button
               v-if="pow.status === 'manual' || pow.status === 'failed'"
               class="login__pow-btn"
@@ -208,7 +208,7 @@
           >点击验证</button>
         </div>
         <button
-            :disabled="busy"
+            :disabled="busy || authStore.verificationModeLoading"
             class="login__btn"
             type="submit"
         >{{ busy ? "登录中..." : "登 录" }}
@@ -252,7 +252,9 @@ const busy = computed(() => authStore.loading || gateOpen.value);
 const powStatusText = computed(() => {
   if (pow.status.value === "running") return `正在进行安全验证（${pow.attempts.value} 次计算）`;
   if (pow.status.value === "verified") return "安全验证已完成";
-  if (pow.status.value === "manual") return "自动验证未完成，可手动点击重试或使用图形验证码";
+  if (pow.status.value === "manual") return authStore.verificationMode.captcha_required
+    ? "自动验证未完成，可手动点击重试或使用图形验证码"
+    : "自动验证未完成，请点击验证后继续";
   return "登录前会自动完成安全验证";
 });
 // 与后端 SmsVerificationService.SEND_INTERVAL 保持一致的重发倒计时。
@@ -362,7 +364,9 @@ function switchMode(next: "password" | "sms") {
   authStore.clearError();
   form.captcha = "";
   smsForm.captcha = "";
-  void genCaptcha();
+  void authStore.loadVerificationMode().then(() => {
+    if (authStore.verificationMode.captcha_required) void genCaptcha();
+  });
 }
 
 // 已登录（存在 JWT）则直接进入系统，对等原版 sessionStorage.loggedIn 跳转；
@@ -396,10 +400,10 @@ onMounted(() => {
   }
 
   authStore.restoreSession();
-  void genCaptcha();
+  void authStore.loadVerificationMode().then(() => {
+    if (authStore.verificationMode.captcha_required) void genCaptcha();
+  });
   void redirectToSetupIfNeeded();
-  // 后端可能临时关掉短信验证，取一次状态好让短信登录跳过验证码步骤。
-  void authStore.loadSmsVerificationStatus();
 });
 
 onUnmounted(stopCountdown);
@@ -411,9 +415,9 @@ async function submitLogin() {
   const captchaAnswer = form.captcha.trim();
   let proof: { powChallengeId: string; powNonce: string } | undefined;
   try {
-    proof = await proofFor("LOGIN");
+    if (authStore.verificationMode.pow_enabled) proof = await proofFor("LOGIN");
   } catch {
-    if (!captchaAnswer) {
+    if (!authStore.verificationMode.captcha_required || !captchaAnswer) {
       authStore.setError("自动验证未完成，请点击验证或输入图形验证码");
       return;
     }
@@ -452,7 +456,7 @@ async function sendSmsCode() {
   }
   let proof: { powChallengeId: string; powNonce: string } | undefined;
   try {
-    proof = await proofFor("SMS_SEND");
+    if (authStore.verificationMode.pow_enabled) proof = await proofFor("SMS_SEND");
   } catch {
     authStore.setError("短信登录必须先完成人机验证");
     return;

@@ -23,6 +23,7 @@ class AuthController(
     private val responseBuilder: ResponseBuilder,
     private val workingDepartmentService: WorkingDepartmentService,
     private val smsVerificationService: SmsVerificationService,
+    private val powProperties: PowProperties,
 ) {
     
     @GetMapping("/captcha", "/captcha/")
@@ -32,6 +33,30 @@ class AuthController(
         return responseBuilder.ok()
             .header(HttpHeaders.CACHE_CONTROL, "no-store")
             .data(captcha)
+            .build()
+    }
+
+    @GetMapping("/verification-mode")
+    fun verificationMode(): ResponseEntity<Response> {
+        data class Response(
+            @param:JsonProperty("pow_enabled") val powEnabled: Boolean,
+            @param:JsonProperty("captcha_required") val captchaRequired: Boolean,
+            @param:JsonProperty("pow_replaces_captcha") val powReplacesCaptcha: Boolean,
+            @param:JsonProperty("pow_and_captcha_required") val powAndCaptchaRequired: Boolean,
+            @param:JsonProperty("sms_verification_enabled") val smsVerificationEnabled: Boolean,
+        )
+
+        powProperties.validate()
+        val rs = Response(
+            powEnabled = powProperties.requiresPow(),
+            captchaRequired = powProperties.requiresCaptcha(),
+            powReplacesCaptcha = powProperties.enabled && powProperties.replaceCaptcha && !powProperties.combineCaptcha,
+            powAndCaptchaRequired = powProperties.enabled && powProperties.combineCaptcha,
+            smsVerificationEnabled = !smsVerificationService.verificationSkipped,
+        )
+        return responseBuilder.ok()
+            .header(HttpHeaders.CACHE_CONTROL, "no-store")
+            .data(rs)
             .build()
     }
     

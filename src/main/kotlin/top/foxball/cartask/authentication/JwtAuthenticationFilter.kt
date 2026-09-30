@@ -51,6 +51,7 @@ class JwtAuthenticationFilter(
         val path = request.requestURI.orEmpty()
         return path == "/api/auth/captcha" ||
             path == "/api/auth/captcha/" ||
+            path == "/api/auth/verification-mode" ||
             path == "/api/auth/login" ||
             path.startsWith("/api/auth/sms/")
     }

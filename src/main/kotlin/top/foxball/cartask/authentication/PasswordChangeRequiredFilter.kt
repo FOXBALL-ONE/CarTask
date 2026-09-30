@@ -68,6 +68,7 @@ class PasswordChangeRequiredFilter : OncePerRequestFilter() {
             "/api/auth/logout",
             "/api/auth/session",
             "/api/auth/captcha",
+            "/api/auth/verification-mode",
             "/api/auth/login",
             "/api/auth/sms/",
         )

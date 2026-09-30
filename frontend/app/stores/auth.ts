@@ -1,5 +1,6 @@
 import {defineStore} from "pinia";
 import {TOKEN_COOKIE, useHttp} from "~/composables/useHttp";
+import type {VerificationMode} from "~/composables/usePowVerification";
 
 export interface WorkingDepartmentOption {
     id: number;
@@ -89,6 +90,14 @@ export const useAuthStore = defineStore("auth", () => {
      * 也不要因为一次网络抖动静默跳过校验。
      */
     const smsVerificationEnabled = ref(true);
+    const verificationMode = ref<VerificationMode>({
+        pow_enabled: true,
+        captcha_required: false,
+        pow_replaces_captcha: true,
+        pow_and_captcha_required: false,
+        sms_verification_enabled: true,
+    });
+    const verificationModeLoading = ref(true);
     const errorMessage = ref("");
     const isAuthenticated = computed(() => Boolean(token.value));
     // 初始密码未修改：登录后必须先改密，其他页面一律不放行。
@@ -250,6 +259,25 @@ export const useAuthStore = defineStore("auth", () => {
         }
     }
 
+    async function loadVerificationMode() {
+        verificationModeLoading.value = true;
+        try {
+            verificationMode.value = await http.get<VerificationMode>("/auth/verification-mode");
+            smsVerificationEnabled.value = verificationMode.value.sms_verification_enabled;
+        } catch {
+            verificationMode.value = {
+                pow_enabled: false,
+                captcha_required: true,
+                pow_replaces_captcha: false,
+                pow_and_captcha_required: false,
+                sms_verification_enabled: true,
+            };
+            smsVerificationEnabled.value = true;
+        } finally {
+            verificationModeLoading.value = false;
+        }
+    }
+
     function restoreSession() {
         if (!import.meta.client || !token.value || user.value) {
             return;
@@ -356,6 +384,8 @@ export const useAuthStore = defineStore("auth", () => {
         loading,
         smsSending,
         smsVerificationEnabled,
+        verificationMode,
+        verificationModeLoading,
         errorMessage,
         isAuthenticated,
         mustChangePassword,
@@ -366,6 +396,7 @@ export const useAuthStore = defineStore("auth", () => {
         smsLogin,
         sendSmsCode,
         loadSmsVerificationStatus,
+        loadVerificationMode,
         setAvatar,
         markPasswordChanged,
         restoreSession,

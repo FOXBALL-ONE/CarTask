@@ -109,3 +109,11 @@ export function usePowVerification() {
 
   return {status, attempts, errorMessage, verify, verifyWithFallback, cancel};
 }
+
+export interface VerificationMode {
+  pow_enabled: boolean;
+  captcha_required: boolean;
+  pow_replaces_captcha: boolean;
+  pow_and_captcha_required: boolean;
+  sms_verification_enabled: boolean;
+}
