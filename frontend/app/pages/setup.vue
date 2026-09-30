@@ -129,49 +129,49 @@
         </header>
 
         <!-- 1. 数据库 -->
-        <div v-if="currentStep.id === 'database'" class="form">
-          <div class="form__row form__row--host">
+        <div v-if="currentStep.id === 'database'" class="form database-form">
+          <div class="database-form__grid">
             <label class="field">
-              <span class="field__label">地址</span>
+              <span class="field__label">数据库主机</span>
               <div class="field__wrap">
                 <span class="material-icons-outlined">dns</span>
-                <input v-model="database.host" class="field__input" placeholder="127.0.0.1" spellcheck="false">
+                <input v-model="database.host" class="field__input" autocomplete="off" placeholder="127.0.0.1" spellcheck="false">
               </div>
+              <span class="field__hint">域名或 IP 地址</span>
             </label>
             <label class="field">
               <span class="field__label">端口</span>
               <div class="field__wrap">
                 <span class="material-icons-outlined">tag</span>
-                <input v-model="database.port" class="field__input" inputmode="numeric" placeholder="5432">
+                <input v-model="database.port" class="field__input" autocomplete="off" inputmode="numeric" placeholder="5432">
               </div>
+              <span class="field__hint">PostgreSQL 默认端口</span>
             </label>
-          </div>
-          <label class="field">
-            <span class="field__label">数据库名</span>
-            <div class="field__wrap">
-              <span class="material-icons-outlined">database</span>
-              <input v-model="database.name" class="field__input" placeholder="cartask" spellcheck="false">
-            </div>
-            <span class="field__hint">数据库需要先在服务器上创建好；表结构由服务首次启动时自动建立。</span>
-          </label>
-          <div class="form__row">
             <label class="field">
-              <span class="field__label">账户</span>
+              <span class="field__label">数据库名</span>
+              <div class="field__wrap">
+                <span class="material-icons-outlined">database</span>
+                <input v-model="database.name" class="field__input" autocomplete="off" placeholder="cartask" spellcheck="false">
+              </div>
+              <span class="field__hint">需预先在 PostgreSQL 中创建</span>
+            </label>
+            <label class="field">
+              <span class="field__label">数据库账户</span>
               <div class="field__wrap">
                 <span class="material-icons-outlined">person</span>
-                <input v-model="database.username" autocomplete="off" class="field__input" placeholder="postgres">
+                <input v-model="database.username" autocomplete="username" class="field__input" placeholder="postgres">
               </div>
             </label>
-            <label class="field">
-              <span class="field__label">密码</span>
+            <label class="field database-form__password">
+              <span class="field__label">数据库密码</span>
               <div class="field__wrap">
                 <span class="material-icons-outlined">lock</span>
                 <input v-model="database.password" autocomplete="new-password" class="field__input"
-                       placeholder="没有密码可留空"
-                       type="password">
+                       placeholder="没有密码可留空" type="password">
               </div>
             </label>
           </div>
+          <p class="database-form__note">表结构会在服务启动时自动建立。连接信息会组合为 JDBC 地址并写入服务配置。</p>
         </div>
 
         <!-- 2. Redis -->
@@ -1333,6 +1333,35 @@ onMounted(async () => {
   grid-template-columns: minmax(0, 1fr) 118px;
 }
 
+.database-form {
+  gap: 18px;
+}
+
+.database-form__grid {
+  background: var(--s-inset);
+  border: 1px solid var(--s-line);
+  border-radius: 12px;
+  display: grid;
+  gap: 16px 14px;
+  grid-template-columns: minmax(0, 1.45fr) minmax(0, .8fr);
+  padding: 18px;
+}
+
+.database-form__password {
+  grid-column: 1 / -1;
+}
+
+.database-form__note {
+  background: var(--s-surface);
+  border: 1px solid var(--s-line);
+  border-radius: 9px;
+  color: var(--s-sub);
+  font-size: 12px;
+  line-height: 1.7;
+  margin: 0;
+  padding: 11px 13px;
+}
+
 .form__note {
   background: var(--s-surface);
   border: 1px solid var(--s-line);
@@ -1368,9 +1397,12 @@ onMounted(async () => {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
+  pointer-events: none;
+  z-index: 1;
 }
 
 .field__input {
+  box-sizing: border-box;
   background: var(--s-panel);
   border: 1px solid var(--s-line-strong);
   border-radius: 9px;
@@ -1381,6 +1413,10 @@ onMounted(async () => {
   padding: 0 12px 0 38px;
   transition: border-color var(--s-tr), box-shadow var(--s-tr);
   width: 100%;
+}
+
+.database-form__grid .field__input {
+  padding-left: 42px;
 }
 
 .field__input--token {
@@ -1606,6 +1642,15 @@ onMounted(async () => {
 @media (max-width: 560px) {
   .form__row {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .database-form__grid {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 14px;
+  }
+
+  .database-form__password {
+    grid-column: auto;
   }
 
   .review {
