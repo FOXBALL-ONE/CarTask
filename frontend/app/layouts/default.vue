@@ -161,7 +161,7 @@ const pageLabels: Record<string, string> = {
   password: "修改密码",
   "system-config": "系统配置",
   announcements: "宣传通告",
-  "commute-routes-admin": "通勤路线",
+  "commute-routes-admin": "发车表",
 };
 const routePages: Record<string, string> = {
   "/": "dashboard",
@@ -229,7 +229,7 @@ const userInitial = computed(() => userName.value.trim().charAt(0).toUpperCase()
 
 useHead({
   title: () => route.path === "/commute-routes" || route.path === "/public-announcements"
-      ? (route.path === "/commute-routes" ? "通勤路线" : "宣传通告")
+      ? (route.path === "/commute-routes" ? "发车表" : "宣传通告")
       : (route.path === "/setup" ? "系统配置引导" : isLoginPage.value ? "登录" : `${activePageLabel.value} - ${systemName.value}`),
   link: [{rel: "stylesheet", href: "https://fonts.googleapis.com/icon?family=Material+Icons+Outlined"}],
 });
