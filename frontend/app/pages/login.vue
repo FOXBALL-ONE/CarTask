@@ -1,14 +1,7 @@
 <template>
   <div class="login-page">
     <div class="login-wrap">
-      <!-- 页头即道闸：抬杆=放行，闭杆=待验证。这是全页唯一的动效落点。 -->
       <header class="login__head">
-        <div :class="{ 'gate--open': gateOpen }" aria-hidden="true" class="gate">
-          <span class="gate__lane"/>
-          <span class="gate__post"/>
-          <span class="gate__light"/>
-          <span class="gate__arm"/>
-        </div>
         <div class="login__brand">
           <div id="loginTitle" class="login__title">{{ sysName }}</div>
         </div>
@@ -104,7 +97,7 @@
             </button>
           </div>
         </div>
-        <div v-if="authStore.verificationMode.pow_enabled" class="login__pow" aria-live="polite">
+        <div v-if="authStore.verificationMode.pow_enabled && pow.status !== 'idle'" class="login__pow" aria-live="polite">
           <span>{{ authStore.verificationModeLoading ? "正在读取验证模式..." : powStatusText }}</span>
           <button
               v-if="pow.status === 'manual' || pow.status === 'failed'"
@@ -198,7 +191,7 @@
           </div>
         </div>
         <p v-else class="login__notice">短信验证已临时关闭，填写手机号即可登录。</p>
-        <div v-if="authStore.smsVerificationEnabled && authStore.verificationMode.pow_enabled" class="login__pow" aria-live="polite">
+        <div v-if="authStore.smsVerificationEnabled && authStore.verificationMode.pow_enabled && pow.status !== 'idle'" class="login__pow" aria-live="polite">
           <span>{{ authStore.verificationModeLoading ? "正在读取验证模式..." : powStatusText }}</span>
           <button
               v-if="pow.status === 'manual' || pow.status === 'failed'"
@@ -216,17 +209,12 @@
         <div v-show="authStore.errorMessage" id="smsLoginError" class="login__error">{{ authStore.errorMessage }}</div>
       </form>
 
-      <div class="login__hint">
-        演示账号：<code>admin</code> / <code>123456</code><br>
-        其他用户：<code>zhangsan</code> / <code>123456</code>
-      </div>
     </div>
   </div>
 </template>
 
 <script lang="ts" setup>
-// 页面结构与字段沿用原型 20260625115857/login.html，视觉层按「夜间停车场道闸」重做：
-// 深色柏油底 + 车位线，页头是一根可抬起的栏杆，登录成功即抬杆放行。
+// 页面结构与字段沿用原型 20260625115857/login.html。
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
@@ -246,16 +234,14 @@ const smsForm = reactive({
   code: "",
 });
 const mode = ref<"password" | "sms">("password");
-/** 登录成功后的抬杆动效状态；期间按钮保持「登录中」避免闪回可点。 */
-const gateOpen = ref(false);
-const busy = computed(() => authStore.loading || gateOpen.value);
+const busy = computed(() => authStore.loading);
 const powStatusText = computed(() => {
   if (pow.status.value === "running") return `正在进行安全验证（${pow.attempts.value} 次计算）`;
   if (pow.status.value === "verified") return "安全验证已完成";
   if (pow.status.value === "manual") return authStore.verificationMode.captcha_required
     ? "自动验证未完成，可手动点击重试或使用图形验证码"
     : "自动验证未完成，请点击验证后继续";
-  return "登录前会自动完成安全验证";
+  return "";
 });
 // 与后端 SmsVerificationService.SEND_INTERVAL 保持一致的重发倒计时。
 const SMS_RESEND_SECONDS = 60;
@@ -300,15 +286,6 @@ async function goAfterLogin() {
     return;
   }
   await router.replace(targetPath());
-}
-
-/** 抬杆放行：留出一小段过闸动效再跳转；用户偏好减少动效时直接放行。 */
-async function passGate() {
-  if (import.meta.client && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-    return;
-  }
-  gateOpen.value = true;
-  await new Promise((resolve) => setTimeout(resolve, 440));
 }
 
 // 从后端获取验证码；点击图片可刷新。与原版一致：刷新期间保留旧图，失败才显示「获取失败」。
@@ -431,7 +408,6 @@ async function submitLogin() {
       ...proof,
     });
 
-    await passGate();
     await goAfterLogin();
   } catch {
     // 与原版一致：失败后刷新验证码并清空输入。
@@ -499,7 +475,6 @@ async function submitSmsLogin() {
   try {
     await authStore.smsLogin({phone, code});
 
-    await passGate();
     await goAfterLogin();
   } catch {
     // 短信验证码在校验时即被作废，失败后必须重新获取。
@@ -510,10 +485,8 @@ async function submitSmsLogin() {
 
 <style scoped>
 /* ==========================================================================
-   设计方向：停车场道闸（浅色）
-   页面是入口（闸口），卡片是岗亭终端，页头的栏杆抬起来就是「放行」。
-   浅色混凝土地面 + 车位线透视 + 车牌蓝的动作色，
-   全页唯一的高饱和色是栏杆上的路面标线黄，只出现在这一个地方。
+   设计方向：停车场（浅色）
+   浅色混凝土地面 + 车位线透视 + 车牌蓝的动作色。
    配色集中在下面这组变量里，换主题只改这一段。
    ========================================================================== */
 .login-page {
@@ -533,8 +506,6 @@ async function submitSmsLogin() {
   --g-accent: #3b82f6;
   --g-accent-deep: #2563eb;
   --g-accent-text: #1d4ed8; /* 浅底上的蓝色文字/按钮字 */
-  --g-mark: #f5c518; /* 栏杆黄：路面标线色 */
-  --g-post: #64748b;
   --g-danger: #dc2626;
   --g-danger-bg: #fef2f2;
   --g-danger-border: #fecaca;
@@ -606,7 +577,6 @@ async function submitSmsLogin() {
   }
 }
 
-/* ====== 页头：道闸 + 品牌 ====== */
 .login__head {
   align-items: center;
   display: flex;
@@ -634,70 +604,6 @@ async function submitSmsLogin() {
   font-size: 12px;
   letter-spacing: .08em;
   margin: 4px 0 0;
-}
-
-.gate {
-  flex: 0 0 auto;
-  height: 68px;
-  position: relative;
-  width: 78px;
-}
-
-/* 车道边线 */
-.gate__lane {
-  background: var(--g-line-strong);
-  bottom: 5px;
-  height: 1px;
-  left: 0;
-  position: absolute;
-  right: 0;
-}
-
-/* 立柱 */
-.gate__post {
-  background: var(--g-post);
-  border-radius: 2px;
-  bottom: 5px;
-  height: 22px;
-  position: absolute;
-  right: 0;
-  width: 8px;
-}
-
-/* 立柱指示灯：闭杆红灯，抬杆绿灯 */
-.gate__light {
-  background: var(--danger);
-  border-radius: 50%;
-  bottom: 20px;
-  box-shadow: 0 0 5px rgb(239 68 68 / 45%);
-  height: 4px;
-  position: absolute;
-  right: 2px;
-  transition: background .3s ease, box-shadow .3s ease;
-  width: 4px;
-}
-
-.gate--open .gate__light {
-  background: #22c55e;
-  box-shadow: 0 0 6px rgb(34 197 94 / 55%);
-}
-
-/* 栏杆：黄黑标线，绕右端转轴向上抬起 */
-.gate__arm {
-  background: repeating-linear-gradient(115deg, var(--g-mark) 0 8px, #1f2937 8px 16px);
-  border-radius: 3px;
-  bottom: 25px;
-  height: 5px;
-  position: absolute;
-  right: 3px;
-  transform: rotate(0deg);
-  transform-origin: right center;
-  transition: transform .42s cubic-bezier(.22, .9, .28, 1);
-  width: 44px;
-}
-
-.gate--open .gate__arm {
-  transform: rotate(90deg);
 }
 
 /* ====== 登录方式：分段控件 ====== */
@@ -947,24 +853,6 @@ async function submitSmsLogin() {
   text-align: center;
 }
 
-.login__hint {
-  color: var(--g-mute);
-  font-size: 12px;
-  line-height: 1.7;
-  margin-top: 20px;
-  text-align: center;
-}
-
-.login__hint code {
-  background: var(--g-surface);
-  border: 1px solid var(--g-line);
-  border-radius: 5px;
-  color: var(--g-sub);
-  font-family: ui-monospace, Consolas, 'SFMono-Regular', monospace;
-  font-size: 11.5px;
-  padding: 2px 6px;
-}
-
 /* styles.css 中 .material-icons-outlined 基础规则 */
 .material-icons-outlined {
   font-size: 18px;
@@ -1016,7 +904,7 @@ async function submitSmsLogin() {
     font-size: 14px;
   }
 
-  .login__label, .login__hint {
+  .login__label {
     font-size: 13px;
   }
 }
@@ -1024,20 +912,6 @@ async function submitSmsLogin() {
 @media (max-width: 480px) {
   .login-wrap {
     padding: 20px 18px 24px;
-  }
-
-  .login__head {
-    gap: 10px;
-    margin-bottom: 18px;
-  }
-
-  .gate {
-    height: 60px;
-    width: 66px;
-  }
-
-  .gate__arm {
-    width: 38px;
   }
 
   .login__captcha-row {
@@ -1057,7 +931,7 @@ async function submitSmsLogin() {
     animation: none;
   }
 
-  .gate__arm, .gate__light, .login__btn {
+  .login__btn {
     transition: none;
   }
 
@@ -1067,9 +941,9 @@ async function submitSmsLogin() {
 }
 
 /* ==========================================================================
-   深色：同一套道闸，场地换成夜间
-   与浅色逐项对应，只改颜色值：场地转深、卡片抬起一级、车位线与描边改成浅色叠加，
-   强调色跟着全局令牌一起提亮，栏杆黄（路面标线色）两种主题下都够亮，不动。
+   深色：场地换成夜间
+   与浅色逐项对应，只改颜色值：场地转深、车位线与描边改成浅色叠加，
+   强调色跟着全局令牌一起提亮。
    ========================================================================== */
 [data-theme="dark"] .login-page {
   --g-bg: #18181b;
@@ -1085,7 +959,6 @@ async function submitSmsLogin() {
   --g-mute: #a1a1aa;
   --g-accent: #60a5fa;
   --g-accent-text: #93c5fd;
-  --g-post: #a1a1aa; /* 立柱：浅色下是深灰，深色下反过来用浅灰才立得住 */
   --g-danger: #f87171;
   --g-danger-bg: #3b2023;
   --g-danger-border: #6b3438;
