@@ -2,6 +2,7 @@
   <div class="login-page">
     <div class="login-wrap">
       <header class="login__head">
+        <img alt="" class="login__logo" src="/favicon.ico">
         <div class="login__brand">
           <div id="loginTitle" class="login__title">{{ sysName }}</div>
         </div>
@@ -580,8 +581,16 @@ async function submitSmsLogin() {
 .login__head {
   align-items: center;
   display: flex;
-  gap: 14px;
+  gap: 12px;
+  justify-content: center;
   margin-bottom: 22px;
+}
+
+.login__logo {
+  flex: 0 0 40px;
+  height: 40px;
+  object-fit: contain;
+  width: 40px;
 }
 
 .login__brand {
