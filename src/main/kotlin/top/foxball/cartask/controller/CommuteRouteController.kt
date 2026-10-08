@@ -30,13 +30,17 @@ class CommuteRouteController(
         @RequestParam(defaultValue = "1") page: Int,
         @RequestParam(name = "page_size", defaultValue = "10") pageSize: Int,
     ): ResponseEntity<Response> {
-        data class StopData(val name: String, val time: String)
+        data class DepartureData(
+            val time: String,
+            val season: String?,
+            @param:JsonProperty("vehicle_count") val vehicleCount: Int?,
+        )
         data class RouteData(
             val id: Long,
             @param:JsonProperty("route_name") val routeName: String,
             @param:JsonProperty("start_address") val startAddress: String,
             @param:JsonProperty("end_address") val endAddress: String,
-            @param:JsonProperty("route_stops") val routeStops: List<StopData>,
+            val departures: List<DepartureData>,
             val remark: String?,
         )
         data class Response(val items: List<RouteData>, val total: Long)
@@ -46,7 +50,7 @@ class CommuteRouteController(
             result.content.map {
                 RouteData(
                     requireNotNull(it.id), it.routeName, it.startAddress, it.endAddress,
-                    it.routeStops.map { stop -> StopData(stop.name, stop.time) }, it.remark,
+                    it.routeStops.map { stop -> DepartureData(stop.time, stop.season, stop.vehicleCount) }, it.remark,
                 )
             },
             result.totalElements,
@@ -56,13 +60,17 @@ class CommuteRouteController(
 
     @GetMapping("/public")
     fun listPublic(): ResponseEntity<Response> {
-        data class StopData(val name: String, val time: String)
+        data class DepartureData(
+            val time: String,
+            val season: String?,
+            @param:JsonProperty("vehicle_count") val vehicleCount: Int?,
+        )
         data class RouteData(
             val id: Long,
             @param:JsonProperty("route_name") val routeName: String,
             @param:JsonProperty("start_address") val startAddress: String,
             @param:JsonProperty("end_address") val endAddress: String,
-            @param:JsonProperty("route_stops") val routeStops: List<StopData>,
+            val departures: List<DepartureData>,
             val remark: String?,
         )
         data class Response(val items: List<RouteData>)
@@ -71,7 +79,7 @@ class CommuteRouteController(
         val rs = Response(routes.map {
             RouteData(
                 requireNotNull(it.id), it.routeName, it.startAddress, it.endAddress,
-                it.routeStops.map { stop -> StopData(stop.name, stop.time) }, it.remark,
+                it.routeStops.map { stop -> DepartureData(stop.time, stop.season, stop.vehicleCount) }, it.remark,
             )
         })
         return responseBuilder.ok().data(rs).build()
@@ -80,20 +88,24 @@ class CommuteRouteController(
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     fun get(@PathVariable id: Long): ResponseEntity<Response> {
-        data class StopData(val name: String, val time: String)
+        data class DepartureData(
+            val time: String,
+            val season: String?,
+            @param:JsonProperty("vehicle_count") val vehicleCount: Int?,
+        )
         data class Response(
             val id: Long,
             @param:JsonProperty("route_name") val routeName: String,
             @param:JsonProperty("start_address") val startAddress: String,
             @param:JsonProperty("end_address") val endAddress: String,
-            @param:JsonProperty("route_stops") val routeStops: List<StopData>,
+            val departures: List<DepartureData>,
             val remark: String?,
         )
 
         val route = service.get(id)
         val rs = Response(
             requireNotNull(route.id), route.routeName, route.startAddress, route.endAddress,
-            route.routeStops.map { StopData(it.name, it.time) }, route.remark,
+            route.routeStops.map { DepartureData(it.time, it.season, it.vehicleCount) }, route.remark,
         )
         return responseBuilder.ok().data(rs).build()
     }

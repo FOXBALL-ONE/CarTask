@@ -37,12 +37,13 @@ class CommuteRouteServiceImpl(
     @Transactional(readOnly = true)
     override fun get(id: Long): CommuteRoute {
         require(id > 0) { "ID 必须大于 0" }
-        return repository.findById(id).orElseThrow { IllegalArgumentException("通勤路线不存在: $id") }
+        return repository.findById(id).orElseThrow { IllegalArgumentException("发车线路不存在: $id") }
     }
 
     @Transactional
     override fun create(entity: CommuteRoute): CommuteRoute {
         require(entity.id == null) { "创建路线时不能指定 ID" }
+        normalize(entity)
         validate(entity)
         return repository.save(entity)
     }
@@ -51,13 +52,14 @@ class CommuteRouteServiceImpl(
     override fun update(id: Long, entity: CommuteRoute): CommuteRoute {
         require(id > 0) { "ID 必须大于 0" }
         require(entity.id == null || entity.id == id) { "路径 ID 必须与请求体 ID 一致" }
+        normalize(entity)
         validate(entity)
         val current = get(id)
-        current.routeName = entity.routeName.trim()
-        current.startAddress = entity.startAddress.trim()
-        current.endAddress = entity.endAddress.trim()
+        current.routeName = entity.routeName
+        current.startAddress = entity.startAddress
+        current.endAddress = entity.endAddress
         current.routeStops = entity.routeStops.toMutableList()
-        current.remark = entity.remark?.trim()?.takeIf(String::isNotBlank)
+        current.remark = entity.remark
         return repository.save(current)
     }
 
@@ -66,16 +68,31 @@ class CommuteRouteServiceImpl(
         repository.delete(get(id))
     }
 
+    private fun normalize(entity: CommuteRoute) {
+        entity.routeName = entity.routeName.trim()
+        entity.startAddress = entity.startAddress.trim()
+        entity.endAddress = entity.endAddress.trim()
+        entity.routeStops = entity.routeStops
+            .onEach {
+                it.name = it.name.trim().ifBlank { "发车" }
+                it.time = it.time.trim()
+                it.season = it.season?.trim()?.takeIf(String::isNotBlank)
+            }
+            .sortedBy { it.time }
+            .toMutableList()
+        entity.remark = entity.remark?.trim()?.takeIf(String::isNotBlank)
+    }
+
     private fun validate(entity: CommuteRoute) {
         require(entity.routeName.isNotBlank()) { "路线名称不能为空" }
         require(entity.routeName.length <= 120) { "路线名称不能超过 120 个字符" }
         require(entity.startAddress.isNotBlank()) { "起始地址不能为空" }
         require(entity.endAddress.isNotBlank()) { "终点站不能为空" }
-        require(entity.routeStops.isNotEmpty()) { "请至少添加一个站点" }
-        require(entity.routeStops.size <= 50) { "站点不能超过 50 个" }
+        require(entity.routeStops.isNotEmpty()) { "请至少添加一个发车时刻" }
+        require(entity.routeStops.size <= 50) { "发车时刻不能超过 50 个" }
         entity.routeStops.forEach {
-            require(it.name.isNotBlank()) { "站点名称不能为空" }
-            require(it.time.matches(Regex("(?:[01]\\d|2[0-3]):[0-5]\\d"))) { "站点时间必须为 HH:mm" }
+            require(it.time.matches(Regex("(?:[01]\\d|2[0-3]):[0-5]\\d"))) { "发车时间必须为 HH:mm" }
+            require(it.vehicleCount == null || it.vehicleCount in 1..99) { "车辆数必须在 1 到 99 之间" }
         }
     }
 }

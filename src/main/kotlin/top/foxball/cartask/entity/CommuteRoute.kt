@@ -1,5 +1,6 @@
 package top.foxball.cartask.entity
 
+import com.fasterxml.jackson.annotation.JsonAlias
 import com.fasterxml.jackson.annotation.JsonProperty
 import jakarta.persistence.CollectionTable
 import jakarta.persistence.Column
@@ -35,7 +36,8 @@ class CommuteRoute {
     @Column(name = "end_address", nullable = false, length = 255)
     lateinit var endAddress: String
 
-    @JsonProperty("route_stops")
+    @JsonProperty("departures")
+    @JsonAlias("route_stops")
     @ElementCollection(fetch = FetchType.LAZY)
     @CollectionTable(name = "commute_route_stop", joinColumns = [JoinColumn(name = "route_id")])
     @OrderColumn(name = "display_order")
