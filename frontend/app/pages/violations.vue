@@ -33,28 +33,7 @@
       </nav>
 
       <template v-if="activeTab === 'records'">
-        <div aria-label="违规概况" class="risk-ribbon">
-          <div class="risk-ribbon__intro">
-            <span class="material-icons-outlined">radar</span>
-            <div><strong>风险雷达</strong><span>今日处理优先级</span></div>
-          </div>
-          <div class="risk-metric">
-            <span>待复核</span><strong>{{ summary.pending }}</strong><small>条记录等待处理</small>
-          </div>
-          <div class="risk-metric">
-            <span>临近阈值</span><strong>{{ summary.near_threshold }}</strong><small>辆车需重点关注</small>
-          </div>
-          <div class="risk-metric risk-metric--danger">
-            <span>处罚中</span><strong>{{ summary.active_penalties }}</strong><small>辆车限制通行</small>
-          </div>
-          <div class="threshold-scale">
-            <div class="threshold-scale__head"><span>处罚分值线</span><strong>{{ summary.threshold }} 分</strong></div>
-            <div class="threshold-scale__track"><span style="width: 70%"/><i/></div>
-            <div class="threshold-scale__labels"><span>关注线 {{
-                Math.max(1, Math.floor(summary.threshold * 0.7))
-              }}</span><span>处罚线 {{ summary.threshold }}</span></div>
-          </div>
-        </div>
+
 
         <div class="panel-toolbar">
           <div class="filters">
@@ -112,7 +91,8 @@
             <tbody>
             <tr v-for="record in records" :key="record.id"
                 :class="{ 'row--selected': selectedIds.includes(record.id) }">
-              <td class="check-cell"><input v-model="selectedIds" :aria-label="`选择 ${record.subject_number}`" :value="record.id"
+              <td class="check-cell"><input v-model="selectedIds" :aria-label="`选择 ${record.subject_number}`"
+                                            :value="record.id"
                                             type="checkbox"></td>
               <td>
                 <button class="vehicle-identity" type="button" @click="openDetails(record)"><span
@@ -159,7 +139,8 @@
           <button :disabled="recordPage <= 1" aria-label="上一页" type="button"
                   @click="changeRecordPage(recordPage - 1)"><span class="material-icons-outlined">chevron_left</span>
           </button>
-          <button v-for="pageNumber in recordPageNumbers" :key="pageNumber" :class="{ active: pageNumber === recordPage }"
+          <button v-for="pageNumber in recordPageNumbers" :key="pageNumber"
+                  :class="{ active: pageNumber === recordPage }"
                   type="button" @click="changeRecordPage(pageNumber)">{{ pageNumber }}
           </button>
           <button :disabled="recordPage >= recordTotalPages" aria-label="下一页" type="button"
@@ -169,22 +150,7 @@
       </template>
 
       <template v-else-if="activeTab === 'rules'">
-        <section class="rule-overview">
-          <div class="rule-overview__copy">
-            <span class="rule-overview__icon"><span class="material-icons-outlined">speed</span></span>
-            <div><span class="section-kicker">累计处罚标准</span>
-              <h2>达到 <strong>{{ setting.score_threshold }}</strong> 分后限制通行</h2>
-              <p>处罚默认持续 {{ setting.punishment_days }} 天。历史记录保留原始分值，不受规则后续调整影响。</p></div>
-          </div>
-          <div aria-hidden="true" class="score-ruler">
-            <span v-for="tick in 7" :key="tick" :class="{ 'score-ruler__tick--major': tick === 7 }"><i/>{{
-                Math.round((setting.score_threshold / 6) * (tick - 1))
-              }}</span>
-          </div>
-          <button class="button button--ghost" type="button" @click="settingModalVisible = true"><span
-              class="material-icons-outlined">tune</span>调整处罚标准
-          </button>
-        </section>
+
 
         <div class="section-head">
           <div><h2>计分规则</h2>
@@ -237,18 +203,13 @@
       </template>
 
       <template v-else>
-        <div class="penalty-notice">
-          <span class="penalty-notice__mark"><span class="material-icons-outlined">no_crash</span></span>
-          <div><strong>处罚名单按已确认记录实时计算</strong><span>累计分达到 {{ setting.score_threshold }} 分后进入限制；解除后仍保留完整违规历史。</span>
-          </div>
-          <span class="penalty-notice__count">{{ activePenaltyCount }}<small>处罚中</small></span>
-        </div>
         <div class="panel-toolbar">
           <div class="filters">
             <label class="search-input"><span class="material-icons-outlined">search</span><input
                 v-model.trim="penaltyFilters.keyword" placeholder="搜索车牌或车主" type="search"
                 @keyup.enter="searchPenalties"></label>
-            <label class="score-filter"><span>最低分</span><input v-model.number="penaltyFilters.minScore" :placeholder="String(setting.score_threshold)"
+            <label class="score-filter"><span>最低分</span><input v-model.number="penaltyFilters.minScore"
+                                                                  :placeholder="String(setting.score_threshold)"
                                                                   min="0"
                                                                   type="number"></label>
             <label class="date-control"><span>处罚从</span><input v-model="penaltyFilters.startDate"
@@ -321,7 +282,8 @@
             class="pagination__info">共 {{ penaltyTotal }} 条</span>
           <button :disabled="penaltyPage <= 1" type="button" @click="changePenaltyPage(penaltyPage - 1)"><span
               class="material-icons-outlined">chevron_left</span></button>
-          <button v-for="pageNumber in penaltyPageNumbers" :key="pageNumber" :class="{ active: pageNumber === penaltyPage }"
+          <button v-for="pageNumber in penaltyPageNumbers" :key="pageNumber"
+                  :class="{ active: pageNumber === penaltyPage }"
                   type="button" @click="changePenaltyPage(pageNumber)">{{
               pageNumber
             }}
@@ -333,20 +295,24 @@
       </template>
     </section>
 
-    <div v-if="detailRecord" class="drawer-mask" @click.self="detailRecord = null">
+    <div v-if="detailRecord" class="drawer-mask" @click.self="closeDetails">
       <aside aria-label="违规详情" class="drawer">
         <header class="drawer__head">
           <div><span class="section-kicker">违规记录 #{{ String(detailRecord.id).padStart(4, '0') }}</span>
             <h2>{{ detailRecord.subject_number }}</h2></div>
-          <button aria-label="关闭详情" class="icon-button" type="button" @click="detailRecord = null"><span
+          <button aria-label="关闭详情" class="icon-button" type="button" @click="closeDetails"><span
               class="material-icons-outlined">close</span></button>
         </header>
         <div class="drawer__body">
-          <div v-if="isImageEvidence(detailRecord.evidence)" class="evidence"><img :alt="`${detailRecord.subject_number} 违规证据`"
-                                                                                   :src="detailRecord.evidence || ''"><span>违规证据</span>
+          <div v-if="evidenceLoading" class="evidence evidence--empty"><span class="spinner"/>正在加载证据图片</div>
+          <div v-else-if="evidenceSrc" class="evidence"><img
+              :alt="`${detailRecord.subject_number} 违规证据`"
+              :src="evidenceSrc"><span>违规证据</span>
           </div>
-          <div v-else class="evidence evidence--empty"><span class="material-icons-outlined">photo_camera</span><strong>暂无可预览图片</strong><small>{{
-              detailRecord.evidence || '该记录未上传证据附件'
+          <div v-else class="evidence evidence--empty"><span class="material-icons-outlined">photo_camera</span><strong>{{
+              evidenceFailed ? '证据图片加载失败' : '暂无可预览图片'
+            }}</strong><small>{{
+              evidenceFailed ? '可能已被删除或超出你的数据范围' : (detailRecord.evidence || '该记录未上传证据附件')
             }}</small></div>
           <div class="detail-hero">
             <div><span>违规事项</span><strong>{{ detailRecord.type_name }}</strong></div>
@@ -386,7 +352,7 @@
             <p>{{ detailRecord.handling_remark }}</p></section>
         </div>
         <footer class="drawer__foot">
-          <button class="button button--ghost" type="button" @click="detailRecord = null">关闭</button>
+          <button class="button button--ghost" type="button" @click="closeDetails">关闭</button>
           <button v-if="detailRecord.status === 'PENDING'" class="button button--primary" type="button"
                   @click="openHandling(detailRecord)"><span class="material-icons-outlined">fact_check</span>处理记录
           </button>
@@ -394,20 +360,22 @@
       </aside>
     </div>
 
-    <div v-if="recordModalVisible" class="modal-mask" @click.self="recordModalVisible = false">
+    <div v-if="recordModalVisible" class="modal-mask" @click.self="closeRecordModal">
       <form class="modal" @submit.prevent="saveRecord">
         <header class="modal__head">
           <div><span class="section-kicker">人工录入</span>
             <h2>新增违规记录</h2></div>
-          <button class="icon-button" type="button" @click="recordModalVisible = false"><span
+          <button class="icon-button" type="button" @click="closeRecordModal"><span
               class="material-icons-outlined">close</span></button>
         </header>
         <div class="modal__body">
           <div class="form-grid"><label class="field"><span>车牌号</span><input v-model.trim="recordForm.subjectNumber"
                                                                                 placeholder="例如：粤A·12345"
                                                                                 required></label><label
-              class="field"><span>车主名称</span><input v-model.trim="recordForm.subjectName" placeholder="请输入车主名称"
-                                                        required></label><label class="field"><span>违规类型</span><select
+              class="field"><span>车主名称</span><input v-model.trim="recordForm.subjectName"
+                                                        placeholder="请输入车主名称"
+                                                        required></label><label
+              class="field"><span>违规类型</span><select
               v-model.number="recordForm.typeId" required>
             <option :value="null">请选择违规类型</option>
             <option v-for="rule in activeViolationTypes" :key="rule.id" :value="rule.id">{{ rule.name }}（{{
@@ -419,13 +387,33 @@
                                                                             type="datetime-local"></label><label
               class="field field--wide"><span>发生地点</span><input v-model.trim="recordForm.location"
                                                                     placeholder="例如：一号车场东侧通道"></label><label
-              class="field field--wide"><span>证据图片地址</span><input v-model.trim="recordForm.evidenceInfo"
-                                                                        placeholder="选填，支持 http(s) 图片地址"
-                                                                        type="url"></label>
+              class="field field--wide"><span>证据图片</span>
+            <div class="evidence-upload">
+              <div v-if="evidencePreview" class="evidence-upload__preview"><img
+                  :alt="recordForm.subjectNumber ? `${recordForm.subjectNumber} 证据预览` : '证据预览'"
+                  :src="evidencePreview"></div>
+              <div v-else class="evidence-upload__empty"><span class="material-icons-outlined">add_photo_alternate</span><span>上传现场照片作为证据</span>
+              </div>
+              <div class="evidence-upload__foot">
+                <button class="button button--ghost" type="button" @click="pickEvidence"><span
+                    class="material-icons-outlined">upload</span>{{ selectedEvidence ? '重新选择' : '选择图片' }}
+                </button>
+                <button v-if="selectedEvidence" class="button button--danger-soft" type="button" @click="clearEvidence">
+                  <span class="material-icons-outlined">delete_outline</span>移除
+                </button>
+                <small v-if="selectedEvidence" class="evidence-upload__meta">{{ selectedEvidence.name }} · {{
+                    formatFileSize(selectedEvidence.size)
+                  }}</small>
+                <small v-else class="evidence-upload__meta">选填，支持 jpg/png/gif/webp/bmp，不超过 5MB</small>
+              </div>
+              <input ref="evidenceInput" accept="image/jpeg,image/png,image/gif,image/webp,image/bmp" class="evidence-input"
+                     type="file" @change="selectEvidence">
+            </div>
+          </label>
           </div>
           <p v-if="formError" class="form-error">{{ formError }}</p></div>
         <footer class="modal__foot">
-          <button class="button button--ghost" type="button" @click="recordModalVisible = false">取消</button>
+          <button class="button button--ghost" type="button" @click="closeRecordModal">取消</button>
           <button :disabled="saving" class="button button--primary" type="submit"><span v-if="saving"
                                                                                         class="spinner spinner--button"/>保存记录
           </button>
@@ -448,7 +436,8 @@
                                                                                 type="radio" value="CANCELLED"><span
               class="material-icons-outlined">cancel</span><strong>撤销记录</strong><small>不计入累计分值</small></label>
           </div>
-          <label class="field"><span>处理备注</span><textarea v-model.trim="handlingForm.remark" placeholder="填写核验结论或补充说明"
+          <label class="field"><span>处理备注</span><textarea v-model.trim="handlingForm.remark"
+                                                              placeholder="填写核验结论或补充说明"
                                                               rows="4"/></label>
           <p v-if="formError" class="form-error">{{ formError }}</p></div>
         <footer class="modal__foot">
@@ -472,7 +461,8 @@
               class="field"><span>违规分值</span><input v-model.number="ruleForm.score" max="100" min="1" required
                                                         type="number"></label><label
               class="field"><span>显示顺序</span><input v-model.number="ruleForm.sortOrder" min="0" required
-                                                        type="number"></label><label class="field"><span>状态</span><select
+                                                        type="number"></label><label
+              class="field"><span>状态</span><select
               v-model.number="ruleForm.status">
             <option :value="1">启用</option>
             <option :value="0">停用</option>
@@ -525,7 +515,8 @@
             <div><strong>确认恢复该车辆的通行状态？</strong>
               <p>该车辆当前累计 {{ releasingPenalty.total_score }} 分。解除处罚不会删除历史违规记录。</p></div>
           </div>
-          <label class="field"><span>解除说明</span><textarea v-model.trim="releaseRemark" placeholder="选填，记录解除原因"
+          <label class="field"><span>解除说明</span><textarea v-model.trim="releaseRemark"
+                                                              placeholder="选填，记录解除原因"
                                                               rows="3"/></label>
           <p v-if="formError" class="form-error">{{ formError }}</p></div>
         <footer class="modal__foot">
@@ -610,6 +601,7 @@ interface PenaltyList {
 const http = useHttp();
 const {can} = usePermission();
 const authStore = useAuthStore();
+const authToken = useCookie<string | null>("cartask_auth_token", {sameSite: "lax", path: "/"});
 const tabs: { key: TabKey; label: string; icon: string }[] = [
   {key: "records", label: "违规记录", icon: "fact_check"},
   {key: "rules", label: "计分规则", icon: "rule"},
@@ -649,9 +641,21 @@ const recordForm = reactive({
   subjectName: "",
   typeId: null as number | null,
   violationTime: "",
-  location: "",
-  evidenceInfo: ""
+  location: ""
 });
+/** 证据图片改成手动上传：选中的文件随表单一起走 multipart 提交，不再让用户填图片地址。 */
+const selectedEvidence = ref<File | null>(null);
+const evidencePreview = ref("");
+const evidenceInput = ref<HTMLInputElement>();
+/** 详情抽屉里的证据图先按凭据取 blob 再展示，<img src> 带不上 Bearer 头。 */
+const evidenceSrc = ref("");
+const evidenceLoading = ref(false);
+const evidenceFailed = ref(false);
+/** 详情抽屉里在途的取图请求序号，关抽屉或换记录时自增即可作废上一次结果。 */
+let evidenceRequestId = 0;
+/** 与后端 ViolationManagementController.EVIDENCE_IMAGE_MAX_BYTES 保持一致。 */
+const EVIDENCE_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+const EVIDENCE_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/bmp"];
 const handlingForm = reactive({status: "HANDLED", remark: ""});
 const ruleForm = reactive({name: "", score: 2, description: "", status: 1, sortOrder: 0});
 const settingForm = reactive({scoreThreshold: 12, punishmentDays: 30});
@@ -693,6 +697,90 @@ function formatDateTime(value?: string | null) {
 
 function isImageEvidence(value?: string | null) {
   return Boolean(value && /^(https?:\/\/|data:image\/|\/uploads\/)/i.test(value));
+}
+
+function formatFileSize(bytes: number) {
+  return bytes >= 1024 * 1024
+      ? `${(bytes / 1024 / 1024).toFixed(1)}MB`
+      : `${Math.max(1, Math.round(bytes / 1024))}KB`;
+}
+
+function pickEvidence() {
+  evidenceInput.value?.click();
+}
+
+function releaseEvidencePreview() {
+  if (evidencePreview.value) URL.revokeObjectURL(evidencePreview.value);
+  evidencePreview.value = "";
+}
+
+function selectEvidence(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0] || null;
+  // 清空 value，否则移除后重新选中同一个文件不会再触发 change。
+  input.value = "";
+  if (!file) return;
+  if (!EVIDENCE_IMAGE_TYPES.includes(file.type)) {
+    formError.value = "证据图片仅支持 jpg/png/gif/webp/bmp 格式";
+    return;
+  }
+  if (file.size > EVIDENCE_IMAGE_MAX_BYTES) {
+    formError.value = "证据图片不能超过 5MB";
+    return;
+  }
+  releaseEvidencePreview();
+  selectedEvidence.value = file;
+  evidencePreview.value = URL.createObjectURL(file);
+  formError.value = "";
+}
+
+function clearEvidence() {
+  releaseEvidencePreview();
+  selectedEvidence.value = null;
+}
+
+function authorization() {
+  const token = authToken.value?.trim();
+  return token ? {Authorization: /^bearer\s/i.test(token) ? token : `Bearer ${token}`} : {};
+}
+
+/** 只有本站上传的文件才需要带凭据取图；历史记录里手填的外链地址直接交给 <img>。 */
+function isProtectedFileUrl(url: string) {
+  try {
+    return new URL(url, window.location.origin).pathname.includes("/api/files/");
+  } catch {
+    return url.includes("/api/files/");
+  }
+}
+
+function releaseEvidenceSrc() {
+  if (evidenceSrc.value.startsWith("blob:")) URL.revokeObjectURL(evidenceSrc.value);
+  evidenceSrc.value = "";
+}
+
+async function loadEvidence(value?: string | null) {
+  // 详情抽屉可以连着开好几条记录，用它丢弃晚到的取图结果，避免上一张图盖住当前这张。
+  const requestId = ++evidenceRequestId;
+  releaseEvidenceSrc();
+  evidenceFailed.value = false;
+  evidenceLoading.value = false;
+  if (!value || !isImageEvidence(value)) return;
+  if (!isProtectedFileUrl(value)) {
+    evidenceSrc.value = value;
+    return;
+  }
+  evidenceLoading.value = true;
+  try {
+    const response = await fetch(value, {headers: authorization()});
+    if (!response.ok) throw new Error(`evidence request failed: ${response.status}`);
+    const blob = await response.blob();
+    if (requestId !== evidenceRequestId) return;
+    evidenceSrc.value = URL.createObjectURL(blob);
+  } catch {
+    if (requestId === evidenceRequestId) evidenceFailed.value = true;
+  } finally {
+    if (requestId === evidenceRequestId) evidenceLoading.value = false;
+  }
 }
 
 function scoreClass(score: number) {
@@ -839,6 +927,15 @@ function toggleVisibleSelection() {
 
 function openDetails(record: ViolationRecord) {
   detailRecord.value = record;
+  void loadEvidence(record.evidence);
+}
+
+function closeDetails() {
+  evidenceRequestId++;
+  evidenceLoading.value = false;
+  releaseEvidenceSrc();
+  evidenceFailed.value = false;
+  detailRecord.value = null;
 }
 
 function openCreateRecord() {
@@ -847,15 +944,20 @@ function openCreateRecord() {
     subjectName: "",
     typeId: activeViolationTypes.value[0]?.id ?? null,
     violationTime: nowForInput(),
-    location: "",
-    evidenceInfo: ""
+    location: ""
   });
+  clearEvidence();
   formError.value = "";
   recordModalVisible.value = true;
 }
 
+function closeRecordModal() {
+  recordModalVisible.value = false;
+  clearEvidence();
+}
+
 function openHandling(record: ViolationRecord) {
-  detailRecord.value = null;
+  closeDetails();
   handlingRecord.value = record;
   Object.assign(handlingForm, {status: "HANDLED", remark: ""});
   formError.value = "";
@@ -895,15 +997,17 @@ async function saveRecord() {
   saving.value = true;
   formError.value = "";
   try {
-    await http.post("/violations", {
-      subject_number: recordForm.subjectNumber,
-      subject_name: recordForm.subjectName,
-      type_id: recordForm.typeId,
-      violation_time: `${recordForm.violationTime}:00`,
-      location: recordForm.location || undefined,
-      evidence_info: recordForm.evidenceInfo || undefined
-    });
-    recordModalVisible.value = false;
+    // 证据图片必须和字段一起走 multipart：后端要在同一次请求里校验文件内容确实是图片，
+    // 不能像以前那样先自己上传再把地址当普通字符串塞进 evidence_info。
+    const body = new FormData();
+    body.append("subject_number", recordForm.subjectNumber);
+    body.append("subject_name", recordForm.subjectName);
+    body.append("type_id", String(recordForm.typeId));
+    body.append("violation_time", `${recordForm.violationTime}:00`);
+    if (recordForm.location) body.append("location", recordForm.location);
+    if (selectedEvidence.value) body.append("evidence", selectedEvidence.value);
+    await http.post("/violations", body, {payloadMode: "json"});
+    closeRecordModal();
     recordPage.value = 1;
     await loadRecords();
   } catch (error) {
@@ -2263,6 +2367,61 @@ onMounted(() => {
   font-size: 11px;
   margin: 14px 0 0;
   padding: 9px 11px
+}
+
+.evidence-upload {
+  background: var(--bg);
+  border: 1px dashed var(--border-strong);
+  border-radius: 7px;
+  display: grid;
+  gap: 10px;
+  padding: 10px
+}
+
+.evidence-upload__preview img {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  display: block;
+  height: 120px;
+  max-width: 200px;
+  object-fit: cover;
+  width: 100%
+}
+
+.evidence-upload__empty {
+  align-items: center;
+  color: var(--text-mute);
+  display: flex;
+  flex-direction: column;
+  font-size: 11px;
+  gap: 5px;
+  justify-content: center;
+  min-height: 84px
+}
+
+.evidence-upload__empty .material-icons-outlined {
+  font-size: 26px;
+  opacity: .55
+}
+
+.evidence-upload__foot {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  min-width: 0
+}
+
+.evidence-upload__meta {
+  color: var(--text-mute);
+  font-size: 10px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap
+}
+
+.evidence-input {
+  display: none
 }
 
 .decision-cards {

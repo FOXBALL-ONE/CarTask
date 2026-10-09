@@ -2,9 +2,11 @@ package top.foxball.cartask.controller
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import jakarta.transaction.Transactional
+import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.web.bind.annotation.*
+import org.springframework.web.multipart.MultipartFile
 import top.foxball.cartask.entity.ViolationRecord
 import top.foxball.cartask.entity.ViolationSetting
 import top.foxball.cartask.entity.ViolationSubject
@@ -15,9 +17,11 @@ import top.foxball.cartask.repository.ViolationSubjectRepository
 import top.foxball.cartask.repository.ViolationTypeRepository
 import top.foxball.cartask.scope.DataScopeResolver
 import top.foxball.cartask.scope.ScopeQuerySupport
+import top.foxball.cartask.service.FileService
 import top.foxball.cartask.shared.Response
 import top.foxball.cartask.shared.ResponseBuilder
 import java.time.LocalDateTime
+import java.util.Locale
 
 
 @RestController
@@ -31,6 +35,7 @@ class ViolationManagementController(
     private val violationSettingRepository: ViolationSettingRepository,
     private val dataScopeResolver: DataScopeResolver,
     private val scopeQuerySupport: ScopeQuerySupport,
+    private val fileService: FileService,
 ) {
     @GetMapping("/violations")
     @PreAuthorize("hasAuthority('violation:read')")
@@ -181,6 +186,30 @@ class ViolationManagementController(
         
         val rs = Response(requireNotNull(record.id))
         return responseBuilder.created().message("违规记录已新增").data(rs).build()
+    }
+
+    /**
+     * 证据图片按表单上传：录入页只上传本地文件，不再让用户手填图片 URL。
+     * 内容校验必须放在服务端，否则任何文件都能被塞进 evidence_info 并在详情里当图片渲染。
+     */
+    @PostMapping("/violations", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
+    @PreAuthorize("hasAuthority('violation:manage')")
+    @Transactional
+    fun createViolationWithEvidence(
+        @RequestParam(name = "subject_number") subjectNumber: String,
+        @RequestParam(name = "subject_name") subjectName: String,
+        @RequestParam(name = "type_id") typeId: Long,
+        @RequestParam(name = "violation_time") violationTime: LocalDateTime,
+        @RequestParam(required = false) location: String?,
+        @RequestPart(name = "evidence", required = false) evidence: MultipartFile?,
+    ): ResponseEntity<Response> {
+        val evidenceInfo = evidence
+            ?.takeUnless { it.isEmpty }
+            ?.let { file ->
+                requireEvidenceImage(file)
+                fileService.upload(file).downloadUrl
+            }
+        return createViolation(subjectNumber, subjectName, typeId, violationTime, location, evidenceInfo)
     }
     
     @PutMapping("/violations/{id}/handling")
@@ -508,5 +537,41 @@ class ViolationManagementController(
         subject.status =
             if (score >= setting().scoreThreshold) ViolationSubject.Status.BANNED else ViolationSubject.Status.Activity
         violationSubjectRepository.save(subject)
+    }
+
+    private fun requireEvidenceImage(file: MultipartFile) {
+        require(file.size <= EVIDENCE_IMAGE_MAX_BYTES) { "证据图片不能超过 5MB" }
+        require(file.contentType?.startsWith("image/", ignoreCase = true) == true) { "证据图片必须为图片格式" }
+        val extension = file.originalFilename
+            ?.substringAfterLast('.', "")
+            ?.lowercase(Locale.ROOT)
+        require(extension in EVIDENCE_IMAGE_EXTENSIONS) { "证据图片格式不受支持" }
+        require(matchesImageSignature(file)) { "证据图片内容不是受支持的图片" }
+    }
+
+    private fun matchesImageSignature(file: MultipartFile): Boolean {
+        val header = ByteArray(IMAGE_HEADER_BYTES)
+        val size = file.inputStream.use { it.read(header) }
+        if (size < 4) return false
+        fun matches(offset: Int, vararg expected: Int): Boolean =
+            size >= offset + expected.size && expected.indices.all { header[offset + it] == expected[it].toByte() }
+        return matches(0, 0xFF, 0xD8, 0xFF) ||
+                matches(0, 0x89, 'P'.code, 'N'.code, 'G'.code) ||
+                matches(0, 'G'.code, 'I'.code, 'F'.code) ||
+                matches(0, 'B'.code, 'M'.code) ||
+                (matches(0, 'R'.code, 'I'.code, 'F'.code, 'F'.code) && matches(
+                    8,
+                    'W'.code,
+                    'E'.code,
+                    'B'.code,
+                    'P'.code
+                ))
+    }
+
+    private companion object {
+        /** 与 spring.servlet.multipart.max-file-size 的 5MB 对齐，超限的请求在容器层就被拒。 */
+        const val EVIDENCE_IMAGE_MAX_BYTES = 5 * 1024 * 1024
+        const val IMAGE_HEADER_BYTES = 12
+        val EVIDENCE_IMAGE_EXTENSIONS = setOf("jpg", "jpeg", "png", "gif", "webp", "bmp")
     }
 }
