@@ -30,12 +30,9 @@ class AuthController(
             /** captcha：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun captcha(): ResponseEntity<Response> {
         val captcha = captchaService.generate()
-        return responseBuilder.ok()
-            .header(HttpHeaders.CACHE_CONTROL, "no-store")
-            .data(captcha)
-            .build()
+        return responseBuilder.ok().header(HttpHeaders.CACHE_CONTROL, "no-store").data(captcha).build()
     }
-
+    
     @GetMapping("/verification-mode")
     fun verificationMode(): ResponseEntity<Response> {
         data class Response(
@@ -46,7 +43,7 @@ class AuthController(
             @param:JsonProperty("pow_fallback_to_captcha") val powFallbackToCaptcha: Boolean,
             @param:JsonProperty("sms_verification_enabled") val smsVerificationEnabled: Boolean,
         )
-
+        
         powProperties.validate()
         val rs = Response(
             powEnabled = powProperties.requiresPow(),
@@ -56,10 +53,7 @@ class AuthController(
             powFallbackToCaptcha = powProperties.allowsCaptchaFallback(),
             smsVerificationEnabled = !smsVerificationService.verificationSkipped,
         )
-        return responseBuilder.ok()
-            .header(HttpHeaders.CACHE_CONTROL, "no-store")
-            .data(rs)
-            .build()
+        return responseBuilder.ok().header(HttpHeaders.CACHE_CONTROL, "no-store").data(rs).build()
     }
     
     @PostMapping("/login")
@@ -75,12 +69,8 @@ class AuthController(
         
         val result = authService.login(command)
         val rs = Response(result.accessToken, result.expiresAt, result.toSessionUser())
-        return responseBuilder.ok()
-            .header(HttpHeaders.AUTHORIZATION, "Bearer ${result.accessToken}")
-            .header(HttpHeaders.CACHE_CONTROL, "no-store")
-            .header("Pragma", "no-cache")
-            .data(rs)
-            .build()
+        return responseBuilder.ok().header(HttpHeaders.AUTHORIZATION, "Bearer ${result.accessToken}")
+            .header(HttpHeaders.CACHE_CONTROL, "no-store").header("Pragma", "no-cache").data(rs).build()
     }
     
     
@@ -92,10 +82,7 @@ class AuthController(
         )
         
         val rs = Response(!smsVerificationService.verificationSkipped)
-        return responseBuilder.ok()
-            .header(HttpHeaders.CACHE_CONTROL, "no-store")
-            .data(rs)
-            .build()
+        return responseBuilder.ok().header(HttpHeaders.CACHE_CONTROL, "no-store").data(rs).build()
     }
     
     
@@ -120,12 +107,8 @@ class AuthController(
         )
         
         val rs = LoginResponse(result.accessToken, result.expiresAt, result.toSessionUser())
-        return responseBuilder.ok()
-            .header(HttpHeaders.AUTHORIZATION, "Bearer ${result.accessToken}")
-            .header(HttpHeaders.CACHE_CONTROL, "no-store")
-            .header("Pragma", "no-cache")
-            .data(rs)
-            .build()
+        return responseBuilder.ok().header(HttpHeaders.AUTHORIZATION, "Bearer ${result.accessToken}")
+            .header(HttpHeaders.CACHE_CONTROL, "no-store").header("Pragma", "no-cache").data(rs).build()
     }
     
     @PostMapping("/sms/reset-password")
@@ -151,10 +134,7 @@ class AuthController(
             profileService.avatarOf(principal.userId),
             principal.workingDepartmentId,
         )
-        return responseBuilder.ok()
-            .header(HttpHeaders.CACHE_CONTROL, "no-store")
-            .data(rs)
-            .build()
+        return responseBuilder.ok().header(HttpHeaders.CACHE_CONTROL, "no-store").data(rs).build()
     }
     
     
@@ -162,10 +142,7 @@ class AuthController(
             /** workingDepartment：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun workingDepartment(@AuthenticationPrincipal principal: CurrentUserPrincipal): ResponseEntity<Response> {
         val state = workingDepartmentService.stateOf(principal.userId, principal.role, principal.workingDepartmentId)
-        return responseBuilder.ok()
-            .header(HttpHeaders.CACHE_CONTROL, "no-store")
-            .data(state.toData())
-            .build()
+        return responseBuilder.ok().header(HttpHeaders.CACHE_CONTROL, "no-store").data(state.toData()).build()
     }
     
     
@@ -176,11 +153,8 @@ class AuthController(
         @RequestParam(name = "department_id", required = false) departmentId: Long?,
     ): ResponseEntity<Response> {
         val state = workingDepartmentService.switchTo(principal, departmentId)
-        return responseBuilder.ok()
-            .message("工作部门已切换")
-            .header(HttpHeaders.CACHE_CONTROL, "no-store")
-            .data(state.toData())
-            .build()
+        return responseBuilder.ok().message("工作部门已切换").header(HttpHeaders.CACHE_CONTROL, "no-store")
+            .data(state.toData()).build()
     }
     
     @PostMapping("/logout")
@@ -192,10 +166,7 @@ class AuthController(
         
         authService.logout(principal.tokenId)
         val rs = Response(true)
-        return responseBuilder.ok()
-            .header(HttpHeaders.CACHE_CONTROL, "no-store")
-            .data(rs)
-            .build()
+        return responseBuilder.ok().header(HttpHeaders.CACHE_CONTROL, "no-store").data(rs).build()
     }
     
     

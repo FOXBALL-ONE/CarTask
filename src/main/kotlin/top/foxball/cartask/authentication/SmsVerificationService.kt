@@ -64,15 +64,17 @@ class SmsVerificationService(
         try {
             val codeKey = key(normalized, purpose)
             val cooldownKey = cooldownKey(normalized, purpose)
-            if (redisTemplate.hasKey(cooldownKey) == true) throw VerificationCodeRateLimitException()
+            if (redisTemplate.opsForValue().setIfAbsent(cooldownKey, "1", SEND_INTERVAL) != true) {
+                throw VerificationCodeRateLimitException()
+            }
             val code = (100000 + random.nextInt(900000)).toString()
-            redisTemplate.opsForValue().set(codeKey, hash(code), CODE_TTL)
-            redisTemplate.opsForValue().set(cooldownKey, "1", SEND_INTERVAL)
             try {
+                redisTemplate.opsForValue().set(codeKey, hash(code), CODE_TTL)
                 smsClient.sendVerificationCode(normalized, code)
             } catch (ex: Exception) {
                 redisTemplate.delete(codeKey)
                 redisTemplate.delete(cooldownKey)
+                println(ex)
                 throw EmailSendFailedException("短信发送失败，请稍后重试")
             }
         } catch (ex: VerificationCodeRateLimitException) {

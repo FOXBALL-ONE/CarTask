@@ -44,7 +44,8 @@ dependencies {
     implementation("tools.jackson.module:jackson-module-kotlin")
     // Source: https://mvnrepository.com/artifact/com.alibaba/easyexcel
     implementation("com.alibaba:easyexcel:4.0.3")
-    implementation("com.aliyun:dysmsapi20180501:1.0.12") {
+    // Source: https://mvnrepository.com/artifact/com.aliyun/dysmsapi20170525
+    implementation("com.aliyun:dysmsapi20170525:4.6.0") {
         // tea-xml -> dom4j -> pull-parser:2 里带 META-INF/services/javax.xml.parsers.SAXParserFactory，
         // 声明 org.gjt.xpp.jaxp11.SAXParserFactoryImpl。JDK 9+ 的 SPI 查找会让它盖过 JDK 自带的
         // Xerces 工厂，而它不支持 SAX2 特性设置，导致 logback 解析 logback-spring.xml 抛

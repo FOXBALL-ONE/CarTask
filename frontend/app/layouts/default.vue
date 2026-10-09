@@ -40,13 +40,11 @@
           <button class="icon-btn" title="切换主题" type="button" @click="toggleTheme">
             <span class="material-icons-outlined">{{ isDark ? 'light_mode' : 'dark_mode' }}</span>
           </button>
-          <button class="icon-btn badge" title="通知" type="button">
-            <span class="material-icons-outlined">notifications_none</span><span class="badge__dot">5</span>
-          </button>
           <button class="icon-btn" title="全屏" type="button" @click="toggleFullscreen">
             <span class="material-icons-outlined">fullscreen</span>
           </button>
-          <label v-if="showDepartmentSwitcher" :title="`当前工作部门：${authStore.user?.working_department_name || '全部部门'}`"
+          <label v-if="showDepartmentSwitcher"
+                 :title="`当前工作部门：${authStore.user?.working_department_name || '全部部门'}`"
                  class="dept-switch">
             <span class="material-icons-outlined">apartment</span>
             <select :value="currentDepartmentValue" aria-label="当前工作部门" @change="changeWorkingDepartment">
@@ -99,7 +97,7 @@ const sidebarCollapsed = ref(false);
 const mobileSidebarOpen = ref(false);
 const userMenuOpen = ref(false);
 const searchQuery = ref("");
-const systemName = ref("福清市车务管理系统");
+const systemName = ref("福清市机关事务服务中心车务管理系统");
 const userName = computed(() => authStore.user?.username || "超级管理员");
 const userRole = computed(() => authStore.user?.role || "admin");
 const userAvatar = computed(() => authStore.avatar);

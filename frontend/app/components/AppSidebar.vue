@@ -119,7 +119,7 @@ const props = withDefaults(defineProps<{
   activePage: "dashboard",
   collapsed: false,
   mobileOpen: false,
-  systemName: "福清市车务管理系统",
+  systemName: "福清市机关事务服务中心车务管理系统",
 });
 
 const emit = defineEmits<{
@@ -235,8 +235,20 @@ const navigation: { title: string; items: NavigationItem[] }[] = [
   {
     title: "系统",
     items: [
-      {label: "宣传通告", icon: "campaign", page: "announcements", route: "/announcements", roles: ["SUPER_ADMIN", "ADMIN"]},
-      {label: "发车表", icon: "route", page: "commute-routes-admin", route: "/commute-routes-admin", roles: ["SUPER_ADMIN", "ADMIN"]},
+      {
+        label: "宣传通告",
+        icon: "campaign",
+        page: "announcements",
+        route: "/announcements",
+        roles: ["SUPER_ADMIN", "ADMIN"]
+      },
+      {
+        label: "发车表",
+        icon: "route",
+        page: "commute-routes-admin",
+        route: "/commute-routes-admin",
+        roles: ["SUPER_ADMIN", "ADMIN"]
+      },
       {
         label: "数据同步",
         icon: "sync_alt",

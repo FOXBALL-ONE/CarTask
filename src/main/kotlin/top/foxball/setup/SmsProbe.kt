@@ -11,8 +11,7 @@ package top.foxball.setup
  * 负责实现该文件声明的配置、领域模型或基础设施能力。
  */
 
-import com.aliyun.dysmsapi20180501.Client
-import com.aliyun.dysmsapi20180501.models.SendMessageWithTemplateRequest
+import com.aliyun.dysmsapi20170525.models.SendSmsRequest
 import com.aliyun.teaopenapi.models.Config
 import com.aliyun.teautil.models.RuntimeOptions
 import org.springframework.stereotype.Component
@@ -67,28 +66,33 @@ class SmsProbe(
             throw SetupException("接收测试短信的手机号格式无效")
         }
         
-        val credential = com.aliyun.credentials.models.Config()
-            .setAccessKeyId(accessKeyId.trim())
-            .setAccessKeySecret(accessKeySecret.trim())
-        val config = Config().setCredential(com.aliyun.credentials.Client(credential))
-        config.endpoint = endpoint.trim().ifEmpty { DEFAULT_ENDPOINT }
+        val config = Config().setAccessKeyId(accessKeyId.trim()).setAccessKeySecret(accessKeySecret.trim())
+            .setEndpoint("dysmsapi.aliyuncs.com").setRegionId("cn-hangzhou")
+        val client = com.aliyun.dysmsapi20170525.Client(config)
         
-        val request = SendMessageWithTemplateRequest()
-            .setTo(normalized)
-            .setFrom(signName.trim())
+        val request = SendSmsRequest()
+            .setPhoneNumbers("86$normalized")
+            .setSignName(signName.trim())
             .setTemplateCode(templateCode.trim())
-            .setTemplateParam(objectMapper.writeValueAsString(mapOf("code" to TEST_CODE)))
+            .setTemplateParam("{\"code\":\"$TEST_CODE\"}")
         
-        val body = try {
-            Client(config).sendMessageWithTemplateWithOptions(request, RuntimeOptions()).body
+        data class Body(
+            var bizld: String,
+            var code: String,
+            var message: String,
+            var requestId: String
+        )
+        
+        val res = try {
+            client.sendSmsWithOptions(request, RuntimeOptions()).body.toMap()
         } catch (exception: Exception) {
             throw SetupException(describe(exception), exception)
         }
         
-        if (body?.responseCode != SUCCESS_CODE) {
+        if (res.getValue("code") != "OK") {
             throw SetupException(
-                "短信发送失败：${body?.responseDescription ?: "平台未返回原因"}" +
-                        "（代码 ${body?.responseCode ?: "未知"}），请核对 AccessKey、签名与模板的可用性",
+                "短信发送失败：${res.getValue("message") ?: "平台未返回原因"}" +
+                        "（代码 ${res.getValue("code") ?: "未知"}），请核对 AccessKey、签名与模板的可用性",
             )
         }
         return SmsProbeResult(phone = normalized, code = TEST_CODE)

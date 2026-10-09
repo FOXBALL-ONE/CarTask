@@ -198,7 +198,9 @@
 </template>
 
 <script lang="ts" setup>
-// 页面结构与字段沿用原型 20260625115857/login.html。
+import {useHttp} from "~/composables/useHttp.ts";
+import {usePowVerification} from "~/composables/usePowVerification.ts";
+
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
@@ -206,7 +208,7 @@ const pow = usePowVerification();
 const captchaFallback = ref(false);
 
 // 系统名称（可由系统设置修改），与原版 localStorage.sysName 逻辑一致。
-const sysName = ref("福清市车务管理系统");
+const sysName = ref("福清市机关事务服务中心车务管理系统");
 const form = reactive({
   username: "",
   password: "",
@@ -551,7 +553,7 @@ async function submitSmsLogin() {
 .login-wrap {
   position: relative;
   z-index: 1;
-  width: 400px;
+  width: min(480px, 100%);
   max-width: 100%;
   background: var(--g-panel);
   border: 1px solid var(--g-line-strong);
@@ -588,6 +590,7 @@ async function submitSmsLogin() {
 }
 
 .login__brand {
+  flex: 0 1 auto;
   min-width: 0;
 }
 
@@ -597,9 +600,7 @@ async function submitSmsLogin() {
   font-weight: 700;
   letter-spacing: .01em;
   margin: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .login__subtitle {
