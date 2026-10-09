@@ -3,6 +3,7 @@ package top.foxball.cartask.authentication
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.any
+import org.mockito.kotlin.doThrow
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
@@ -47,30 +48,40 @@ class SmsSendCaptchaTests {
     }
 
     @Test
-    fun `短信登录发送短信必须校验POW`() {
+    fun `短信登录没有POW时回退校验图形验证码`() {
         service.sendSmsCode(
             AuthService.SmsSendCommand(
                 phone = "13800138000",
                 purpose = "LOGIN",
-                captchaToken = null,
-                captchaAnswer = null,
+                captchaToken = "token-1",
+                captchaAnswer = "1234",
+            ),
+        )
+
+        verify(captchaService).verify("token-1", "1234")
+        verify(powVerificationService, never()).verify(any(), any(), any())
+        verify(smsVerificationService).send("13800138000", SmsVerificationService.Purpose.LOGIN)
+    }
+
+    @Test
+    fun `短信登录POW校验失败时回退校验图形验证码`() {
+        doThrow(BadCredentialsException("人机验证未通过"))
+            .whenever(powVerificationService)
+            .verify("challenge-1", "SMS_SEND", "42")
+
+        service.sendSmsCode(
+            AuthService.SmsSendCommand(
+                phone = "13800138000",
+                purpose = "LOGIN",
+                captchaToken = "token-1",
+                captchaAnswer = "1234",
                 powChallengeId = "challenge-1",
                 powNonce = "42",
             ),
         )
 
-        verify(powVerificationService).verify("challenge-1", "SMS_SEND", "42")
-        verify(captchaService, never()).verify(any(), any())
+        verify(captchaService).verify("token-1", "1234")
         verify(smsVerificationService).send("13800138000", SmsVerificationService.Purpose.LOGIN)
-    }
-
-    @Test
-    fun `短信登录缺少POW时拒绝且不发送短信`() {
-        assertThrows(AuthenticationInfrastructureException::class.java) {
-            service.sendSmsCode(AuthService.SmsSendCommand("13800138000", "LOGIN", "token-1", "1234"))
-        }
-
-        verify(smsVerificationService, never()).send(any(), any())
     }
 
     @Test

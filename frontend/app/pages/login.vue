@@ -70,7 +70,7 @@
             >
           </div>
         </div>
-        <div v-if="authStore.verificationMode.captcha_required" class="login__field">
+        <div v-if="authStore.verificationMode.captcha_required || captchaFallback" class="login__field">
           <label class="login__label" for="loginCaptcha">验证码</label>
           <div class="login__captcha-row">
             <div class="login__input-wrap">
@@ -97,15 +97,6 @@
               <span v-else class="login__captcha-fallback">加载中...</span>
             </button>
           </div>
-        </div>
-        <div v-if="authStore.verificationMode.pow_enabled && pow.status !== 'idle'" class="login__pow" aria-live="polite">
-          <span>{{ authStore.verificationModeLoading ? "正在读取验证模式..." : powStatusText }}</span>
-          <button
-              v-if="pow.status === 'manual' || pow.status === 'failed'"
-              class="login__pow-btn"
-              type="button"
-              @click="manualPow('LOGIN')"
-          >点击验证</button>
         </div>
         <button
             :disabled="busy || authStore.verificationModeLoading"
@@ -138,7 +129,8 @@
             >
           </div>
         </div>
-        <div v-if="authStore.smsVerificationEnabled && authStore.verificationMode.captcha_required" class="login__field">
+        <div v-if="authStore.smsVerificationEnabled && (authStore.verificationMode.captcha_required || captchaFallback)"
+             class="login__field">
           <label class="login__label" for="smsCaptcha">图形验证码</label>
           <div class="login__captcha-row">
             <div class="login__input-wrap">
@@ -192,15 +184,6 @@
           </div>
         </div>
         <p v-else class="login__notice">短信验证已临时关闭，填写手机号即可登录。</p>
-        <div v-if="authStore.smsVerificationEnabled && authStore.verificationMode.pow_enabled && pow.status !== 'idle'" class="login__pow" aria-live="polite">
-          <span>{{ authStore.verificationModeLoading ? "正在读取验证模式..." : powStatusText }}</span>
-          <button
-              v-if="pow.status === 'manual' || pow.status === 'failed'"
-              class="login__pow-btn"
-              type="button"
-              @click="manualPow('SMS_SEND')"
-          >点击验证</button>
-        </div>
         <button
             :disabled="busy || authStore.verificationModeLoading"
             class="login__btn"
@@ -220,7 +203,7 @@ const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
 const pow = usePowVerification();
-const pendingPow = ref<{ powChallengeId: string; powNonce: string } | null>(null);
+const captchaFallback = ref(false);
 
 // 系统名称（可由系统设置修改），与原版 localStorage.sysName 逻辑一致。
 const sysName = ref("福清市车务管理系统");
@@ -236,14 +219,6 @@ const smsForm = reactive({
 });
 const mode = ref<"password" | "sms">("password");
 const busy = computed(() => authStore.loading);
-const powStatusText = computed(() => {
-  if (pow.status.value === "running") return `正在进行安全验证（${pow.attempts.value} 次计算）`;
-  if (pow.status.value === "verified") return "安全验证已完成";
-  if (pow.status.value === "manual") return authStore.verificationMode.captcha_required
-    ? "自动验证未完成，可手动点击重试或使用图形验证码"
-    : "自动验证未完成，请点击验证后继续";
-  return "";
-});
 // 与后端 SmsVerificationService.SEND_INTERVAL 保持一致的重发倒计时。
 const SMS_RESEND_SECONDS = 60;
 const smsCountdown = ref(0);
@@ -294,22 +269,28 @@ async function genCaptcha() {
   await authStore.refreshCaptcha();
 }
 
-async function manualPow(purpose: "LOGIN" | "SMS_SEND") {
-  authStore.clearError();
-  try {
-    pendingPow.value = await pow.verify(purpose, "MANUAL");
-  } catch (error) {
-    authStore.setError(error instanceof Error ? error.message : "人机验证失败");
+async function fallbackToCaptcha() {
+  if (authStore.verificationMode.pow_fallback_to_captcha === false) {
+    authStore.setError("人机验证未通过，请重试");
+    return;
   }
+  captchaFallback.value = true;
+  authStore.clearError();
+  form.captcha = "";
+  smsForm.captcha = "";
+  await genCaptcha();
 }
 
-async function proofFor(purpose: "LOGIN" | "SMS_SEND") {
-  if (pendingPow.value) {
-    const proof = pendingPow.value;
-    pendingPow.value = null;
-    return proof;
-  }
-  return await pow.verifyWithFallback(purpose);
+function isPowFailure(error: unknown): boolean {
+  const failure = error as {
+    message?: string;
+    statusMessage?: string;
+    data?: { message?: string };
+  };
+  const message = [failure.message, failure.statusMessage, failure.data?.message]
+      .filter((value): value is string => typeof value === "string")
+      .join(" ");
+  return /pow|人机验证|自动验证/i.test(message);
 }
 
 function stopCountdown() {
@@ -339,6 +320,7 @@ function switchMode(next: "password" | "sms") {
   }
 
   mode.value = next;
+  captchaFallback.value = false;
   authStore.clearError();
   form.captcha = "";
   smsForm.captcha = "";
@@ -392,11 +374,12 @@ async function submitLogin() {
   const password = form.password.trim();
   const captchaAnswer = form.captcha.trim();
   let proof: { powChallengeId: string; powNonce: string } | undefined;
-  try {
-    if (authStore.verificationMode.pow_enabled) proof = await proofFor("LOGIN");
-  } catch {
-    if (!authStore.verificationMode.captcha_required || !captchaAnswer) {
-      authStore.setError("自动验证未完成，请点击验证或输入图形验证码");
+  const attemptedPow = authStore.verificationMode.pow_enabled && !captchaFallback.value;
+  if (attemptedPow) {
+    try {
+      proof = await pow.verifyWithFallback("LOGIN");
+    } catch {
+      await fallbackToCaptcha();
       return;
     }
   }
@@ -410,7 +393,11 @@ async function submitLogin() {
     });
 
     await goAfterLogin();
-  } catch {
+  } catch (error) {
+    if (attemptedPow && isPowFailure(error)) {
+      await fallbackToCaptcha();
+      return;
+    }
     // 与原版一致：失败后刷新验证码并清空输入。
     form.captcha = "";
     void genCaptcha();
@@ -432,16 +419,23 @@ async function sendSmsCode() {
     return;
   }
   let proof: { powChallengeId: string; powNonce: string } | undefined;
-  try {
-    if (authStore.verificationMode.pow_enabled) proof = await proofFor("SMS_SEND");
-  } catch {
-    authStore.setError("短信登录必须先完成人机验证");
-    return;
+  const attemptedPow = authStore.verificationMode.pow_enabled && !captchaFallback.value;
+  if (attemptedPow) {
+    try {
+      proof = await pow.verifyWithFallback("SMS_SEND");
+    } catch {
+      await fallbackToCaptcha();
+      return;
+    }
   }
 
   try {
     await authStore.sendSmsCode({phone, captchaAnswer, ...proof});
-  } catch {
+  } catch (error) {
+    if (attemptedPow && isPowFailure(error)) {
+      await fallbackToCaptcha();
+      return;
+    }
     // 校验未通过：换一张验证码并清空答案，避免拿旧 token 反复重试。
     smsForm.captcha = "";
     void genCaptcha();
@@ -822,33 +816,6 @@ async function submitSmsLogin() {
   margin-top: 14px;
   padding: 8px 12px;
   text-align: center;
-}
-
-.login__pow {
-  align-items: center;
-  color: var(--g-mute);
-  display: flex;
-  font-size: 12px;
-  gap: 10px;
-  justify-content: space-between;
-  margin: -2px 0 14px;
-  min-height: 28px;
-}
-
-.login__pow-btn {
-  background: transparent;
-  border: 1px solid var(--g-line-strong);
-  border-radius: 7px;
-  color: var(--g-accent-text);
-  cursor: pointer;
-  font: inherit;
-  padding: 5px 10px;
-}
-
-.login__pow-btn:hover,
-.login__pow-btn:focus-visible {
-  border-color: var(--g-accent);
-  outline: none;
 }
 
 .login__error {

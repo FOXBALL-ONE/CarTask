@@ -182,6 +182,7 @@ class SystemConfigService(
             "POW_ENABLED",
             "POW_REPLACE_CAPTCHA",
             "POW_COMBINE_CAPTCHA",
+            "POW_FALLBACK_TO_CAPTCHA",
             "FILE_BASE_URL",
             "KEYTOP_CAR_CAP_INFO_PHOTO_DOWNLOAD_INTERVAL",
             "KEYTOP_CAR_CAP_INFO_PHOTO_DOWNLOAD_CONCURRENCY",
@@ -194,7 +195,7 @@ class SystemConfigService(
 
         val BOOLEAN_KEYS = setOf(
             "CORS_ALLOW_CREDENTIALS", "SMS_ENABLED", "SMS_SKIP_VERIFICATION",
-            "POW_ENABLED", "POW_REPLACE_CAPTCHA", "POW_COMBINE_CAPTCHA",
+            "POW_ENABLED", "POW_REPLACE_CAPTCHA", "POW_COMBINE_CAPTCHA", "POW_FALLBACK_TO_CAPTCHA",
         )
 
 
@@ -210,6 +211,7 @@ class SystemConfigService(
             "POW_ENABLED" to "cartask.security.pow.enabled",
             "POW_REPLACE_CAPTCHA" to "cartask.security.pow.replace-captcha",
             "POW_COMBINE_CAPTCHA" to "cartask.security.pow.combine-captcha",
+            "POW_FALLBACK_TO_CAPTCHA" to "cartask.security.pow.fallback-to-captcha",
             "FILE_BASE_URL" to "app.file.base-url",
             "KEYTOP_CAR_CAP_INFO_PHOTO_DOWNLOAD_INTERVAL" to "keytop.car-cap-info-photo-download-interval",
             "KEYTOP_CAR_CAP_INFO_PHOTO_DOWNLOAD_CONCURRENCY" to "keytop.car-cap-info-photo-download-concurrency",

@@ -153,15 +153,15 @@ class AuthServiceImpl(
     /** login：执行认证组件中的一项具体操作，完成输入校验并返回处理结果。 */
     override fun login(command: AuthService.LoginCommand): AuthService.LoginData {
         powProperties.validate()
-        val hasPow = !command.powChallengeId.isNullOrBlank() || !command.powNonce.isNullOrBlank()
-        if (powProperties.requiresPow()) {
-            if (!hasPow) throw BadCredentialsException("请先完成人机验证")
-            powVerificationService?.verify(command.powChallengeId, "LOGIN", command.powNonce)
-                ?: throw AuthenticationInfrastructureException("POW 人机验证未配置")
-        }
-        if (powProperties.requiresCaptcha()) {
-            captchaService.verify(command.captchaToken, command.captchaAnswer)
-        }
+        verifyHumanity(
+            purpose = "LOGIN",
+            challengeId = command.powChallengeId,
+            nonce = command.powNonce,
+            captchaToken = command.captchaToken,
+            captchaAnswer = command.captchaAnswer,
+            powRequired = powProperties.requiresPow(),
+            captchaRequired = powProperties.requiresCaptcha(),
+        )
         loginAttemptLimiter.check(command.username)
         val user: User
         val role: String
@@ -249,15 +249,17 @@ class AuthServiceImpl(
         }
         if (!smsVerificationService.verificationSkipped) {
             powProperties.validate()
-            val hasPow = !command.powChallengeId.isNullOrBlank() || !command.powNonce.isNullOrBlank()
             if (purpose == SmsVerificationService.Purpose.LOGIN) {
-                if (powProperties.requiresPow() && !hasPow) throw BadCredentialsException("请先完成人机验证")
-                if (powProperties.requiresPow()) {
-                    powVerificationService?.verify(command.powChallengeId, "SMS_SEND", command.powNonce)
-                        ?: throw AuthenticationInfrastructureException("POW 人机验证未配置")
-                }
-                if (powProperties.requiresCaptcha()) captchaService.verify(command.captchaToken, command.captchaAnswer)
-            } else if (hasPow) {
+                verifyHumanity(
+                    purpose = "SMS_SEND",
+                    challengeId = command.powChallengeId,
+                    nonce = command.powNonce,
+                    captchaToken = command.captchaToken,
+                    captchaAnswer = command.captchaAnswer,
+                    powRequired = powProperties.requiresPow(),
+                    captchaRequired = powProperties.requiresCaptcha(),
+                )
+            } else if (!command.powChallengeId.isNullOrBlank() || !command.powNonce.isNullOrBlank()) {
                 powVerificationService?.verify(command.powChallengeId, "SMS_SEND", command.powNonce)
                     ?: throw AuthenticationInfrastructureException("POW 人机验证未配置")
             } else {
@@ -265,6 +267,38 @@ class AuthServiceImpl(
             }
         }
         smsVerificationService.send(command.phone, purpose)
+    }
+
+    private fun verifyHumanity(
+        purpose: String,
+        challengeId: String?,
+        nonce: String?,
+        captchaToken: String?,
+        captchaAnswer: String?,
+        powRequired: Boolean,
+        captchaRequired: Boolean,
+    ) {
+        val hasPow = !challengeId.isNullOrBlank() || !nonce.isNullOrBlank()
+        if (hasPow) {
+            try {
+                powVerificationService?.verify(challengeId, purpose, nonce)
+                    ?: throw AuthenticationInfrastructureException("POW 人机验证未配置")
+            } catch (ex: BadCredentialsException) {
+                if (!powRequired || !powProperties.allowsCaptchaFallback()) throw ex
+                captchaService.verify(captchaToken, captchaAnswer)
+                return
+            }
+            if (captchaRequired) captchaService.verify(captchaToken, captchaAnswer)
+            return
+        }
+        if (powRequired && !powProperties.allowsCaptchaFallback()) {
+            throw BadCredentialsException("请先完成人机验证")
+        }
+        if (captchaRequired || powProperties.allowsCaptchaFallback()) {
+            captchaService.verify(captchaToken, captchaAnswer)
+            return
+        }
+        if (powRequired) throw BadCredentialsException("请先完成人机验证")
     }
     
     

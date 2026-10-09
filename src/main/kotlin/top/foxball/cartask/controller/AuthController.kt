@@ -43,6 +43,7 @@ class AuthController(
             @param:JsonProperty("captcha_required") val captchaRequired: Boolean,
             @param:JsonProperty("pow_replaces_captcha") val powReplacesCaptcha: Boolean,
             @param:JsonProperty("pow_and_captcha_required") val powAndCaptchaRequired: Boolean,
+            @param:JsonProperty("pow_fallback_to_captcha") val powFallbackToCaptcha: Boolean,
             @param:JsonProperty("sms_verification_enabled") val smsVerificationEnabled: Boolean,
         )
 
@@ -52,6 +53,7 @@ class AuthController(
             captchaRequired = powProperties.requiresCaptcha(),
             powReplacesCaptcha = powProperties.enabled && powProperties.replaceCaptcha && !powProperties.combineCaptcha,
             powAndCaptchaRequired = powProperties.enabled && powProperties.combineCaptcha,
+            powFallbackToCaptcha = powProperties.allowsCaptchaFallback(),
             smsVerificationEnabled = !smsVerificationService.verificationSkipped,
         )
         return responseBuilder.ok()

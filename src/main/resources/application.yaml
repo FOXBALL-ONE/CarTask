@@ -68,6 +68,7 @@ cartask:
       enabled: ${POW_ENABLED:true}
       replace-captcha: ${POW_REPLACE_CAPTCHA:true}
       combine-captcha: ${POW_COMBINE_CAPTCHA:false}
+      fallback-to-captcha: ${POW_FALLBACK_TO_CAPTCHA:true}
     jwt:
       issuer: ${JWT_ISSUER:carTask}
       audience: ${JWT_AUDIENCE:carTask-api}

@@ -95,6 +95,7 @@ export const useAuthStore = defineStore("auth", () => {
         captcha_required: false,
         pow_replaces_captcha: true,
         pow_and_captcha_required: false,
+        pow_fallback_to_captcha: true,
         sms_verification_enabled: true,
     });
     const verificationModeLoading = ref(true);
@@ -270,6 +271,7 @@ export const useAuthStore = defineStore("auth", () => {
                 captcha_required: true,
                 pow_replaces_captcha: false,
                 pow_and_captcha_required: false,
+                pow_fallback_to_captcha: true,
                 sms_verification_enabled: true,
             };
             smsVerificationEnabled.value = true;

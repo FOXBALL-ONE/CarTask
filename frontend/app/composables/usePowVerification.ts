@@ -115,5 +115,6 @@ export interface VerificationMode {
   captcha_required: boolean;
   pow_replaces_captcha: boolean;
   pow_and_captcha_required: boolean;
+  pow_fallback_to_captcha: boolean;
   sms_verification_enabled: boolean;
 }

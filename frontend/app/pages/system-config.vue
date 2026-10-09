@@ -136,6 +136,14 @@
               </select>
               <span class="field__hint">启用时两种验证都必须通过；不能与替换模式同时开启。</span>
             </label>
+            <label class="field">
+              <span class="field__label">POW 失败回退图形验证码</span>
+              <select v-model="form.POW_FALLBACK_TO_CAPTCHA" class="select" :disabled="!canManage">
+                <option value="true">是</option>
+                <option value="false">否</option>
+              </select>
+              <span class="field__hint">POW 缺失、过期或校验失败时，允许改用图形验证码完成登录和短信发送验证。</span>
+            </label>
           </div>
         </div>
       </section>
@@ -229,6 +237,7 @@ interface SystemConfigForm {
   POW_ENABLED: string;
   POW_REPLACE_CAPTCHA: string;
   POW_COMBINE_CAPTCHA: string;
+  POW_FALLBACK_TO_CAPTCHA: string;
   FILE_BASE_URL: string;
   KEYTOP_CAR_CAP_INFO_PHOTO_DOWNLOAD_INTERVAL: string;
   KEYTOP_CAR_CAP_INFO_PHOTO_DOWNLOAD_CONCURRENCY: string;
@@ -260,6 +269,7 @@ const form = reactive<SystemConfigForm>({
   POW_ENABLED: "true",
   POW_REPLACE_CAPTCHA: "true",
   POW_COMBINE_CAPTCHA: "false",
+  POW_FALLBACK_TO_CAPTCHA: "true",
   FILE_BASE_URL: "",
   KEYTOP_CAR_CAP_INFO_PHOTO_DOWNLOAD_INTERVAL: "200ms",
   KEYTOP_CAR_CAP_INFO_PHOTO_DOWNLOAD_CONCURRENCY: "4",
