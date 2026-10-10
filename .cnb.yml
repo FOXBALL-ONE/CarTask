@@ -1,7 +1,7 @@
 .build-release: &build-release
   name: 构建前端后端并发布
   runner:
-    cpus: 8
+    cpus: 4
   docker:
     build:
       dockerfile: .cnb/ci.Dockerfile
@@ -56,8 +56,8 @@
       settings:
         tag: latest
         attachments:
-          - dist/frontend-$CNB_COMMIT.tar.gz
-          - dist/backend-$CNB_COMMIT.jar
+          - dist/frontend.tar.gz
+          - dist/backend.jar
 
 master:
   push:
