@@ -1,104 +1,115 @@
 <template>
-  <main class="schedule-page">
-    <header class="schedule-header">
-      <div class="schedule-header__brand">
-        <span class="material-icons-outlined schedule-header__icon">directions_bus</span>
-        <div>
-          <p>福清市车务管理系统</p>
-          <h1>发车表</h1>
-        </div>
+  <div class="commute-routes">
+    <header class="app-header">
+      <div class="header-content">
+        <h1>发车表</h1>
+        <button class="refresh-btn" title="刷新" @click="load">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M1 4v6h6M23 20v-6h-6" />
+            <path d="M20.49 9A9 9 0 0 0 5.64 5.64M3.51 15A9 9 0 0 0 18.36 18.36" />
+          </svg>
+        </button>
       </div>
-      <button class="header-action" title="刷新发车表" type="button" @click="load">
-        <span class="material-icons-outlined">refresh</span>
-      </button>
+      <n-alert type="info" closable :show-icon="false" class="header-time">
+        {{ today.label }} · 最后更新：{{ lastUpdated }}
+      </n-alert>
     </header>
 
-    <section class="schedule-content" aria-live="polite">
-      <div class="schedule-titlebar">
-        <div>
-          <p class="eyebrow">SHUTTLE SCHEDULE</p>
-          <h2>查询线路</h2>
-        </div>
+    <div class="routes-container">
+      <div v-if="errorMessage" class="state-box">
+        <n-empty description="加载失败" />
+        <p class="error-detail">{{ errorMessage }}</p>
+        <n-button type="error" size="small" @click="load">重新加载</n-button>
       </div>
 
-      <p v-if="errorMessage" class="state state--error">
-        <span class="material-icons-outlined">error_outline</span>{{ errorMessage }}
-      </p>
-      <p v-else-if="loading" class="state">
-        <span class="material-icons-outlined spin">progress_activity</span>正在加载发车表...
-      </p>
-      <p v-else-if="routes.length === 0" class="state">
-        <span class="material-icons-outlined">directions_bus</span>暂未发布发车线路
-      </p>
+      <n-spin v-else-if="loading" description="正在同步发车时间..." />
+
+      <div v-else-if="routes.length === 0" class="state-box">
+        <n-empty description="暂未发布发车线路" />
+      </div>
+
       <template v-else>
-        <label class="route-picker">
-          <span class="route-picker__label">选择线路</span>
-          <span class="route-picker__control">
-            <select v-model="selectedRouteId" aria-label="选择发车线路">
-              <option v-for="route in routes" :key="route.id" :value="route.id">{{ route.route_name }}</option>
-            </select>
-            <span class="material-icons-outlined">expand_more</span>
-          </span>
-        </label>
+        <n-collapse>
+          <n-collapse-item
+            v-for="(route, index) in routes"
+            :key="route.id"
+            :title="`${String(index + 1).padStart(2, '0')}. ${route.route_name}`"
+            :name="route.id"
+          >
+            <div class="route-card">
+              <div class="route-header">
+                <h3>{{ route.route_name }}</h3>
+                <n-tag type="success" size="small">已发布</n-tag>
+              </div>
 
-        <section v-if="selectedRoute" class="schedule-card">
-          <header class="schedule-card__header">
-            <div>
-              <p class="schedule-card__caption">点对点发车</p>
-              <h3>{{ selectedRoute.start_address }}<span class="material-icons-outlined">arrow_forward</span>{{ selectedRoute.end_address }}</h3>
-            </div>
-            <span class="schedule-card__route-name">{{ selectedRoute.route_name }}</span>
-          </header>
-
-          <p class="schedule-notice">
-            <span class="material-icons-outlined">info</span>
-            <span>发车时刻表（按季节性作息时间调整）</span>
-          </p>
-
-          <ol v-if="selectedDepartures.length" class="departure-list">
-            <li v-for="(departure, index) in selectedDepartures" :key="`${departure.time}-${index}`" class="departure">
-              <span class="departure__rail" aria-hidden="true">
-                <span :class="{'departure__dot--active': index === 0}" class="departure__dot">
-                  <span v-if="index === 0" class="material-icons-outlined">check</span>
-                </span>
-              </span>
-              <div class="departure__body">
-                <div class="departure__route">
-                  <span>{{ selectedRoute.start_address }}</span>
-                  <span class="material-icons-outlined">arrow_forward</span>
-                  <span>{{ selectedRoute.end_address }}</span>
-                  <span v-if="departure.season" class="season">{{ departure.season }}</span>
+              <div class="route-path-card">
+                <div class="path-item">
+                  <div class="path-dot path-dot--start"></div>
+                  <div class="path-content">
+                    <p class="path-label">起点</p>
+                    <p class="path-address">{{ route.start_address }}</p>
+                  </div>
                 </div>
-                <div class="departure__meta">
-                  <time>{{ departure.time }}</time>
-                  <span v-if="departure.vehicle_count" class="vehicle-count">{{ departure.vehicle_count }}辆</span>
+                <div class="path-line"></div>
+                <div class="path-item">
+                  <div class="path-dot path-dot--end"></div>
+                  <div class="path-content">
+                    <p class="path-label">终点</p>
+                    <p class="path-address">{{ route.end_address }}</p>
+                  </div>
                 </div>
               </div>
-            </li>
-          </ol>
-          <p v-else class="empty-schedule">当前线路暂无发车时刻</p>
 
-          <p v-if="selectedRoute.remark" class="schedule-remark">
-            <span class="material-icons-outlined">notes</span>{{ selectedRoute.remark }}
-          </p>
-        </section>
+              <div class="departures-section">
+                <div class="section-header">
+                  <h4>今日班次</h4>
+                  <span class="count-badge">{{ getDepartures(route).length }} 班</span>
+                </div>
+
+                <div v-if="getDepartures(route).length" class="departure-list">
+                  <div
+                    v-for="(departure, idx) in getDepartures(route)"
+                    :key="`${departure.time}-${idx}`"
+                    :class="['departure-item', { 'is-first': idx === 0 }]"
+                  >
+                    <time class="departure-time">{{ departure.time }}</time>
+                    <div class="departure-info">
+                      <div v-if="departure.season || departure.vehicle_count" class="departure-meta">
+                        <n-tag v-if="departure.season" type="info" size="small">{{ departure.season }}</n-tag>
+                        <span v-if="departure.vehicle_count" class="vehicle-badge">🚌 {{ departure.vehicle_count }} 辆</span>
+                      </div>
+                      <span v-if="idx === 0" class="badge-first">首班车</span>
+                    </div>
+                  </div>
+                </div>
+                <n-empty v-else description="暂无班次" />
+              </div>
+
+              <div v-if="route.remark" class="remark-box">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M5 11h14M12 3v18" />
+                </svg>
+                <span>{{ route.remark }}</span>
+              </div>
+            </div>
+          </n-collapse-item>
+        </n-collapse>
+
+        <div class="info-banner">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 16v-4M12 8h.01" fill="white" />
+          </svg>
+          时刻可能因季节性作息调整，请以现场通知为准
+        </div>
       </template>
-    </section>
-  </main>
+    </div>
+  </div>
 </template>
 
 <script lang="ts" setup>
-interface Departure {
-  time: string;
-  season?: string | null;
-  vehicle_count?: number | null;
-}
-
-interface LegacyStop {
-  name: string;
-  time: string;
-}
-
+interface Departure { time: string; season?: string | null; vehicle_count?: number | null }
+interface LegacyStop { name: string; time: string }
 interface CommuteRoute {
   id: number;
   route_name: string;
@@ -111,21 +122,19 @@ interface CommuteRoute {
 
 const http = useHttp();
 const routes = ref<CommuteRoute[]>([]);
-const selectedRouteId = ref<number | null>(null);
 const loading = ref(true);
 const errorMessage = ref("");
+const lastUpdated = ref("--:--");
+const now = new Date();
+const today = {
+  iso: now.toISOString().slice(0, 10),
+  label: new Intl.DateTimeFormat("zh-CN", {month: "long", day: "numeric", weekday: "short"}).format(now),
+};
 
-const selectedRoute = computed(() => routes.value.find((route) => route.id === selectedRouteId.value) || routes.value[0] || null);
-const selectedDepartures = computed(() => {
-  const route = selectedRoute.value;
-  if (!route) {
-    return [];
-  }
-  const departures = route.departures?.length
-    ? route.departures
-    : (route.route_stops || []).map((stop) => ({time: stop.time}));
+function getDepartures(route: CommuteRoute): Departure[] {
+  const departures = route.departures?.length ? route.departures : (route.route_stops || []).map((stop) => ({time: stop.time}));
   return [...departures].sort((left, right) => left.time.localeCompare(right.time));
-});
+}
 
 async function load() {
   loading.value = true;
@@ -133,9 +142,7 @@ async function load() {
   try {
     const result = await http.get<{ items: CommuteRoute[] }>("/commute-routes/public");
     routes.value = result.items || [];
-    if (!routes.value.some((route) => route.id === selectedRouteId.value)) {
-      selectedRouteId.value = routes.value[0]?.id ?? null;
-    }
+    lastUpdated.value = new Intl.DateTimeFormat("zh-CN", {hour: "2-digit", minute: "2-digit", hour12: false}).format(new Date());
   } catch (error) {
     errorMessage.value = (error as { statusMessage?: string }).statusMessage || "发车表暂时无法获取，请稍后重试";
   } finally {
@@ -148,427 +155,313 @@ onMounted(load);
 </script>
 
 <style scoped>
-.schedule-page {
-  min-height: 100dvh;
-  background: #f7f7f7;
+.commute-routes {
+  background: #f5f5f5;
+  min-height: 100vh;
+  padding-top: 60px;
+}
+
+.app-header {
+  background: #fff;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-bottom: 1px solid #eee;
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
   color: #222;
 }
 
-.schedule-header {
-  align-items: center;
-  background: #171717;
-  color: #fff;
+.refresh-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  color: #666;
   display: flex;
-  justify-content: space-between;
-  min-height: 86px;
-  padding: 0 max(20px, calc((100% - 920px) / 2));
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
 }
 
-.schedule-header__brand {
+.refresh-btn:hover {
+  color: #333;
+}
+
+:deep(.header-time.n-alert) {
+  margin: 0;
+  padding: 8px 16px;
+  font-size: 12px;
+  border: none;
+  border-radius: 0;
+}
+
+.routes-container {
+  padding: 16px;
+  padding-bottom: 32px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.state-box {
+  background: #fff;
+  border-radius: 8px;
+  padding: 40px 16px;
+  text-align: center;
+  margin-top: 20px;
+}
+
+.error-detail {
+  color: #d32f2f;
+  font-size: 12px;
+  margin: 12px 0;
+}
+
+:deep(.n-spin) {
+  justify-content: center;
+  padding: 40px;
+}
+
+:deep(.n-collapse) {
+  margin-bottom: 16px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+:deep(.n-collapse-item) {
+  margin-bottom: 12px;
+  border-radius: 8px;
+  border: 1px solid #eee;
+}
+
+:deep(.n-collapse-item__header) {
+  padding: 16px;
+  font-weight: 600;
+  color: #222;
+}
+
+.route-card {
+  padding: 16px;
+}
+
+.route-header {
+  display: flex;
+  justify-content: space-between;
   align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #eee;
+}
+
+.route-header h3 {
+  margin: 0;
+  font-size: 18px;
+  color: #222;
+}
+
+.route-path-card {
+  background: #f9f9f9;
+  border-radius: 6px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.path-item {
   display: flex;
   gap: 12px;
-}
-
-.schedule-header__icon {
-  align-items: center;
-  border: 1px solid rgb(255 255 255 / 30%);
-  border-radius: 6px;
-  color: #fff;
-  display: flex;
-  font-size: 25px;
-  height: 44px;
-  justify-content: center;
-  width: 44px;
-}
-
-.schedule-header p {
-  color: rgb(255 255 255 / 66%);
-  font-size: 12px;
-  margin: 0 0 2px;
-}
-
-.schedule-header h1 {
-  font-size: 21px;
-  font-weight: 600;
-  margin: 0;
-}
-
-.header-action {
-  align-items: center;
-  background: transparent;
-  border: 0;
-  border-radius: 6px;
-  color: rgb(255 255 255 / 80%);
-  cursor: pointer;
-  display: inline-flex;
-  height: 40px;
-  justify-content: center;
-  width: 40px;
-}
-
-.header-action:hover {
-  background: rgb(255 255 255 / 12%);
-  color: #fff;
-}
-
-.schedule-content {
-  margin: 0 auto;
-  max-width: 920px;
-  padding: 30px 24px 54px;
-}
-
-.schedule-titlebar {
-  align-items: end;
-  background: #d8170d;
-  color: #fff;
-  display: flex;
-  margin: -30px -24px 24px;
-  min-height: 76px;
-  padding: 0 24px;
-}
-
-.schedule-titlebar h2 {
-  font-size: 24px;
-  font-weight: 650;
-  margin: 0 0 18px;
-}
-
-.eyebrow {
-  display: none;
-}
-
-.route-picker {
-  background: #fff;
-  border: 1px solid #dedede;
-  display: block;
-  margin-bottom: 12px;
-  padding: 12px 16px;
-}
-
-.route-picker__label {
-  color: #777;
-  display: block;
-  font-size: 12px;
-  margin-bottom: 5px;
-}
-
-.route-picker__control {
-  align-items: center;
-  display: flex;
-  gap: 5px;
-}
-
-.route-picker select {
-  appearance: none;
-  background: transparent;
-  border: 0;
-  color: #333;
-  cursor: pointer;
-  flex: 1;
-  font: inherit;
-  font-size: 17px;
-  min-width: 0;
-  outline: 0;
-  padding: 0;
-}
-
-.route-picker .material-icons-outlined {
-  color: #888;
-  font-size: 21px;
-  pointer-events: none;
-}
-
-.schedule-card {
-  background: #fff;
-  border: 1px solid #e2e2e2;
-}
-
-.schedule-card__header {
-  align-items: flex-start;
-  display: flex;
-  gap: 16px;
-  justify-content: space-between;
-  padding: 20px 20px 16px;
-}
-
-.schedule-card__caption {
-  color: #888;
-  font-size: 12px;
-  margin: 0 0 6px;
-}
-
-.schedule-card h3 {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  font-size: 20px;
-  font-weight: 600;
-  gap: 5px;
-  line-height: 1.35;
-  margin: 0;
-}
-
-.schedule-card h3 .material-icons-outlined,
-.departure__route .material-icons-outlined {
-  color: #b0b0b0;
-  font-size: 19px;
-}
-
-.schedule-card__route-name {
-  color: #888;
-  font-size: 12px;
-  max-width: 180px;
-  text-align: right;
-}
-
-.schedule-notice {
-  align-items: center;
-  background: #eaf8ff;
-  color: #2a80ad;
-  display: flex;
-  font-size: 14px;
-  gap: 8px;
-  line-height: 1.5;
-  margin: 0;
-  padding: 13px 20px;
-}
-
-.schedule-notice .material-icons-outlined {
-  font-size: 20px;
-}
-
-.departure-list {
-  list-style: none;
-  margin: 0;
-  padding: 8px 20px 8px;
-}
-
-.departure {
-  display: grid;
-  grid-template-columns: 24px minmax(0, 1fr);
-  min-height: 88px;
-}
-
-.departure__rail {
+  margin-bottom: 16px;
   position: relative;
 }
 
-.departure__rail::after {
-  background: #e6e6e6;
-  bottom: 0;
-  content: "";
-  left: 11px;
-  position: absolute;
-  top: 0;
-  width: 1px;
+.path-item:last-child {
+  margin-bottom: 0;
 }
 
-.departure:last-child .departure__rail::after {
-  bottom: 50%;
-}
-
-.departure__dot {
-  align-items: center;
-  background: #a8a8a8;
-  border: 2px solid #fff;
-  border-radius: 50%;
-  color: #fff;
-  display: flex;
-  height: 12px;
-  justify-content: center;
-  left: 5px;
-  position: absolute;
-  top: 25px;
+.path-dot {
   width: 12px;
-  z-index: 1;
-}
-
-.departure__dot--active {
-  background: #22b873;
-  height: 18px;
-  left: 2px;
-  top: 22px;
-  width: 18px;
-}
-
-.departure__dot .material-icons-outlined {
-  font-size: 12px;
-}
-
-.departure__body {
-  border-bottom: 1px solid #ededed;
-  min-width: 0;
-  padding: 16px 0 14px 16px;
-}
-
-.departure:last-child .departure__body {
-  border-bottom: 0;
-}
-
-.departure__route {
-  align-items: center;
-  color: #666;
-  display: flex;
-  flex-wrap: wrap;
-  font-size: 16px;
-  gap: 4px;
-  line-height: 1.4;
-}
-
-.departure:first-child .departure__route {
-  color: #20a86b;
-}
-
-.season,
-.vehicle-count {
-  color: #888;
-  font-size: 12px;
-  margin-left: 5px;
-}
-
-.season {
-  color: #888;
-}
-
-.departure__meta {
-  align-items: baseline;
-  display: flex;
-  gap: 12px;
-  margin-top: 7px;
-}
-
-.departure time {
-  color: #888;
-  font-family: Consolas, "SFMono-Regular", monospace;
-  font-size: 17px;
-  font-variant-numeric: tabular-nums;
-}
-
-.departure:first-child time {
-  color: #20a86b;
-}
-
-.vehicle-count {
-  margin-left: 0;
-}
-
-.schedule-remark {
-  align-items: flex-start;
-  border-top: 1px solid #ededed;
-  color: #777;
-  display: flex;
-  font-size: 12px;
-  gap: 7px;
-  line-height: 1.55;
-  margin: 0 20px;
-  padding: 14px 0 16px;
-}
-
-.schedule-remark .material-icons-outlined {
-  color: #999;
-  font-size: 16px;
-}
-
-.state {
-  align-items: center;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid #ff9500;
   background: #fff;
-  border: 1px solid #e2e2e2;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+.path-dot--end {
+  background: #222;
+  border-color: #222;
+}
+
+.path-line {
+  height: 16px;
+  width: 1px;
+  background: #ddd;
+  margin-left: 5px;
+  display: block;
+}
+
+.path-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.path-label {
+  font-size: 11px;
   color: #999;
+  margin: 0 0 4px;
+  text-transform: uppercase;
+}
+
+.path-address {
+  font-size: 14px;
+  color: #222;
+  margin: 0;
+  word-wrap: break-word;
+  white-space: normal;
+}
+
+.departures-section {
+  margin-bottom: 16px;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #eee;
+}
+
+.section-header h4 {
+  margin: 0;
+  font-size: 16px;
+  color: #222;
+}
+
+.count-badge {
+  background: #ff9500;
+  color: #fff;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.departure-list {
   display: flex;
   flex-direction: column;
+  gap: 12px;
+}
+
+.departure-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
+  background: #f9f9f9;
+  border-radius: 6px;
+  border-left: 3px solid #ddd;
+}
+
+.departure-item.is-first {
+  border-left-color: #ff9500;
+  background: #fffaf0;
+}
+
+.departure-time {
+  font-size: 18px;
+  font-weight: 600;
+  color: #222;
+  min-width: 60px;
+  font-family: monospace;
+}
+
+.departure-item.is-first .departure-time {
+  color: #ff9500;
+}
+
+.departure-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.departure-meta {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.vehicle-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 12px;
+  color: #666;
+  background: #f0f0f0;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.badge-first {
+  color: #ff9500;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.remark-box {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 12px;
+  background: #f5f5f5;
+  border-radius: 6px;
+  border-left: 3px solid #ff9500;
   font-size: 13px;
-  gap: 10px;
-  justify-content: center;
-  min-height: 200px;
+  color: #666;
+  margin-top: 12px;
 }
 
-.state .material-icons-outlined {
-  font-size: 28px;
+.remark-box svg {
+  margin-top: 2px;
+  flex-shrink: 0;
+  color: #ff9500;
 }
 
-.state--error {
-  color: #c62828;
+.info-banner {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 12px;
+  background: #fef3e3;
+  border-radius: 6px;
+  border-left: 3px solid #ff9500;
+  font-size: 12px;
+  color: #666;
+  margin-top: 16px;
 }
 
-.empty-schedule {
-  color: #999;
-  font-size: 13px;
-  padding: 28px 20px;
-  text-align: center;
+.info-banner svg {
+  flex-shrink: 0;
 }
 
-.spin {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-@media (max-width: 600px) {
-  .schedule-header {
-    min-height: 78px;
-    padding: 0 16px;
-  }
-
-  .schedule-header__icon {
-    font-size: 22px;
-    height: 38px;
-    width: 38px;
-  }
-
-  .schedule-header h1 {
-    font-size: 19px;
-  }
-
-  .schedule-content {
-    padding: 24px 0 36px;
-  }
-
-  .schedule-titlebar {
-    margin: -24px 0 16px;
-    min-height: 64px;
-    padding: 0 16px;
-  }
-
-  .schedule-titlebar h2 {
-    font-size: 22px;
-    margin-bottom: 15px;
-  }
-
-  .route-picker {
-    margin: 0 12px 10px;
-  }
-
-  .schedule-card {
-    border-left: 0;
-    border-right: 0;
-  }
-
-  .schedule-card__header {
-    padding: 18px 16px 14px;
-  }
-
-  .schedule-card h3 {
-    font-size: 18px;
-  }
-
-  .schedule-card__route-name {
-    max-width: 120px;
-  }
-
-  .schedule-notice {
-    padding: 12px 16px;
-  }
-
-  .departure-list {
-    padding-left: 16px;
-    padding-right: 16px;
-  }
-
-  .departure__route {
-    font-size: 15px;
-  }
+:deep(.n-empty) {
+  padding: 24px 16px;
 }
 </style>
