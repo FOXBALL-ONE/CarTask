@@ -48,12 +48,13 @@
     - name: 创建 Release
       type: git:release
       options:
-        tag: build-$CNB_COMMIT
+        tag: latest
+        latest: true
         description: Build $CNB_COMMIT
     - name: 上传 Release 制品
       image: cnbcool/attachments:latest
       settings:
-        tag: build-$CNB_COMMIT
+        tag: latest
         attachments:
           - dist/frontend-$CNB_COMMIT.tar.gz
           - dist/backend-$CNB_COMMIT.jar
