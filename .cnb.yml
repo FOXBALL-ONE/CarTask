@@ -30,7 +30,7 @@
         set -eu
         mkdir -p dist
         test -d frontend/.output
-        tar -czf "dist/frontend-${CNB_COMMIT}.tar.gz" -C frontend .output
+        tar -czf "dist/frontend.tar.gz" -C frontend .output
 
         jar_count=0
         jar_path=''
@@ -44,7 +44,7 @@
           echo "Expected exactly one bootJar in build/libs, found $jar_count" >&2
           exit 1
         fi
-        cp "$jar_path" "dist/backend-${CNB_COMMIT}.jar"
+        cp "$jar_path" "dist/backen.jar"
     - name: 创建 Release
       type: git:release
       options:
