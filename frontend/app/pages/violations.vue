@@ -268,13 +268,7 @@
                 </button>
                 <span v-else class="released-text">已解除</span></td>
             </tr>
-            <tr v-if="penalties.length === 0">
-              <td colspan="6">
-                <div class="empty-state"><span
-                    class="material-icons-outlined">verified</span><strong>当前没有处罚车辆</strong><span>达到处罚分值线的车辆会出现在这里</span>
-                </div>
-              </td>
-            </tr>
+
             </tbody>
           </table>
         </div>

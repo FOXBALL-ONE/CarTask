@@ -1,86 +1,78 @@
 <template>
-  <section class="presence-page">
-    <header class="presence-heading">
+  <section class="page">
+    <header class="page__header">
       <div>
-        <p class="eyebrow">LIVE PRESENCE / 02S PULSE</p>
-        <h1>在线用户</h1>
-        <p class="heading-copy">查看正在使用系统的账户。每 2 秒自动刷新一次，超过 10 秒未活动会暂时离线。</p>
+        <h1 class="page__title">在线用户</h1>
+        <p class="page__desc">查看正在使用系统的账户，每 2 秒自动刷新，超过 10 秒未活动会暂时离线</p>
       </div>
-      <div :class="{ 'heading-status--error': errorMessage }" class="heading-status">
-        <span class="status-dot"/>
-        <span>{{ errorMessage ? "连接异常" : "实时监测中" }}</span>
-        <button :disabled="loading" class="refresh-button" title="立即刷新" type="button" @click="loadOnlineUsers">
-          <span :class="{ spinning: loading }" class="material-icons-outlined">refresh</span>
+      <div class="page__actions">
+        <label v-if="canForceLogout" class="pick-all">
+          <input :checked="allSelected" :disabled="!onlineUsers.length" :indeterminate.prop="someSelected"
+                 type="checkbox" @change="toggleAll">
+          <span>全选</span>
+        </label>
+        <button v-if="canForceLogout" :disabled="!selectedIds.length || loggingOut" class="btn btn--danger-soft btn--sm"
+                type="button" @click="forceLogoutSelected">
+          <span class="material-icons-outlined">logout</span>{{ loggingOut ? "处理中…" : `强制登出${selectedIds.length ? ` (${selectedIds.length})` : ""}` }}
         </button>
       </div>
     </header>
 
-    <div v-if="errorMessage" class="error-banner">
-      <span class="material-icons-outlined">wifi_off</span>
-      <span>{{ errorMessage }}</span>
-      <button type="button" @click="loadOnlineUsers">重试</button>
-    </div>
+    <p v-if="actionError || actionMessage" :class="{ 'notice--error': actionError }" class="notice" role="status">
+      {{ actionError || actionMessage }}
+    </p>
 
-    <section class="signal-grid">
-      <article class="count-card">
-        <div aria-hidden="true" class="count-card__halo"/>
-        <div class="count-card__content">
-          <span class="card-kicker">CURRENTLY ONLINE</span>
-          <strong>{{ onlineUsers.length }}</strong>
-          <span class="count-caption">个用户正在使用系统</span>
-        </div>
-      </article>
-
-    </section>
-
-    <section class="roster-panel">
-      <header class="roster-heading">
+    <section class="card">
+      <header class="card__head">
         <div><span class="section-mark">01</span>
           <div><h2>实时名册</h2>
             <p>按最近活动时间排序</p></div>
         </div>
-        <div class="roster-heading__meta">
-          <label v-if="canForceLogout" class="roster-pick-all">
-            <input :checked="allSelected" :disabled="!onlineUsers.length" :indeterminate.prop="someSelected"
-                   type="checkbox" @change="toggleAll">
-            <span>全选</span>
-          </label>
-          <button v-if="canForceLogout" :disabled="!selectedIds.length || loggingOut" class="force-logout" type="button"
-                  @click="forceLogoutSelected">
-            <span class="material-icons-outlined">logout</span>{{ loggingOut ? "处理中…" : `强制登出${selectedIds.length ? ` (${selectedIds.length})` : ""}` }}
-          </button>
-          <span class="roster-total">{{ onlineUsers.length }} ONLINE</span>
-        </div>
+        <span class="online-count"><i class="online-dot"/>{{ onlineUsers.length }} 在线</span>
       </header>
 
-      <p v-if="actionError || actionMessage" :class="{ 'roster-notice--error': actionError }" class="roster-notice"
-         role="status">
-        <span class="material-icons-outlined">{{ actionError ? "error_outline" : "check_circle" }}</span>
-        <span>{{ actionError || actionMessage }}</span>
-      </p>
-
-      <div v-if="loading && !onlineUsers.length" class="roster-empty"><span class="material-icons-outlined spinning">progress_activity</span>
-        <p>正在接收在线信号…</p></div>
-      <div v-else-if="!onlineUsers.length" class="roster-empty"><span class="material-icons-outlined">no_accounts</span>
-        <p>当前没有检测到在线用户</p><small>用户发起请求后会自动出现在这里。</small></div>
-      <div v-else class="roster-list">
-        <article v-for="(user, index) in onlineUsers" :key="user.id"
-                 :class="{ 'roster-row--selectable': canForceLogout }" class="roster-row">
-          <label v-if="canForceLogout" class="roster-pick">
-            <input v-model="selectedIds" :aria-label="`选择 ${user.display_name || user.username}`" :value="user.id"
-                   class="roster-check" type="checkbox">
-          </label>
-          <span class="roster-index">{{ String(index + 1).padStart(2, "0") }}</span>
-          <span class="roster-avatar">{{ initials(user.display_name || user.username) }}</span>
-          <div class="roster-identity"><strong>{{ user.display_name || user.username }}</strong><span>@{{
-              user.username
-            }}</span></div>
-          <span class="roster-role">{{ user.role }}</span>
-          <div class="roster-seen"><span><i class="online-dot"/>在线</span><small>最后活动
-            {{ relativeTime(user.last_seen) }}</small></div>
-        </article>
+      <div v-if="errorMessage" class="state state--error">
+        <span class="material-icons-outlined">wifi_off</span>{{ errorMessage }}
+        <button class="btn btn--ghost btn--sm" type="button" @click="loadOnlineUsers">重试</button>
       </div>
-      <footer class="roster-footer"><span>数据来源：认证请求心跳</span><span>轮询间隔 2 秒</span></footer>
+      <div v-else-if="loading && !onlineUsers.length" class="state"><span class="spinner"/>正在接收在线信号…</div>
+      <div v-else-if="!onlineUsers.length" class="empty-state">
+        <span class="material-icons-outlined">no_accounts</span>
+        <strong>当前没有检测到在线用户</strong>
+        <small>用户发起请求后会自动出现在这里</small>
+      </div>
+      <div v-else class="table-wrap">
+        <table class="table">
+          <thead>
+          <tr>
+            <th v-if="canForceLogout" class="check-cell"/>
+            <th>编号</th>
+            <th>用户</th>
+            <th>角色</th>
+            <th>状态</th>
+            <th>最后活动</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr v-for="(user, index) in onlineUsers" :key="user.id" :class="{ 'row--selected': selectedIds.includes(user.id) }">
+            <td v-if="canForceLogout" class="check-cell">
+              <input v-model="selectedIds" :aria-label="`选择 ${user.display_name || user.username}`" :value="user.id" type="checkbox">
+            </td>
+            <td class="text-sub">{{ String(index + 1).padStart(2, "0") }}</td>
+            <td>
+              <div class="identity">
+                <span class="avatar">{{ initials(user.display_name || user.username) }}</span>
+                <span><strong>{{ user.display_name || user.username }}</strong><small>@{{ user.username }}</small></span>
+              </div>
+            </td>
+            <td><span class="tag tag--blue">{{ user.role }}</span></td>
+            <td><span class="tag tag--green"><i class="online-dot"/>在线</span></td>
+            <td class="text-sub nowrap">{{ relativeTime(user.last_seen) }}</td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+      <footer class="card__foot"><span>数据来源：认证请求心跳</span><span>轮询间隔 2 秒</span></footer>
     </section>
   </section>
 </template>
@@ -223,484 +215,351 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.presence-page {
-  --ink: #11221f;
-  --muted: #64807a;
-  --line: #d7e7e1;
-  --mint: #dff7eb;
-  --signal: #16a36b;
-  /* 实心色块（计数卡底色）与强调正文分开：深色下前者要保持深绿，后者必须提亮。 */
-  --deep: #123c35;
-  --strong: #123c35;
-  --surface: var(--card);
-  --chip-bg: #f0f8f4;
-  --chip-border: #d4ebe0;
-  --chip-text: #33745b;
+.page {
   min-height: 100%;
-  padding: 30px 32px 42px;
-  background: #f7fbf9;
-  color: var(--ink);
+  padding: 24px
 }
 
-.presence-heading {
-  align-items: flex-end;
-  display: flex;
-  gap: 20px;
-  justify-content: space-between;
-  margin: 0 auto 26px;
-  max-width: 1240px;
-}
-
-.eyebrow, .card-kicker {
-  color: var(--signal);
-  font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: .16em;
-  margin: 0 0 8px;
-}
-
-.presence-heading h1 {
-  font-size: clamp(28px, 4vw, 46px);
-  font-weight: 680;
-  letter-spacing: -.045em;
-  margin: 0;
-}
-
-.heading-copy {
-  color: var(--muted);
-  font-size: 13px;
-  margin: 8px 0 0;
-}
-
-.heading-status {
+.page__header {
   align-items: center;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  color: var(--strong);
-  display: flex;
-  font-size: 12px;
-  gap: 8px;
-  padding: 6px 8px 6px 13px;
-  white-space: nowrap;
-}
-
-.heading-status--error {
-  color: var(--danger-text);
-}
-
-.status-dot, .online-dot, .pulse-dot {
-  background: var(--signal);
-  border-radius: 50%;
-  display: inline-block;
-  height: 7px;
-  width: 7px;
-}
-
-.heading-status--error .status-dot {
-  background: #d84a3a;
-}
-
-.refresh-button {
-  align-items: center;
-  background: var(--mint);
-  border: 0;
-  border-radius: 50%;
-  color: var(--signal);
-  cursor: pointer;
-  display: inline-flex;
-  height: 28px;
-  justify-content: center;
-  margin-left: 4px;
-  width: 28px;
-}
-
-.refresh-button:disabled {
-  cursor: wait;
-  opacity: .6;
-}
-
-.refresh-button .material-icons-outlined {
-  font-size: 16px;
-}
-
-.error-banner {
-  align-items: center;
-  background: #fff2f0;
-  border: 1px solid #f4c9c2;
-  border-radius: 8px;
-  color: #a93a2f;
-  display: flex;
-  font-size: 12px;
-  gap: 8px;
-  margin: 0 auto 16px;
-  max-width: 1240px;
-  padding: 10px 12px;
-}
-
-.error-banner .material-icons-outlined {
-  font-size: 17px;
-}
-
-.error-banner button {
-  background: transparent;
-  border: 0;
-  color: inherit;
-  cursor: pointer;
-  font: inherit;
-  font-weight: 650;
-  margin-left: auto;
-  text-decoration: underline;
-}
-
-.signal-grid {
-  display: grid;
-  gap: 14px;
-  grid-template-columns: minmax(0, 1fr);
-  margin: 0 auto 18px;
-  max-width: 1240px;
-}
-
-.count-card, .roster-panel {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  overflow: hidden;
-}
-
-.count-card {
-  background: var(--deep);
-  color: #f4fff9;
-  min-height: 220px;
-  padding: 22px;
-  position: relative;
-}
-
-.count-card__halo {
-  border: 1px solid rgb(164 244 205 / 24%);
-  border-radius: 50%;
-  /* 卡片现在是整行宽，装饰弧要跟着放大，否则右侧会空掉。 */
-  height: 320px;
-  position: absolute;
-  right: -70px;
-  top: -140px;
-  width: 320px;
-}
-
-.count-card__halo::after {
-  border: 1px solid rgb(164 244 205 / 16%);
-  border-radius: 50%;
-  content: "";
-  inset: 34px;
-  position: absolute;
-}
-
-.count-card__content {
-  position: relative;
-  z-index: 1;
-}
-
-.count-card .card-kicker {
-  color: #8ee6b9;
-}
-
-.count-card strong {
-  display: block;
-  font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: clamp(58px, 8vw, 86px);
-  font-weight: 500;
-  letter-spacing: -.08em;
-  line-height: .95;
-  margin: 18px 0 8px;
-}
-
-.count-caption {
-  color: #b9d9cb;
-  font-size: 12px;
-}
-
-.count-card__footer {
-  bottom: 18px;
-  color: #9ac6b4;
-  display: flex;
-  font-size: 10px;
-  justify-content: space-between;
-  left: 22px;
-  position: absolute;
-  right: 22px;
-}
-
-.count-card__footer span {
-  align-items: center;
-  display: inline-flex;
-  gap: 6px;
-}
-
-.pulse-dot {
-  animation: blink 1.8s ease-in-out infinite;
-  box-shadow: 0 0 0 4px rgb(93 226 157 / 14%);
-}
-
-.roster-panel {
-  margin: 0 auto;
-  max-width: 1240px;
-}
-
-.roster-heading {
-  align-items: center;
-  border-bottom: 1px solid var(--line);
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  justify-content: space-between;
-  padding: 18px 22px;
-}
-
-.roster-heading__meta {
-  align-items: center;
-  display: flex;
   gap: 12px;
+  justify-content: space-between;
+  margin-bottom: 20px
 }
 
-.roster-heading > div {
+.page__title {
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0
+}
+
+.page__desc {
+  color: var(--text-sub);
+  font-size: 13px;
+  margin: 2px 0 0
+}
+
+.page__actions {
   align-items: center;
   display: flex;
-  gap: 13px;
+  gap: 10px
 }
 
-.section-mark {
-  color: var(--signal);
-  font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 11px;
-}
-
-.roster-heading h2 {
-  font-size: 15px;
-  margin: 0;
-}
-
-.roster-heading p {
-  color: var(--muted);
-  font-size: 11px;
-  margin: 3px 0 0;
-}
-
-.roster-total {
-  color: var(--signal);
-  font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 10px;
-  letter-spacing: .1em;
-}
-
-/* 强制登出的操作反馈：成功用绿系，失败用全局危险色（深浅两套都有值）。 */
-.roster-notice {
+.pick-all {
   align-items: center;
-  background: var(--success-soft);
-  border-bottom: 1px solid var(--line);
-  color: var(--success-text);
-  display: flex;
-  font-size: 12px;
-  gap: 7px;
-  margin: 0;
-  padding: 10px 22px;
-}
-
-.roster-notice--error {
-  background: var(--danger-soft);
-  color: var(--danger-text);
-}
-
-.roster-notice .material-icons-outlined {
-  font-size: 16px;
-}
-
-.roster-pick-all {
-  align-items: center;
-  color: var(--muted);
+  color: var(--text-sub);
   cursor: pointer;
   display: inline-flex;
-  font-size: 11px;
+  font-size: 12px;
   gap: 6px;
   white-space: nowrap;
 }
 
-.roster-check, .roster-pick-all input {
-  accent-color: var(--signal);
+.pick-all input {
+  accent-color: var(--primary);
   cursor: pointer;
   height: 14px;
   margin: 0;
   width: 14px;
 }
 
-.roster-pick-all input:disabled {
+.pick-all input:disabled {
   cursor: not-allowed;
 }
 
-.roster-pick {
-  align-items: center;
-  display: flex;
-  justify-content: center;
-}
-
-.force-logout {
-  align-items: center;
-  background: transparent;
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  color: var(--muted);
-  cursor: pointer;
-  display: inline-flex;
-  font: inherit;
-  font-size: 11px;
-  gap: 5px;
-  height: 28px;
-  padding: 0 10px;
-  transition: background var(--tr), border-color var(--tr), color var(--tr);
-  white-space: nowrap;
-}
-
-.force-logout:hover:not(:disabled) {
-  background: var(--danger-soft);
-  border-color: var(--danger-border);
-  color: var(--danger-text);
-}
-
-.force-logout:disabled {
-  cursor: not-allowed;
-  opacity: .45;
-}
-
-.force-logout .material-icons-outlined {
-  font-size: 15px;
-}
-
-.roster-list {
-  padding: 0 22px;
-}
-
-.roster-row {
-  align-items: center;
-  border-bottom: 1px solid var(--line);
-  display: grid;
-  gap: 14px;
-  grid-template-columns: 32px 38px minmax(160px, 1fr) 110px minmax(130px, .7fr);
-  min-height: 68px;
-}
-
-/* 有强制登出权限时多一列勾选框，其余列保持原样。 */
-.roster-row--selectable {
-  grid-template-columns: 22px 32px 38px minmax(160px, 1fr) 110px minmax(130px, .7fr);
-}
-
-.roster-row:last-child {
-  border-bottom: 0;
-}
-
-.roster-index {
-  color: #95afa7;
-  font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 11px;
-}
-
-.roster-avatar {
-  align-items: center;
-  background: var(--mint);
-  border: 1px solid #b9e8cf;
-  border-radius: 11px;
-  color: var(--signal);
-  display: flex;
-  font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 11px;
-  height: 34px;
-  justify-content: center;
-  width: 34px;
-}
-
-.roster-identity {
-  display: grid;
-  gap: 3px;
-  min-width: 0;
-}
-
-.roster-identity strong {
-  color: var(--strong);
+.notice {
+  background: var(--success-soft);
+  border: 1px solid var(--success);
+  border-radius: 6px;
+  color: var(--success);
   font-size: 13px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  margin: 0 0 14px;
+  padding: 9px 12px;
 }
 
-.roster-identity span, .roster-seen small {
-  color: var(--muted);
-  font-size: 11px;
+.notice--error {
+  background: var(--danger-soft);
+  border-color: var(--red);
+  color: var(--red);
 }
 
-.roster-role {
-  background: var(--chip-bg);
-  border: 1px solid var(--chip-border);
-  border-radius: 5px;
-  color: var(--chip-text);
-  display: inline-flex;
-  font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 10px;
-  justify-self: start;
-  padding: 4px 7px;
+.card {
+  background: var(--card);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  overflow: hidden
 }
 
-.roster-seen {
-  display: grid;
-  gap: 4px;
-  justify-items: end;
-}
-
-.roster-seen > span {
+.card__head {
   align-items: center;
-  color: var(--signal);
-  display: inline-flex;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: space-between;
+  padding: 16px 18px;
+}
+
+.card__head > div {
+  align-items: center;
+  display: flex;
+  gap: 13px;
+}
+
+.section-mark {
+  color: var(--primary);
+  font-family: "SFMono-Regular", Consolas, monospace;
   font-size: 11px;
-  gap: 5px;
+}
+
+.card__head h2 {
+  font-size: 15px;
+  margin: 0;
+  color: var(--text);
+}
+
+.card__head p {
+  color: var(--text-mute);
+  font-size: 11px;
+  margin: 3px 0 0;
+}
+
+.online-count {
+  align-items: center;
+  color: var(--success);
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 600;
+  gap: 6px;
 }
 
 .online-dot {
+  background: var(--success);
+  border-radius: 50%;
+  display: inline-block;
   height: 6px;
   width: 6px;
 }
 
-.roster-footer {
-  color: #91a9a1;
-  display: flex;
-  font-size: 10px;
-  justify-content: space-between;
-  padding: 13px 22px;
+.btn {
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  gap: 5px;
+  height: 32px;
+  justify-content: center;
+  padding: 0 12px;
+  white-space: nowrap
 }
 
-.roster-empty {
+.btn .material-icons-outlined {
+  font-size: 16px
+}
+
+.btn--ghost {
+  background: var(--card);
+  border-color: var(--border-strong);
+  color: var(--text-sub)
+}
+
+.btn--danger-soft {
+  background: var(--danger-soft);
+  color: var(--danger)
+}
+
+.btn--sm {
+  font-size: 12px;
+  height: 28px;
+  padding: 0 10px
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: .6
+}
+
+.table-wrap {
+  overflow-x: auto
+}
+
+.table {
+  border-collapse: collapse;
+  font-size: 13px;
+  min-width: 760px;
+  width: 100%
+}
+
+.table th {
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  color: var(--text-mute);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 10px 16px;
+  text-align: left;
+  white-space: nowrap
+}
+
+.table td {
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  padding: 11px 16px;
+  vertical-align: middle;
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.table tbody tr:hover, .table tbody tr.row--selected {
+  background: var(--bg)
+}
+
+.check-cell {
+  width: 24px;
+}
+
+.check-cell input {
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+.text-sub {
+  color: var(--text-sub) !important
+}
+
+.nowrap {
+  white-space: nowrap
+}
+
+.identity {
   align-items: center;
-  color: var(--muted);
+  display: flex;
+  gap: 10px
+}
+
+.avatar {
+  align-items: center;
+  background: var(--primary-soft);
+  border-radius: 8px;
+  color: var(--primary);
+  display: inline-flex;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 11px;
+  height: 32px;
+  justify-content: center;
+  width: 32px;
+  flex-shrink: 0;
+}
+
+.identity strong {
+  color: var(--text);
+  display: block;
+  font-size: 13px;
+}
+
+.identity small {
+  color: var(--text-mute);
+  display: block;
+  font-size: 11px;
+}
+
+.tag {
+  align-items: center;
+  border-radius: 4px;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 500;
+  gap: 4px;
+  line-height: 1.5;
+  padding: 2px 8px
+}
+
+.tag--green {
+  background: var(--success-soft);
+  color: var(--success)
+}
+
+.tag--blue {
+  background: var(--primary-soft);
+  color: var(--primary)
+}
+
+.state, .empty-state {
+  color: var(--text-mute);
+  padding: 40px;
+  text-align: center
+}
+
+.state {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.state .material-icons-outlined {
+  font-size: 17px;
+}
+
+.state--error {
+  color: var(--red)
+}
+
+.state--error .btn {
+  margin-left: 6px;
+}
+
+.empty-state {
+  align-items: center;
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 4px;
   justify-content: center;
   min-height: 190px;
 }
 
-.roster-empty .material-icons-outlined {
-  color: #9bcfba;
-  font-size: 31px;
+.empty-state .material-icons-outlined {
+  color: var(--text-mute);
+  font-size: 32px;
+  margin-bottom: 4px;
+  opacity: .65;
 }
 
-.roster-empty p {
+.empty-state strong {
+  color: var(--text-sub);
   font-size: 13px;
-  margin: 0;
 }
 
-.roster-empty small {
+.empty-state small {
   font-size: 11px;
 }
 
-.spinning {
+.spinner {
   animation: spin .8s linear infinite;
+  border: 2px solid var(--border-strong);
+  border-radius: 50%;
+  border-top-color: var(--primary);
+  display: inline-block;
+  height: 16px;
+  width: 16px;
+}
+
+.card__foot {
+  color: var(--text-mute);
+  display: flex;
+  font-size: 10px;
+  justify-content: space-between;
+  padding: 13px 18px;
+  border-top: 1px solid var(--border);
 }
 
 @keyframes spin {
@@ -709,113 +568,22 @@ onBeforeUnmount(() => {
   }
 }
 
-@keyframes blink {
-  50% {
-    opacity: .35;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .spinning, .pulse-dot {
+  .spinner {
     animation: none;
   }
 }
 
-@media (max-width: 900px) {
-  .presence-page {
-    padding: 22px 18px 32px;
-  }
-
-  .roster-row {
-    grid-template-columns: 28px 38px minmax(0, 1fr) 100px;
-  }
-
-  .roster-row--selectable {
-    grid-template-columns: 22px 28px 38px minmax(0, 1fr) 100px;
-  }
-
-  .roster-role {
-    display: none;
+@media (max-width: 768px) {
+  .page {
+    padding: 16px
   }
 }
 
 @media (max-width: 600px) {
-  .presence-heading {
+  .page__header {
     align-items: flex-start;
     flex-direction: column;
   }
-
-  .heading-status {
-    align-self: flex-start;
-  }
-
-  .roster-heading, .roster-list {
-    padding-left: 15px;
-    padding-right: 15px;
-  }
-
-  .roster-row {
-    gap: 9px;
-    grid-template-columns: 26px 34px minmax(0, 1fr);
-  }
-
-  .roster-row--selectable {
-    grid-template-columns: 20px 26px 34px minmax(0, 1fr);
-  }
-
-  .roster-seen {
-    grid-column: 3;
-    justify-items: start;
-  }
-
-  .roster-row--selectable .roster-seen {
-    grid-column: 4;
-  }
-
-  .roster-footer {
-    padding-left: 15px;
-    padding-right: 15px;
-  }
-}
-
-/* ==========================================================================
-   深色：同一套绿调，明暗关系整体翻面
-   底色取偏绿的近黑而不是通用 --bg，卡片比底色抬起一级，浅绿填充改成深绿填充，
-   强调色提亮到能在深底上读出。--deep 是计数卡的实心品牌色块，两种主题下都保持深绿，
-   所以卡片内部的浅绿文字与装饰线一律不动。
-   ========================================================================== */
-[data-theme="dark"] .presence-page {
-  --ink: #eef5f2;
-  --muted: #93aaa3;
-  --line: #2a3833;
-  --mint: #17332a;
-  --signal: #4fd39a;
-  --strong: #eef5f2;
-  --surface: #1b2421;
-  --chip-bg: #17332a;
-  --chip-border: #2a3833;
-  --chip-text: #4fd39a;
-  background: #121a17;
-}
-
-/* 错误提示与错误心跳点沿用全局危险色，避免深色下留一块浅红底。 */
-[data-theme="dark"] .error-banner {
-  background: var(--danger-soft);
-  border-color: var(--danger-border);
-  color: var(--danger-text);
-}
-
-[data-theme="dark"] .heading-status--error .status-dot {
-  background: var(--danger);
-}
-
-[data-theme="dark"] .roster-avatar {
-  border-color: var(--line);
-}
-
-/* 序号与页脚在浅色下是低对比灰绿，深色下要跟着提亮一档才读得清。 */
-[data-theme="dark"] .roster-index,
-[data-theme="dark"] .roster-footer {
-  color: var(--muted);
 }
 </style>
