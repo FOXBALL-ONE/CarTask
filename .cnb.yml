@@ -44,7 +44,7 @@
           echo "Expected exactly one bootJar in build/libs, found $jar_count" >&2
           exit 1
         fi
-        cp "$jar_path" "dist/backen.jar"
+        cp "$jar_path" "dist/backend.jar"
     - name: 创建 Release
       type: git:release
       options:
