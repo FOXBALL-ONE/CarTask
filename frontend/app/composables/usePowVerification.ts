@@ -9,6 +9,7 @@ interface PowChallenge {
   seed: string;
   difficulty_bits: number;
   expires_at: string;
+  expires_in_seconds?: number;
   algorithm: string;
   protocol_version: number;
 }
@@ -40,8 +41,11 @@ export function usePowVerification() {
       {purpose, mode},
       {payloadMode: "json"},
     );
-    const expiresAt = Date.parse(challenge.expires_at);
-    const remaining = Math.max(1000, expiresAt - Date.now());
+    // 优先用服务端给的相对有效期：不受客户端时钟偏差和时间串时区解析的影响
+    const ttlMs = (challenge.expires_in_seconds ?? 0) * 1000;
+    const remaining = ttlMs > 0
+        ? ttlMs
+        : Math.max(1000, Date.parse(challenge.expires_at) - Date.now() || 0);
     const solved = await new Promise<string>((resolve, reject) => {
       const timer = window.setTimeout(() => {
         worker?.terminate();
