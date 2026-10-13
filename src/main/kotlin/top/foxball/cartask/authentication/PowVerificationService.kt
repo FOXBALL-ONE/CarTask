@@ -10,7 +10,7 @@ import java.security.MessageDigest
 import java.security.SecureRandom
 import java.time.Clock
 import java.time.Duration
-import java.time.LocalDateTime
+import java.time.Instant
 import java.util.Base64
 
 @Component
@@ -23,7 +23,9 @@ class PowVerificationService(
         val purpose: String,
         val seed: String,
         val difficultyBits: Int,
-        val expiresAt: LocalDateTime,
+        /** 带时区的绝对时间；LocalDateTime 序列化后没有偏移，浏览器会按本地时区解析而提前判定过期。 */
+        val expiresAt: Instant,
+        val ttlSeconds: Long = CHALLENGE_TTL.seconds,
         val algorithm: String = "SHA-256",
         val protocolVersion: Int = PROTOCOL_VERSION,
     )
@@ -48,7 +50,7 @@ class PowVerificationService(
             normalizedPurpose,
             seed,
             difficulty,
-            LocalDateTime.ofInstant(java.time.Instant.ofEpochMilli(expiresAt), clock.zone),
+            Instant.ofEpochMilli(expiresAt),
         )
     }
 

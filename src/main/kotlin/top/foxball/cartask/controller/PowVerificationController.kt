@@ -36,7 +36,8 @@ class PowVerificationController(
             val purpose: String,
             val seed: String,
             @param:JsonProperty("difficulty_bits") val difficultyBits: Int,
-            @param:JsonProperty("expires_at") val expiresAt: java.time.LocalDateTime,
+            @param:JsonProperty("expires_at") val expiresAt: java.time.Instant,
+            @param:JsonProperty("expires_in_seconds") val expiresInSeconds: Long,
             val algorithm: String,
             @param:JsonProperty("protocol_version") val protocolVersion: Int,
         )
@@ -46,6 +47,7 @@ class PowVerificationController(
             challenge.seed,
             challenge.difficultyBits,
             challenge.expiresAt,
+            challenge.ttlSeconds,
             challenge.algorithm,
             challenge.protocolVersion,
         )
