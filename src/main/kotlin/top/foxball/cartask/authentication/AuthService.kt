@@ -39,10 +39,8 @@ interface AuthService {
         @param:JsonProperty("password") val password: CredentialValue,
         @param:JsonProperty("captchaToken") val captchaToken: String?,
         @param:JsonProperty("captchaAnswer") val captchaAnswer: String?,
-        @param:JsonProperty("powChallengeId") val powChallengeId: String? = null,
-        @param:JsonProperty("powNonce") val powNonce: String? = null,
     )
-    
+
     /**
      * LoginData 的职责与行为说明。
      * 该声明负责认证域中的相关数据处理、校验或服务调用。
@@ -70,10 +68,8 @@ interface AuthService {
         @param:JsonProperty("purpose") val purpose: String?,
         @param:JsonProperty("captchaToken") val captchaToken: String?,
         @param:JsonProperty("captchaAnswer") val captchaAnswer: String?,
-        @param:JsonProperty("powChallengeId") val powChallengeId: String? = null,
-        @param:JsonProperty("powNonce") val powNonce: String? = null,
     )
-    
+
     /**
      * SmsLoginCommand 的职责与行为说明。
      * 该声明负责认证域中的相关数据处理、校验或服务调用。
@@ -145,23 +141,12 @@ class AuthServiceImpl(
     private val rolePermissionService: RolePermissionService,
     private val auditService: AuditService? = null,
     private val smsVerificationService: SmsVerificationService,
-    private val powVerificationService: PowVerificationService? = null,
-    private val powProperties: PowProperties = PowProperties(),
 ) : AuthService {
-    
-    
+
+
     /** login：执行认证组件中的一项具体操作，完成输入校验并返回处理结果。 */
     override fun login(command: AuthService.LoginCommand): AuthService.LoginData {
-        powProperties.validate()
-        verifyHumanity(
-            purpose = "LOGIN",
-            challengeId = command.powChallengeId,
-            nonce = command.powNonce,
-            captchaToken = command.captchaToken,
-            captchaAnswer = command.captchaAnswer,
-            powRequired = powProperties.requiresPow(),
-            captchaRequired = powProperties.requiresCaptcha(),
-        )
+        captchaService.verify(command.captchaToken, command.captchaAnswer)
         loginAttemptLimiter.check(command.username)
         val user: User
         val role: String
@@ -248,57 +233,9 @@ class AuthServiceImpl(
             else -> throw IllegalArgumentException("短信验证码用途无效")
         }
         if (!smsVerificationService.verificationSkipped) {
-            powProperties.validate()
-            if (purpose == SmsVerificationService.Purpose.LOGIN) {
-                verifyHumanity(
-                    purpose = "SMS_SEND",
-                    challengeId = command.powChallengeId,
-                    nonce = command.powNonce,
-                    captchaToken = command.captchaToken,
-                    captchaAnswer = command.captchaAnswer,
-                    powRequired = powProperties.requiresPow(),
-                    captchaRequired = powProperties.requiresCaptcha(),
-                )
-            } else if (!command.powChallengeId.isNullOrBlank() || !command.powNonce.isNullOrBlank()) {
-                powVerificationService?.verify(command.powChallengeId, "SMS_SEND", command.powNonce)
-                    ?: throw AuthenticationInfrastructureException("POW 人机验证未配置")
-            } else {
-                captchaService.verify(command.captchaToken, command.captchaAnswer)
-            }
+            captchaService.verify(command.captchaToken, command.captchaAnswer)
         }
         smsVerificationService.send(command.phone, purpose)
-    }
-
-    private fun verifyHumanity(
-        purpose: String,
-        challengeId: String?,
-        nonce: String?,
-        captchaToken: String?,
-        captchaAnswer: String?,
-        powRequired: Boolean,
-        captchaRequired: Boolean,
-    ) {
-        val hasPow = !challengeId.isNullOrBlank() || !nonce.isNullOrBlank()
-        if (hasPow) {
-            try {
-                powVerificationService?.verify(challengeId, purpose, nonce)
-                    ?: throw AuthenticationInfrastructureException("POW 人机验证未配置")
-            } catch (ex: BadCredentialsException) {
-                if (!powRequired || !powProperties.allowsCaptchaFallback()) throw ex
-                captchaService.verify(captchaToken, captchaAnswer)
-                return
-            }
-            if (captchaRequired) captchaService.verify(captchaToken, captchaAnswer)
-            return
-        }
-        if (powRequired && !powProperties.allowsCaptchaFallback()) {
-            throw BadCredentialsException("请先完成人机验证")
-        }
-        if (captchaRequired || powProperties.allowsCaptchaFallback()) {
-            captchaService.verify(captchaToken, captchaAnswer)
-            return
-        }
-        if (powRequired) throw BadCredentialsException("请先完成人机验证")
     }
     
     
