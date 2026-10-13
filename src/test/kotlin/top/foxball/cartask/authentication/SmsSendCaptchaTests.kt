@@ -3,7 +3,6 @@ package top.foxball.cartask.authentication
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.any
-import org.mockito.kotlin.doThrow
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
@@ -18,7 +17,6 @@ import top.foxball.cartask.repository.UserRepository
 
 class SmsSendCaptchaTests {
     private val captchaService = mock<CaptchaService>()
-    private val powVerificationService = mock<PowVerificationService>()
     private val smsVerificationService = mock<SmsVerificationService>()
     private val service = AuthServiceImpl(
         userRepository = mock<UserRepository>(),
@@ -29,7 +27,6 @@ class SmsSendCaptchaTests {
         loginAttemptLimiter = mock<LoginAttemptLimiter>(),
         rolePermissionService = mock<RolePermissionService>(),
         smsVerificationService = smsVerificationService,
-        powVerificationService = powVerificationService,
     )
 
     @Test
@@ -40,43 +37,6 @@ class SmsSendCaptchaTests {
                 purpose = "LOGIN",
                 captchaToken = "token-1",
                 captchaAnswer = "1234",
-            ),
-        )
-
-        verify(captchaService).verify("token-1", "1234")
-        verify(smsVerificationService).send("13800138000", SmsVerificationService.Purpose.LOGIN)
-    }
-
-    @Test
-    fun `短信登录没有POW时回退校验图形验证码`() {
-        service.sendSmsCode(
-            AuthService.SmsSendCommand(
-                phone = "13800138000",
-                purpose = "LOGIN",
-                captchaToken = "token-1",
-                captchaAnswer = "1234",
-            ),
-        )
-
-        verify(captchaService).verify("token-1", "1234")
-        verify(powVerificationService, never()).verify(any(), any(), any())
-        verify(smsVerificationService).send("13800138000", SmsVerificationService.Purpose.LOGIN)
-    }
-
-    @Test
-    fun `短信登录POW校验失败时回退校验图形验证码`() {
-        doThrow(BadCredentialsException("人机验证未通过"))
-            .whenever(powVerificationService)
-            .verify("challenge-1", "SMS_SEND", "42")
-
-        service.sendSmsCode(
-            AuthService.SmsSendCommand(
-                phone = "13800138000",
-                purpose = "LOGIN",
-                captchaToken = "token-1",
-                captchaAnswer = "1234",
-                powChallengeId = "challenge-1",
-                powNonce = "42",
             ),
         )
 
