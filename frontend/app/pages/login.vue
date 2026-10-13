@@ -2,7 +2,7 @@
   <div class="login-page">
     <div class="login-wrap">
       <header class="login__head">
-        <img alt="" class="login__logo" src="/favicon.ico">
+        <img :src="logo" alt="" class="login__logo">
         <div class="login__brand">
           <div id="loginTitle" class="login__title">{{ sysName }}</div>
         </div>
@@ -203,8 +203,8 @@ const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
 
-// 系统名称（可由系统设置修改），与原版 localStorage.sysName 逻辑一致。
-const sysName = ref("福清市机关事务服务中心车务管理系统");
+// 系统图标与名称由后端 /api/branding 提供，可在「系统配置」中修改。
+const {title: sysName, logo, load: loadBranding} = useBranding();
 const form = reactive({
   username: "",
   password: "",
@@ -325,10 +325,7 @@ async function redirectToSetupIfNeeded() {
 }
 
 onMounted(() => {
-  const storedSysName = localStorage.getItem("sysName");
-  if (storedSysName) {
-    sysName.value = storedSysName;
-  }
+  void loadBranding(true);
 
   authStore.restoreSession();
   void authStore.loadSmsVerificationStatus();

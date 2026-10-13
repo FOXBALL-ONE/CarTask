@@ -93,7 +93,7 @@ interface AboutData {
 const http = useHttp();
 const about = ref<AboutData | null>(null);
 const loadError = ref("");
-const systemName = ref("智慧停车管理系统");
+const {title: systemName, load: loadBranding} = useBranding();
 /**
  * 运行时长本地往上加，不拿客户端的 Date.now() 去减服务端的启动时间——两边时钟有偏差时，
  * 那个差值可能是负的，也可能凭空多出几个小时。以拉取那一刻的值为基准再累加本地流逝的时间，
@@ -129,8 +129,7 @@ function formatDateTime(value: string) {
 }
 
 onMounted(async () => {
-  const stored = localStorage.getItem("sysName");
-  if (stored) systemName.value = stored;
+  void loadBranding();
   try {
     about.value = await http.get<AboutData>("/system/about");
     uptimeBaseMillis.value = about.value.runtime.uptime_millis;

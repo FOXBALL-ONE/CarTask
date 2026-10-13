@@ -52,6 +52,7 @@ class JwtAuthenticationFilter(
         return path == "/api/auth/captcha" ||
             path == "/api/auth/captcha/" ||
             path == "/api/auth/login" ||
+            path == "/api/branding" ||
             path.startsWith("/api/auth/sms/")
     }
     

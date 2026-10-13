@@ -52,6 +52,8 @@ class SecurityConfig(
                 ).permitAll()
                 // 反向代理或客户端可能保留末尾斜杠；验证码接口必须和登录接口一样始终允许匿名调用。
                 it.requestMatchers(HttpMethod.GET, "/api/auth/captcha", "/api/auth/captcha/**").permitAll()
+                // 侧边栏与登录页的图标、标题：登录前就要展示。
+                it.requestMatchers(HttpMethod.GET, "/api/branding").permitAll()
                 it.requestMatchers(HttpMethod.POST, "/api/auth/logout").authenticated()
                 it.requestMatchers("/api/users/**").authenticated()
                 it.requestMatchers(HttpMethod.GET, "/api/project/**").permitAll()

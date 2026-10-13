@@ -22,6 +22,52 @@
     <template v-else>
       <section class="card">
         <header class="card__head">
+          <h2 class="card__title">系统标识</h2>
+          <span class="card__hint">侧边栏与登录页顶部的图标和标题，保存后立即生效</span>
+        </header>
+        <div class="card__body">
+          <div class="form-grid">
+            <label class="field full">
+              <span class="field__label">系统标题</span>
+              <input v-model.trim="brandingForm.title" class="input" :disabled="!canManage" maxlength="64"
+                     placeholder="福清市机关事务服务中心车务管理系统">
+            </label>
+            <div class="field full">
+              <span class="field__label">系统图标</span>
+              <div class="branding-logo">
+                <img :src="brandingForm.logo || DEFAULT_BRANDING_LOGO" alt="当前系统图标" class="branding-logo__preview">
+                <template v-if="canManage">
+                  <label class="button button--ghost button--sm">
+                    <span class="material-icons-outlined">upload</span>选择图片
+                    <input accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml,image/x-icon,.ico"
+                           class="branding-logo__file" type="file" @change="pickLogo">
+                  </label>
+                  <button :disabled="!brandingForm.logo" class="button button--ghost button--sm" type="button"
+                          @click="brandingForm.logo = null">
+                    <span class="material-icons-outlined">restart_alt</span>恢复默认
+                  </button>
+                </template>
+              </div>
+              <span class="field__hint">支持 PNG、JPEG、GIF、WEBP、SVG、ICO，不超过 256KB，建议使用正方形图片。</span>
+            </div>
+          </div>
+          <p v-if="brandingError" class="feedback feedback--error" role="alert">
+            <span class="material-icons-outlined">error</span>{{ brandingError }}
+          </p>
+          <p v-if="brandingSaved" class="feedback feedback--success" role="status">
+            <span class="material-icons-outlined">check_circle</span>系统标识已保存
+          </p>
+          <div v-if="canManage" class="branding-actions">
+            <button :disabled="brandingSaving" class="button button--primary button--sm" type="button"
+                    @click="saveBranding">
+              <span class="material-icons-outlined">save</span>{{ brandingSaving ? "保存中..." : "保存标识" }}
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <header class="card__head">
           <h2 class="card__title">跨域配置</h2>
           <span class="card__hint">CORS_ALLOWED_ORIGINS</span>
         </header>
@@ -181,6 +227,8 @@
 </template>
 
 <script lang="ts" setup>
+import {type BrandingData, DEFAULT_BRANDING_LOGO} from "~/composables/useBranding";
+
 /** 与后端 SystemConfigService 的 EDITABLE_KEYS 白名单一一对应。 */
 interface SystemConfigForm {
   CORS_ALLOWED_ORIGINS: string;
@@ -226,6 +274,63 @@ const form = reactive<SystemConfigForm>({
 });
 
 let lastLoadedConfig: SystemConfigForm = {...form};
+
+const branding = useBranding();
+const brandingForm = reactive<BrandingData>({title: "", logo: null});
+const brandingSaving = ref(false);
+const brandingError = ref("");
+const brandingSaved = ref(false);
+// 与后端 SystemBrandingService.LOGO_MAX_BYTES 保持一致。
+const LOGO_MAX_BYTES = 256 * 1024;
+
+async function loadBranding() {
+  await branding.load(true);
+  brandingForm.title = branding.branding.value.title;
+  brandingForm.logo = branding.branding.value.logo;
+}
+
+/** pickLogo：读成 data URL 内联保存，登录页匿名也能直接显示。 */
+function pickLogo(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = "";
+  if (!file) return;
+  brandingError.value = "";
+  brandingSaved.value = false;
+  if (file.size > LOGO_MAX_BYTES) {
+    brandingError.value = "图标不能超过 256KB";
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    brandingForm.logo = typeof reader.result === "string" ? reader.result : null;
+  };
+  reader.onerror = () => {
+    brandingError.value = "图片读取失败";
+  };
+  reader.readAsDataURL(file);
+}
+
+async function saveBranding() {
+  brandingError.value = "";
+  brandingSaved.value = false;
+  if (!brandingForm.title) {
+    brandingError.value = "系统标题不能为空";
+    return;
+  }
+  brandingSaving.value = true;
+  try {
+    const saved = await http.put<BrandingData, BrandingData>("/system/branding", {...brandingForm}, {payloadMode: "json"});
+    branding.apply(saved);
+    brandingForm.title = saved.title;
+    brandingForm.logo = saved.logo;
+    brandingSaved.value = true;
+  } catch (error) {
+    brandingError.value = (error as { statusMessage?: string }).statusMessage || "系统标识保存失败";
+  } finally {
+    brandingSaving.value = false;
+  }
+}
 
 async function loadConfig() {
   loading.value = true;
@@ -321,7 +426,7 @@ onMounted(async () => {
   } catch {
     // 读取失败时下面的请求会给出更具体的提示。
   }
-  await loadConfig();
+  await Promise.all([loadConfig(), loadBranding()]);
 });
 </script>
 
@@ -513,6 +618,35 @@ onMounted(async () => {
 .feedback--error {
   background: var(--danger-soft);
   color: var(--red);
+}
+
+.feedback--success {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.branding-logo {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.branding-logo__preview {
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  height: 48px;
+  object-fit: cover;
+  width: 48px;
+}
+
+.branding-logo__file {
+  display: none;
+}
+
+.branding-actions {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .feedback .material-icons-outlined {

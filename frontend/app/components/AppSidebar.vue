@@ -8,7 +8,7 @@
           :class="['grid shrink-0 place-items-center overflow-hidden rounded-[10px]',
                    collapsed ? 'size-9 max-[768px]:size-10' : 'size-10']"
       >
-        <img alt="" class="size-full object-cover" src="/favicon.ico">
+        <img :src="logo" alt="" class="size-full object-cover">
       </div>
       <div :class="['min-w-0 leading-[1.3]', collapsedHidden]">
         <div class="line-clamp-2 break-all text-[16px] font-bold text-[var(--text)]">{{ systemName }}</div>
@@ -115,11 +115,13 @@ const props = withDefaults(defineProps<{
   collapsed?: boolean;
   mobileOpen?: boolean;
   systemName?: string;
+  logo?: string;
 }>(), {
   activePage: "dashboard",
   collapsed: false,
   mobileOpen: false,
   systemName: "福清市机关事务服务中心车务管理系统",
+  logo: "/favicon.ico",
 });
 
 const emit = defineEmits<{

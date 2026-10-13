@@ -7,6 +7,7 @@
         :active-page="activePage"
         :collapsed="sidebarCollapsed"
         :mobile-open="mobileSidebarOpen"
+        :logo="brandingLogo"
         :system-name="systemName"
         @expand="sidebarCollapsed = false"
         @navigate="closeMobileSidebar"
@@ -97,7 +98,7 @@ const sidebarCollapsed = ref(false);
 const mobileSidebarOpen = ref(false);
 const userMenuOpen = ref(false);
 const searchQuery = ref("");
-const systemName = ref("福清市机关事务服务中心车务管理系统");
+const {title: systemName, logo: brandingLogo, load: loadBranding} = useBranding();
 const userName = computed(() => authStore.user?.username || "超级管理员");
 const userRole = computed(() => authStore.user?.role || "admin");
 const userAvatar = computed(() => authStore.avatar);
@@ -285,8 +286,7 @@ async function logout() {
 }
 
 onMounted(() => {
-  const storedSystemName = localStorage.getItem("sysName");
-  if (storedSystemName) systemName.value = storedSystemName;
+  void loadBranding();
   authStore.restoreSession();
 });
 

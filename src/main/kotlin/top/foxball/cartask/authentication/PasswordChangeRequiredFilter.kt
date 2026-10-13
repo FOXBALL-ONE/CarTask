@@ -70,6 +70,7 @@ class PasswordChangeRequiredFilter : OncePerRequestFilter() {
             "/api/auth/captcha",
             "/api/auth/login",
             "/api/auth/sms/",
+            "/api/branding",
         )
     }
 }
