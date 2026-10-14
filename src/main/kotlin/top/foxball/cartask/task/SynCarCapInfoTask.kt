@@ -36,6 +36,9 @@ data class CarCapInfoSyncResult(
     val failedPhotoCount: Int,
     val startTime: LocalDateTime,
     val cursorTime: LocalDateTime,
+    val totalCount: Int? = null,
+    val skippedCount: Int? = null,
+    val insertedCount: Int? = null,
 )
 
 data class CarCapInfoSyncPreview(
@@ -255,6 +258,9 @@ class SynCarCapInfoTask(
                 failedPhotoCount = result.failedPhotoCount,
                 startTime = startTime,
                 cursorTime = requireNotNull(checkpoint.cursorTime),
+                totalCount = result.totalCount,
+                skippedCount = result.skippedCount,
+                insertedCount = result.insertedCount,
             )
         } catch (exception: RuntimeException) {
             syncCheckpointService.find(SYNC_KEY)?.let { checkpoint ->
@@ -294,6 +300,9 @@ class SynCarCapInfoTask(
                 failedPhotoCount = result.failedPhotoCount,
                 startTime = startTime,
                 cursorTime = syncEndTime,
+                totalCount = result.totalCount,
+                skippedCount = result.skippedCount,
+                insertedCount = result.insertedCount,
             )
         } finally {
             executionLock.unlock()
@@ -315,8 +324,10 @@ class SynCarCapInfoTask(
             }
             val result = synchronizeRange(startTime, syncEndTime, BACKFILL_TASK_KEY)
             logger.info(
-                "车辆进出记录补空同步完成：处理 {} 条，查询区间：{} 至 {}",
-                result.processedCount,
+                "车辆进出记录补空同步完成：查询到 {} 条，跳过 {} 条，新增 {} 条，查询区间：{} 至 {}",
+                result.totalCount ?: result.processedCount,
+                result.skippedCount,
+                result.insertedCount,
                 startTime,
                 syncEndTime
             )
@@ -326,6 +337,9 @@ class SynCarCapInfoTask(
                 failedPhotoCount = result.failedPhotoCount,
                 startTime = startTime,
                 cursorTime = syncEndTime,
+                totalCount = result.totalCount,
+                skippedCount = result.skippedCount,
+                insertedCount = result.insertedCount,
             )
         } finally {
             executionLock.unlock()
@@ -367,6 +381,8 @@ class SynCarCapInfoTask(
             syncTaskProgressService.update(taskKey, synchronizedCount, totalCount)
             var localPhotoCount = result.localPhotoCount
             var failedPhotoCount = result.failedPhotoCount
+            var totalSkipped = result.skippedCount
+            var totalInserted = result.insertedCount
             var pageIndex = 2
             while (pageIndex <= pages || (totalCount == null && firstData.records.size >= keytopProperties.carCapInfoPageSize)) {
                 val response = keytopService.getCarInoutInfo(
@@ -384,10 +400,19 @@ class SynCarCapInfoTask(
                 syncTaskProgressService.update(taskKey, synchronizedCount, totalCount)
                 localPhotoCount += result.localPhotoCount
                 failedPhotoCount += result.failedPhotoCount
+                totalSkipped += result.skippedCount
+                totalInserted += result.insertedCount
                 if (totalCount == null && data.records.size < keytopProperties.carCapInfoPageSize) break
                 pageIndex++
             }
-            return ProcessResult(synchronizedCount, localPhotoCount, failedPhotoCount)
+            return ProcessResult(
+                processedCount = synchronizedCount,
+                localPhotoCount = localPhotoCount,
+                failedPhotoCount = failedPhotoCount,
+                totalCount = totalCount,
+                skippedCount = totalSkipped,
+                insertedCount = totalInserted,
+            )
         }
     }
     
@@ -431,7 +456,16 @@ class SynCarCapInfoTask(
                     localPhotoCount = result?.localPhotoCount,
                     failedPhotoCount = result?.failedPhotoCount,
                     summary = result?.let {
-                        "处理 ${it.processedCount} 条，图片落地 ${it.localPhotoCount} 张，待重试 ${it.failedPhotoCount} 张"
+                        buildString {
+                            append("处理 ${it.processedCount} 条")
+                            if (it.totalCount != null) {
+                                append("（共 ${it.totalCount} 条）")
+                            }
+                            if (it.skippedCount != null && it.insertedCount != null) {
+                                append("，跳过 ${it.skippedCount} 条，新增 ${it.insertedCount} 条")
+                            }
+                            append("，图片落地 ${it.localPhotoCount} 张，待重试 ${it.failedPhotoCount} 张")
+                        }
                     },
                     error = exception?.message?.take(2048) ?: exception?.javaClass?.simpleName,
                 ),
@@ -449,6 +483,8 @@ class SynCarCapInfoTask(
         coordinator: VehiclePhotoDownloadCoordinator,
     ): ProcessResult {
         var processed = 0
+        var skipped = 0
+        var inserted = 0
         val photoTasks = mutableListOf<VehiclePhotoDownloadCoordinator.PhotoDownloadTask>()
         val platesByNormalizedNumber = parkingPlateRepository
             .findAll()
@@ -471,6 +507,7 @@ class SynCarCapInfoTask(
                 record.photoUrl = record.sourcePhotoUrl
                 accessRecordRepository.save(record)
                 seen[key] = record
+                inserted++
                 record
             } else {
                 existing.carNumber = record.carNumber
@@ -502,6 +539,7 @@ class SynCarCapInfoTask(
                 existing.sourceRecordId = record.sourceRecordId
                 accessRecordRepository.save(existing)
                 seen[key] = existing
+                skipped++
                 existing
             }
             val normalizedPlate = PlateNumbers.normalize(record.carNumber)
@@ -523,7 +561,13 @@ class SynCarCapInfoTask(
         val downloadResult = coordinator.downloadBatch(photoTasks)
         val localPhotoCount = downloadResult.successCount
         val failedPhotoCount = downloadResult.failedCount
-        return ProcessResult(processed, localPhotoCount, failedPhotoCount)
+        return ProcessResult(
+            processedCount = processed,
+            localPhotoCount = localPhotoCount,
+            failedPhotoCount = failedPhotoCount,
+            skippedCount = skipped,
+            insertedCount = inserted,
+        )
     }
     
     
@@ -761,6 +805,9 @@ class SynCarCapInfoTask(
         val processedCount: Int,
         val localPhotoCount: Int,
         val failedPhotoCount: Int,
+        val totalCount: Int? = null,
+        val skippedCount: Int = 0,
+        val insertedCount: Int = 0,
     )
 
     companion object {
