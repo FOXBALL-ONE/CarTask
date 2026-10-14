@@ -488,7 +488,7 @@ onUnmounted(() => {
   align-items: center;
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius: 0;
   color: var(--text-sub);
   cursor: pointer;
   display: inline-flex;
@@ -521,7 +521,7 @@ onUnmounted(() => {
 
 .stat-card {
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius: 0;
   color: #fff;
   min-height: 136px;
   overflow: hidden;
@@ -567,7 +567,7 @@ onUnmounted(() => {
 
 .stat-card__delta {
   background: rgb(255 255 255 / 20%);
-  border-radius: 4px;
+  border-radius: 0;
   font-size: 12px;
   font-weight: 600;
   padding: 2px 7px;
@@ -597,7 +597,7 @@ onUnmounted(() => {
 .card {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius: 0;
   overflow: hidden;
 }
 
@@ -633,7 +633,7 @@ onUnmounted(() => {
 }
 
 .legend__dot {
-  border-radius: 2px;
+  border-radius: 0;
   flex-shrink: 0;
   height: 8px;
   width: 8px;
@@ -667,7 +667,7 @@ onUnmounted(() => {
 }
 
 .bar-stack {
-  border-radius: 4px 4px 0 0;
+  border-radius: 0;
   display: flex;
   flex-direction: column-reverse;
   height: 100%;
@@ -718,7 +718,7 @@ onUnmounted(() => {
 
 .legend-row {
   align-items: center;
-  border-radius: 6px;
+  border-radius: 0;
   display: flex;
   font-size: 13px;
   gap: 8px;
@@ -773,7 +773,7 @@ onUnmounted(() => {
   backdrop-filter: blur(4px);
   background: var(--text);
   border: 1px solid rgb(255 255 255 / 12%);
-  border-radius: 10px;
+  border-radius: 0;
   box-shadow: 0 8px 24px rgb(0 0 0 / 25%);
   color: #fff;
   display: block;
