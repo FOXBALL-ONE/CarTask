@@ -1,115 +1,131 @@
 <template>
-  <div class="commute-routes">
-    <header class="app-header">
-      <div class="header-content">
-        <h1>发车表</h1>
-        <button class="refresh-btn" title="刷新" @click="load">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M1 4v6h6M23 20v-6h-6" />
-            <path d="M20.49 9A9 9 0 0 0 5.64 5.64M3.51 15A9 9 0 0 0 18.36 18.36" />
+  <div id="app" class="main">
+    <div class="van-nav-bar__placeholder" style="height: 46px;">
+      <div class="van-nav-bar van-nav-bar--fixed van-hairline--bottom">
+        <div class="van-nav-bar__content">
+          <div class="van-nav-bar__title van-ellipsis">查询线路</div>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="loading" class="loading-container">
+      <div class="van-loading">
+        <span class="van-loading__spinner van-loading__spinner--circular">
+          <svg viewBox="25 25 50 50" class="van-loading__circular">
+            <circle cx="50" cy="50" r="20" fill="none"></circle>
           </svg>
+        </span>
+        <span class="van-loading__text">正在同步发车时间...</span>
+      </div>
+    </div>
+
+    <div v-else-if="errorMessage" class="error-container">
+      <div class="van-empty">
+        <div class="van-empty__image">
+          <svg viewBox="0 0 160 160"><path d="M80 0C35.8 0 0 35.8 0 80s35.8 80 80 80 80-35.8 80-80S124.2 0 80 0zm0 140c-33.1 0-60-26.9-60-60s26.9-60 60-60 60 26.9 60 60-26.9 60-60 60z" fill="#DCDEE0"/><path d="M57.1 47.1L80 70l22.9-22.9c1.6-1.6 4.1-1.6 5.7 0s1.6 4.1 0 5.7L85.7 75.7l22.9 22.9c1.6 1.6 1.6 4.1 0 5.7-.8.8-1.8 1.2-2.8 1.2s-2.1-.4-2.8-1.2L80 81.4 57.1 104.3c-.8.8-1.8 1.2-2.8 1.2s-2.1-.4-2.8-1.2c-1.6-1.6-1.6-4.1 0-5.7l22.9-22.9-22.9-22.9c-1.6-1.6-1.6-4.1 0-5.7s4.1-1.6 5.6 0z" fill="#969799"/></svg>
+        </div>
+        <p class="van-empty__description">加载失败</p>
+      </div>
+      <p style="text-align: center; color: #ee0a24; font-size: 12px; margin: 12px 0;">{{ errorMessage }}</p>
+      <div style="text-align: center;">
+        <button class="van-button van-button--danger van-button--small" @click="load">
+          <div class="van-button__content"><span class="van-button__text">重新加载</span></div>
         </button>
       </div>
-      <n-alert type="info" closable :show-icon="false" class="header-time">
-        {{ today.label }} · 最后更新：{{ lastUpdated }}
-      </n-alert>
-    </header>
+    </div>
 
-    <div class="routes-container">
-      <div v-if="errorMessage" class="state-box">
-        <n-empty description="加载失败" />
-        <p class="error-detail">{{ errorMessage }}</p>
-        <n-button type="error" size="small" @click="load">重新加载</n-button>
+    <div v-else-if="routes.length === 0" class="empty-container">
+      <div class="van-empty">
+        <div class="van-empty__image">
+          <svg viewBox="0 0 160 160"><path d="M80 0C35.8 0 0 35.8 0 80s35.8 80 80 80 80-35.8 80-80S124.2 0 80 0zm0 140c-33.1 0-60-26.9-60-60s26.9-60 60-60 60 26.9 60 60-26.9 60-60 60z" fill="#DCDEE0"/></svg>
+        </div>
+        <p class="van-empty__description">暂未发布发车线路</p>
       </div>
+    </div>
 
-      <n-spin v-else-if="loading" description="正在同步发车时间..." />
-
-      <div v-else-if="routes.length === 0" class="state-box">
-        <n-empty description="暂未发布发车线路" />
-      </div>
-
-      <template v-else>
-        <n-collapse>
-          <n-collapse-item
-            v-for="(route, index) in routes"
-            :key="route.id"
-            :title="`${String(index + 1).padStart(2, '0')}. ${route.route_name}`"
-            :name="route.id"
-          >
-            <div class="route-card">
-              <div class="route-header">
-                <h3>{{ route.route_name }}</h3>
-                <n-tag type="success" size="small">已发布</n-tag>
+    <div v-else class="van-collapse van-hairline--top-bottom">
+      <div
+        v-for="route in routes"
+        :key="route.id"
+        class="van-collapse-item"
+        :class="{ 'van-collapse-item--border': !isExpanded(route.id) }"
+      >
+        <div
+          role="button"
+          tabindex="0"
+          :aria-expanded="isExpanded(route.id)"
+          class="van-cell van-cell--clickable van-collapse-item__title"
+          :class="{ 'van-collapse-item__title--expanded': isExpanded(route.id) }"
+          @click="toggleRoute(route.id)"
+        >
+          <div class="van-cell__title">
+            <span>{{ route.route_name }}</span>
+          </div>
+          <i class="van-icon van-icon-arrow van-cell__right-icon"><!-- --></i>
+        </div>
+        <div
+          class="van-collapse-item__wrapper"
+          :style="getWrapperStyle(route.id)"
+        >
+          <div class="van-collapse-item__content">
+            <div style="padding: 0px;">
+              <div
+                v-if="route.remark"
+                role="alert"
+                class="van-notice-bar"
+                style="color: rgb(25, 137, 250); background: rgb(236, 249, 255);"
+              >
+                <i class="van-icon van-icon-info-o van-notice-bar__left-icon"><!-- --></i>
+                <div role="marquee" class="van-notice-bar__wrap">
+                  <div class="van-notice-bar__content"> {{ route.remark }} </div>
+                </div>
               </div>
-
-              <div class="route-path-card">
-                <div class="path-item">
-                  <div class="path-dot path-dot--start"></div>
-                  <div class="path-content">
-                    <p class="path-label">起点</p>
-                    <p class="path-address">{{ route.start_address }}</p>
-                  </div>
-                </div>
-                <div class="path-line"></div>
-                <div class="path-item">
-                  <div class="path-dot path-dot--end"></div>
-                  <div class="path-content">
-                    <p class="path-label">终点</p>
-                    <p class="path-address">{{ route.end_address }}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div class="departures-section">
-                <div class="section-header">
-                  <h4>今日班次</h4>
-                  <span class="count-badge">{{ getDepartures(route).length }} 班</span>
-                </div>
-
-                <div v-if="getDepartures(route).length" class="departure-list">
+              <div class="van-steps van-steps--vertical">
+                <div class="van-steps__items">
                   <div
                     v-for="(departure, idx) in getDepartures(route)"
                     :key="`${departure.time}-${idx}`"
-                    :class="['departure-item', { 'is-first': idx === 0 }]"
+                    class="van-hairline van-step van-step--vertical"
+                    :class="{ 'van-step--process': idx === 0 }"
                   >
-                    <time class="departure-time">{{ departure.time }}</time>
-                    <div class="departure-info">
-                      <div v-if="departure.season || departure.vehicle_count" class="departure-meta">
-                        <n-tag v-if="departure.season" type="info" size="small">{{ departure.season }}</n-tag>
-                        <span v-if="departure.vehicle_count" class="vehicle-badge">🚌 {{ departure.vehicle_count }} 辆</span>
-                      </div>
-                      <span v-if="idx === 0" class="badge-first">首班车</span>
+                    <div
+                      class="van-step__title"
+                      :class="{ 'van-step__title--active': idx === 0 }"
+                    >
+                      <h3>{{ formatDepartureName(departure, route) }}</h3>
+                      <p>{{ departure.time }}</p>
                     </div>
+                    <div class="van-step__circle-container">
+                      <i
+                        v-if="idx === 0"
+                        class="van-icon van-icon-checked van-step__icon van-step__icon--active"
+                      ><!-- --></i>
+                      <i v-else class="van-step__circle"></i>
+                    </div>
+                    <div class="van-step__line"></div>
                   </div>
                 </div>
-                <n-empty v-else description="暂无班次" />
-              </div>
-
-              <div v-if="route.remark" class="remark-box">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M5 11h14M12 3v18" />
-                </svg>
-                <span>{{ route.remark }}</span>
               </div>
             </div>
-          </n-collapse-item>
-        </n-collapse>
-
-        <div class="info-banner">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-            <circle cx="12" cy="12" r="10" />
-            <path d="M12 16v-4M12 8h.01" fill="white" />
-          </svg>
-          时刻可能因季节性作息调整，请以现场通知为准
+          </div>
         </div>
-      </template>
+      </div>
     </div>
   </div>
 </template>
 
 <script lang="ts" setup>
-interface Departure { time: string; season?: string | null; vehicle_count?: number | null }
-interface LegacyStop { name: string; time: string }
+interface Departure {
+  time: string;
+  season?: string | null;
+  vehicle_count?: number | null
+}
+
+interface LegacyStop {
+  name: string;
+  time: string
+}
+
 interface CommuteRoute {
   id: number;
   route_name: string;
@@ -124,16 +140,45 @@ const http = useHttp();
 const routes = ref<CommuteRoute[]>([]);
 const loading = ref(true);
 const errorMessage = ref("");
-const lastUpdated = ref("--:--");
-const now = new Date();
-const today = {
-  iso: now.toISOString().slice(0, 10),
-  label: new Intl.DateTimeFormat("zh-CN", {month: "long", day: "numeric", weekday: "short"}).format(now),
-};
+const expandedRoutes = ref<Set<number>>(new Set());
 
 function getDepartures(route: CommuteRoute): Departure[] {
   const departures = route.departures?.length ? route.departures : (route.route_stops || []).map((stop) => ({time: stop.time}));
   return [...departures].sort((left, right) => left.time.localeCompare(right.time));
+}
+
+function formatDepartureName(departure: Departure, route: CommuteRoute): string {
+  const parts = [route.start_address, route.end_address].filter(Boolean);
+  const baseName = parts.join('→');
+
+  const extras: string[] = [];
+  if (departure.season) {
+    extras.push(`（${departure.season}）`);
+  }
+  if (departure.vehicle_count) {
+    extras.push(`${departure.vehicle_count}辆`);
+  }
+
+  return baseName + (extras.length ? extras.join('') : '');
+}
+
+function isExpanded(routeId: number): boolean {
+  return expandedRoutes.value.has(routeId);
+}
+
+function toggleRoute(routeId: number) {
+  if (expandedRoutes.value.has(routeId)) {
+    expandedRoutes.value.delete(routeId);
+  } else {
+    expandedRoutes.value.clear();
+    expandedRoutes.value.add(routeId);
+  }
+}
+
+function getWrapperStyle(routeId: number): Record<string, string> {
+  return isExpanded(routeId)
+    ? { display: '', height: 'auto' }
+    : { display: 'none', height: '0px' };
 }
 
 async function load() {
@@ -142,7 +187,6 @@ async function load() {
   try {
     const result = await http.get<{ items: CommuteRoute[] }>("/commute-routes/public");
     routes.value = result.items || [];
-    lastUpdated.value = new Intl.DateTimeFormat("zh-CN", {hour: "2-digit", minute: "2-digit", hour12: false}).format(new Date());
   } catch (error) {
     errorMessage.value = (error as { statusMessage?: string }).statusMessage || "发车表暂时无法获取，请稍后重试";
   } finally {
@@ -150,318 +194,468 @@ async function load() {
   }
 }
 
-useHead({title: "发车表"});
+useHead({title: "查询线路"});
 onMounted(load);
 </script>
 
 <style scoped>
-.commute-routes {
-  background: #f5f5f5;
-  min-height: 100vh;
-  padding-top: 60px;
+/* 全局重置 */
+#app.main {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+  font-size: 16px;
+  color: #323233;
+  -webkit-font-smoothing: antialiased;
 }
 
-.app-header {
-  background: #fff;
+/* Vant 基础样式 */
+.van-hairline:after,
+.van-hairline--top-bottom:after {
+  position: absolute;
+  box-sizing: border-box;
+  content: " ";
+  pointer-events: none;
+  top: -50%;
+  right: -50%;
+  bottom: -50%;
+  left: -50%;
+  border: 0 solid #ebedf0;
+  transform: scale(0.5);
+}
+
+.van-hairline--top-bottom:after {
+  border-width: 1px 0;
+}
+
+.van-hairline--bottom:after {
+  border-bottom-width: 1px;
+}
+
+/* 导航栏 */
+.van-nav-bar {
+  position: relative;
+  z-index: 1;
+  line-height: 22px;
+  text-align: center;
+  background-color: #be0f05;
+  user-select: none;
+}
+
+.van-nav-bar--fixed {
   position: fixed;
   top: 0;
   left: 0;
-  right: 0;
-  z-index: 100;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  width: 100%;
 }
 
-.header-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px;
-  border-bottom: 1px solid #eee;
-}
-
-.app-header h1 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: #222;
-}
-
-.refresh-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 4px;
-  color: #666;
+.van-nav-bar__content {
+  position: relative;
   display: flex;
   align-items: center;
-  justify-content: center;
-  transition: color 0.2s;
+  height: 46px;
 }
 
-.refresh-btn:hover {
-  color: #333;
-}
-
-:deep(.header-time.n-alert) {
-  margin: 0;
-  padding: 8px 16px;
-  font-size: 12px;
-  border: none;
-  border-radius: 0;
-}
-
-.routes-container {
-  padding: 16px;
-  padding-bottom: 32px;
-  max-width: 800px;
+.van-nav-bar__title {
+  max-width: 60%;
   margin: 0 auto;
+  color: #fff;
+  font-weight: 500;
+  font-size: 16px;
 }
 
-.state-box {
-  background: #fff;
-  border-radius: 8px;
+.van-ellipsis {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* 加载/错误/空状态 */
+.loading-container,
+.error-container,
+.empty-container {
   padding: 40px 16px;
   text-align: center;
-  margin-top: 20px;
 }
 
-.error-detail {
-  color: #d32f2f;
-  font-size: 12px;
-  margin: 12px 0;
-}
-
-:deep(.n-spin) {
-  justify-content: center;
-  padding: 40px;
-}
-
-:deep(.n-collapse) {
-  margin-bottom: 16px;
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-:deep(.n-collapse-item) {
-  margin-bottom: 12px;
-  border-radius: 8px;
-  border: 1px solid #eee;
-}
-
-:deep(.n-collapse-item__header) {
-  padding: 16px;
-  font-weight: 600;
-  color: #222;
-}
-
-.route-card {
-  padding: 16px;
-}
-
-.route-header {
-  display: flex;
-  justify-content: space-between;
+.van-loading {
+  display: inline-flex;
+  flex-direction: column;
   align-items: center;
-  margin-bottom: 20px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #eee;
+  color: #c8c9cc;
+  font-size: 14px;
 }
 
-.route-header h3 {
-  margin: 0;
-  font-size: 18px;
-  color: #222;
+.van-loading__spinner {
+  position: relative;
+  box-sizing: border-box;
+  width: 30px;
+  height: 30px;
+  animation: van-rotate 0.8s linear infinite;
 }
 
-.route-path-card {
-  background: #f9f9f9;
-  border-radius: 6px;
-  padding: 16px;
-  margin-bottom: 20px;
+.van-loading__spinner--circular {
+  animation: van-rotate 1s linear infinite;
 }
 
-.path-item {
+.van-loading__circular {
+  animation: van-circular 1.5s ease-in-out infinite;
+}
+
+.van-loading__circular circle {
+  stroke: currentColor;
+  stroke-width: 3;
+  stroke-linecap: round;
+  animation: van-circular-dash 1.5s ease-in-out infinite;
+}
+
+@keyframes van-rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes van-circular-dash {
+  0% {
+    stroke-dasharray: 1, 200;
+    stroke-dashoffset: 0;
+  }
+  50% {
+    stroke-dasharray: 90, 150;
+    stroke-dashoffset: -40;
+  }
+  100% {
+    stroke-dasharray: 90, 150;
+    stroke-dashoffset: -120;
+  }
+}
+
+.van-loading__text {
+  margin-top: 8px;
+  color: #969799;
+}
+
+.van-empty {
   display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 0;
+}
+
+.van-empty__image {
+  width: 160px;
+  height: 160px;
+}
+
+.van-empty__image svg {
+  width: 100%;
+  height: 100%;
+}
+
+.van-empty__description {
+  margin-top: 16px;
+  padding: 0 60px;
+  color: #969799;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.van-button {
+  position: relative;
+  display: inline-block;
+  box-sizing: border-box;
+  height: 44px;
+  margin: 0;
+  padding: 0;
+  font-size: 16px;
+  line-height: 1.2;
+  text-align: center;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  appearance: none;
+  border: none;
+}
+
+.van-button--small {
+  height: 32px;
+  padding: 0 8px;
+  font-size: 12px;
+}
+
+.van-button--danger {
+  color: #fff;
+  background-color: #ee0a24;
+  border: 1px solid #ee0a24;
+}
+
+.van-button:active:before {
+  opacity: 0.1;
+}
+
+.van-button:before {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100%;
+  height: 100%;
+  background-color: #000;
+  border: inherit;
+  border-color: #000;
+  border-radius: inherit;
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  content: " ";
+}
+
+.van-button__content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+/* 折叠面板 */
+.van-collapse {
+  background-color: #fff;
+}
+
+.van-collapse-item {
   position: relative;
 }
 
-.path-item:last-child {
-  margin-bottom: 0;
+.van-collapse-item--border:after {
+  position: absolute;
+  box-sizing: border-box;
+  content: " ";
+  pointer-events: none;
+  right: 16px;
+  bottom: 0;
+  left: 16px;
+  border-bottom: 1px solid #ebedf0;
+  transform: scaleY(0.5);
 }
 
-.path-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  border: 2px solid #ff9500;
-  background: #fff;
-  flex-shrink: 0;
-  margin-top: 4px;
-}
-
-.path-dot--end {
-  background: #222;
-  border-color: #222;
-}
-
-.path-line {
-  height: 16px;
-  width: 1px;
-  background: #ddd;
-  margin-left: 5px;
-  display: block;
-}
-
-.path-content {
-  flex: 1;
-  min-width: 0;
-}
-
-.path-label {
-  font-size: 11px;
-  color: #999;
-  margin: 0 0 4px;
-  text-transform: uppercase;
-}
-
-.path-address {
+.van-cell {
+  position: relative;
+  display: flex;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 10px 16px;
+  overflow: hidden;
+  color: #323233;
   font-size: 14px;
-  color: #222;
-  margin: 0;
-  word-wrap: break-word;
-  white-space: normal;
+  line-height: 24px;
+  background-color: #fff;
 }
 
-.departures-section {
-  margin-bottom: 16px;
+.van-cell--clickable {
+  cursor: pointer;
 }
 
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid #eee;
+.van-cell--clickable:active {
+  background-color: #f2f3f5;
 }
 
-.section-header h4 {
-  margin: 0;
-  font-size: 16px;
-  color: #222;
+.van-collapse-item__title {
+  user-select: none;
 }
 
-.count-badge {
-  background: #ff9500;
-  color: #fff;
-  font-size: 12px;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-weight: 600;
-}
-
-.departure-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.departure-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 12px;
-  background: #f9f9f9;
-  border-radius: 6px;
-  border-left: 3px solid #ddd;
-}
-
-.departure-item.is-first {
-  border-left-color: #ff9500;
-  background: #fffaf0;
-}
-
-.departure-time {
-  font-size: 18px;
-  font-weight: 600;
-  color: #222;
-  min-width: 60px;
-  font-family: monospace;
-}
-
-.departure-item.is-first .departure-time {
-  color: #ff9500;
-}
-
-.departure-info {
+.van-cell__title {
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
 }
 
-.departure-meta {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
+.van-cell__right-icon {
+  margin-left: 4px;
+  color: #969799;
+  font-size: 16px;
+  line-height: 24px;
+  transition: transform 0.3s;
 }
 
-.vehicle-badge {
-  display: inline-flex;
+.van-collapse-item__title--expanded .van-cell__right-icon {
+  transform: rotate(90deg);
+}
+
+.van-icon {
+  position: relative;
+  font: normal normal normal 14px/1 vant-icon;
+  font-size: inherit;
+  text-rendering: auto;
+  -webkit-font-smoothing: antialiased;
+  display: inline-block;
+}
+
+.van-icon:before {
+  display: inline-block;
+}
+
+.van-icon-arrow:before {
+  content: "\e660";
+}
+
+.van-icon-info-o:before {
+  content: "\e6d1";
+}
+
+.van-icon-checked:before {
+  content: "\e68d";
+}
+
+@font-face {
+  font-weight: 400;
+  font-family: vant-icon;
+  font-style: normal;
+  font-display: auto;
+  src: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E") format("woff2");
+}
+
+.van-collapse-item__wrapper {
+  overflow: hidden;
+  transition: height 0.3s ease-in-out;
+}
+
+.van-collapse-item__content {
+  padding: 12px 16px;
+  color: #969799;
+  font-size: 14px;
+  line-height: 1.5;
+  background-color: #fff;
+}
+
+/* 通知栏 */
+.van-notice-bar {
+  position: relative;
+  display: flex;
   align-items: center;
-  gap: 2px;
-  font-size: 12px;
-  color: #666;
-  background: #f0f0f0;
-  padding: 2px 6px;
-  border-radius: 3px;
+  height: 40px;
+  padding: 0 16px;
+  color: #ed6a0c;
+  font-size: 14px;
+  line-height: 24px;
+  background-color: #fffbe8;
 }
 
-.badge-first {
-  color: #ff9500;
-  font-size: 12px;
-  font-weight: 600;
+.van-notice-bar__left-icon {
+  min-width: 24px;
+  font-size: 16px;
 }
 
-.remark-box {
+.van-notice-bar__wrap {
+  position: relative;
   display: flex;
-  gap: 8px;
-  align-items: flex-start;
-  padding: 12px;
-  background: #f5f5f5;
-  border-radius: 6px;
-  border-left: 3px solid #ff9500;
-  font-size: 13px;
-  color: #666;
-  margin-top: 12px;
-}
-
-.remark-box svg {
-  margin-top: 2px;
-  flex-shrink: 0;
-  color: #ff9500;
-}
-
-.info-banner {
-  display: flex;
-  gap: 8px;
+  flex: 1;
   align-items: center;
-  padding: 12px;
-  background: #fef3e3;
-  border-radius: 6px;
-  border-left: 3px solid #ff9500;
+  height: 100%;
+  overflow: hidden;
+}
+
+.van-notice-bar__content {
+  position: relative;
+  white-space: nowrap;
+}
+
+/* 步骤条 */
+.van-steps {
+  overflow: hidden;
+  background-color: #fff;
+}
+
+.van-steps--vertical {
+  padding: 0 0 0 32px;
+}
+
+.van-step {
+  position: relative;
+  flex: 1;
+  color: #969799;
+  font-size: 14px;
+}
+
+.van-step--vertical {
+  display: block;
+  float: none;
+  padding: 10px 10px 10px 0;
+  line-height: 18px;
+}
+
+.van-step--vertical:not(:last-child):after {
+  border-bottom-width: 1px;
+}
+
+.van-step__title {
+  position: relative;
+  display: inline-block;
+  word-break: break-all;
+}
+
+.van-step__title h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: normal;
+  line-height: 18px;
+}
+
+.van-step__title p {
+  margin: 4px 0 0;
   font-size: 12px;
-  color: #666;
-  margin-top: 16px;
+  color: #969799;
 }
 
-.info-banner svg {
-  flex-shrink: 0;
+.van-step--vertical .van-step__circle-container {
+  position: absolute;
+  top: 19px;
+  left: -15px;
+  z-index: 1;
+  font-size: 12px;
+  line-height: 1;
+  transform: translate(-50%, -50%);
 }
 
-:deep(.n-empty) {
-  padding: 24px 16px;
+.van-step__circle {
+  display: block;
+  width: 5px;
+  height: 5px;
+  background-color: #969799;
+  border-radius: 50%;
+}
+
+.van-step--vertical .van-step__line {
+  top: 16px;
+  left: -15px;
+  width: 1px;
+  height: 100%;
+}
+
+.van-step__line {
+  position: absolute;
+  background-color: #ebedf0;
+  transition: background-color 0.3s;
+}
+
+.van-step:last-child .van-step__line {
+  width: 0;
+}
+
+.van-step--process {
+  color: #323233;
+}
+
+.van-step__title--active {
+  color: #07c160;
+}
+
+.van-step__icon {
+  display: block;
+  font-size: 12px;
+}
+
+.van-step__icon--active {
+  color: #07c160;
 }
 </style>
