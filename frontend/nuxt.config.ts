@@ -65,4 +65,7 @@ export default defineNuxtConfig({
     devServer: {
         port: 8090,
     },
+    nitro: {
+        externals: { inline: [/[\\/]node_modules[\\/]nuxt[\\/]dist[\\/]/] },
+    },
 })
