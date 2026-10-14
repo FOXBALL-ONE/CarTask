@@ -27,6 +27,9 @@ data class KeytopProperties(
     val carCapInfoOverlapWindow: Duration = Duration.ofMinutes(30),
     val carCapInfoReconciliationWindow: Duration = Duration.ofHours(72),
     val carCapInfoReconciliationCron: String = "0 30 3 * * *",
+    val carCapInfoBackfillWindow: Duration = Duration.ofDays(7),
+    val carCapInfoBackfillInterval: Duration = Duration.ofDays(5),
+    val carCapInfoBackfillInitialDelay: Duration = Duration.ofMinutes(5),
     val carCapInfoPhotoDownloadInterval: Duration = Duration.ofMillis(200),
     val carCapInfoPhotoDownloadConcurrency: Int = 4,
     val plateSyncCron: String = "*/30 * * * * *",
@@ -45,6 +48,13 @@ data class KeytopProperties(
         require(!carCapInfoReconciliationWindow.isNegative && !carCapInfoReconciliationWindow.isZero) {
             "车辆进出记录补偿同步回看时长必须大于零"
         }
+        require(!carCapInfoBackfillWindow.isNegative && !carCapInfoBackfillWindow.isZero) {
+            "车辆进出记录补空回看时长必须大于零"
+        }
+        require(!carCapInfoBackfillInterval.isNegative && !carCapInfoBackfillInterval.isZero) {
+            "车辆进出记录补空执行间隔必须大于零"
+        }
+        require(!carCapInfoBackfillInitialDelay.isNegative) { "车辆进出记录补空初始延迟不能为负数" }
         require(!carCapInfoPhotoDownloadInterval.isNegative) { "图片下载间隔不能为负数" }
         require(carCapInfoPhotoDownloadInterval <= Duration.ofSeconds(60)) { "图片下载间隔不能超过 60 秒" }
         require(carCapInfoPhotoDownloadConcurrency in 1..16) { "图片下载并行数必须在 1 到 16 之间" }

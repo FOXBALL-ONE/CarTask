@@ -54,6 +54,7 @@ class SyncScheduleServiceTests {
         synCarCapInfoTask = mock<SynCarCapInfoTask>(),
         synOwnerArchiveTask = mock<SynOwnerArchiveTask>(),
         synAccountGenerateTask = mock<SynAccountGenerateTask>(),
+        plateKeytopSyncTask = mock(),
         keytopProperties = KeytopProperties(),
         ownerArchiveCron = "0 45 2 * * *",
         accountGenerateCron = "0 0 3 * * *",

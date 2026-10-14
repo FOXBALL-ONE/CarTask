@@ -27,12 +27,14 @@ class SyncScheduleSchedulerTests {
     private val carCapInfoTask = mock<SynCarCapInfoTask>()
     private val ownerArchiveTask = mock<SynOwnerArchiveTask>()
     private val accountGenerateTask = mock<SynAccountGenerateTask>()
+    private val plateKeytopSyncTask = mock<PlateKeytopSyncTask>()
 
     private val catalog = SyncScheduleCatalog(
         synAreaInfoTask = areaInfoTask,
         synCarCapInfoTask = carCapInfoTask,
         synOwnerArchiveTask = ownerArchiveTask,
         synAccountGenerateTask = accountGenerateTask,
+        plateKeytopSyncTask = plateKeytopSyncTask,
         keytopProperties = KeytopProperties(),
         ownerArchiveCron = "0 45 2 * * *",
         accountGenerateCron = "0 0 3 * * *",

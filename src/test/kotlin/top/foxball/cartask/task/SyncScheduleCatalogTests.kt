@@ -20,11 +20,13 @@ class SyncScheduleCatalogTests {
     private val carCapInfoTask = mock<SynCarCapInfoTask>()
     private val ownerArchiveTask = mock<SynOwnerArchiveTask>()
     private val accountGenerateTask = mock<SynAccountGenerateTask>()
+    private val plateKeytopSyncTask = mock<PlateKeytopSyncTask>()
 
     private fun catalog(
         areaCron: String = "0 0 2 * * *",
         carCapCron: String = "0 */5 * * * *",
         reconciliationCron: String = "0 30 3 * * *",
+        plateSyncCron: String = "0 */10 * * * *",
         ownerArchiveCron: String = "0 45 2 * * *",
         accountGenerateCron: String = "0 0 3 * * *",
     ) = SyncScheduleCatalog(
@@ -32,10 +34,12 @@ class SyncScheduleCatalogTests {
         synCarCapInfoTask = carCapInfoTask,
         synOwnerArchiveTask = ownerArchiveTask,
         synAccountGenerateTask = accountGenerateTask,
+        plateKeytopSyncTask = plateKeytopSyncTask,
         keytopProperties = KeytopProperties().copy(
             areaSyncCron = areaCron,
             carCapInfoSyncCron = carCapCron,
             carCapInfoReconciliationCron = reconciliationCron,
+            plateSyncCron = plateSyncCron,
         ),
         ownerArchiveCron = ownerArchiveCron,
         accountGenerateCron = accountGenerateCron,

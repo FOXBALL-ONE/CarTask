@@ -1,6 +1,7 @@
 package top.foxball.cartask.task
 
 import org.slf4j.LoggerFactory
+import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.ObjectMapper
@@ -96,8 +97,30 @@ class SynCarCapInfoTask(
             }
         }
     }
-    
-    
+
+
+    @Scheduled(
+        initialDelayString = "\${keytop.car-cap-info-backfill-initial-delay:5m}",
+        fixedDelayString = "\${keytop.car-cap-info-backfill-interval:5d}",
+    )
+    /** 定时执行车辆进出记录补空同步，固定回看补空窗口，不推进增量检查点。 */
+    fun backfillCarCapInfoList() {
+        AuditRequestContext.withRun {
+            try {
+                executeBackfill(SyncTaskRun.Trigger.SCHEDULED)
+            } catch (exception: VehicleAccessRecordSyncInProgressException) {
+                logger.warn("车辆进出记录补空同步仍在执行，本次定时任务跳过")
+            } catch (exception: RuntimeException) {
+                logger.error("车辆进出记录补空同步失败", exception)
+            }
+        }
+    }
+
+
+    /** 手动执行车辆进出记录补空同步。 */
+    fun backfill(): CarCapInfoSyncResult = executeBackfill(SyncTaskRun.Trigger.MANUAL)
+
+
     /** 为增量同步填充任务标识并委托统一执行包装器。 */
     private fun executeIncremental(trigger: SyncTaskRun.Trigger): CarCapInfoSyncResult = execute(
         trigger = trigger,
@@ -114,8 +137,17 @@ class SynCarCapInfoTask(
         taskName = RECONCILIATION_TASK_NAME,
         synchronization = ::synchronizeReconciliation,
     )
-    
-    
+
+
+    /** 为补空同步填充任务标识并委托统一执行包装器。 */
+    private fun executeBackfill(trigger: SyncTaskRun.Trigger): CarCapInfoSyncResult = execute(
+        trigger = trigger,
+        taskKey = BACKFILL_TASK_KEY,
+        taskName = BACKFILL_TASK_NAME,
+        synchronization = ::synchronizeBackfill,
+    )
+
+
     /** 固定本次限频快照，维护进度并记录成功或失败历史。 */
     private fun execute(
         trigger: SyncTaskRun.Trigger,
@@ -267,8 +299,40 @@ class SynCarCapInfoTask(
             executionLock.unlock()
         }
     }
-    
-    
+
+
+    /** 按补空窗口重新拉取历史记录用于补空，发现的数据只做本地收敛，不推进主检查点。 */
+    private fun synchronizeBackfill(): CarCapInfoSyncResult {
+        if (!executionLock.tryLock()) {
+            throw VehicleAccessRecordSyncInProgressException()
+        }
+        try {
+            validateSynchronizationConfiguration()
+            val syncEndTime = LocalDateTime.now()
+            val startTime = syncEndTime.minus(keytopProperties.carCapInfoBackfillWindow)
+            if (syncCheckpointService.find(SYNC_KEY) == null) {
+                syncCheckpointService.save(SyncCheckpoint().apply { syncKey = SYNC_KEY })
+            }
+            val result = synchronizeRange(startTime, syncEndTime, BACKFILL_TASK_KEY)
+            logger.info(
+                "车辆进出记录补空同步完成：处理 {} 条，查询区间：{} 至 {}",
+                result.processedCount,
+                startTime,
+                syncEndTime
+            )
+            return CarCapInfoSyncResult(
+                processedCount = result.processedCount,
+                localPhotoCount = result.localPhotoCount,
+                failedPhotoCount = result.failedPhotoCount,
+                startTime = startTime,
+                cursorTime = syncEndTime,
+            )
+        } finally {
+            executionLock.unlock()
+        }
+    }
+
+
     /** 分页读取 Keytop 车辆进出记录，并按页完成入库与图片下载屏障。 */
     private fun synchronizeRange(startTime: LocalDateTime, syncEndTime: LocalDateTime, taskKey: String): ProcessResult {
         val rateLimitSnapshot = keytopSyncRateLimiter?.snapshot()
@@ -708,6 +772,8 @@ class SynCarCapInfoTask(
         const val TASK_NAME = "车辆进出记录同步"
         const val RECONCILIATION_TASK_KEY = "car_cap_info.reconciliation"
         const val RECONCILIATION_TASK_NAME = "车辆进出记录补偿同步"
+        const val BACKFILL_TASK_KEY = "car_cap_info.backfill"
+        const val BACKFILL_TASK_NAME = "车辆进出记录补空同步"
         const val INITIAL_SYNC_DAYS = 1L
     }
 }

@@ -16,6 +16,7 @@ import top.foxball.cartask.task.AccountGenerateResult
 import top.foxball.cartask.task.CarCapInfoSyncResult
 import top.foxball.cartask.task.CarCapInfoSyncPreview
 import top.foxball.cartask.task.OwnerArchiveResult
+import top.foxball.cartask.task.PlateKeytopSyncTask
 import top.foxball.cartask.task.SynAccountGenerateTask
 import top.foxball.cartask.task.SynAreaInfoTask
 import top.foxball.cartask.task.SynCarCapInfoTask
@@ -32,6 +33,7 @@ class SynchronizationControllerTests {
     private val carCapInfoTask = mock<SynCarCapInfoTask>()
     private val ownerArchiveTask = mock<SynOwnerArchiveTask>()
     private val accountGenerateTask = mock<SynAccountGenerateTask>()
+    private val plateKeytopSyncTask = mock<PlateKeytopSyncTask>()
     private val historyService = mock<SyncTaskHistoryService>()
     private val scheduleService = mock<SyncScheduleService>()
     private val controller = SynchronizationController(
@@ -39,6 +41,7 @@ class SynchronizationControllerTests {
         carCapInfoTask,
         ownerArchiveTask,
         accountGenerateTask,
+        plateKeytopSyncTask,
         historyService,
         scheduleService,
         ResponseBuilder(),

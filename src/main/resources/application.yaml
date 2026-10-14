@@ -121,6 +121,9 @@ keytop:
   car-cap-info-overlap-window: ${KEYTOP_CAR_CAP_INFO_OVERLAP_WINDOW:30m}
   car-cap-info-reconciliation-window: ${KEYTOP_CAR_CAP_INFO_RECONCILIATION_WINDOW:72h}
   car-cap-info-reconciliation-cron: ${KEYTOP_CAR_CAP_INFO_RECONCILIATION_CRON:0 30 3 * * *}
+  car-cap-info-backfill-window: ${KEYTOP_CAR_CAP_INFO_BACKFILL_WINDOW:7d}
+  car-cap-info-backfill-interval: ${KEYTOP_CAR_CAP_INFO_BACKFILL_INTERVAL:5d}
+  car-cap-info-backfill-initial-delay: ${KEYTOP_CAR_CAP_INFO_BACKFILL_INITIAL_DELAY:5m}
   car-cap-info-photo-download-interval: ${KEYTOP_CAR_CAP_INFO_PHOTO_DOWNLOAD_INTERVAL:200ms}
   car-cap-info-photo-download-concurrency: ${KEYTOP_CAR_CAP_INFO_PHOTO_DOWNLOAD_CONCURRENCY:4}
   plate-sync-cron: ${KEYTOP_PLATE_SYNC_CRON:*/30 * * * * *}
