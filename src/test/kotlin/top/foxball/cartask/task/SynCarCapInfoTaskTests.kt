@@ -671,4 +671,40 @@ class SynCarCapInfoTaskTests {
         assertEquals(SyncTaskRun.Trigger.MANUAL, command.firstValue.trigger)
         assertEquals(SyncTaskRun.Status.FAILED, command.firstValue.status)
     }
+
+    @Test
+    fun `补空同步查询最近七天且不推进主检查点`() {
+        val cursorTime = LocalDateTime.of(2026, 9, 15, 10, 0)
+        val checkpoint = SyncCheckpoint().apply {
+            id = 1
+            syncKey = "keytop.car_cap_info"
+            this.cursorTime = cursorTime
+            cursorExternalId = "T-100"
+            status = SyncCheckpoint.Status.SUCCESS
+        }
+        whenever(syncCheckpointService.find("keytop.car_cap_info")).thenReturn(checkpoint)
+        whenever(keytopService.getCarInoutInfo(eq(1), eq(2), isNull(), anyOrNull(), anyOrNull())).thenReturn(
+            KeytopResponse(0, "success", objectMapper.readTree("""{"totalCount":"0","detailList":[]}""")),
+        )
+        val startTimeCaptor = argumentCaptor<LocalDateTime>()
+        val endTimeCaptor = argumentCaptor<LocalDateTime>()
+        val command = argumentCaptor<SyncTaskRunCommand>()
+
+        task.backfillCarCapInfoList()
+
+        verify(keytopService).getCarInoutInfo(
+            eq(1),
+            eq(2),
+            isNull(),
+            startTimeCaptor.capture(),
+            endTimeCaptor.capture(),
+        )
+        assertEquals(Duration.ofDays(7), Duration.between(startTimeCaptor.firstValue, endTimeCaptor.firstValue))
+        assertEquals(cursorTime, checkpoint.cursorTime)
+        assertEquals("T-100", checkpoint.cursorExternalId)
+        assertEquals(SyncCheckpoint.Status.SUCCESS, checkpoint.status)
+        verify(historyService).record(command.capture())
+        assertEquals("car_cap_info.backfill", command.firstValue.taskKey)
+        assertEquals(SyncTaskRun.Status.SUCCESS, command.firstValue.status)
+    }
 }

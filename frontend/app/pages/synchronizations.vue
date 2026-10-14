@@ -113,10 +113,10 @@
               <span aria-live="polite" class="state-badge">{{ accessRecordStateLabel }}</span>
             </div>
             <p>以最近一次成功快照为起点增量拉取车辆进出记录，并将抓拍图片保存到本地文件库。</p>
-            <div v-if="progressFor('car_cap_info.sync', 'car_cap_info.reconciliation')?.running" class="progress">
-              <div :style="{ width: progressPercent('car_cap_info.sync', 'car_cap_info.reconciliation') + '%' }"
+            <div v-if="progressFor('car_cap_info.sync', 'car_cap_info.reconciliation', 'car_cap_info.backfill')?.running" class="progress">
+              <div :style="{ width: progressPercent('car_cap_info.sync', 'car_cap_info.reconciliation', 'car_cap_info.backfill') + '%' }"
                    class="progress__bar"/>
-              <span>{{ progressText('car_cap_info.sync', 'car_cap_info.reconciliation') }}</span></div>
+              <span>{{ progressText('car_cap_info.sync', 'car_cap_info.reconciliation', 'car_cap_info.backfill') }}</span></div>
           </div>
         </header>
 
@@ -143,11 +143,23 @@
           <div><strong>同步未完成</strong>
             <p>{{ accessRecordErrorMessage }}</p></div>
         </div>
+        <div v-else-if="backfillSyncState === 'error' && !backfillRunning" class="feedback feedback--error"
+             role="alert">
+          <span class="material-icons-outlined">error_outline</span>
+          <div><strong>补空未完成</strong>
+            <p>{{ backfillErrorMessage }}</p></div>
+        </div>
         <div v-else-if="accessRecordSyncState === 'success' && !accessRecordRunning" class="feedback feedback--success"
              role="status">
           <span class="material-icons-outlined">check_circle_outline</span>
           <div><strong>同步完成</strong>
             <p>{{ accessRecordResultSummary }}</p></div>
+        </div>
+        <div v-else-if="backfillSyncState === 'success' && !backfillRunning" class="feedback feedback--success"
+             role="status">
+          <span class="material-icons-outlined">check_circle_outline</span>
+          <div><strong>补空完成</strong>
+            <p>{{ backfillResultSummary }}</p></div>
         </div>
         <div v-else-if="accessRecordPreview && accessRecordSyncState === 'idle'" class="feedback feedback--preview"
              role="status">
@@ -158,22 +170,25 @@
       </div>
 
       <aside class="sync-card__action">
-        <template v-if="accessRecordPreviewing || accessRecordRunning">
-          <p class="action-label">{{ accessRecordPreviewing ? "正在预检" : "正在同步" }}</p>
+        <template v-if="accessRecordPreviewing || accessRecordRunning || backfillRunning">
+          <p class="action-label">{{ accessRecordPreviewing ? "正在预检" : backfillRunning ? "正在补空" : "正在同步" }}</p>
           <p class="action-copy">{{
-              accessRecordPreviewing ? "正在读取科拓待同步记录数，尚未写入本地数据。" : "正在保存流水并下载可用的抓拍图片。"
+              accessRecordPreviewing ? "正在读取科拓待同步记录数，尚未写入本地数据。" : backfillRunning ? "正在补空历史遗漏数据并下载抓拍图片。" : "正在保存流水并下载可用的抓拍图片。"
             }}</p>
           <button class="sync-button" disabled type="button">
             <span class="material-icons-outlined spinning">sync</span>{{
-              accessRecordPreviewing ? "正在获取..." : "正在同步..."
+              accessRecordPreviewing ? "正在获取..." : backfillRunning ? "正在补空..." : "正在同步..."
             }}
           </button>
         </template>
         <template v-else-if="!accessRecordPreview">
-          <p class="action-label">同步预检</p>
-          <p class="action-copy">先读取本次时间范围与待同步数量，确认后才会写入本地流水和图片库。</p>
-          <button class="sync-button" type="button" @click="previewAccessRecordSynchronization">
+          <p class="action-label">同步与补空</p>
+          <p class="action-copy">增量同步需先预检时间范围；补空任务直接执行，查询最近 7 天数据进行去重补齐。</p>
+          <button class="sync-button" type="button" @click="previewAccessRecordSynchronization" style="margin-bottom: 8px">
             <span class="material-icons-outlined">query_stats</span>获取同步情况
+          </button>
+          <button class="sync-button" type="button" @click="runBackfillSynchronization">
+            <span class="material-icons-outlined">history</span>立即补空
           </button>
         </template>
         <template v-else>
@@ -603,6 +618,15 @@ interface AccessRecordSyncResult {
   executed_at: string;
 }
 
+interface BackfillSyncResult {
+  processed_count: number;
+  local_photo_count: number;
+  failed_photo_count: number;
+  start_time: string;
+  end_time: string;
+  executed_at: string;
+}
+
 interface AccessRecordSyncPreview {
   initial_sync: boolean;
   pending_count: number | null;
@@ -654,6 +678,9 @@ const accessRecordPreviewing = ref(false);
 const accessRecordErrorMessage = ref("");
 const accessRecordResult = ref<AccessRecordSyncResult | null>(null);
 const accessRecordPreview = ref<AccessRecordSyncPreview | null>(null);
+const backfillSyncState = ref<SyncState>("idle");
+const backfillErrorMessage = ref("");
+const backfillResult = ref<BackfillSyncResult | null>(null);
 const accountSyncState = ref<SyncState>("idle");
 const accountConfirming = ref(false);
 const accountErrorMessage = ref("");
@@ -759,11 +786,17 @@ async function loadProgress() {
 
 const parkingAreaRunning = computed(() => syncState.value === "running" || progressFor("parking_area.sync")?.running === true);
 const accessRecordRunning = computed(() => accessRecordSyncState.value === "running" || progressFor("car_cap_info.sync", "car_cap_info.reconciliation")?.running === true);
+const backfillRunning = computed(() => backfillSyncState.value === "running" || progressFor("car_cap_info.backfill")?.running === true);
 const accountRunning = computed(() => accountSyncState.value === "running" || progressFor("account.generate")?.running === true);
 const ownerArchiveRunning = computed(() => ownerArchiveSyncState.value === "running" || progressFor("owner.archive.generate")?.running === true);
 const monthlyCardRunning = computed(() => monthlyCardSyncState.value === "running" || progressFor("plate.keytop.sync")?.running === true);
 const parkingAreaCardState = computed<SyncState>(() => parkingAreaRunning.value ? "running" : syncState.value);
-const accessRecordCardState = computed<SyncState>(() => accessRecordRunning.value ? "running" : accessRecordSyncState.value);
+const accessRecordCardState = computed<SyncState>(() => {
+  if (accessRecordRunning.value || backfillRunning.value) return "running";
+  if (backfillSyncState.value === "error") return "error";
+  if (backfillSyncState.value === "success") return "success";
+  return accessRecordSyncState.value;
+});
 const accountCardState = computed<SyncState>(() => accountRunning.value ? "running" : accountSyncState.value);
 const monthlyCardState = computed<SyncState>(() => monthlyCardRunning.value ? "running" : monthlyCardSyncState.value);
 const ownerArchiveCardState = computed<SyncState>(() => ownerArchiveRunning.value ? "running" : ownerArchiveSyncState.value);
@@ -780,6 +813,7 @@ const resultSummary = computed(() => {
 });
 const accessRecordStateLabel = computed(() => {
   if (accessRecordPreviewing.value) return "预检中";
+  if (backfillRunning.value) return "补空中";
   if (accessRecordRunning.value) return "同步中";
   if (accessRecordPreview.value && accessRecordSyncState.value === "idle") return "待确认";
   return {
@@ -830,6 +864,13 @@ const ownerArchiveResultSummary = computed(() => {
   if (linked_plate_count === created_owner_count) return `新建 ${created_owner_count} 位车主信息，跳过 ${skipped_count} 个车牌。`;
   return `新建 ${created_owner_count} 位车主信息，登记 ${linked_plate_count} 条车牌关联，跳过 ${skipped_count} 个车牌。`;
 });
+const backfillResultSummary = computed(() => {
+  if (!backfillResult.value) return "本地数据未发生变化。";
+  const {processed_count, local_photo_count, failed_photo_count} = backfillResult.value;
+  if (processed_count === 0) return "未发现遗漏数据，7 天窗口内的记录已全部入库。";
+  if (failed_photo_count === 0) return `补空 ${processed_count} 条流水，${local_photo_count} 张抓拍图片已保存到本地。`;
+  return `补空 ${processed_count} 条流水，${local_photo_count} 张图片已保存，${failed_photo_count} 张将在后续同步中重试。`;
+});
 
 async function runSynchronization() {
   confirming.value = false;
@@ -858,6 +899,22 @@ async function runAccessRecordSynchronization() {
       statusMessage?: string
     }).statusMessage || "无法连接同步服务，请检查科拓配置后重试。";
     accessRecordSyncState.value = "error";
+  }
+}
+
+async function runBackfillSynchronization() {
+  backfillSyncState.value = "running";
+  backfillErrorMessage.value = "";
+  accessRecordSyncState.value = "idle";
+  accessRecordErrorMessage.value = "";
+  try {
+    backfillResult.value = await http.post<BackfillSyncResult>("/synchronizations/access-records/backfill");
+    backfillSyncState.value = "success";
+  } catch (error) {
+    backfillErrorMessage.value = (error as {
+      statusMessage?: string
+    }).statusMessage || "无法连接补空服务，请检查科拓配置后重试。";
+    backfillSyncState.value = "error";
   }
 }
 

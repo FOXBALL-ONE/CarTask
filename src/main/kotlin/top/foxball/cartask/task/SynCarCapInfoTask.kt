@@ -1,6 +1,7 @@
 package top.foxball.cartask.task
 
 import org.slf4j.LoggerFactory
+import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.ObjectMapper
@@ -35,6 +36,9 @@ data class CarCapInfoSyncResult(
     val failedPhotoCount: Int,
     val startTime: LocalDateTime,
     val cursorTime: LocalDateTime,
+    val totalCount: Int? = null,
+    val skippedCount: Int? = null,
+    val insertedCount: Int? = null,
 )
 
 data class CarCapInfoSyncPreview(
@@ -96,8 +100,30 @@ class SynCarCapInfoTask(
             }
         }
     }
-    
-    
+
+
+    @Scheduled(
+        initialDelayString = "\${keytop.car-cap-info-backfill-initial-delay:5m}",
+        fixedDelayString = "\${keytop.car-cap-info-backfill-interval:5d}",
+    )
+    /** 定时执行车辆进出记录补空同步，固定回看补空窗口，不推进增量检查点。 */
+    fun backfillCarCapInfoList() {
+        AuditRequestContext.withRun {
+            try {
+                executeBackfill(SyncTaskRun.Trigger.SCHEDULED)
+            } catch (exception: VehicleAccessRecordSyncInProgressException) {
+                logger.warn("车辆进出记录补空同步仍在执行，本次定时任务跳过")
+            } catch (exception: RuntimeException) {
+                logger.error("车辆进出记录补空同步失败", exception)
+            }
+        }
+    }
+
+
+    /** 手动执行车辆进出记录补空同步。 */
+    fun backfill(): CarCapInfoSyncResult = executeBackfill(SyncTaskRun.Trigger.MANUAL)
+
+
     /** 为增量同步填充任务标识并委托统一执行包装器。 */
     private fun executeIncremental(trigger: SyncTaskRun.Trigger): CarCapInfoSyncResult = execute(
         trigger = trigger,
@@ -114,8 +140,17 @@ class SynCarCapInfoTask(
         taskName = RECONCILIATION_TASK_NAME,
         synchronization = ::synchronizeReconciliation,
     )
-    
-    
+
+
+    /** 为补空同步填充任务标识并委托统一执行包装器。 */
+    private fun executeBackfill(trigger: SyncTaskRun.Trigger): CarCapInfoSyncResult = execute(
+        trigger = trigger,
+        taskKey = BACKFILL_TASK_KEY,
+        taskName = BACKFILL_TASK_NAME,
+        synchronization = ::synchronizeBackfill,
+    )
+
+
     /** 固定本次限频快照，维护进度并记录成功或失败历史。 */
     private fun execute(
         trigger: SyncTaskRun.Trigger,
@@ -223,6 +258,9 @@ class SynCarCapInfoTask(
                 failedPhotoCount = result.failedPhotoCount,
                 startTime = startTime,
                 cursorTime = requireNotNull(checkpoint.cursorTime),
+                totalCount = result.totalCount,
+                skippedCount = result.skippedCount,
+                insertedCount = result.insertedCount,
             )
         } catch (exception: RuntimeException) {
             syncCheckpointService.find(SYNC_KEY)?.let { checkpoint ->
@@ -262,13 +300,53 @@ class SynCarCapInfoTask(
                 failedPhotoCount = result.failedPhotoCount,
                 startTime = startTime,
                 cursorTime = syncEndTime,
+                totalCount = result.totalCount,
+                skippedCount = result.skippedCount,
+                insertedCount = result.insertedCount,
             )
         } finally {
             executionLock.unlock()
         }
     }
-    
-    
+
+
+    /** 按补空窗口重新拉取历史记录用于补空，发现的数据只做本地收敛，不推进主检查点。 */
+    private fun synchronizeBackfill(): CarCapInfoSyncResult {
+        if (!executionLock.tryLock()) {
+            throw VehicleAccessRecordSyncInProgressException()
+        }
+        try {
+            validateSynchronizationConfiguration()
+            val syncEndTime = LocalDateTime.now()
+            val startTime = syncEndTime.minus(keytopProperties.carCapInfoBackfillWindow)
+            if (syncCheckpointService.find(SYNC_KEY) == null) {
+                syncCheckpointService.save(SyncCheckpoint().apply { syncKey = SYNC_KEY })
+            }
+            val result = synchronizeRange(startTime, syncEndTime, BACKFILL_TASK_KEY)
+            logger.info(
+                "车辆进出记录补空同步完成：查询到 {} 条，跳过 {} 条，新增 {} 条，查询区间：{} 至 {}",
+                result.totalCount ?: result.processedCount,
+                result.skippedCount,
+                result.insertedCount,
+                startTime,
+                syncEndTime
+            )
+            return CarCapInfoSyncResult(
+                processedCount = result.processedCount,
+                localPhotoCount = result.localPhotoCount,
+                failedPhotoCount = result.failedPhotoCount,
+                startTime = startTime,
+                cursorTime = syncEndTime,
+                totalCount = result.totalCount,
+                skippedCount = result.skippedCount,
+                insertedCount = result.insertedCount,
+            )
+        } finally {
+            executionLock.unlock()
+        }
+    }
+
+
     /** 分页读取 Keytop 车辆进出记录，并按页完成入库与图片下载屏障。 */
     private fun synchronizeRange(startTime: LocalDateTime, syncEndTime: LocalDateTime, taskKey: String): ProcessResult {
         val rateLimitSnapshot = keytopSyncRateLimiter?.snapshot()
@@ -303,6 +381,8 @@ class SynCarCapInfoTask(
             syncTaskProgressService.update(taskKey, synchronizedCount, totalCount)
             var localPhotoCount = result.localPhotoCount
             var failedPhotoCount = result.failedPhotoCount
+            var totalSkipped = result.skippedCount
+            var totalInserted = result.insertedCount
             var pageIndex = 2
             while (pageIndex <= pages || (totalCount == null && firstData.records.size >= keytopProperties.carCapInfoPageSize)) {
                 val response = keytopService.getCarInoutInfo(
@@ -320,10 +400,19 @@ class SynCarCapInfoTask(
                 syncTaskProgressService.update(taskKey, synchronizedCount, totalCount)
                 localPhotoCount += result.localPhotoCount
                 failedPhotoCount += result.failedPhotoCount
+                totalSkipped += result.skippedCount
+                totalInserted += result.insertedCount
                 if (totalCount == null && data.records.size < keytopProperties.carCapInfoPageSize) break
                 pageIndex++
             }
-            return ProcessResult(synchronizedCount, localPhotoCount, failedPhotoCount)
+            return ProcessResult(
+                processedCount = synchronizedCount,
+                localPhotoCount = localPhotoCount,
+                failedPhotoCount = failedPhotoCount,
+                totalCount = totalCount,
+                skippedCount = totalSkipped,
+                insertedCount = totalInserted,
+            )
         }
     }
     
@@ -367,7 +456,16 @@ class SynCarCapInfoTask(
                     localPhotoCount = result?.localPhotoCount,
                     failedPhotoCount = result?.failedPhotoCount,
                     summary = result?.let {
-                        "处理 ${it.processedCount} 条，图片落地 ${it.localPhotoCount} 张，待重试 ${it.failedPhotoCount} 张"
+                        buildString {
+                            append("处理 ${it.processedCount} 条")
+                            if (it.totalCount != null) {
+                                append("（共 ${it.totalCount} 条）")
+                            }
+                            if (it.skippedCount != null && it.insertedCount != null) {
+                                append("，跳过 ${it.skippedCount} 条，新增 ${it.insertedCount} 条")
+                            }
+                            append("，图片落地 ${it.localPhotoCount} 张，待重试 ${it.failedPhotoCount} 张")
+                        }
                     },
                     error = exception?.message?.take(2048) ?: exception?.javaClass?.simpleName,
                 ),
@@ -385,6 +483,8 @@ class SynCarCapInfoTask(
         coordinator: VehiclePhotoDownloadCoordinator,
     ): ProcessResult {
         var processed = 0
+        var skipped = 0
+        var inserted = 0
         val photoTasks = mutableListOf<VehiclePhotoDownloadCoordinator.PhotoDownloadTask>()
         val platesByNormalizedNumber = parkingPlateRepository
             .findAll()
@@ -407,6 +507,7 @@ class SynCarCapInfoTask(
                 record.photoUrl = record.sourcePhotoUrl
                 accessRecordRepository.save(record)
                 seen[key] = record
+                inserted++
                 record
             } else {
                 existing.carNumber = record.carNumber
@@ -438,6 +539,7 @@ class SynCarCapInfoTask(
                 existing.sourceRecordId = record.sourceRecordId
                 accessRecordRepository.save(existing)
                 seen[key] = existing
+                skipped++
                 existing
             }
             val normalizedPlate = PlateNumbers.normalize(record.carNumber)
@@ -459,7 +561,13 @@ class SynCarCapInfoTask(
         val downloadResult = coordinator.downloadBatch(photoTasks)
         val localPhotoCount = downloadResult.successCount
         val failedPhotoCount = downloadResult.failedCount
-        return ProcessResult(processed, localPhotoCount, failedPhotoCount)
+        return ProcessResult(
+            processedCount = processed,
+            localPhotoCount = localPhotoCount,
+            failedPhotoCount = failedPhotoCount,
+            skippedCount = skipped,
+            insertedCount = inserted,
+        )
     }
     
     
@@ -697,6 +805,9 @@ class SynCarCapInfoTask(
         val processedCount: Int,
         val localPhotoCount: Int,
         val failedPhotoCount: Int,
+        val totalCount: Int? = null,
+        val skippedCount: Int = 0,
+        val insertedCount: Int = 0,
     )
 
     companion object {
@@ -708,6 +819,8 @@ class SynCarCapInfoTask(
         const val TASK_NAME = "车辆进出记录同步"
         const val RECONCILIATION_TASK_KEY = "car_cap_info.reconciliation"
         const val RECONCILIATION_TASK_NAME = "车辆进出记录补偿同步"
+        const val BACKFILL_TASK_KEY = "car_cap_info.backfill"
+        const val BACKFILL_TASK_NAME = "车辆进出记录补空同步"
         const val INITIAL_SYNC_DAYS = 1L
     }
 }

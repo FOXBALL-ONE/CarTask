@@ -130,8 +130,8 @@ class SynchronizationController(
     
     @PostMapping("/access-records")
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('vehicle-record:sync')")
-            
-            
+
+
             /** synchronizeAccessRecords：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun synchronizeAccessRecords(): ResponseEntity<Response> {
         data class Response(
@@ -142,7 +142,7 @@ class SynchronizationController(
             @param:JsonProperty("cursor_time") val cursorTime: LocalDateTime,
             @param:JsonProperty("executed_at") val executedAt: LocalDateTime,
         )
-        
+
         val result = synCarCapInfoTask.synchronize()
         val rs = Response(
             processedCount = result.processedCount,
@@ -154,6 +154,35 @@ class SynchronizationController(
         )
         return responseBuilder.ok()
             .message("车辆进出记录同步完成")
+            .data(rs)
+            .build()
+    }
+
+
+    @PostMapping("/access-records/backfill")
+    @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('vehicle-record:sync')")
+            /** backfillAccessRecords：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
+    fun backfillAccessRecords(): ResponseEntity<Response> {
+        data class Response(
+            @param:JsonProperty("processed_count") val processedCount: Int,
+            @param:JsonProperty("local_photo_count") val localPhotoCount: Int,
+            @param:JsonProperty("failed_photo_count") val failedPhotoCount: Int,
+            @param:JsonProperty("start_time") val startTime: LocalDateTime,
+            @param:JsonProperty("end_time") val endTime: LocalDateTime,
+            @param:JsonProperty("executed_at") val executedAt: LocalDateTime,
+        )
+
+        val result = synCarCapInfoTask.backfill()
+        val rs = Response(
+            processedCount = result.processedCount,
+            localPhotoCount = result.localPhotoCount,
+            failedPhotoCount = result.failedPhotoCount,
+            startTime = result.startTime,
+            endTime = result.cursorTime,
+            executedAt = LocalDateTime.now(),
+        )
+        return responseBuilder.ok()
+            .message("车辆进出记录补空完成")
             .data(rs)
             .build()
     }
