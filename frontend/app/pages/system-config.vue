@@ -465,7 +465,7 @@ onMounted(async () => {
 .card {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius:0 0;
   margin-bottom: 16px;
 }
 
@@ -507,7 +507,7 @@ onMounted(async () => {
 .button {
   align-items: center;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius:0 0;
   cursor: pointer;
   display: inline-flex;
   font: inherit;
@@ -579,7 +579,7 @@ onMounted(async () => {
 .input, .select {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius:0 0;
   box-sizing: border-box;
   color: var(--text);
   font: inherit;
@@ -607,7 +607,7 @@ onMounted(async () => {
 
 .feedback {
   align-items: center;
-  border-radius: 6px;
+  border-radius:0 0;
   display: flex;
   font-size: 13px;
   gap: 8px;
@@ -634,7 +634,7 @@ onMounted(async () => {
 
 .branding-logo__preview {
   border: 1px solid var(--border-strong);
-  border-radius: 10px;
+  border-radius:0 0;
   height: 48px;
   object-fit: cover;
   width: 48px;
@@ -657,7 +657,7 @@ onMounted(async () => {
   align-items: center;
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius:0 0;
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
@@ -685,7 +685,7 @@ onMounted(async () => {
 .modal {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius:0 0;
   box-shadow: 0 16px 48px rgb(0 0 0 / 20%);
   max-width: 460px;
   width: 100%;
@@ -734,7 +734,7 @@ onMounted(async () => {
 
 .progress {
   background: var(--bg);
-  border-radius: 3px;
+  border-radius:0 0;
   height: 4px;
   margin: 14px 0 0;
   overflow: hidden;
@@ -743,7 +743,7 @@ onMounted(async () => {
 .progress span {
   animation: slide 1.2s ease-in-out infinite;
   background: var(--primary);
-  border-radius: inherit;
+  border-radius:0 0;
   display: block;
   height: 100%;
   width: 40%;
@@ -769,7 +769,7 @@ onMounted(async () => {
   align-items: center;
   background: transparent;
   border: 0;
-  border-radius: 5px;
+  border-radius:0 0;
   color: var(--text-mute);
   cursor: pointer;
   display: inline-flex;

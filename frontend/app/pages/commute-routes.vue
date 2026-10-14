@@ -375,7 +375,7 @@ onMounted(load);
   font-size: 16px;
   line-height: 1.2;
   text-align: center;
-  border-radius: 2px;
+  border-radius:0 0;
   cursor: pointer;
   transition: opacity 0.2s;
   appearance: none;
@@ -407,7 +407,7 @@ onMounted(load);
   background-color: #000;
   border: inherit;
   border-color: #000;
-  border-radius: inherit;
+  border-radius:0 0;
   transform: translate(-50%, -50%);
   opacity: 0;
   content: " ";
@@ -622,7 +622,7 @@ onMounted(load);
   width: 5px;
   height: 5px;
   background-color: #969799;
-  border-radius: 50%;
+  border-radius:0 0;
 }
 
 .van-step--vertical .van-step__line {

@@ -1165,7 +1165,7 @@ onMounted(() => {
 
 .eyebrow-dot {
   background: var(--primary);
-  border-radius: 50%;
+  border-radius:0 0;
   box-shadow: 0 0 0 4px var(--primary-soft);
   height: 6px;
   width: 6px
@@ -1193,7 +1193,7 @@ onMounted(() => {
 .workspace {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius: 10px;
+  border-radius:0 0;
   box-shadow: 0 1px 2px rgb(15 23 42 / 3%);
   overflow: hidden
 }
@@ -1240,7 +1240,7 @@ onMounted(() => {
 .tab__count {
   align-items: center;
   background: var(--danger-soft);
-  border-radius: 10px;
+  border-radius:0 0;
   color: var(--danger);
   display: inline-flex;
   font-size: 10px;
@@ -1270,7 +1270,7 @@ onMounted(() => {
 .risk-ribbon__intro > .material-icons-outlined {
   align-items: center;
   background: var(--primary);
-  border-radius: 8px;
+  border-radius:0 0;
   color: var(--on-solid);
   display: flex;
   font-size: 20px;
@@ -1350,7 +1350,7 @@ onMounted(() => {
 
 .threshold-scale__track {
   background: var(--border-strong);
-  border-radius: 4px;
+  border-radius:0 0;
   height: 6px;
   margin: 10px 0 7px;
   position: relative
@@ -1358,7 +1358,7 @@ onMounted(() => {
 
 .threshold-scale__track span {
   background: linear-gradient(90deg, var(--primary), #72a4ff);
-  border-radius: 4px;
+  border-radius:0 0;
   display: block;
   height: 100%
 }
@@ -1366,7 +1366,7 @@ onMounted(() => {
 .threshold-scale__track i {
   background: var(--danger);
   border: 2px solid var(--card);
-  border-radius: 50%;
+  border-radius:0 0;
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--danger) 18%, transparent);
   height: 10px;
   position: absolute;
@@ -1408,7 +1408,7 @@ onMounted(() => {
   align-items: center;
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius:0 0;
   display: flex;
   height: 34px;
   width: 230px
@@ -1440,7 +1440,7 @@ onMounted(() => {
 .control {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius:0 0;
   color: var(--text);
   font: inherit;
   height: 34px;
@@ -1451,7 +1451,7 @@ onMounted(() => {
 .date-control, .score-filter {
   align-items: center;
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius:0 0;
   color: var(--text-mute);
   display: flex;
   font-size: 11px;
@@ -1480,7 +1480,7 @@ onMounted(() => {
 .button {
   align-items: center;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius:0 0;
   cursor: pointer;
   display: inline-flex;
   font: inherit;
@@ -1538,7 +1538,7 @@ onMounted(() => {
   align-items: center;
   background: transparent;
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius:0 0;
   color: var(--text-sub);
   cursor: pointer;
   display: inline-flex;
@@ -1630,7 +1630,7 @@ onMounted(() => {
 .vehicle-icon {
   align-items: center;
   background: var(--primary-soft);
-  border-radius: 7px;
+  border-radius:0 0;
   color: var(--primary);
   display: inline-flex;
   height: 34px;
@@ -1671,7 +1671,7 @@ onMounted(() => {
 .score-chip {
   align-items: center;
   background: #edf4ff;
-  border-radius: 5px;
+  border-radius:0 0;
   color: #3166bb;
   display: inline-flex;
   font-size: 11px;
@@ -1710,7 +1710,7 @@ onMounted(() => {
 
 .status-tag {
   align-items: center;
-  border-radius: 12px;
+  border-radius:0 0;
   display: inline-flex;
   font-size: 10px;
   font-weight: 550;
@@ -1721,7 +1721,7 @@ onMounted(() => {
 
 .status-tag i {
   background: currentColor;
-  border-radius: 50%;
+  border-radius:0 0;
   height: 5px;
   width: 5px
 }
@@ -1805,7 +1805,7 @@ onMounted(() => {
 .spinner {
   animation: spin .8s linear infinite;
   border: 2px solid var(--border-strong);
-  border-radius: 50%;
+  border-radius:0 0;
   border-top-color: var(--primary);
   display: inline-block;
   height: 16px;
@@ -1863,7 +1863,7 @@ onMounted(() => {
   align-items: center;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 5px;
+  border-radius:0 0;
   color: var(--text-sub);
   cursor: pointer;
   display: flex;
@@ -1905,7 +1905,7 @@ onMounted(() => {
 .rule-overview__icon {
   align-items: center;
   background: var(--primary);
-  border-radius: 9px;
+  border-radius:0 0;
   color: var(--on-solid);
   display: flex;
   height: 44px;
@@ -2034,7 +2034,7 @@ onMounted(() => {
 .penalty-notice__mark {
   align-items: center;
   background: var(--danger);
-  border-radius: 8px;
+  border-radius:0 0;
   color: var(--on-solid);
   display: flex;
   height: 38px;
@@ -2099,7 +2099,7 @@ onMounted(() => {
 
 .score-progress__track {
   background: var(--border-strong);
-  border-radius: 4px;
+  border-radius:0 0;
   height: 4px;
   overflow: hidden
 }
@@ -2170,7 +2170,7 @@ onMounted(() => {
 .evidence {
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius:0 0;
   height: 210px;
   overflow: hidden;
   position: relative
@@ -2184,7 +2184,7 @@ onMounted(() => {
 
 .evidence > span {
   background: rgb(15 23 42 / 72%);
-  border-radius: 4px;
+  border-radius:0 0;
   bottom: 10px;
   color: #fff;
   font-size: 10px;
@@ -2268,7 +2268,7 @@ onMounted(() => {
 
 .detail-note {
   background: var(--bg);
-  border-radius: 7px;
+  border-radius:0 0;
   margin-top: 12px;
   padding: 12px
 }
@@ -2290,7 +2290,7 @@ onMounted(() => {
 .modal {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius: 10px;
+  border-radius:0 0;
   box-shadow: 0 24px 70px rgb(15 23 42 / 24%);
   max-height: calc(100dvh - 40px);
   max-width: 100%;
@@ -2330,7 +2330,7 @@ onMounted(() => {
 .field input, .field select, .field textarea, .number-suffix {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius:0 0;
   color: var(--text);
   font: inherit;
   outline: 0;
@@ -2356,7 +2356,7 @@ onMounted(() => {
 
 .form-error {
   background: var(--danger-soft);
-  border-radius: 6px;
+  border-radius:0 0;
   color: var(--danger);
   font-size: 11px;
   margin: 14px 0 0;
@@ -2366,7 +2366,7 @@ onMounted(() => {
 .evidence-upload {
   background: var(--bg);
   border: 1px dashed var(--border-strong);
-  border-radius: 7px;
+  border-radius:0 0;
   display: grid;
   gap: 10px;
   padding: 10px
@@ -2374,7 +2374,7 @@ onMounted(() => {
 
 .evidence-upload__preview img {
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius:0 0;
   display: block;
   height: 120px;
   max-width: 200px;
@@ -2427,7 +2427,7 @@ onMounted(() => {
 
 .decision-cards label {
   border: 1px solid var(--border-strong);
-  border-radius: 7px;
+  border-radius:0 0;
   cursor: pointer;
   display: grid;
   gap: 3px;
@@ -2465,7 +2465,7 @@ onMounted(() => {
 
 .modal-hint {
   background: var(--primary-soft);
-  border-radius: 6px;
+  border-radius:0 0;
   color: var(--text-sub);
   font-size: 11px;
   line-height: 1.6;
@@ -2495,7 +2495,7 @@ onMounted(() => {
 .release-warning {
   align-items: flex-start;
   background: var(--amber-soft);
-  border-radius: 7px;
+  border-radius:0 0;
   color: var(--amber);
   display: flex;
   gap: 10px;

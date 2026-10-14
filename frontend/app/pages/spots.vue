@@ -270,7 +270,7 @@ async function removeSpot(spot: Spot) {
 .card {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius:0 0;
   overflow: hidden;
 }
 
@@ -291,7 +291,7 @@ async function removeSpot(spot: Spot) {
 .input, .select {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius:0 0;
   box-sizing: border-box;
   color: var(--text);
   font: inherit;
@@ -316,7 +316,7 @@ async function removeSpot(spot: Spot) {
 .button {
   align-items: center;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius:0 0;
   cursor: pointer;
   display: inline-flex;
   font: inherit;
@@ -385,7 +385,7 @@ async function removeSpot(spot: Spot) {
 
 .tag {
   align-items: center;
-  border-radius: 4px;
+  border-radius:0 0;
   display: inline-flex;
   font-size: 12px;
   gap: 4px;
@@ -395,7 +395,7 @@ async function removeSpot(spot: Spot) {
 
 .tag::before {
   background: currentColor;
-  border-radius: 50%;
+  border-radius:0 0;
   content: "";
   height: 5px;
   width: 5px;
@@ -440,7 +440,7 @@ async function removeSpot(spot: Spot) {
   align-items: center;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 5px;
+  border-radius:0 0;
   color: var(--text-sub);
   cursor: pointer;
   display: inline-flex;

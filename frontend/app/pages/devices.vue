@@ -400,7 +400,7 @@ onMounted(loadDevices);
 .card {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius:0 0;
   overflow: hidden
 }
 
@@ -434,7 +434,7 @@ onMounted(loadDevices);
 .input, .select {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius:0 0;
   box-sizing: border-box;
   color: var(--text);
   font: inherit;
@@ -453,7 +453,7 @@ onMounted(loadDevices);
 .btn {
   align-items: center;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius:0 0;
   cursor: pointer;
   display: inline-flex;
   font: inherit;
@@ -554,7 +554,7 @@ onMounted(loadDevices);
 
 .tag {
   align-items: center;
-  border-radius: 4px;
+  border-radius:0 0;
   display: inline-flex;
   font-size: 12px;
   font-weight: 500;
@@ -565,7 +565,7 @@ onMounted(loadDevices);
 
 .tag:before {
   background: currentcolor;
-  border-radius: 50%;
+  border-radius:0 0;
   content: "";
   height: 5px;
   width: 5px
@@ -600,7 +600,7 @@ onMounted(loadDevices);
   align-items: center;
   background: transparent;
   border: 0;
-  border-radius: 5px;
+  border-radius:0 0;
   color: var(--text-mute);
   cursor: pointer;
   display: inline-flex;
@@ -654,7 +654,7 @@ onMounted(loadDevices);
   align-items: center;
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius: 5px;
+  border-radius:0 0;
   color: var(--text-sub);
   cursor: pointer;
   display: flex;
@@ -693,7 +693,7 @@ onMounted(loadDevices);
 .modal {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius:0 0;
   display: flex;
   flex-direction: column;
   max-height: calc(100vh - 40px);
@@ -793,7 +793,7 @@ onMounted(loadDevices);
 
 .perm-section__title:before {
   background: var(--primary);
-  border-radius: 2px;
+  border-radius:0 0;
   content: "";
   height: 14px;
   width: 3px
@@ -810,7 +810,7 @@ onMounted(loadDevices);
   background: var(--card);
   border: 1px solid var(--border-strong);
   border-left: 3px solid var(--primary);
-  border-radius: 6px;
+  border-radius:0 0;
   display: flex;
   font-size: 13px;
   gap: 8px;

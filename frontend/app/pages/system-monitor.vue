@@ -456,7 +456,7 @@ onBeforeUnmount(() => {
   align-items: center;
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius: 5px;
+  border-radius:0 0;
   color: var(--text-sub);
   display: inline-flex;
   font-size: 12px;
@@ -468,7 +468,7 @@ onBeforeUnmount(() => {
 
 .live-indicator i, .health-badge i {
   background: var(--success);
-  border-radius: 50%;
+  border-radius:0 0;
   height: 6px;
   width: 6px;
 }
@@ -477,7 +477,7 @@ onBeforeUnmount(() => {
   align-items: center;
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius: 5px;
+  border-radius:0 0;
   color: var(--text-sub);
   cursor: pointer;
   display: inline-flex;
@@ -504,7 +504,7 @@ onBeforeUnmount(() => {
   align-items: center;
   background: color-mix(in srgb, var(--red) 10%, var(--card));
   border: 1px solid color-mix(in srgb, var(--red) 25%, var(--card));
-  border-radius: 6px;
+  border-radius:0 0;
   color: var(--red);
   display: flex;
   font-size: 13px;
@@ -534,7 +534,7 @@ onBeforeUnmount(() => {
 .overview-metric {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius: 7px;
+  border-radius:0 0;
   min-width: 0;
   padding: 16px;
   position: relative;
@@ -609,7 +609,7 @@ onBeforeUnmount(() => {
 
 .metric-track, .usage-rail {
   background: var(--bg);
-  border-radius: 2px;
+  border-radius:0 0;
   height: 5px;
   overflow: hidden;
   width: 100%;
@@ -617,7 +617,7 @@ onBeforeUnmount(() => {
 
 .metric-track span, .usage-rail span {
   background: var(--primary);
-  border-radius: inherit;
+  border-radius:0 0;
   display: block;
   height: 100%;
   min-width: 2px;
@@ -641,7 +641,7 @@ onBeforeUnmount(() => {
 .monitor-panel {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius: 7px;
+  border-radius:0 0;
   min-width: 0;
   overflow: hidden;
 }
@@ -898,7 +898,7 @@ onBeforeUnmount(() => {
 
 .health-badge {
   align-items: center;
-  border-radius: 4px;
+  border-radius:0 0;
   display: inline-flex;
   font-size: 11px;
   gap: 5px;

@@ -260,12 +260,12 @@ onMounted(load);
 .page-header h1 { color: var(--text); font-size: 18px; margin: 0; }
 .page-header p { color: var(--text-sub); margin: 4px 0 0; }
 .page-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.panel, .modal { background: var(--card); border: 1px solid var(--border-strong); border-radius: 8px; }
+.panel, .modal { background: var(--card); border: 1px solid var(--border-strong); border-radius:0 0; }
 .filters { align-items: center; border-bottom: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 8px; padding: 14px 16px; }
-.filters input, .field input, .departure-row input, .departure-row select { background: var(--card); border: 1px solid var(--border-strong); border-radius: 6px; box-sizing: border-box; color: var(--text); font: inherit; height: 34px; padding: 0 10px; }
+.filters input, .field input, .departure-row input, .departure-row select { background: var(--card); border: 1px solid var(--border-strong); border-radius:0 0; box-sizing: border-box; color: var(--text); font: inherit; height: 34px; padding: 0 10px; }
 .filters input { min-width: 240px; }
 .filters input:focus, .field input:focus, .departure-row input:focus, .departure-row select:focus { border-color: var(--primary); outline: none; }
-.button { align-items: center; border: 1px solid transparent; border-radius: 6px; cursor: pointer; display: inline-flex; font: inherit; gap: 5px; height: 34px; padding: 0 12px; }
+.button { align-items: center; border: 1px solid transparent; border-radius:0 0; cursor: pointer; display: inline-flex; font: inherit; gap: 5px; height: 34px; padding: 0 12px; }
 .button:disabled, .icon-button:disabled { cursor: not-allowed; opacity: .45; }
 .button--primary { background: var(--primary); color: var(--on-solid); }
 .button--soft { background: var(--primary-soft); color: var(--primary); }
@@ -281,11 +281,11 @@ th { background: var(--bg); color: var(--text-mute); font-size: 12px; font-weigh
 .direction { align-items: center; display: inline-flex; gap: 5px; white-space: nowrap; }
 .direction .material-icons-outlined { color: var(--text-mute); font-size: 17px; }
 .time-list { display: flex; flex-wrap: wrap; gap: 5px; max-width: 300px; }
-.time-chip { background: var(--primary-soft); border-radius: 4px; color: var(--primary); font-family: Consolas, monospace; font-size: 12px; padding: 4px 7px; white-space: nowrap; }
+.time-chip { background: var(--primary-soft); border-radius:0 0; color: var(--primary); font-family: Consolas, monospace; font-size: 12px; padding: 4px 7px; white-space: nowrap; }
 .time-chip small { color: var(--text-sub); font-family: inherit; margin-left: 4px; }
 .remark { color: var(--text-sub); max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .actions { text-align: right; white-space: nowrap; }
-.icon-button { align-items: center; background: transparent; border: 0; border-radius: 5px; color: var(--text-sub); cursor: pointer; display: inline-flex; height: 30px; justify-content: center; width: 30px; }
+.icon-button { align-items: center; background: transparent; border: 0; border-radius:0 0; color: var(--text-sub); cursor: pointer; display: inline-flex; height: 30px; justify-content: center; width: 30px; }
 .icon-button:hover { background: var(--bg); color: var(--text); }
 .icon-button--danger:hover { background: var(--danger-soft); color: var(--danger); }
 .icon-button .material-icons-outlined { font-size: 18px; }

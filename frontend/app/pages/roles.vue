@@ -520,7 +520,7 @@ onMounted(loadRoles);
 .card {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius:0 0;
 }
 
 .state, .empty {
@@ -536,7 +536,7 @@ onMounted(loadRoles);
 .button {
   align-items: center;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius:0 0;
   cursor: pointer;
   display: inline-flex;
   font: inherit;
@@ -625,7 +625,7 @@ onMounted(loadRoles);
 
 .tag {
   align-items: center;
-  border-radius: 4px;
+  border-radius:0 0;
   display: inline-flex;
   font-size: 12px;
   gap: 4px;
@@ -635,7 +635,7 @@ onMounted(loadRoles);
 
 .tag::before {
   background: currentColor;
-  border-radius: 50%;
+  border-radius:0 0;
   content: "";
   height: 5px;
   width: 5px;
@@ -660,7 +660,7 @@ onMounted(loadRoles);
   align-items: center;
   background: transparent;
   border: 0;
-  border-radius: 5px;
+  border-radius:0 0;
   color: var(--text-mute);
   cursor: pointer;
   display: inline-flex;
@@ -703,7 +703,7 @@ onMounted(loadRoles);
   align-items: center;
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius: 5px;
+  border-radius:0 0;
   color: var(--text-sub);
   cursor: pointer;
   display: inline-flex;
@@ -741,7 +741,7 @@ onMounted(loadRoles);
 .modal {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius:0 0;
   box-shadow: 0 16px 48px rgb(0 0 0 / 20%);
   max-height: calc(100vh - 40px);
   overflow: hidden;
@@ -809,7 +809,7 @@ onMounted(loadRoles);
 .input, .select, .textarea {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius:0 0;
   box-sizing: border-box;
   color: var(--text);
   font: inherit;
@@ -861,7 +861,7 @@ onMounted(loadRoles);
 
 .perm-section__title::before {
   background: var(--primary);
-  border-radius: 2px;
+  border-radius:0 0;
   content: "";
   height: 14px;
   width: 3px;
@@ -882,7 +882,7 @@ onMounted(loadRoles);
 
 .perm-group {
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius:0 0;
   overflow: hidden;
 }
 
@@ -922,7 +922,7 @@ onMounted(loadRoles);
 
 .perm-group__count, .perm-sub__count {
   background: var(--border);
-  border-radius: 10px;
+  border-radius:0 0;
   color: var(--text-mute);
   font-size: 11px;
   padding: 1px 7px;
@@ -974,7 +974,7 @@ onMounted(loadRoles);
 }
 
 .perm-sub__count {
-  border-radius: 8px;
+  border-radius:0 0;
   padding: 1px 6px;
 }
 
@@ -999,7 +999,7 @@ onMounted(loadRoles);
 .perm-op {
   align-items: center;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius:0 0;
   color: var(--text-sub);
   cursor: pointer;
   display: inline-flex;

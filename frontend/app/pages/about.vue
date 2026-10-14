@@ -174,7 +174,7 @@ onBeforeUnmount(() => {
   align-items: center;
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius: 10px;
+  border-radius:0 0;
   display: flex;
   gap: 16px;
   padding: 22px 24px;
@@ -183,7 +183,7 @@ onBeforeUnmount(() => {
 .hero__mark {
   align-items: center;
   background: var(--primary);
-  border-radius: 12px;
+  border-radius:0 0;
   color: var(--on-solid);
   display: flex;
   flex: 0 0 52px;
@@ -213,7 +213,7 @@ onBeforeUnmount(() => {
 .state-badge {
   background: color-mix(in srgb, var(--success) 12%, var(--card));
   border: 1px solid transparent;
-  border-radius: 4px;
+  border-radius:0 0;
   color: var(--success);
   font-size: 11px;
   padding: 3px 9px;
@@ -234,7 +234,7 @@ onBeforeUnmount(() => {
 .card {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius:0 0;
   padding: 18px;
 }
 
@@ -276,7 +276,7 @@ onBeforeUnmount(() => {
 .notice-panel {
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius:0 0;
   color: var(--text-sub);
   margin-top: 18px;
   padding: 16px 18px;
@@ -312,7 +312,7 @@ onBeforeUnmount(() => {
 .notice-panel code {
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius:0 0;
   color: var(--text);
   font-size: 12px;
   padding: 1px 5px;

@@ -291,7 +291,7 @@ onMounted(loadLogs);
 .card {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius:0 0;
   overflow: hidden
 }
 
@@ -364,7 +364,7 @@ onMounted(loadLogs);
 .input, .select {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius:0 0;
   box-sizing: border-box;
   color: var(--text);
   font: inherit;
@@ -381,7 +381,7 @@ onMounted(loadLogs);
 .button {
   align-items: center;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius:0 0;
   cursor: pointer;
   display: inline-flex;
   font: inherit;
@@ -463,7 +463,7 @@ onMounted(loadLogs);
 
 .tag {
   align-items: center;
-  border-radius: 4px;
+  border-radius:0 0;
   display: inline-flex;
   font-size: 12px;
   gap: 4px;
@@ -473,7 +473,7 @@ onMounted(loadLogs);
 
 .tag:before {
   background: currentColor;
-  border-radius: 50%;
+  border-radius:0 0;
   content: "";
   height: 5px;
   width: 5px
@@ -543,7 +543,7 @@ onMounted(loadLogs);
   align-items: center;
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius: 5px;
+  border-radius:0 0;
   color: var(--text-sub);
   cursor: pointer;
   display: flex;

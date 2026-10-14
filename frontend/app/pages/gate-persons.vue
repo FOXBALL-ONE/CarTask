@@ -920,7 +920,7 @@ useScopeRefresh(loadData);
 .card {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius: var(--radius);
+  border-radius:0 0(--radius);
 }
 
 .card__body {
@@ -955,7 +955,7 @@ useScopeRefresh(loadData);
 .input, .select {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius:0 0;
   box-sizing: border-box;
   color: var(--text);
   font: inherit;
@@ -978,7 +978,7 @@ useScopeRefresh(loadData);
 .btn {
   align-items: center;
   border: 0;
-  border-radius: 6px;
+  border-radius:0 0;
   cursor: pointer;
   display: inline-flex;
   font: inherit;
@@ -1028,7 +1028,7 @@ useScopeRefresh(loadData);
 .notice {
   background: var(--success-soft);
   border: 1px solid var(--success);
-  border-radius: 6px;
+  border-radius:0 0;
   color: var(--success);
   font-size: 13px;
   margin: 0 0 14px;
@@ -1088,7 +1088,7 @@ table.table {
 
 .record-face {
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius:0 0;
   height: 48px;
   object-fit: cover;
   width: 48px;
@@ -1098,7 +1098,7 @@ table.table {
   align-items: center;
   background: transparent;
   border: 0;
-  border-radius: 5px;
+  border-radius:0 0;
   color: var(--text-mute);
   cursor: pointer;
   display: inline-flex;
@@ -1124,7 +1124,7 @@ table.table {
 
 .tag {
   align-items: center;
-  border-radius: 4px;
+  border-radius:0 0;
   display: inline-flex;
   font-size: 12px;
   font-weight: 500;
@@ -1134,7 +1134,7 @@ table.table {
 }
 
 .tag::before {
-  border-radius: 50%;
+  border-radius:0 0;
   content: "";
   height: 5px;
   width: 5px;
@@ -1212,7 +1212,7 @@ table.table {
   align-items: center;
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius: 5px;
+  border-radius:0 0;
   color: var(--text-sub);
   cursor: pointer;
   display: flex;
@@ -1258,7 +1258,7 @@ table.table {
 .modal {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius: var(--radius);
+  border-radius:0 0(--radius);
   display: flex;
   flex-direction: column;
   max-height: calc(100vh - 40px);
@@ -1307,7 +1307,7 @@ table.table {
 
 .detail-face {
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius:0 0;
   flex-shrink: 0;
   height: 140px;
   object-fit: cover;

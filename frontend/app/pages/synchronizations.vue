@@ -1080,7 +1080,7 @@ onBeforeUnmount(() => {
   align-items: center;
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius: 999px;
+  border-radius:0 0;
   color: var(--text-sub);
   display: inline-flex;
   font-size: 12px;
@@ -1091,7 +1091,7 @@ onBeforeUnmount(() => {
 
 .page-heading__mode span {
   background: var(--primary);
-  border-radius: 50%;
+  border-radius:0 0;
   height: 6px;
   width: 6px;
 }
@@ -1099,7 +1099,7 @@ onBeforeUnmount(() => {
 .sync-card {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius: 10px;
+  border-radius:0 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 260px;
   overflow: hidden;
@@ -1123,7 +1123,7 @@ onBeforeUnmount(() => {
 .sync-card__icon {
   align-items: center;
   background: var(--primary-soft);
-  border-radius: 9px;
+  border-radius:0 0;
   color: var(--primary);
   display: flex;
   flex: 0 0 40px;
@@ -1158,7 +1158,7 @@ onBeforeUnmount(() => {
 .state-badge {
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius:0 0;
   color: var(--text-sub);
   font-size: 11px;
   padding: 2px 7px;
@@ -1255,7 +1255,7 @@ onBeforeUnmount(() => {
   align-items: center;
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius:0 0;
   display: grid;
   gap: 16px;
   grid-template-columns: minmax(150px, 1fr) minmax(100px, .8fr) minmax(150px, 1fr);
@@ -1278,7 +1278,7 @@ onBeforeUnmount(() => {
   align-items: center;
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius: 50%;
+  border-radius:0 0;
   color: var(--primary);
   display: flex;
   flex: 0 0 36px;
@@ -1337,7 +1337,7 @@ onBeforeUnmount(() => {
 .conduit__packet {
   background: var(--primary);
   border: 3px solid var(--primary-soft);
-  border-radius: 50%;
+  border-radius:0 0;
   height: 9px;
   left: 0;
   opacity: 0;
@@ -1356,7 +1356,7 @@ onBeforeUnmount(() => {
 
 .feedback {
   align-items: flex-start;
-  border-radius: 7px;
+  border-radius:0 0;
   display: flex;
   gap: 9px;
   margin-top: 16px;
@@ -1428,7 +1428,7 @@ onBeforeUnmount(() => {
 .sync-button, .cancel-button {
   align-items: center;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius:0 0;
   cursor: pointer;
   display: inline-flex;
   font: inherit;
@@ -1478,7 +1478,7 @@ onBeforeUnmount(() => {
 .result-panel {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius: 10px;
+  border-radius:0 0;
   margin-top: 16px;
   overflow: hidden;
 }
@@ -1520,7 +1520,7 @@ onBeforeUnmount(() => {
   align-items: center;
   background: var(--bg);
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius:0 0;
   color: var(--text-sub);
   display: inline-flex;
   font-size: 11px;
@@ -1543,7 +1543,7 @@ onBeforeUnmount(() => {
 .history-panel {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius: 10px;
+  border-radius:0 0;
   margin-top: 16px;
   overflow: hidden;
 }
@@ -1610,7 +1610,7 @@ onBeforeUnmount(() => {
 }
 
 .history-chip {
-  border-radius: 4px;
+  border-radius:0 0;
   flex: 0 0 auto;
   font-size: 10px;
   padding: 2px 7px;
@@ -1758,7 +1758,7 @@ onBeforeUnmount(() => {
 .schedule-panel {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius: 10px;
+  border-radius:0 0;
   margin-top: 16px;
   padding: 22px 24px;
 }
@@ -1786,7 +1786,7 @@ onBeforeUnmount(() => {
 .schedule-panel__hint {
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius:0 0;
   color: var(--text-mute);
   font-family: Consolas, "SFMono-Regular", monospace;
   font-size: 11px;
@@ -1859,7 +1859,7 @@ onBeforeUnmount(() => {
 .schedule-input {
   background: var(--bg);
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius:0 0;
   color: var(--text);
   font-family: Consolas, "SFMono-Regular", monospace;
   font-size: 12px;
@@ -1897,7 +1897,7 @@ onBeforeUnmount(() => {
 .progress {
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius:0 0;
   margin-top: 14px;
   overflow: hidden;
   padding: 7px 9px;

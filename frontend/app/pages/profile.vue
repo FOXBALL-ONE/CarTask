@@ -632,7 +632,7 @@ onBeforeUnmount(stopCountdown);
   align-items: center;
   background: var(--warning-soft);
   border: 1px solid var(--warning-border);
-  border-radius: 8px;
+  border-radius:0 0;
   color: var(--warning-text);
   display: flex;
   gap: 8px;
@@ -654,7 +654,7 @@ onBeforeUnmount(stopCountdown);
 .panel {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius:0 0;
   overflow: hidden;
 }
 
@@ -673,7 +673,7 @@ onBeforeUnmount(stopCountdown);
 .avatar-display {
   align-items: center;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 50%;
+  border-radius:0 0;
   color: #fff;
   cursor: pointer;
   display: flex;
@@ -695,7 +695,7 @@ onBeforeUnmount(stopCountdown);
   align-items: center;
   background: var(--primary);
   border: 0;
-  border-radius: 50%;
+  border-radius:0 0;
   bottom: 0;
   box-shadow: 0 2px 8px rgb(0 0 0 / 15%);
   color: var(--on-solid);
@@ -843,7 +843,7 @@ onBeforeUnmount(stopCountdown);
 .input, .select {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius:0 0;
   box-sizing: border-box;
   color: var(--text);
   font: inherit;
@@ -886,7 +886,7 @@ onBeforeUnmount(stopCountdown);
 .phone-editor {
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius:0 0;
   margin: 4px 0 18px;
   padding: 16px;
 }
@@ -941,7 +941,7 @@ onBeforeUnmount(stopCountdown);
   align-items: center;
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius:0 0;
   color: var(--text-mute);
   cursor: pointer;
   display: flex;
@@ -975,7 +975,7 @@ onBeforeUnmount(stopCountdown);
 .phone-editor__note {
   background: var(--card);
   border: 1px dashed var(--border-strong);
-  border-radius: 6px;
+  border-radius:0 0;
   color: var(--text-mute);
   font-size: 12px;
   margin: 0 0 14px;
@@ -985,7 +985,7 @@ onBeforeUnmount(stopCountdown);
 .btn {
   align-items: center;
   border: 0;
-  border-radius: 6px;
+  border-radius:0 0;
   cursor: pointer;
   display: inline-flex;
   font: inherit;

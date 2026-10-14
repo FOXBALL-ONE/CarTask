@@ -437,7 +437,7 @@ useScopeRefresh(loadPlates);
 .card {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius:0 0;
   overflow: hidden;
 }
 
@@ -471,7 +471,7 @@ useScopeRefresh(loadPlates);
 .input, .select {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius:0 0;
   box-sizing: border-box;
   color: var(--text);
   font: inherit;
@@ -496,7 +496,7 @@ useScopeRefresh(loadPlates);
 .button {
   align-items: center;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius:0 0;
   cursor: pointer;
   display: inline-flex;
   font: inherit;
@@ -579,7 +579,7 @@ useScopeRefresh(loadPlates);
 
 .tag {
   align-items: center;
-  border-radius: 4px;
+  border-radius:0 0;
   display: inline-flex;
   font-size: 12px;
   gap: 4px;
@@ -589,7 +589,7 @@ useScopeRefresh(loadPlates);
 
 .tag::before {
   background: currentColor;
-  border-radius: 50%;
+  border-radius:0 0;
   content: "";
   height: 5px;
   width: 5px;
@@ -621,7 +621,7 @@ useScopeRefresh(loadPlates);
   align-items: center;
   background: transparent;
   border: 0;
-  border-radius: 5px;
+  border-radius:0 0;
   color: var(--text-mute);
   cursor: pointer;
   display: inline-flex;
@@ -687,7 +687,7 @@ useScopeRefresh(loadPlates);
   align-items: center;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 5px;
+  border-radius:0 0;
   color: var(--text-sub);
   cursor: pointer;
   display: inline-flex;
@@ -723,7 +723,7 @@ useScopeRefresh(loadPlates);
 
 .modal {
   background: var(--card);
-  border-radius: 8px;
+  border-radius:0 0;
   box-shadow: 0 16px 48px rgb(0 0 0 / 20%);
   max-width: 620px;
   width: 100%;

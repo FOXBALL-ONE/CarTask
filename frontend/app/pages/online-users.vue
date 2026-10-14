@@ -273,7 +273,7 @@ onBeforeUnmount(() => {
 .notice {
   background: var(--success-soft);
   border: 1px solid var(--success);
-  border-radius: 6px;
+  border-radius:0 0;
   color: var(--success);
   font-size: 13px;
   margin: 0 0 14px;
@@ -289,7 +289,7 @@ onBeforeUnmount(() => {
 .card {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius:0 0;
   overflow: hidden
 }
 
@@ -338,7 +338,7 @@ onBeforeUnmount(() => {
 
 .online-dot {
   background: var(--success);
-  border-radius: 50%;
+  border-radius:0 0;
   display: inline-block;
   height: 6px;
   width: 6px;
@@ -347,7 +347,7 @@ onBeforeUnmount(() => {
 .btn {
   align-items: center;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius:0 0;
   cursor: pointer;
   display: inline-flex;
   font: inherit;
@@ -449,7 +449,7 @@ onBeforeUnmount(() => {
 .avatar {
   align-items: center;
   background: var(--primary-soft);
-  border-radius: 8px;
+  border-radius:0 0;
   color: var(--primary);
   display: inline-flex;
   font-family: "SFMono-Regular", Consolas, monospace;
@@ -474,7 +474,7 @@ onBeforeUnmount(() => {
 
 .tag {
   align-items: center;
-  border-radius: 4px;
+  border-radius:0 0;
   display: inline-flex;
   font-size: 12px;
   font-weight: 500;
@@ -546,7 +546,7 @@ onBeforeUnmount(() => {
 .spinner {
   animation: spin .8s linear infinite;
   border: 2px solid var(--border-strong);
-  border-radius: 50%;
+  border-radius:0 0;
   border-top-color: var(--primary);
   display: inline-block;
   height: 16px;

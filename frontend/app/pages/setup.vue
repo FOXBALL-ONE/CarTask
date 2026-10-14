@@ -976,7 +976,7 @@ onMounted(async () => {
 
 .mark__post {
   background: var(--s-post);
-  border-radius: 2px;
+  border-radius:0 0;
   bottom: 4px;
   height: 16px;
   position: absolute;
@@ -986,7 +986,7 @@ onMounted(async () => {
 
 .mark__arm {
   background: repeating-linear-gradient(115deg, var(--s-mark) 0 6px, #1f2937 6px 12px);
-  border-radius: 3px;
+  border-radius:0 0;
   bottom: 18px;
   height: 4px;
   position: absolute;
@@ -1001,7 +1001,7 @@ onMounted(async () => {
   align-items: center;
   background: var(--s-ok-bg);
   border: 1px solid rgb(5 150 105 / 24%);
-  border-radius: 12px;
+  border-radius:0 0;
   color: var(--s-ok);
   display: flex;
   height: 46px;
@@ -1020,7 +1020,7 @@ onMounted(async () => {
   align-items: center;
   background: var(--s-danger-bg);
   border: 1px solid var(--s-danger-border);
-  border-radius: 12px;
+  border-radius:0 0;
   color: var(--s-danger);
   display: flex;
   height: 46px;
@@ -1045,7 +1045,7 @@ onMounted(async () => {
 .gate__card {
   background: var(--s-panel);
   border: 1px solid var(--s-line-strong);
-  border-radius: 16px;
+  border-radius:0 0;
   box-shadow: var(--s-card-shadow);
   padding: 26px 30px 30px;
   animation: setupIn .45s cubic-bezier(.22, .9, .28, 1);
@@ -1092,7 +1092,7 @@ onMounted(async () => {
 .gate__hint code, .rail__note code, .form__note code, .field__hint code {
   background: var(--s-surface);
   border: 1px solid var(--s-line);
-  border-radius: 5px;
+  border-radius:0 0;
   color: var(--s-sub);
   font-family: ui-monospace, Consolas, 'SFMono-Regular', monospace;
   font-size: 11.5px;
@@ -1104,7 +1104,7 @@ onMounted(async () => {
 .shell {
   background: var(--s-panel);
   border: 1px solid var(--s-line-strong);
-  border-radius: 16px;
+  border-radius:0 0;
   box-shadow: var(--s-card-shadow);
   display: grid;
   grid-template-columns: 236px minmax(0, 1fr);
@@ -1180,7 +1180,7 @@ onMounted(async () => {
   align-items: center;
   background: none;
   border: 0;
-  border-radius: 9px;
+  border-radius:0 0;
   cursor: pointer;
   display: flex;
   font: inherit;
@@ -1199,7 +1199,7 @@ onMounted(async () => {
   align-items: center;
   background: var(--s-panel);
   border: 1px solid var(--s-line-strong);
-  border-radius: 50%;
+  border-radius:0 0;
   color: var(--s-mute);
   display: flex;
   flex: 0 0 22px;
@@ -1340,7 +1340,7 @@ onMounted(async () => {
 .database-form__grid {
   background: var(--s-inset);
   border: 1px solid var(--s-line);
-  border-radius: 12px;
+  border-radius:0 0;
   display: grid;
   gap: 16px 14px;
   grid-template-columns: minmax(0, 1.45fr) minmax(0, .8fr);
@@ -1354,7 +1354,7 @@ onMounted(async () => {
 .database-form__note {
   background: var(--s-surface);
   border: 1px solid var(--s-line);
-  border-radius: 9px;
+  border-radius:0 0;
   color: var(--s-sub);
   font-size: 12px;
   line-height: 1.7;
@@ -1365,7 +1365,7 @@ onMounted(async () => {
 .form__note {
   background: var(--s-surface);
   border: 1px solid var(--s-line);
-  border-radius: 9px;
+  border-radius:0 0;
   color: var(--s-sub);
   font-size: 12.5px;
   line-height: 1.75;
@@ -1405,7 +1405,7 @@ onMounted(async () => {
   box-sizing: border-box;
   background: var(--s-panel);
   border: 1px solid var(--s-line-strong);
-  border-radius: 9px;
+  border-radius:0 0;
   color: var(--s-text);
   font-size: 13.5px;
   height: 42px;
@@ -1455,7 +1455,7 @@ onMounted(async () => {
 /* ====== 按钮 ====== */
 .btn {
   border: 1px solid transparent;
-  border-radius: 9px;
+  border-radius:0 0;
   cursor: pointer;
   font: inherit;
   font-size: 13.5px;
@@ -1500,7 +1500,7 @@ onMounted(async () => {
 
 /* ====== 提示条 ====== */
 .alert {
-  border-radius: 9px;
+  border-radius:0 0;
   font-size: 12.5px;
   line-height: 1.7;
   margin: 16px 0 0;
@@ -1530,7 +1530,7 @@ onMounted(async () => {
   margin: 0;
   background: var(--s-line);
   border: 1px solid var(--s-line);
-  border-radius: 9px;
+  border-radius:0 0;
   overflow: hidden;
 }
 
@@ -1564,7 +1564,7 @@ onMounted(async () => {
 .chip {
   background: var(--s-ok-bg);
   border: 1px solid rgb(5 150 105 / 22%);
-  border-radius: 4px;
+  border-radius:0 0;
   color: var(--success-text);
   font-size: 11px;
   padding: 2px 8px;

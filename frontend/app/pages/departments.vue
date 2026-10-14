@@ -322,7 +322,7 @@ onMounted(loadDepartments);
 .card {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius:0 0;
 }
 
 .card__head {
@@ -357,7 +357,7 @@ onMounted(loadDepartments);
 .button {
   align-items: center;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius:0 0;
   cursor: pointer;
   display: inline-flex;
   font: inherit;
@@ -464,7 +464,7 @@ onMounted(loadDepartments);
 
 .tag {
   align-items: center;
-  border-radius: 4px;
+  border-radius:0 0;
   display: inline-flex;
   font-size: 12px;
   gap: 4px;
@@ -474,7 +474,7 @@ onMounted(loadDepartments);
 
 .tag::before {
   background: currentColor;
-  border-radius: 50%;
+  border-radius:0 0;
   content: "";
   height: 5px;
   width: 5px;
@@ -507,7 +507,7 @@ onMounted(loadDepartments);
   align-items: center;
   background: transparent;
   border: 0;
-  border-radius: 5px;
+  border-radius:0 0;
   color: var(--text-mute);
   cursor: pointer;
   display: inline-flex;
@@ -538,7 +538,7 @@ onMounted(loadDepartments);
 :deep(.tree-row) {
   align-items: center;
   background: transparent;
-  border-radius: 6px;
+  border-radius:0 0;
   display: flex;
   gap: 6px;
   min-height: 34px;
@@ -594,7 +594,7 @@ onMounted(loadDepartments);
 
 :deep(.tag) {
   align-items: center;
-  border-radius: 4px;
+  border-radius:0 0;
   display: inline-flex;
   font-size: 12px;
   gap: 4px;
@@ -604,7 +604,7 @@ onMounted(loadDepartments);
 
 :deep(.tag::before) {
   background: currentColor;
-  border-radius: 50%;
+  border-radius:0 0;
   content: "";
   height: 5px;
   width: 5px;
@@ -630,7 +630,7 @@ onMounted(loadDepartments);
   align-items: center;
   background: transparent;
   border: 0;
-  border-radius: 5px;
+  border-radius:0 0;
   color: var(--text-mute);
   cursor: pointer;
   display: inline-flex;
@@ -668,7 +668,7 @@ onMounted(loadDepartments);
 .modal {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius:0 0;
   box-shadow: 0 16px 48px rgb(0 0 0 / 20%);
   max-width: 620px;
   width: 100%;
@@ -729,7 +729,7 @@ onMounted(loadDepartments);
 .input, .select {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius:0 0;
   box-sizing: border-box;
   color: var(--text);
   font: inherit;

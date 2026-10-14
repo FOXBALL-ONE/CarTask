@@ -619,7 +619,7 @@ useScopeRefresh(initialize);
 .panel {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius:0 0;
   min-width: 0;
 }
 
@@ -647,7 +647,7 @@ useScopeRefresh(initialize);
 
 .panel__count {
   background: var(--bg);
-  border-radius: 999px;
+  border-radius:0 0;
   color: var(--text-mute);
   font-size: 11px;
   margin-left: auto;
@@ -686,7 +686,7 @@ useScopeRefresh(initialize);
 
 .department-tree::-webkit-scrollbar-thumb {
   background: var(--border-strong);
-  border-radius: 3px;
+  border-radius:0 0;
 }
 
 .department-tree::-webkit-scrollbar-track {
@@ -716,7 +716,7 @@ useScopeRefresh(initialize);
 .input, .select {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius:0 0;
   box-sizing: border-box;
   color: var(--text);
   font: inherit;
@@ -741,7 +741,7 @@ useScopeRefresh(initialize);
 .button {
   align-items: center;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius:0 0;
   cursor: pointer;
   display: inline-flex;
   font: inherit;
@@ -835,7 +835,7 @@ useScopeRefresh(initialize);
 
 .role-tag {
   background: var(--primary-soft);
-  border-radius: 4px;
+  border-radius:0 0;
   color: var(--primary);
   display: inline-flex;
   font-size: 12px;
@@ -845,7 +845,7 @@ useScopeRefresh(initialize);
 .status-switch {
   background: var(--neutral-strong);
   border: 0;
-  border-radius: 18px;
+  border-radius:0 0;
   cursor: pointer;
   height: 18px;
   padding: 2px;
@@ -855,7 +855,7 @@ useScopeRefresh(initialize);
 
 .status-switch span {
   background: var(--card);
-  border-radius: 50%;
+  border-radius:0 0;
   display: block;
   height: 14px;
   transition: transform var(--tr);
@@ -874,7 +874,7 @@ useScopeRefresh(initialize);
   align-items: center;
   background: transparent;
   border: 0;
-  border-radius: 5px;
+  border-radius:0 0;
   color: var(--text-mute);
   cursor: pointer;
   display: inline-flex;
@@ -920,7 +920,7 @@ useScopeRefresh(initialize);
   align-items: center;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 5px;
+  border-radius:0 0;
   color: var(--text-sub);
   cursor: pointer;
   display: inline-flex;
@@ -972,7 +972,7 @@ useScopeRefresh(initialize);
 
 .modal {
   background: var(--card);
-  border-radius: 8px;
+  border-radius:0 0;
   box-shadow: 0 16px 48px rgb(0 0 0 / 20%);
   max-width: 620px;
   width: 100%;
@@ -1114,7 +1114,7 @@ useScopeRefresh(initialize);
   background-position: 17px 0;
   background-repeat: no-repeat;
   background-size: calc(var(--dept-level, 0) * 16px) 100%;
-  border-radius: 6px;
+  border-radius:0 0;
   display: flex;
   margin: 0 8px;
   min-height: 34px;
@@ -1133,7 +1133,7 @@ useScopeRefresh(initialize);
   align-items: center;
   background: transparent;
   border: 0;
-  border-radius: 4px;
+  border-radius:0 0;
   color: var(--text-mute);
   cursor: pointer;
   display: flex;
@@ -1198,7 +1198,7 @@ useScopeRefresh(initialize);
 
 .department-panel .department-row.active::before {
   background: var(--primary);
-  border-radius: 0 2px 2px 0;
+  border-radius:0 0 2px 2px 0;
   content: "";
   height: 18px;
   left: 0;

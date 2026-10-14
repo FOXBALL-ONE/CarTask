@@ -806,7 +806,7 @@ useScopeRefresh(loadRequests);
 .card {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius:0 0;
   overflow: hidden;
 }
 
@@ -831,7 +831,7 @@ useScopeRefresh(loadRequests);
 .input, .select {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius:0 0;
   box-sizing: border-box;
   color: var(--text);
   font: inherit;
@@ -849,7 +849,7 @@ useScopeRefresh(loadRequests);
 .button {
   align-items: center;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius:0 0;
   cursor: pointer;
   display: inline-flex;
   font: inherit;
@@ -898,7 +898,7 @@ useScopeRefresh(loadRequests);
 .notice {
   background: var(--success-soft);
   border: 1px solid var(--success);
-  border-radius: 6px;
+  border-radius:0 0;
   color: var(--success);
   font-size: 13px;
   margin: 0 0 14px;
@@ -966,7 +966,7 @@ useScopeRefresh(loadRequests);
 
 .tag {
   align-items: center;
-  border-radius: 4px;
+  border-radius:0 0;
   display: inline-flex;
   font-size: 12px;
   gap: 4px;
@@ -976,7 +976,7 @@ useScopeRefresh(loadRequests);
 
 .tag::before {
   background: currentColor;
-  border-radius: 50%;
+  border-radius:0 0;
   content: "";
   height: 5px;
   width: 5px;
@@ -1011,7 +1011,7 @@ useScopeRefresh(loadRequests);
   align-items: center;
   background: transparent;
   border: 0;
-  border-radius: 5px;
+  border-radius:0 0;
   color: var(--text-mute);
   cursor: pointer;
   display: inline-flex;
@@ -1058,7 +1058,7 @@ useScopeRefresh(loadRequests);
   align-items: center;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 5px;
+  border-radius:0 0;
   color: var(--text-sub);
   cursor: pointer;
   display: inline-flex;
@@ -1094,7 +1094,7 @@ useScopeRefresh(loadRequests);
 
 .modal {
   background: var(--card);
-  border-radius: 8px;
+  border-radius:0 0;
   box-shadow: 0 16px 48px rgb(0 0 0 / 20%);
   max-width: 720px;
   width: 100%;
@@ -1136,7 +1136,7 @@ useScopeRefresh(loadRequests);
   align-items: center;
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius:0 0;
   cursor: pointer;
   display: flex;
   font-size: 13px;
