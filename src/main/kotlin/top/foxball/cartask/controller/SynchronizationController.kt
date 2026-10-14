@@ -172,7 +172,7 @@ class SynchronizationController(
             @param:JsonProperty("executed_at") val executedAt: LocalDateTime,
         )
 
-        val result = synCarCapInfoTask.backfillCarCapInfoList()
+        val result = synCarCapInfoTask.backfill()
         val rs = Response(
             processedCount = result.processedCount,
             localPhotoCount = result.localPhotoCount,
