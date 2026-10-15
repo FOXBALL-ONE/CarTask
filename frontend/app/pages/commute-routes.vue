@@ -73,9 +73,9 @@
                 v-if="route.remark"
                 role="alert"
                 class="van-notice-bar"
-                style="color: rgb(25, 137, 250); background: rgb(236, 249, 255);"
+                style="color: rgb(237, 106, 12); background: rgb(255, 251, 232);"
               >
-                <i class="van-icon van-icon-info-o van-notice-bar__left-icon"><!-- --></i>
+                <i class="van-icon van-icon-volume-o van-notice-bar__left-icon"><!-- --></i>
                 <div role="marquee" class="van-notice-bar__wrap">
                   <div class="van-notice-bar__content"> {{ route.remark }} </div>
                 </div>
@@ -522,6 +522,10 @@ onMounted(() => {
 
 .van-icon-info-o:before {
   content: "\e6d1";
+}
+
+.van-icon-volume-o:before {
+  content: "\e73c";
 }
 
 .van-icon-checked:before {
