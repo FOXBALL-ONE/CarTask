@@ -99,11 +99,11 @@
                   <div
                       v-for="(departure, idx) in getDepartures(route)"
                       :key="`${departure.time}-${idx}`"
-                      :class="{ 'van-step--process': !isDeparturePassed(departure.time) }"
+                      :class="{ 'van-step--process': isDeparturePassed(departure.time) }"
                       class="van-hairline van-step van-step--vertical"
                   >
                     <div
-                        :class="{ 'van-step__title--active': !isDeparturePassed(departure.time) }"
+                        :class="{ 'van-step__title--active': isDeparturePassed(departure.time) }"
                         class="van-step__title"
                     >
                       <h3>{{ formatDepartureName(departure, route) }}</h3>
@@ -111,7 +111,7 @@
                     </div>
                     <div class="van-step__circle-container">
                       <i
-                          v-if="!isDeparturePassed(departure.time)"
+                          v-if="isDeparturePassed(departure.time)"
                           class="fa-solid fa-check van-step__icon van-step__icon--active"
                       ></i>
                       <i v-else class="van-step__circle"></i>
@@ -618,7 +618,7 @@ onMounted(() => {
   width: 5px;
   height: 5px;
   background-color: #969799;
-  border-radius: 0 0;
+  border-radius: 50%;
 }
 
 .van-step--vertical .van-step__line {
