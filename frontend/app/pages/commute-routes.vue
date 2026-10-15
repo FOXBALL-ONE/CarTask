@@ -576,7 +576,7 @@ onMounted(() => {
 .van-step--vertical {
   display: block;
   float: none;
-  padding: 10px 10px 10px 0;
+  padding: 16px 10px 16px 0;
   line-height: 18px;
 }
 
