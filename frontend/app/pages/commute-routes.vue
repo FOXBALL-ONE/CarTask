@@ -1,4 +1,7 @@
 <template>
+  <Head>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  </Head>
   <div id="app" class="main">
     <div class="van-nav-bar__placeholder" style="height: 46px;">
       <div class="van-nav-bar van-nav-bar--fixed van-hairline--bottom">
@@ -11,8 +14,8 @@
     <div v-if="loading" class="loading-container">
       <div class="van-loading">
         <span class="van-loading__spinner van-loading__spinner--circular">
-          <svg viewBox="25 25 50 50" class="van-loading__circular">
-            <circle cx="50" cy="50" r="20" fill="none"></circle>
+          <svg class="van-loading__circular" viewBox="25 25 50 50">
+            <circle cx="50" cy="50" fill="none" r="20"></circle>
           </svg>
         </span>
         <span class="van-loading__text">正在同步发车时间...</span>
@@ -22,7 +25,14 @@
     <div v-else-if="errorMessage" class="error-container">
       <div class="van-empty">
         <div class="van-empty__image">
-          <svg viewBox="0 0 160 160"><path d="M80 0C35.8 0 0 35.8 0 80s35.8 80 80 80 80-35.8 80-80S124.2 0 80 0zm0 140c-33.1 0-60-26.9-60-60s26.9-60 60-60 60 26.9 60 60-26.9 60-60 60z" fill="#DCDEE0"/><path d="M57.1 47.1L80 70l22.9-22.9c1.6-1.6 4.1-1.6 5.7 0s1.6 4.1 0 5.7L85.7 75.7l22.9 22.9c1.6 1.6 1.6 4.1 0 5.7-.8.8-1.8 1.2-2.8 1.2s-2.1-.4-2.8-1.2L80 81.4 57.1 104.3c-.8.8-1.8 1.2-2.8 1.2s-2.1-.4-2.8-1.2c-1.6-1.6-1.6-4.1 0-5.7l22.9-22.9-22.9-22.9c-1.6-1.6-1.6-4.1 0-5.7s4.1-1.6 5.6 0z" fill="#969799"/></svg>
+          <svg viewBox="0 0 160 160">
+            <path
+                d="M80 0C35.8 0 0 35.8 0 80s35.8 80 80 80 80-35.8 80-80S124.2 0 80 0zm0 140c-33.1 0-60-26.9-60-60s26.9-60 60-60 60 26.9 60 60-26.9 60-60 60z"
+                fill="#DCDEE0"/>
+            <path
+                d="M57.1 47.1L80 70l22.9-22.9c1.6-1.6 4.1-1.6 5.7 0s1.6 4.1 0 5.7L85.7 75.7l22.9 22.9c1.6 1.6 1.6 4.1 0 5.7-.8.8-1.8 1.2-2.8 1.2s-2.1-.4-2.8-1.2L80 81.4 57.1 104.3c-.8.8-1.8 1.2-2.8 1.2s-2.1-.4-2.8-1.2c-1.6-1.6-1.6-4.1 0-5.7l22.9-22.9-22.9-22.9c-1.6-1.6-1.6-4.1 0-5.7s4.1-1.6 5.6 0z"
+                fill="#969799"/>
+          </svg>
         </div>
         <p class="van-empty__description">加载失败</p>
       </div>
@@ -37,7 +47,11 @@
     <div v-else-if="routes.length === 0" class="empty-container">
       <div class="van-empty">
         <div class="van-empty__image">
-          <svg viewBox="0 0 160 160"><path d="M80 0C35.8 0 0 35.8 0 80s35.8 80 80 80 80-35.8 80-80S124.2 0 80 0zm0 140c-33.1 0-60-26.9-60-60s26.9-60 60-60 60 26.9 60 60-26.9 60-60 60z" fill="#DCDEE0"/></svg>
+          <svg viewBox="0 0 160 160">
+            <path
+                d="M80 0C35.8 0 0 35.8 0 80s35.8 80 80 80 80-35.8 80-80S124.2 0 80 0zm0 140c-33.1 0-60-26.9-60-60s26.9-60 60-60 60 26.9 60 60-26.9 60-60 60z"
+                fill="#DCDEE0"/>
+          </svg>
         </div>
         <p class="van-empty__description">暂未发布发车线路</p>
       </div>
@@ -45,61 +59,61 @@
 
     <div v-else class="van-collapse van-hairline--top-bottom">
       <div
-        v-for="route in routes"
-        :key="route.id"
-        class="van-collapse-item"
-        :class="{ 'van-collapse-item--border': !isExpanded(route.id) }"
+          v-for="route in routes"
+          :key="route.id"
+          :class="{ 'van-collapse-item--border': !isExpanded(route.id) }"
+          class="van-collapse-item"
       >
         <div
-          role="button"
-          tabindex="0"
-          :aria-expanded="isExpanded(route.id)"
-          class="van-cell van-cell--clickable van-collapse-item__title"
-          :class="{ 'van-collapse-item__title--expanded': isExpanded(route.id) }"
-          @click="toggleRoute(route.id)"
+            :aria-expanded="isExpanded(route.id)"
+            :class="{ 'van-collapse-item__title--expanded': isExpanded(route.id) }"
+            class="van-cell van-cell--clickable van-collapse-item__title"
+            role="button"
+            tabindex="0"
+            @click="toggleRoute(route.id)"
         >
           <div class="van-cell__title">
             <span>{{ route.route_name }}</span>
           </div>
-          <i class="van-icon van-icon-arrow van-cell__right-icon"><!-- --></i>
+          <i class="fa-solid fa-chevron-right van-cell__right-icon"></i>
         </div>
         <div
-          class="van-collapse-item__wrapper"
-          :style="getWrapperStyle(route.id)"
+            :style="getWrapperStyle(route.id)"
+            class="van-collapse-item__wrapper"
         >
           <div class="van-collapse-item__content">
             <div style="padding: 0px;">
               <div
-                v-if="route.remark"
-                role="alert"
-                class="van-notice-bar"
-                style="color: rgb(25, 137, 250); background: rgb(236, 249, 255);"
+                  v-if="route.remark"
+                  class="van-notice-bar"
+                  role="alert"
+                  style="color: rgb(25, 137, 250); background: rgb(236, 249, 255);"
               >
-                <i class="van-icon van-icon-info-o van-notice-bar__left-icon"><!-- --></i>
-                <div role="marquee" class="van-notice-bar__wrap">
-                  <div class="van-notice-bar__content"> {{ route.remark }} </div>
+                <i class="fa-solid fa-circle-info van-notice-bar__left-icon"></i>
+                <div class="van-notice-bar__wrap" role="marquee">
+                  <div class="van-notice-bar__content"> {{ route.remark }}</div>
                 </div>
               </div>
               <div class="van-steps van-steps--vertical">
                 <div class="van-steps__items">
                   <div
-                    v-for="(departure, idx) in getDepartures(route)"
-                    :key="`${departure.time}-${idx}`"
-                    class="van-hairline van-step van-step--vertical"
-                    :class="{ 'van-step--process': !isDeparturePassed(departure.time) }"
+                      v-for="(departure, idx) in getDepartures(route)"
+                      :key="`${departure.time}-${idx}`"
+                      :class="{ 'van-step--process': !isDeparturePassed(departure.time) }"
+                      class="van-hairline van-step van-step--vertical"
                   >
                     <div
-                      class="van-step__title"
-                      :class="{ 'van-step__title--active': !isDeparturePassed(departure.time) }"
+                        :class="{ 'van-step__title--active': !isDeparturePassed(departure.time) }"
+                        class="van-step__title"
                     >
                       <h3>{{ formatDepartureName(departure, route) }}</h3>
                       <p>{{ departure.time }}</p>
                     </div>
                     <div class="van-step__circle-container">
                       <i
-                        v-if="!isDeparturePassed(departure.time)"
-                        class="van-icon van-icon-checked van-step__icon van-step__icon--active"
-                      ><!-- --></i>
+                          v-if="!isDeparturePassed(departure.time)"
+                          class="fa-solid fa-check van-step__icon van-step__icon--active"
+                      ></i>
                       <i v-else class="van-step__circle"></i>
                     </div>
                     <div class="van-step__line"></div>
@@ -178,8 +192,8 @@ function toggleRoute(routeId: number) {
 
 function getWrapperStyle(routeId: number): Record<string, string> {
   return isExpanded(routeId)
-    ? { display: '', height: 'auto' }
-    : { display: 'none', height: '0px' };
+      ? {display: '', height: 'auto'}
+      : {display: 'none', height: '0px'};
 }
 
 function isDeparturePassed(time: string): boolean {
@@ -390,7 +404,7 @@ onMounted(() => {
   font-size: 16px;
   line-height: 1.2;
   text-align: center;
-  border-radius:0 0;
+  border-radius: 0 0;
   cursor: pointer;
   transition: opacity 0.2s;
   appearance: none;
@@ -422,7 +436,7 @@ onMounted(() => {
   background-color: #000;
   border: inherit;
   border-color: #000;
-  border-radius:0 0;
+  border-radius: 0 0;
   transform: translate(-50%, -50%);
   opacity: 0;
   content: " ";
@@ -495,43 +509,6 @@ onMounted(() => {
 
 .van-collapse-item__title--expanded .van-cell__right-icon {
   transform: rotate(90deg);
-}
-
-.van-icon {
-  position: relative;
-  font: normal normal normal 14px/1 vant-icon;
-  font-size: inherit;
-  text-rendering: auto;
-  -webkit-font-smoothing: antialiased;
-  display: inline-block;
-}
-
-.van-icon:before {
-  display: inline-block;
-}
-
-.van-icon-arrow:before {
-  content: "\e660";
-}
-
-.van-icon-info-o:before {
-  content: "\e6d1";
-}
-
-.van-icon-volume-o:before {
-  content: "\e73c";
-}
-
-.van-icon-checked:before {
-  content: "\e68d";
-}
-
-@font-face {
-  font-weight: 400;
-  font-family: vant-icon;
-  font-style: normal;
-  font-display: auto;
-  src: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E") format("woff2");
 }
 
 .van-collapse-item__wrapper {
@@ -641,7 +618,7 @@ onMounted(() => {
   width: 5px;
   height: 5px;
   background-color: #969799;
-  border-radius:0 0;
+  border-radius: 0 0;
 }
 
 .van-step--vertical .van-step__line {
