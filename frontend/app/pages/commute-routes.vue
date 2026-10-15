@@ -86,19 +86,25 @@
                     v-for="(departure, idx) in getDepartures(route)"
                     :key="`${departure.time}-${idx}`"
                     class="van-hairline van-step van-step--vertical"
-                    :class="{ 'van-step--process': idx === 0 }"
+                    :class="{
+                      'van-step--process': !isDeparturePassed(departure.time),
+                      'van-step--finish': isDeparturePassed(departure.time)
+                    }"
                   >
                     <div
                       class="van-step__title"
-                      :class="{ 'van-step__title--active': idx === 0 }"
+                      :class="{
+                        'van-step__title--active': !isDeparturePassed(departure.time),
+                        'van-step__title--finish': isDeparturePassed(departure.time)
+                      }"
                     >
                       <h3>{{ formatDepartureName(departure, route) }}</h3>
                       <p>{{ departure.time }}</p>
                     </div>
                     <div class="van-step__circle-container">
                       <i
-                        v-if="idx === 0"
-                        class="van-icon van-icon-checked van-step__icon van-step__icon--active"
+                        v-if="isDeparturePassed(departure.time)"
+                        class="van-icon van-icon-checked van-step__icon van-step__icon--finish"
                       ><!-- --></i>
                       <i v-else class="van-step__circle"></i>
                     </div>
@@ -141,6 +147,7 @@ const routes = ref<CommuteRoute[]>([]);
 const loading = ref(true);
 const errorMessage = ref("");
 const expandedRoutes = ref<Set<number>>(new Set());
+const currentTime = ref<string>('');
 
 function getDepartures(route: CommuteRoute): Departure[] {
   const departures = route.departures?.length ? route.departures : (route.route_stops || []).map((stop) => ({time: stop.time}));
@@ -181,6 +188,16 @@ function getWrapperStyle(routeId: number): Record<string, string> {
     : { display: 'none', height: '0px' };
 }
 
+function isDeparturePassed(time: string): boolean {
+  if (!currentTime.value) return false;
+  return time < currentTime.value;
+}
+
+function updateCurrentTime() {
+  const now = new Date();
+  currentTime.value = now.toTimeString().slice(0, 5);
+}
+
 async function load() {
   loading.value = true;
   errorMessage.value = "";
@@ -195,7 +212,11 @@ async function load() {
 }
 
 useHead({title: "查询线路"});
-onMounted(load);
+onMounted(() => {
+  load();
+  updateCurrentTime();
+  setInterval(updateCurrentTime, 60000);
+});
 </script>
 
 <style scoped>
@@ -642,20 +663,21 @@ onMounted(load);
   width: 0;
 }
 
-.van-step--process {
+.van-step--finish {
   color: #323233;
 }
 
-.van-step__title--active {
+.van-step--finish .van-step__circle,
+.van-step--finish .van-step__line {
+  background-color: #07c160;
+}
+
+.van-step__title--finish {
   color: #07c160;
 }
 
-.van-step__icon {
-  display: block;
-  font-size: 12px;
-}
-
-.van-step__icon--active {
+.van-step__icon--finish {
   color: #07c160;
 }
+
 </style>
