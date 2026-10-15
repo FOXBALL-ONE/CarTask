@@ -73,9 +73,9 @@
                 v-if="route.remark"
                 role="alert"
                 class="van-notice-bar"
-                style="color: rgb(237, 106, 12); background: rgb(255, 251, 232);"
+                style="color: rgb(25, 137, 250); background: rgb(236, 249, 255);"
               >
-                <i class="van-icon van-icon-volume-o van-notice-bar__left-icon"><!-- --></i>
+                <i class="van-icon van-icon-info-o van-notice-bar__left-icon"><!-- --></i>
                 <div role="marquee" class="van-notice-bar__wrap">
                   <div class="van-notice-bar__content"> {{ route.remark }} </div>
                 </div>
@@ -86,25 +86,19 @@
                     v-for="(departure, idx) in getDepartures(route)"
                     :key="`${departure.time}-${idx}`"
                     class="van-hairline van-step van-step--vertical"
-                    :class="{
-                      'van-step--process': !isDeparturePassed(departure.time),
-                      'van-step--finish': isDeparturePassed(departure.time)
-                    }"
+                    :class="{ 'van-step--process': !isDeparturePassed(departure.time) }"
                   >
                     <div
                       class="van-step__title"
-                      :class="{
-                        'van-step__title--active': !isDeparturePassed(departure.time),
-                        'van-step__title--finish': isDeparturePassed(departure.time)
-                      }"
+                      :class="{ 'van-step__title--active': !isDeparturePassed(departure.time) }"
                     >
                       <h3>{{ formatDepartureName(departure, route) }}</h3>
                       <p>{{ departure.time }}</p>
                     </div>
                     <div class="van-step__circle-container">
                       <i
-                        v-if="isDeparturePassed(departure.time)"
-                        class="van-icon van-icon-checked van-step__icon van-step__icon--finish"
+                        v-if="!isDeparturePassed(departure.time)"
+                        class="van-icon van-icon-checked van-step__icon van-step__icon--active"
                       ><!-- --></i>
                       <i v-else class="van-step__circle"></i>
                     </div>
@@ -667,20 +661,20 @@ onMounted(() => {
   width: 0;
 }
 
-.van-step--finish {
+.van-step--process {
   color: #323233;
 }
 
-.van-step--finish .van-step__circle,
-.van-step--finish .van-step__line {
-  background-color: #07c160;
-}
-
-.van-step__title--finish {
+.van-step__title--active {
   color: #07c160;
 }
 
-.van-step__icon--finish {
+.van-step__icon {
+  display: block;
+  font-size: 12px;
+}
+
+.van-step__icon--active {
   color: #07c160;
 }
 
