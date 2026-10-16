@@ -73,6 +73,11 @@
             class="material-icons-outlined">error_outline</span>{{ recordError }}
           <button type="button" @click="loadRecords">重新加载</button>
         </div>
+        <div v-else-if="records.length === 0" class="empty-state-container">
+          <div class="empty-state"><span
+              class="material-icons-outlined">task_alt</span><strong>没有匹配的违规记录</strong><span>调整筛选条件，或新增一条违规记录</span>
+          </div>
+        </div>
         <div v-else class="table-wrap">
           <table class="table records-table">
             <thead>
@@ -122,15 +127,62 @@
                 </button>
               </td>
             </tr>
-            <tr v-if="records.length === 0">
-              <td colspan="8">
-                <div class="empty-state"><span
-                    class="material-icons-outlined">task_alt</span><strong>没有匹配的违规记录</strong><span>调整筛选条件，或新增一条违规记录</span>
-                </div>
-              </td>
-            </tr>
             </tbody>
           </table>
+        </div>
+        <div v-if="!recordLoading && !recordError && records.length" class="mobile-card-list">
+          <article v-for="record in records" :key="`mobile-${record.id}`"
+                   :class="{ 'mobile-card--selected': selectedIds.includes(record.id) }"
+                   class="mobile-card">
+            <header class="mobile-card__head">
+              <label class="mobile-card__check">
+                <input v-model="selectedIds" :value="record.id" type="checkbox">
+              </label>
+              <button class="mobile-card__vehicle" type="button" @click="openDetails(record)">
+                <span class="vehicle-icon"><span class="material-icons-outlined">directions_car</span></span>
+                <div>
+                  <strong>{{ record.subject_number }}</strong>
+                  <small>{{ record.subject_name || '未登记车主' }}</small>
+                </div>
+              </button>
+              <span :class="scoreClass(record.score)" class="score-chip">+{{ record.score }}</span>
+            </header>
+            <div class="mobile-card__body">
+              <div class="mobile-card__row">
+                <span class="mobile-card__label">违规事项</span>
+                <strong>{{ record.type_name }}</strong>
+              </div>
+              <div v-if="record.description" class="mobile-card__row">
+                <span class="mobile-card__label">说明</span>
+                <span class="mobile-card__text">{{ record.description }}</span>
+              </div>
+              <div class="mobile-card__row">
+                <span class="mobile-card__label">发生地点</span>
+                <span class="mobile-card__text">{{ record.location || '未记录' }}</span>
+              </div>
+              <div class="mobile-card__row">
+                <span class="mobile-card__label">违规时间</span>
+                <span class="mobile-card__time">{{ formatDateTime(record.violation_time) }}</span>
+              </div>
+              <div class="mobile-card__row">
+                <span class="mobile-card__label">处理状态</span>
+                <span :class="statusMeta(record.status).className" class="status-tag"><i/>{{ statusMeta(record.status).label }}</span>
+              </div>
+            </div>
+            <footer class="mobile-card__actions">
+              <button class="button button--ghost" type="button" @click="openDetails(record)">
+                <span class="material-icons-outlined">visibility</span>详情
+              </button>
+              <button v-if="record.status === 'PENDING'" class="button button--soft" type="button"
+                      @click="openHandling(record)">
+                <span class="material-icons-outlined">fact_check</span>处理
+              </button>
+              <button v-if="can('violation:manage')" class="button button--danger-soft" type="button"
+                      @click="removeRecord(record)">
+                <span class="material-icons-outlined">delete_outline</span>删除
+              </button>
+            </footer>
+          </article>
         </div>
         <footer v-if="!recordLoading && !recordError" class="pagination">
           <span class="pagination__info">共 {{ recordTotal }} 条，当前第 {{ recordPage }} / {{
@@ -229,6 +281,11 @@
             class="material-icons-outlined">error_outline</span>{{ penaltyError }}
           <button type="button" @click="loadPenalties">重新加载</button>
         </div>
+        <div v-else-if="penalties.length === 0" class="empty-state-container">
+          <div class="empty-state"><span
+              class="material-icons-outlined">no_crash</span><strong>没有匹配的处罚记录</strong><span>暂无符合条件的处罚车辆</span>
+          </div>
+        </div>
         <div v-else class="table-wrap">
           <table class="table penalty-table">
             <thead>
@@ -271,6 +328,46 @@
 
             </tbody>
           </table>
+        </div>
+        <div v-if="!penaltyLoading && !penaltyError && penalties.length" class="mobile-card-list">
+          <article v-for="penalty in penalties" :key="`mobile-penalty-${penalty.subject_id}`" class="mobile-card mobile-card--penalty">
+            <header class="mobile-card__head">
+              <div class="mobile-card__vehicle mobile-card__vehicle--static">
+                <span class="vehicle-icon vehicle-icon--danger"><span class="material-icons-outlined">directions_car</span></span>
+                <div>
+                  <strong>{{ penalty.subject_number }}</strong>
+                  <small>{{ penalty.subject_name }}</small>
+                </div>
+              </div>
+              <span :class="penaltyStatusMeta(penalty.status).className" class="status-tag"><i/>{{ penaltyStatusMeta(penalty.status).label }}</span>
+            </header>
+            <div class="mobile-card__body">
+              <div class="mobile-card__row mobile-card__row--score">
+                <span class="mobile-card__label">累计分值</span>
+                <div class="score-progress">
+                  <div><strong>{{ penalty.total_score }}</strong><span>/ {{ setting.score_threshold }} 分</span></div>
+                  <span class="score-progress__track"><i
+                      :style="{ width: `${Math.min(100, penalty.total_score / setting.score_threshold * 100)}%` }"/></span>
+                </div>
+              </div>
+              <div class="mobile-card__row">
+                <span class="mobile-card__label">处罚开始</span>
+                <span class="mobile-card__time">{{ formatDateTime(penalty.punishment_at) }}</span>
+              </div>
+              <div class="mobile-card__row">
+                <span class="mobile-card__label">预计到期</span>
+                <span class="mobile-card__time">{{ formatDateTime(penalty.expires_at) }}</span>
+              </div>
+            </div>
+            <footer v-if="penalty.status !== 'RELEASED'" class="mobile-card__actions">
+              <button class="button button--release" type="button" @click="openRelease(penalty)">
+                <span class="material-icons-outlined">lock_open</span>解除处罚
+              </button>
+            </footer>
+            <footer v-else class="mobile-card__actions mobile-card__actions--released">
+              <span class="released-text">已解除</span>
+            </footer>
+          </article>
         </div>
         <footer v-if="!penaltyLoading && !penaltyError" class="pagination"><span
             class="pagination__info">共 {{ penaltyTotal }} 条</span>
@@ -2603,10 +2700,15 @@ onMounted(() => {
   }
 
   .filters {
-    align-items: stretch
+    align-items: stretch;
+    flex-direction: column
   }
 
   .search-input {
+    width: 100%
+  }
+
+  .control, .date-control, .score-filter {
     width: 100%
   }
 
@@ -2640,6 +2742,23 @@ onMounted(() => {
   .field--wide {
     grid-column: auto
   }
+
+  .table-wrap {
+    display: none
+  }
+
+  .mobile-card-list {
+    display: grid
+  }
+
+  .drawer {
+    width: 100%;
+    max-width: 440px
+  }
+
+  .modal {
+    width: calc(100vw - 32px)
+  }
 }
 
 @media (max-width: 560px) {
@@ -2661,7 +2780,8 @@ onMounted(() => {
   }
 
   .drawer {
-    width: 100%
+    width: 100%;
+    max-width: 100%
   }
 
   .modal-mask {
@@ -2679,6 +2799,180 @@ onMounted(() => {
   .penalty-notice__count {
     display: none
   }
+
+  .mobile-card__actions {
+    flex-direction: column;
+    align-items: stretch
+  }
+
+  .mobile-card__actions .button {
+    justify-content: center
+  }
+}
+
+.empty-state-container {
+  min-height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center
+}
+
+.mobile-card-list {
+  display: none;
+  gap: 12px;
+  padding: 16px
+}
+
+.mobile-card {
+  background: var(--card);
+  border: 1px solid var(--border-strong);
+  border-radius:0 0;
+  overflow: hidden;
+  transition: box-shadow .2s ease
+}
+
+.mobile-card--selected {
+  background: color-mix(in srgb, var(--primary-soft) 58%, var(--card));
+  border-color: var(--primary)
+}
+
+.mobile-card__head {
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 10px;
+  padding: 12px 14px
+}
+
+.mobile-card__check {
+  cursor: pointer;
+  display: flex;
+  flex-shrink: 0
+}
+
+.mobile-card__check input {
+  accent-color: var(--primary);
+  cursor: pointer;
+  height: 18px;
+  width: 18px
+}
+
+.mobile-card__vehicle {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  flex: 1;
+  font: inherit;
+  gap: 10px;
+  min-width: 0;
+  padding: 0;
+  text-align: left
+}
+
+.mobile-card__vehicle--static {
+  cursor: default
+}
+
+.mobile-card__vehicle > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0
+}
+
+.mobile-card__vehicle strong {
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: .02em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap
+}
+
+.mobile-card__vehicle small {
+  color: var(--text-mute);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap
+}
+
+.mobile-card__body {
+  display: grid;
+  gap: 10px;
+  padding: 14px
+}
+
+.mobile-card__row {
+  align-items: flex-start;
+  display: grid;
+  gap: 5px;
+  grid-template-columns:90px 1fr
+}
+
+.mobile-card__row--score {
+  grid-template-columns:90px 1fr;
+  align-items: center
+}
+
+.mobile-card__label {
+  color: var(--text-mute);
+  font-size: 11px;
+  font-weight: 550;
+  padding-top: 1px
+}
+
+.mobile-card__row strong {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600
+}
+
+.mobile-card__text {
+  color: var(--text-sub);
+  font-size: 12px;
+  line-height: 1.5;
+  word-break: break-word
+}
+
+.mobile-card__time {
+  color: var(--text-sub);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 12px
+}
+
+.mobile-card__actions {
+  align-items: center;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 14px
+}
+
+.mobile-card__actions--released {
+  justify-content: center
+}
+
+.mobile-card__actions .button {
+  font-size: 11px;
+  height: 32px;
+  padding: 0 11px
+}
+
+.mobile-card__actions .button .material-icons-outlined {
+  font-size: 15px
+}
+
+.mobile-card--penalty .mobile-card__body {
+  gap: 12px
+}
+
+.mobile-card--penalty .score-progress {
+  min-width: 0;
+  width: 100%
 }
 
 @media (prefers-reduced-motion: reduce) {
