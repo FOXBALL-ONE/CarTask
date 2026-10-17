@@ -217,15 +217,20 @@ async function loadOwners(reset: boolean) {
       page_size: pageSize,
     });
     if (requestId !== listRequestId) return;
-    owners.value = reset ? result.items || [] : [...owners.value, ...(result.items || [])];
+    const nextItems = result.items || [];
+    owners.value = reset ? nextItems : [...owners.value, ...nextItems];
     total.value = result.total || 0;
     page.value = nextPage;
+    if (nextItems.length === 0 && owners.value.length < total.value) total.value = owners.value.length;
   } catch (error) {
     if (requestId === listRequestId) errorMessage.value = (error as {statusMessage?: string}).statusMessage || "请检查网络后重试";
   } finally {
     if (requestId === listRequestId) {
       loading.value = false;
       loadingMore.value = false;
+      void nextTick(() => {
+        if (listElement.value && listElement.value.scrollHeight <= listElement.value.clientHeight + 1) onListScroll();
+      });
     }
   }
 }

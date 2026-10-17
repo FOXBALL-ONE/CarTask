@@ -99,9 +99,7 @@ class WxCarOwnerController(
         val plates = plateRepository.findAll().filter { it.ownerId == id }.sortedBy { it.id }.map {
             PlateData(it.plate, it.carBrand, it.status, it.regDate.toString(), it.inspectionValidUntil?.toString())
         }
-        val spots = spotRepository.findAll().filter {
-            it.ownerCode == owner.cardId || (it.ownerCode.isNullOrBlank() && it.owner == owner.name)
-        }.sortedBy { it.id }.map {
+        val spots = spotRepository.findAll().filter { it.ownerCode == owner.cardId }.sortedBy { it.id }.map {
             SpotData(it.code, it.area, it.type, it.status, it.remark)
         }
         val rs = Response(requireNotNull(owner.id), owner.name, owner.dept, owner.phone, owner.cardId, owner.balance.toPlainString(), owner.status, plates, spots)
