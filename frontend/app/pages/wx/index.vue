@@ -20,20 +20,34 @@
             </svg>
             <span>路线查询</span>
           </button>
-          <button class="navigation-item" type="button">
-            <svg aria-hidden="true" viewBox="0 0 32 32">
-              <path d="M20 5H7.5a2 2 0 0 0-2 2v19a2 2 0 0 0 2 2h15a2 2 0 0 0 2-2V16" />
-              <path d="M10 22h8M10 18h5" />
-              <path d="m17 13 9.4-9.4 3 3L20 16l-4 1 1-4Z" />
-            </svg>
-            <span>人员导入</span>
-          </button>
         </div>
       </section>
 
       <section aria-labelledby="promotion-title" class="home-section promotion-section">
         <h2 id="promotion-title" class="section-title">宣传栏</h2>
-        <div aria-label="宣传内容" class="promotion-panel" />
+        <div aria-label="宣传内容" class="promotion-panel">
+          <div v-if="announcementLoading" class="promotion-state" role="status">
+            <span class="promotion-spinner" />正在加载宣传通告
+          </div>
+          <div v-else-if="announcementError" class="promotion-state promotion-state--error" role="alert">
+            {{ announcementError }}
+            <button type="button" @click="loadAnnouncements">重新加载</button>
+          </div>
+          <div v-else-if="announcements.length === 0" class="promotion-state">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 6h16v12H4z" /><path d="M8 10h8M8 14h5" /></svg>
+            暂无宣传通告
+          </div>
+          <div v-else class="announcement-list">
+            <article v-for="announcement in announcements" :key="announcement.id" class="announcement-card">
+              <div class="announcement-card__meta">
+                <span class="announcement-card__mark"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 6h16v12H4z" /><path d="M8 10h8M8 14h5" /></svg></span>
+                <time>{{ formatAnnouncementDate(announcement.published_at) }}</time>
+              </div>
+              <h3>{{ announcement.title }}</h3>
+              <p>{{ announcement.content }}</p>
+            </article>
+          </div>
+        </div>
       </section>
     </main>
 
@@ -44,7 +58,7 @@
         </svg>
         <span>主页</span>
       </button>
-      <button class="bottom-nav__item" type="button">
+      <button class="bottom-nav__item" type="button" @click="navigateTo('/wx/notice')">
         <svg aria-hidden="true" viewBox="0 0 24 24">
           <path d="M5 5h14M12 5v15M7 12l5-5 5 5" />
         </svg>
@@ -69,7 +83,38 @@
 </template>
 
 <script setup lang="ts">
+interface Announcement {
+  id: number;
+  title: string;
+  content: string;
+  published_at: string;
+}
+
 definePageMeta({layout: false});
+
+const http = useHttp();
+const announcements = ref<Announcement[]>([]);
+const announcementLoading = ref(true);
+const announcementError = ref("");
+
+function formatAnnouncementDate(value: string) {
+  return value ? value.replace("T", " ").slice(0, 16) : "-";
+}
+
+async function loadAnnouncements() {
+  announcementLoading.value = true;
+  announcementError.value = "";
+  try {
+    const result = await http.get<{ items: Announcement[] }>("/announcements/public");
+    announcements.value = result.items || [];
+  } catch (error) {
+    announcementError.value = (error as { statusMessage?: string }).statusMessage || "宣传通告暂时无法获取";
+  } finally {
+    announcementLoading.value = false;
+  }
+}
+
+onMounted(loadAnnouncements);
 </script>
 
 <style scoped>
@@ -132,7 +177,7 @@ definePageMeta({layout: false});
 .navigation-grid {
   background: #fff;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   height: 88px;
 }
 
@@ -180,6 +225,126 @@ definePageMeta({layout: false});
   background: #fff;
   flex: 1 1 auto;
   min-height: 0;
+  overflow: hidden;
+  padding: 10px;
+}
+
+.promotion-state {
+  align-items: center;
+  color: #9aa4ad;
+  display: flex;
+  flex-direction: column;
+  font-size: 11px;
+  gap: 8px;
+  height: 100%;
+  justify-content: center;
+  text-align: center;
+}
+
+.promotion-state svg {
+  fill: none;
+  height: 28px;
+  stroke: #b4c1ca;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.4;
+  width: 28px;
+}
+
+.promotion-state--error {
+  color: #c95c55;
+}
+
+.promotion-state button {
+  background: #edf6ff;
+  border: 0;
+  border-radius: 6px;
+  color: #2183d4;
+  font: inherit;
+  font-size: 10px;
+  padding: 7px 12px;
+}
+
+.promotion-spinner {
+  animation: promotion-spin .9s linear infinite;
+  border: 2px solid #dfeaf4;
+  border-radius: 50%;
+  border-top-color: #278ee4;
+  height: 18px;
+  width: 18px;
+}
+
+.announcement-list {
+  display: grid;
+  gap: 8px;
+  height: 100%;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.announcement-list::-webkit-scrollbar {
+  display: none;
+}
+
+.announcement-card {
+  background: #fbfdff;
+  border: 1px solid #e8f0f5;
+  border-radius: 9px;
+  flex: 0 0 auto;
+  padding: 10px 11px;
+}
+
+.announcement-card__meta {
+  align-items: center;
+  color: #9aa5ae;
+  display: flex;
+  font-size: 9px;
+  gap: 6px;
+}
+
+.announcement-card__mark {
+  align-items: center;
+  background: #eaf5ff;
+  border-radius: 5px;
+  color: #328fd2;
+  display: inline-flex;
+  height: 22px;
+  justify-content: center;
+  width: 22px;
+}
+
+.announcement-card__mark svg {
+  fill: none;
+  height: 13px;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+  width: 13px;
+}
+
+.announcement-card h3 {
+  color: #303a42;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.45;
+  margin: 8px 0 4px;
+}
+
+.announcement-card p {
+  color: #7e8992;
+  display: -webkit-box;
+  font-size: 10px;
+  line-height: 1.6;
+  margin: 0;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  white-space: pre-wrap;
+}
+
+@keyframes promotion-spin {
+  to { transform: rotate(360deg); }
 }
 
 .bottom-nav {
@@ -229,6 +394,10 @@ definePageMeta({layout: false});
 
   .navigation-grid {
     height: 76px;
+  }
+
+  .promotion-panel {
+    padding: 8px;
   }
 }
 </style>
