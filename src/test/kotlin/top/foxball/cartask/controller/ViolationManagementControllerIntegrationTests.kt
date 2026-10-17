@@ -15,10 +15,13 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import top.foxball.cartask.audit.AuditService
 import top.foxball.cartask.scope.WithCurrentUser
 import top.foxball.cartask.entity.ViolationSubject
+import top.foxball.cartask.entity.ViolationReport
 import top.foxball.cartask.repository.ViolationRecordRepository
 import top.foxball.cartask.repository.ViolationSettingRepository
 import top.foxball.cartask.repository.ViolationSubjectRepository
 import top.foxball.cartask.repository.ViolationTypeRepository
+import top.foxball.cartask.repository.ViolationReportRepository
+import top.foxball.cartask.authentication.CurrentUserPrincipal
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
@@ -37,6 +40,8 @@ class ViolationManagementControllerIntegrationTests(
     @Autowired private val violationSubjectRepository: ViolationSubjectRepository,
     @Autowired private val violationTypeRepository: ViolationTypeRepository,
     @Autowired private val violationSettingRepository: ViolationSettingRepository,
+    @Autowired private val violationReportController: ViolationReportController,
+    @Autowired private val violationReportRepository: ViolationReportRepository,
 ) {
     /** 审计写入用了 PostgreSQL 专有的 pg_advisory_xact_lock，H2 下必须整体替换掉。 */
     @MockitoBean
@@ -48,6 +53,7 @@ class ViolationManagementControllerIntegrationTests(
         violationSubjectRepository.deleteAll()
         violationTypeRepository.deleteAll()
         violationSettingRepository.deleteAll()
+        violationReportRepository.deleteAll()
     }
 
     @Test
@@ -168,6 +174,36 @@ class ViolationManagementControllerIntegrationTests(
         ).andExpect(status().isCreated)
 
         assertEquals("https://example.com/evidence.jpg", evidenceOf("粤C00002"))
+    }
+
+    @Test
+    @WithCurrentUser(userId = 301, role = "USER")
+    fun `举报记录仅由提交人本人查看且新记录进入待处理状态`() {
+        val reporter = CurrentUserPrincipal(userId = 301, username = "reporter", role = "USER", tokenId = "reporter-token")
+        val anotherUser = CurrentUserPrincipal(userId = 302, username = "other", role = "USER", tokenId = "other-token")
+
+        val created = violationReportController.createReport(
+            reporter,
+            "闽A12345",
+            "占用消防通道",
+            LocalDateTime.of(2026, 10, 17, 14, 30),
+            "一号楼东侧",
+            "车辆停在消防通道入口，影响通行。",
+            null,
+        )
+
+        assertEquals(201, created.statusCode.value())
+        val report = violationReportRepository.findAll().single()
+        assertEquals(reporter.userId, report.reporterUserId)
+        assertEquals("闽A12345", report.vehicleNumber)
+        assertEquals(ViolationReport.Status.PENDING, report.status)
+        val reporterList = violationReportController.listReports(reporter, null, 1, 20).body!!.data!!
+        val otherList = violationReportController.listReports(anotherUser, null, 1, 20).body!!.data!!
+        assertEquals(1, reporterList.javaClass.getMethod("getTotal").invoke(reporterList))
+        assertEquals(0, otherList.javaClass.getMethod("getTotal").invoke(otherList))
+        assertFailsWith<IllegalArgumentException> {
+            violationReportController.getReport(anotherUser, requireNotNull(report.id))
+        }
     }
 
     private fun evidenceOf(subjectNumber: String): String? =
