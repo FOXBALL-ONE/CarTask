@@ -51,7 +51,9 @@
             <input
                 id="loginUser"
                 v-model="form.username"
+                autocomplete="username"
                 class="login__input"
+                name="username"
                 placeholder="请输入用户名"
                 type="text"
             >
@@ -64,7 +66,9 @@
             <input
                 id="loginPass"
                 v-model="form.password"
+                autocomplete="current-password"
                 class="login__input"
+                name="password"
                 placeholder="请输入密码"
                 type="password"
             >
@@ -122,8 +126,10 @@
             <input
                 id="smsPhone"
                 v-model="smsForm.phone"
+                autocomplete="tel"
                 class="login__input"
                 maxlength="20"
+                name="phone"
                 placeholder="请输入手机号"
                 type="tel"
             >
@@ -165,9 +171,11 @@
               <input
                   id="smsCode"
                   v-model="smsForm.code"
+                  autocomplete="one-time-code"
                   class="login__input"
                   inputmode="numeric"
                   maxlength="6"
+                  name="otp"
                   placeholder="请输入短信验证码"
                   type="text"
               >
@@ -665,9 +673,11 @@ async function submitSmsLogin() {
   opacity: .7;
 }
 
+/* 验证码原图是后端 CaptchaService 的 120×44 SVG：按钮与它比例不一致时
+   cover 会裁掉首尾字符，contain 保证四位字符完整可见 */
 .login__captcha img {
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   width: 100%;
 }
 
@@ -784,10 +794,19 @@ async function submitSmsLogin() {
 /* 移动端适配 */
 @media (max-width: 768px) {
   .login-page {
+    /* viewport-fit=cover 下安全区是真实值：横屏刘海（左右）与底部手势条不吃掉卡片 */
     padding: 16px;
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+    /* 弹出键盘或小屏横屏时卡片可能高过视口：flex-start + 子项 margin-block:auto，
+       空间够时照常垂直居中，不够时从顶部开始随文档滚动
+       （align-items:center 溢出时上下均分，顶部会被裁掉且滚不回来） */
+    align-items: flex-start;
   }
 
   .login-wrap {
+    margin-block: auto;
     max-width: 420px;
     padding: 22px 22px 26px;
     width: 100%;
@@ -795,6 +814,12 @@ async function submitSmsLogin() {
 
   .login__title {
     font-size: 19px;
+  }
+
+  /* 页签触达面积：桌面 32px 在拇指操作下偏小 */
+  .login__tab {
+    font-size: 14px;
+    height: 40px;
   }
 
   /* 16px 以下 iOS 会自动放大表单，必须保持 16px */
@@ -832,9 +857,17 @@ async function submitSmsLogin() {
     gap: 10px;
   }
 
-  .login__captcha, .login__sms-btn {
+  .login__sms-btn {
     min-width: 100%;
     width: 100%;
+  }
+
+  /* 堆叠后的验证码不再钉死 48px 高，而是按原图 120×44 比例铺满整行：
+     字符完整且比 112px 小图大一圈，手机上更好认 */
+  .login__captcha {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 120 / 44;
   }
 }
 

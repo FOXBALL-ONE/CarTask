@@ -961,8 +961,9 @@ onBeforeUnmount(stopCountdown);
 }
 
 .captcha-box img {
+  /* 原图 120×44，104×34 的盒子用 cover 会裁到字符边缘 */
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   width: 100%;
 }
 
