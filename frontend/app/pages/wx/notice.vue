@@ -344,82 +344,6 @@ onBeforeUnmount(() => {
   animation: spin .9s linear infinite;
 }
 
-.notice-banner {
-  background: linear-gradient(125deg, #268bdd, #48abe9);
-  border-radius: 13px;
-  box-shadow: 0 7px 18px rgb(41 139 221 / 14%);
-  color: #fff;
-  flex: 0 0 119px;
-  margin: 15px 16px 4px;
-  overflow: hidden;
-  padding: 14px 16px 0;
-  position: relative;
-}
-
-.banner-kicker {
-  color: rgb(255 255 255 / 74%);
-  font-size: 8px;
-  font-weight: 650;
-  letter-spacing: 1.1px;
-}
-
-.banner-copy h2 {
-  font-size: 19px;
-  font-weight: 650;
-  margin: 4px 0 2px;
-}
-
-.banner-copy p {
-  color: rgb(255 255 255 / 86%);
-  font-size: 10px;
-  margin: 0;
-}
-
-.banner-icon {
-  color: rgb(255 255 255 / 32%);
-  height: 62px;
-  position: absolute;
-  right: 20px;
-  top: 9px;
-  width: 62px;
-}
-
-.banner-icon svg {
-  fill: none;
-  height: 100%;
-  stroke: currentColor;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 1.5;
-  width: 100%;
-}
-
-.banner-foot {
-  align-items: center;
-  border-top: 1px solid rgb(255 255 255 / 24%);
-  bottom: 0;
-  color: rgb(255 255 255 / 90%);
-  display: flex;
-  font-size: 9px;
-  gap: 5px;
-  left: 16px;
-  padding: 7px 0;
-  position: absolute;
-  right: 16px;
-}
-
-.banner-foot strong {
-  font-size: 12px;
-}
-
-.banner-dot {
-  background: rgb(255 255 255 / 68%);
-  border-radius: 50%;
-  height: 3px;
-  margin: 0 3px;
-  width: 3px;
-}
-
 .notices-section {
   display: flex;
   flex: 1;
@@ -447,24 +371,6 @@ onBeforeUnmount(() => {
   color: #9ba4ad;
   font-size: 10px;
   margin: 3px 0 0;
-}
-
-.reviewed-badge {
-  align-items: center;
-  background: #eaf7f0;
-  border-radius: 999px;
-  color: #329363;
-  display: inline-flex;
-  font-size: 9px;
-  gap: 5px;
-  padding: 5px 8px;
-}
-
-.reviewed-badge i {
-  background: currentColor;
-  border-radius: 50%;
-  height: 5px;
-  width: 5px;
 }
 
 .notice-list {
