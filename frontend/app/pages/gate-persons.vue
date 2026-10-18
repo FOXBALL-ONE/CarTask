@@ -44,14 +44,17 @@
     <section class="card">
       <div class="card__body filter-body">
         <div class="toolbar">
-          <input v-model="filters.keyword" :placeholder="activeTab === 'delete' ? '搜索编号 / 姓名 / 手机号 / 身份证' : '搜索编号 / 姓名 / 手机号 / 身份证'"
+          <input v-model="filters.keyword"
+                 :placeholder="activeTab === 'delete' ? '搜索编号 / 姓名 / 手机号 / 身份证' : '搜索编号 / 姓名 / 手机号 / 身份证'"
                  class="input"
                  @keyup.enter="search">
-          <input v-if="activeTab === 'all'" v-model.trim="filters.dept" aria-label="单位" class="input dept-filter-input"
-                 list="gate-filter-depts" placeholder="输入或选择单位" autocomplete="off"
+          <input v-if="activeTab === 'all'" v-model.trim="filters.dept" :aria-describedby="departmentFilterError ? 'gate-filter-dept-error' : undefined"
                  :aria-invalid="Boolean(departmentFilterError)"
-                 :aria-describedby="departmentFilterError ? 'gate-filter-dept-error' : undefined"
-                 @input="departmentFilterError = ''" @change="validateDepartmentFilter() && search()" @keyup.enter.prevent="search">
+                 aria-label="单位" autocomplete="off" class="input dept-filter-input"
+                 list="gate-filter-depts"
+                 placeholder="输入或选择单位"
+                 @change="validateDepartmentFilter() && search()" @input="departmentFilterError = ''"
+                 @keyup.enter.prevent="search">
           <datalist id="gate-filter-depts">
             <option v-for="dept in departmentOptions" :key="dept" :value="dept">{{ dept }}</option>
           </datalist>
@@ -129,8 +132,9 @@
               <td>{{ person.idCard }}</td>
               <td>{{ formatDateTime(person.createTime) }}</td>
               <td><span :class="approveClass(person.approveStatus)" class="tag">{{ person.approveStatus }}</span></td>
-              <td v-if="activeTab === 'all'"><span :class="person.syncStatus === '已同步' ? 'tag--green' : 'tag--orange'"
-                                                   class="tag">{{
+              <td v-if="activeTab === 'all'"><span
+                  :class="person.syncStatus === '已同步' ? 'tag--green' : 'tag--orange'"
+                  class="tag">{{
                   person.syncStatus
                 }}</span></td>
               <td class="right actions-cell">
@@ -271,13 +275,16 @@
               <option v-for="dept in departmentOptions" :key="dept" :value="dept"></option>
             </datalist>
           </label><label class="field"><span class="field__label">用户名<em>*</em></span><input v-model.trim="form.name"
-                                                                                                class="input" placeholder="请输入用户名"
+                                                                                                class="input"
+                                                                                                placeholder="请输入用户名"
                                                                                                 required></label><label
               class="field"><span class="field__label">手机号<em>*</em></span><input v-model.trim="form.phone"
-                                                                                     class="input" placeholder="请输入手机号"
+                                                                                     class="input"
+                                                                                     placeholder="请输入手机号"
                                                                                      required></label><label
               class="field"><span class="field__label">身份证<em>*</em></span><input v-model.trim="form.idCard"
-                                                                                     class="input" placeholder="18 位身份证号"
+                                                                                     class="input"
+                                                                                     placeholder="18 位身份证号"
                                                                                      required></label><label
               class="field field--full"><span class="field__label">人脸照片<em v-if="!editingId">*</em></span><input
               ref="faceInput" :required="!editingId" accept="image/*" class="input file-input" type="file"
@@ -920,7 +927,7 @@ useScopeRefresh(loadData);
 .card {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius:0 0(--radius);
+  border-radius: 0 0(--radius);
 }
 
 .card__body {
@@ -955,7 +962,7 @@ useScopeRefresh(loadData);
 .input, .select {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius:0 0;
+  border-radius: 0 0;
   box-sizing: border-box;
   color: var(--text);
   font: inherit;
@@ -978,7 +985,7 @@ useScopeRefresh(loadData);
 .btn {
   align-items: center;
   border: 0;
-  border-radius:0 0;
+  border-radius: 0 0;
   cursor: pointer;
   display: inline-flex;
   font: inherit;
@@ -1028,7 +1035,7 @@ useScopeRefresh(loadData);
 .notice {
   background: var(--success-soft);
   border: 1px solid var(--success);
-  border-radius:0 0;
+  border-radius: 0 0;
   color: var(--success);
   font-size: 13px;
   margin: 0 0 14px;
@@ -1088,7 +1095,7 @@ table.table {
 
 .record-face {
   border: 1px solid var(--border);
-  border-radius:0 0;
+  border-radius: 0 0;
   height: 48px;
   object-fit: cover;
   width: 48px;
@@ -1098,7 +1105,7 @@ table.table {
   align-items: center;
   background: transparent;
   border: 0;
-  border-radius:0 0;
+  border-radius: 0 0;
   color: var(--text-mute);
   cursor: pointer;
   display: inline-flex;
@@ -1124,7 +1131,7 @@ table.table {
 
 .tag {
   align-items: center;
-  border-radius:0 0;
+  border-radius: 0 0;
   display: inline-flex;
   font-size: 12px;
   font-weight: 500;
@@ -1134,7 +1141,7 @@ table.table {
 }
 
 .tag::before {
-  border-radius:0 0;
+  border-radius: 0 0;
   content: "";
   height: 5px;
   width: 5px;
@@ -1212,7 +1219,7 @@ table.table {
   align-items: center;
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius:0 0;
+  border-radius: 0 0;
   color: var(--text-sub);
   cursor: pointer;
   display: flex;
@@ -1258,7 +1265,7 @@ table.table {
 .modal {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius:0 0(--radius);
+  border-radius: 0 0(--radius);
   display: flex;
   flex-direction: column;
   max-height: calc(100vh - 40px);
@@ -1307,7 +1314,7 @@ table.table {
 
 .detail-face {
   border: 1px solid var(--border);
-  border-radius:0 0;
+  border-radius: 0 0;
   flex-shrink: 0;
   height: 140px;
   object-fit: cover;

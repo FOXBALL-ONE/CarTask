@@ -6,8 +6,8 @@
     <app-sidebar
         :active-page="activePage"
         :collapsed="sidebarCollapsed"
-        :mobile-open="mobileSidebarOpen"
         :logo="brandingLogo"
+        :mobile-open="mobileSidebarOpen"
         :system-name="systemName"
         @expand="sidebarCollapsed = false"
         @navigate="closeMobileSidebar"

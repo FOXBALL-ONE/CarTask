@@ -21,10 +21,13 @@
         </div>
       </header>
       <div class="card__body card__body--filters">
-        <div class="toolbar"><input v-model.trim="currentFilters.keyword" :placeholder="activeTab === 'op' ? '操作人 / 描述' : '账号 / IP / 地点'" class="input"
+        <div class="toolbar"><input v-model.trim="currentFilters.keyword"
+                                    :placeholder="activeTab === 'op' ? '操作人 / 描述' : '账号 / IP / 地点'"
+                                    class="input"
                                     type="search"
                                     @keyup.enter="search"><select v-if="activeTab === 'op'"
-                                                                  v-model="operationFilters.module" aria-label="日志模块"
+                                                                  v-model="operationFilters.module"
+                                                                  aria-label="日志模块"
                                                                   class="select">
           <option value="">全部模块</option>
           <option v-for="module in modules" :key="module" :value="module">{{ module }}</option>
@@ -291,7 +294,7 @@ onMounted(loadLogs);
 .card {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius:0 0;
+  border-radius: 0 0;
   overflow: hidden
 }
 
@@ -364,7 +367,7 @@ onMounted(loadLogs);
 .input, .select {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius:0 0;
+  border-radius: 0 0;
   box-sizing: border-box;
   color: var(--text);
   font: inherit;
@@ -381,7 +384,7 @@ onMounted(loadLogs);
 .button {
   align-items: center;
   border: 1px solid transparent;
-  border-radius:0 0;
+  border-radius: 0 0;
   cursor: pointer;
   display: inline-flex;
   font: inherit;
@@ -463,7 +466,7 @@ onMounted(loadLogs);
 
 .tag {
   align-items: center;
-  border-radius:0 0;
+  border-radius: 0 0;
   display: inline-flex;
   font-size: 12px;
   gap: 4px;
@@ -473,7 +476,7 @@ onMounted(loadLogs);
 
 .tag:before {
   background: currentColor;
-  border-radius:0 0;
+  border-radius: 0 0;
   content: "";
   height: 5px;
   width: 5px
@@ -543,7 +546,7 @@ onMounted(loadLogs);
   align-items: center;
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius:0 0;
+  border-radius: 0 0;
   color: var(--text-sub);
   cursor: pointer;
   display: flex;

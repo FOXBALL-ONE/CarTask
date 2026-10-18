@@ -289,7 +289,7 @@ onBeforeUnmount(stopProgressPolling);
   align-items: flex-start;
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius:0 0;
+  border-radius: 0 0;
   display: flex;
   gap: 14px;
   padding: 18px;
@@ -363,7 +363,7 @@ onBeforeUnmount(stopProgressPolling);
 .notice-panel code {
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius:0 0;
+  border-radius: 0 0;
   color: var(--text);
   font-size: 12px;
   padding: 1px 5px;
@@ -372,7 +372,7 @@ onBeforeUnmount(stopProgressPolling);
 .button {
   align-items: center;
   border: 1px solid transparent;
-  border-radius:0 0;
+  border-radius: 0 0;
   cursor: pointer;
   display: inline-flex;
   font: inherit;
@@ -400,7 +400,7 @@ onBeforeUnmount(stopProgressPolling);
 .progress-panel {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius:0 0;
+  border-radius: 0 0;
   margin-top: 18px;
   padding: 16px 18px;
 }
@@ -432,7 +432,7 @@ onBeforeUnmount(stopProgressPolling);
 .progress-bar {
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius:0 0;
+  border-radius: 0 0;
   height: 8px;
   margin-top: 12px;
   overflow: hidden;
@@ -453,7 +453,7 @@ onBeforeUnmount(stopProgressPolling);
 .notice-panel {
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius:0 0;
+  border-radius: 0 0;
   color: var(--text-sub);
   margin-top: 18px;
   padding: 16px 18px;

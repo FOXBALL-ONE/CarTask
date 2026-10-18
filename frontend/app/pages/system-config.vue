@@ -29,13 +29,14 @@
           <div class="form-grid">
             <label class="field full">
               <span class="field__label">系统标题</span>
-              <input v-model.trim="brandingForm.title" class="input" :disabled="!canManage" maxlength="64"
+              <input v-model.trim="brandingForm.title" :disabled="!canManage" class="input" maxlength="64"
                      placeholder="福清市机关事务服务中心车务管理系统">
             </label>
             <div class="field full">
               <span class="field__label">系统图标</span>
               <div class="branding-logo">
-                <img :src="brandingForm.logo || DEFAULT_BRANDING_LOGO" alt="当前系统图标" class="branding-logo__preview">
+                <img :src="brandingForm.logo || DEFAULT_BRANDING_LOGO" alt="当前系统图标"
+                     class="branding-logo__preview">
                 <template v-if="canManage">
                   <label class="button button--ghost button--sm">
                     <span class="material-icons-outlined">upload</span>选择图片
@@ -75,13 +76,14 @@
           <div class="form-grid">
             <label class="field full">
               <span class="field__label">允许的来源</span>
-              <input v-model.trim="form.CORS_ALLOWED_ORIGINS" class="input" :disabled="!canManage"
+              <input v-model.trim="form.CORS_ALLOWED_ORIGINS" :disabled="!canManage" class="input"
                      placeholder="http://localhost:8090,http://127.0.0.1:8090">
-              <span class="field__hint">多个地址用英文逗号分隔。填写 * 表示放行任意来源，但此时必须关闭下面的「允许凭据」。</span>
+              <span
+                  class="field__hint">多个地址用英文逗号分隔。填写 * 表示放行任意来源，但此时必须关闭下面的「允许凭据」。</span>
             </label>
             <label class="field">
               <span class="field__label">允许携带凭据</span>
-              <select v-model="form.CORS_ALLOW_CREDENTIALS" class="select" :disabled="!canManage">
+              <select v-model="form.CORS_ALLOW_CREDENTIALS" :disabled="!canManage" class="select">
                 <option value="true">是</option>
                 <option value="false">否</option>
               </select>
@@ -100,7 +102,7 @@
           <div class="form-grid">
             <label class="field">
               <span class="field__label">启用短信</span>
-              <select v-model="form.SMS_ENABLED" class="select" :disabled="!canManage">
+              <select v-model="form.SMS_ENABLED" :disabled="!canManage" class="select">
                 <option value="true">是</option>
                 <option value="false">否</option>
               </select>
@@ -108,7 +110,7 @@
             </label>
             <label class="field">
               <span class="field__label">跳过验证码校验</span>
-              <select v-model="form.SMS_SKIP_VERIFICATION" class="select" :disabled="!canManage">
+              <select v-model="form.SMS_SKIP_VERIFICATION" :disabled="!canManage" class="select">
                 <option value="true">是</option>
                 <option value="false">否</option>
               </select>
@@ -116,21 +118,21 @@
             </label>
             <label class="field">
               <span class="field__label">Access Key ID</span>
-              <input v-model.trim="form.SMS_ACCESS_KEY_ID" class="input" :disabled="!canManage">
+              <input v-model.trim="form.SMS_ACCESS_KEY_ID" :disabled="!canManage" class="input">
             </label>
             <label class="field">
               <span class="field__label">Access Key Secret</span>
-              <input v-model.trim="form.SMS_ACCESS_KEY_SECRET" class="input" :disabled="!canManage"
-                     placeholder="留空表示不修改" type="password" autocomplete="new-password">
+              <input v-model.trim="form.SMS_ACCESS_KEY_SECRET" :disabled="!canManage" autocomplete="new-password"
+                     class="input" placeholder="留空表示不修改" type="password">
               <span class="field__hint">出于安全考虑不回显明文，保持原样即不修改。</span>
             </label>
             <label class="field">
               <span class="field__label">短信签名</span>
-              <input v-model.trim="form.SMS_SIGN_NAME" class="input" :disabled="!canManage">
+              <input v-model.trim="form.SMS_SIGN_NAME" :disabled="!canManage" class="input">
             </label>
             <label class="field">
               <span class="field__label">模板代码</span>
-              <input v-model.trim="form.SMS_TEMPLATE_CODE" class="input" :disabled="!canManage">
+              <input v-model.trim="form.SMS_TEMPLATE_CODE" :disabled="!canManage" class="input">
             </label>
           </div>
         </div>
@@ -144,9 +146,10 @@
         <div class="card__body">
           <label class="field">
             <span class="field__label">文件下载基础地址</span>
-            <input v-model.trim="form.FILE_BASE_URL" class="input" :disabled="!canManage"
+            <input v-model.trim="form.FILE_BASE_URL" :disabled="!canManage" class="input"
                    placeholder="http://192.168.1.95:8080">
-            <span class="field__hint">用于拼接文件下载链接，必须是外部可访问的绝对 HTTP(S) 地址，改错会导致图片和附件打不开。</span>
+            <span
+                class="field__hint">用于拼接文件下载链接，必须是外部可访问的绝对 HTTP(S) 地址，改错会导致图片和附件打不开。</span>
           </label>
         </div>
       </section>
@@ -160,20 +163,22 @@
           <div class="form-grid">
             <label class="field">
               <span class="field__label">Keytop 请求启动间隔</span>
-              <input v-model.trim="form.KEYTOP_SYNC_REQUEST_INTERVAL" class="input" :disabled="!canManage"
+              <input v-model.trim="form.KEYTOP_SYNC_REQUEST_INTERVAL" :disabled="!canManage" class="input"
                      placeholder="200ms">
               <span class="field__hint">所有同步任务共享的两次 Keytop 请求启动时间最小间隔。示例：200ms、1s、30s；0ms 表示不主动限速。</span>
             </label>
             <label class="field">
               <span class="field__label">图片下载启动间隔</span>
-              <input v-model.trim="form.KEYTOP_CAR_CAP_INFO_PHOTO_DOWNLOAD_INTERVAL" class="input" :disabled="!canManage"
+              <input v-model.trim="form.KEYTOP_CAR_CAP_INFO_PHOTO_DOWNLOAD_INTERVAL" :disabled="!canManage"
+                     class="input"
                      placeholder="200ms">
               <span class="field__hint">两次下载启动时间的最小间隔。填写 0ms 表示不主动限速。示例：200ms、1s、30s。</span>
             </label>
             <label class="field">
               <span class="field__label">图片下载并行数</span>
-              <input v-model.trim="form.KEYTOP_CAR_CAP_INFO_PHOTO_DOWNLOAD_CONCURRENCY" class="input" :disabled="!canManage"
-                     placeholder="4" type="number" min="1" max="16">
+              <input v-model.trim="form.KEYTOP_CAR_CAP_INFO_PHOTO_DOWNLOAD_CONCURRENCY" :disabled="!canManage"
+                     class="input"
+                     max="16" min="1" placeholder="4" type="number">
               <span class="field__hint">同时进行的图片下载任务数，范围 1 到 16。</span>
             </label>
           </div>
@@ -357,9 +362,9 @@ async function saveConfig() {
     await http.put("/system/config", {...form}, {payloadMode: "json"});
     reloadRequired.value = Object.keys(form).some((key) => {
       if (
-        key === "KEYTOP_SYNC_REQUEST_INTERVAL"
-        || key === "KEYTOP_CAR_CAP_INFO_PHOTO_DOWNLOAD_INTERVAL"
-        || key === "KEYTOP_CAR_CAP_INFO_PHOTO_DOWNLOAD_CONCURRENCY"
+          key === "KEYTOP_SYNC_REQUEST_INTERVAL"
+          || key === "KEYTOP_CAR_CAP_INFO_PHOTO_DOWNLOAD_INTERVAL"
+          || key === "KEYTOP_CAR_CAP_INFO_PHOTO_DOWNLOAD_CONCURRENCY"
       ) return false;
       return lastLoadedConfig[key as keyof SystemConfigForm] !== form[key as keyof SystemConfigForm];
     });
@@ -465,7 +470,7 @@ onMounted(async () => {
 .card {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius:0 0;
+  border-radius: 0 0;
   margin-bottom: 16px;
 }
 
@@ -507,7 +512,7 @@ onMounted(async () => {
 .button {
   align-items: center;
   border: 1px solid transparent;
-  border-radius:0 0;
+  border-radius: 0 0;
   cursor: pointer;
   display: inline-flex;
   font: inherit;
@@ -579,7 +584,7 @@ onMounted(async () => {
 .input, .select {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius:0 0;
+  border-radius: 0 0;
   box-sizing: border-box;
   color: var(--text);
   font: inherit;
@@ -607,7 +612,7 @@ onMounted(async () => {
 
 .feedback {
   align-items: center;
-  border-radius:0 0;
+  border-radius: 0 0;
   display: flex;
   font-size: 13px;
   gap: 8px;
@@ -634,7 +639,7 @@ onMounted(async () => {
 
 .branding-logo__preview {
   border: 1px solid var(--border-strong);
-  border-radius:0 0;
+  border-radius: 0 0;
   height: 48px;
   object-fit: cover;
   width: 48px;
@@ -657,7 +662,7 @@ onMounted(async () => {
   align-items: center;
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius:0 0;
+  border-radius: 0 0;
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
@@ -685,7 +690,7 @@ onMounted(async () => {
 .modal {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius:0 0;
+  border-radius: 0 0;
   box-shadow: 0 16px 48px rgb(0 0 0 / 20%);
   max-width: 460px;
   width: 100%;
@@ -734,7 +739,7 @@ onMounted(async () => {
 
 .progress {
   background: var(--bg);
-  border-radius:0 0;
+  border-radius: 0 0;
   height: 4px;
   margin: 14px 0 0;
   overflow: hidden;
@@ -743,7 +748,7 @@ onMounted(async () => {
 .progress span {
   animation: slide 1.2s ease-in-out infinite;
   background: var(--primary);
-  border-radius:0 0;
+  border-radius: 0 0;
   display: block;
   height: 100%;
   width: 40%;
@@ -769,7 +774,7 @@ onMounted(async () => {
   align-items: center;
   background: transparent;
   border: 0;
-  border-radius:0 0;
+  border-radius: 0 0;
   color: var(--text-mute);
   cursor: pointer;
   display: inline-flex;

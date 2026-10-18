@@ -6,17 +6,17 @@
         <div class="navigation-grid">
           <button class="navigation-item" type="button" @click="navigateTo('/wx/violation')">
             <svg aria-hidden="true" viewBox="0 0 32 32">
-              <path d="m5 13.4 22-9-9 22-3.1-9.9L5 13.4Z" />
-              <path d="m14.9 16.5 7-7" />
+              <path d="m5 13.4 22-9-9 22-3.1-9.9L5 13.4Z"/>
+              <path d="m14.9 16.5 7-7"/>
             </svg>
             <span>违规上报</span>
           </button>
           <button class="navigation-item" type="button" @click="navigateTo('/commute-routes')">
             <svg aria-hidden="true" viewBox="0 0 32 32">
-              <path d="M7.5 4.5h14a2 2 0 0 1 2 2v17a2 2 0 0 1-2 2h-14a2 2 0 0 1-2-2v-17a2 2 0 0 1 2-2Z" />
-              <path d="M10 10h9M10 14h9M10 18h5" />
-              <circle cx="22.5" cy="22.5" r="6" />
-              <path d="M22.5 19v3.7l2.3 1.4" />
+              <path d="M7.5 4.5h14a2 2 0 0 1 2 2v17a2 2 0 0 1-2 2h-14a2 2 0 0 1-2-2v-17a2 2 0 0 1 2-2Z"/>
+              <path d="M10 10h9M10 14h9M10 18h5"/>
+              <circle cx="22.5" cy="22.5" r="6"/>
+              <path d="M22.5 19v3.7l2.3 1.4"/>
             </svg>
             <span>路线查询</span>
           </button>
@@ -27,20 +27,24 @@
         <h2 id="promotion-title" class="section-title">宣传栏</h2>
         <div aria-label="宣传内容" class="promotion-panel">
           <div v-if="announcementLoading" class="promotion-state" role="status">
-            <span class="promotion-spinner" />正在加载宣传通告
+            <span class="promotion-spinner"/>正在加载宣传通告
           </div>
           <div v-else-if="announcementError" class="promotion-state promotion-state--error" role="alert">
             {{ announcementError }}
             <button type="button" @click="loadAnnouncements">重新加载</button>
           </div>
           <div v-else-if="announcements.length === 0" class="promotion-state">
-            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 6h16v12H4z" /><path d="M8 10h8M8 14h5" /></svg>
+            <svg aria-hidden="true" viewBox="0 0 24 24">
+              <path d="M4 6h16v12H4z"/>
+              <path d="M8 10h8M8 14h5"/>
+            </svg>
             暂无宣传通告
           </div>
           <div v-else class="announcement-list">
             <article v-for="announcement in announcements" :key="announcement.id" class="announcement-card">
               <div class="announcement-card__meta">
-                <span class="announcement-card__mark"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 6h16v12H4z" /><path d="M8 10h8M8 14h5" /></svg></span>
+                <span class="announcement-card__mark"><svg aria-hidden="true" viewBox="0 0 24 24"><path
+                    d="M4 6h16v12H4z"/><path d="M8 10h8M8 14h5"/></svg></span>
                 <time>{{ formatAnnouncementDate(announcement.published_at) }}</time>
               </div>
               <h3>{{ announcement.title }}</h3>
@@ -54,27 +58,28 @@
     <nav aria-label="底部导航" class="bottom-nav">
       <button aria-current="page" class="bottom-nav__item bottom-nav__item--active" type="button">
         <svg aria-hidden="true" viewBox="0 0 24 24">
-          <path d="m3.5 10 8.5-7 8.5 7M6 9v11h12V9M9 20v-6h6v6" />
+          <path d="m3.5 10 8.5-7 8.5 7M6 9v11h12V9M9 20v-6h6v6"/>
         </svg>
         <span>主页</span>
       </button>
       <button class="bottom-nav__item" type="button" @click="navigateTo('/wx/notice')">
         <svg aria-hidden="true" viewBox="0 0 24 24">
-          <path d="M5 5h14M12 5v15M7 12l5-5 5 5" />
+          <path d="M5 5h14M12 5v15M7 12l5-5 5 5"/>
         </svg>
         <span>通报栏</span>
       </button>
       <button class="bottom-nav__item" type="button" @click="navigateTo('/wx/car-owner')">
         <svg aria-hidden="true" viewBox="0 0 24 24">
-          <circle cx="9" cy="8" r="3.5" />
-          <path d="M2.5 20v-1.5a6.5 6.5 0 0 1 13 0V20M16 5a3.5 3.5 0 0 1 0 6.8M18 14a5 5 0 0 1 3.5 4.8V20" />
+          <circle cx="9" cy="8" r="3.5"/>
+          <path d="M2.5 20v-1.5a6.5 6.5 0 0 1 13 0V20M16 5a3.5 3.5 0 0 1 0 6.8M18 14a5 5 0 0 1 3.5 4.8V20"/>
         </svg>
         <span>车主</span>
       </button>
       <button class="bottom-nav__item" type="button" @click="navigateTo('/wx/myself')">
         <svg aria-hidden="true" viewBox="0 0 24 24">
-          <path d="M9.6 3.3a2.5 2.5 0 0 1 4.8 0l.4 1.3a8 8 0 0 1 1.8 1l1.3-.4a2.5 2.5 0 0 1 3.4 3.4l-.4 1.3a8 8 0 0 1 0 2l.4 1.3a2.5 2.5 0 0 1-3.4 3.4l-1.3-.4a8 8 0 0 1-1.8 1l-.4 1.3a2.5 2.5 0 0 1-4.8 0l-.4-1.3a8 8 0 0 1-1.8-1l-1.3.4a2.5 2.5 0 0 1-3.4-3.4l.4-1.3a8 8 0 0 1 0-2l-.4-1.3a2.5 2.5 0 0 1 3.4-3.4l1.3.4a8 8 0 0 1 1.8-1l.4-1.3Z" />
-          <circle cx="12" cy="11.5" r="3" />
+          <path
+              d="M9.6 3.3a2.5 2.5 0 0 1 4.8 0l.4 1.3a8 8 0 0 1 1.8 1l1.3-.4a2.5 2.5 0 0 1 3.4 3.4l-.4 1.3a8 8 0 0 1 0 2l.4 1.3a2.5 2.5 0 0 1-3.4 3.4l-1.3-.4a8 8 0 0 1-1.8 1l-.4 1.3a2.5 2.5 0 0 1-4.8 0l-.4-1.3a8 8 0 0 1-1.8-1l-1.3.4a2.5 2.5 0 0 1-3.4-3.4l.4-1.3a8 8 0 0 1 0-2l-.4-1.3a2.5 2.5 0 0 1 3.4-3.4l1.3.4a8 8 0 0 1 1.8-1l.4-1.3Z"/>
+          <circle cx="12" cy="11.5" r="3"/>
         </svg>
         <span>设置</span>
       </button>
@@ -82,7 +87,7 @@
   </div>
 </template>
 
-<script setup lang="ts">
+<script lang="ts" setup>
 interface Announcement {
   id: number;
   title: string;
@@ -344,7 +349,9 @@ onMounted(loadAnnouncements);
 }
 
 @keyframes promotion-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .bottom-nav {

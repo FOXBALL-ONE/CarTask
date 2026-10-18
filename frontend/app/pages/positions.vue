@@ -88,9 +88,11 @@
         </header>
         <div class="modal__body">
           <div class="form-grid">
-            <label class="field"><span>岗位名称 <em>*</em></span><input v-model.trim="form.name" class="input" placeholder="请输入岗位名称"
+            <label class="field"><span>岗位名称 <em>*</em></span><input v-model.trim="form.name" class="input"
+                                                                        placeholder="请输入岗位名称"
                                                                         required></label>
-            <label class="field"><span>岗位编码 <em>*</em></span><input v-model.trim="form.code" class="input" placeholder="请输入岗位编码"
+            <label class="field"><span>岗位编码 <em>*</em></span><input v-model.trim="form.code" class="input"
+                                                                        placeholder="请输入岗位编码"
                                                                         required></label>
             <label class="field"><span>显示排序</span><input v-model.number="form.sort" class="input" min="1"
                                                              type="number"></label>
@@ -296,7 +298,7 @@ onMounted(loadPositions);
 .panel {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius:0 0;
+  border-radius: 0 0;
   overflow: hidden;
 }
 
@@ -311,7 +313,7 @@ onMounted(loadPositions);
 .input, .select, .textarea {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius:0 0;
+  border-radius: 0 0;
   box-sizing: border-box;
   color: var(--text);
   font: inherit;
@@ -351,7 +353,7 @@ onMounted(loadPositions);
 .button {
   align-items: center;
   border: 1px solid transparent;
-  border-radius:0 0;
+  border-radius: 0 0;
   cursor: pointer;
   display: inline-flex;
   font: inherit;
@@ -431,7 +433,7 @@ onMounted(loadPositions);
 
 .code-tag, .status-tag {
   align-items: center;
-  border-radius:0 0;
+  border-radius: 0 0;
   display: inline-flex;
   font-size: 12px;
   font-weight: 500;
@@ -446,7 +448,7 @@ onMounted(loadPositions);
 }
 
 .code-tag::before, .status-tag::before {
-  border-radius:0 0;
+  border-radius: 0 0;
   content: "";
   height: 5px;
   width: 5px;
@@ -489,7 +491,7 @@ onMounted(loadPositions);
   align-items: center;
   background: transparent;
   border: 0;
-  border-radius:0 0;
+  border-radius: 0 0;
   color: var(--text-mute);
   cursor: pointer;
   display: inline-flex;
@@ -535,7 +537,7 @@ onMounted(loadPositions);
   align-items: center;
   background: transparent;
   border: 1px solid transparent;
-  border-radius:0 0;
+  border-radius: 0 0;
   color: var(--text-sub);
   cursor: pointer;
   display: inline-flex;
@@ -571,7 +573,7 @@ onMounted(loadPositions);
 
 .modal {
   background: var(--card);
-  border-radius:0 0;
+  border-radius: 0 0;
   box-shadow: 0 16px 48px rgb(0 0 0 / 20%);
   max-width: 620px;
   width: 100%;

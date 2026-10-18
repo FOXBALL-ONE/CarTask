@@ -13,7 +13,9 @@
         </label>
         <button v-if="canForceLogout" :disabled="!selectedIds.length || loggingOut" class="btn btn--danger-soft btn--sm"
                 type="button" @click="forceLogoutSelected">
-          <span class="material-icons-outlined">logout</span>{{ loggingOut ? "处理中…" : `强制登出${selectedIds.length ? ` (${selectedIds.length})` : ""}` }}
+          <span class="material-icons-outlined">logout</span>{{
+            loggingOut ? "处理中…" : `强制登出${selectedIds.length ? ` (${selectedIds.length})` : ""}`
+          }}
         </button>
       </div>
     </header>
@@ -54,15 +56,19 @@
           </tr>
           </thead>
           <tbody>
-          <tr v-for="(user, index) in onlineUsers" :key="user.id" :class="{ 'row--selected': selectedIds.includes(user.id) }">
+          <tr v-for="(user, index) in onlineUsers" :key="user.id"
+              :class="{ 'row--selected': selectedIds.includes(user.id) }">
             <td v-if="canForceLogout" class="check-cell">
-              <input v-model="selectedIds" :aria-label="`选择 ${user.display_name || user.username}`" :value="user.id" type="checkbox">
+              <input v-model="selectedIds" :aria-label="`选择 ${user.display_name || user.username}`" :value="user.id"
+                     type="checkbox">
             </td>
             <td class="text-sub">{{ String(index + 1).padStart(2, "0") }}</td>
             <td>
               <div class="identity">
                 <span class="avatar">{{ initials(user.display_name || user.username) }}</span>
-                <span><strong>{{ user.display_name || user.username }}</strong><small>@{{ user.username }}</small></span>
+                <span><strong>{{ user.display_name || user.username }}</strong><small>@{{
+                    user.username
+                  }}</small></span>
               </div>
             </td>
             <td><span class="tag tag--blue">{{ user.role }}</span></td>
@@ -273,7 +279,7 @@ onBeforeUnmount(() => {
 .notice {
   background: var(--success-soft);
   border: 1px solid var(--success);
-  border-radius:0 0;
+  border-radius: 0 0;
   color: var(--success);
   font-size: 13px;
   margin: 0 0 14px;
@@ -289,7 +295,7 @@ onBeforeUnmount(() => {
 .card {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius:0 0;
+  border-radius: 0 0;
   overflow: hidden
 }
 
@@ -338,7 +344,7 @@ onBeforeUnmount(() => {
 
 .online-dot {
   background: var(--success);
-  border-radius:0 0;
+  border-radius: 0 0;
   display: inline-block;
   height: 6px;
   width: 6px;
@@ -347,7 +353,7 @@ onBeforeUnmount(() => {
 .btn {
   align-items: center;
   border: 1px solid transparent;
-  border-radius:0 0;
+  border-radius: 0 0;
   cursor: pointer;
   display: inline-flex;
   font: inherit;
@@ -449,7 +455,7 @@ onBeforeUnmount(() => {
 .avatar {
   align-items: center;
   background: var(--primary-soft);
-  border-radius:0 0;
+  border-radius: 0 0;
   color: var(--primary);
   display: inline-flex;
   font-family: "SFMono-Regular", Consolas, monospace;
@@ -474,7 +480,7 @@ onBeforeUnmount(() => {
 
 .tag {
   align-items: center;
-  border-radius:0 0;
+  border-radius: 0 0;
   display: inline-flex;
   font-size: 12px;
   font-weight: 500;
@@ -546,7 +552,7 @@ onBeforeUnmount(() => {
 .spinner {
   animation: spin .8s linear infinite;
   border: 2px solid var(--border-strong);
-  border-radius:0 0;
+  border-radius: 0 0;
   border-top-color: var(--primary);
   display: inline-block;
   height: 16px;

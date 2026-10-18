@@ -85,7 +85,8 @@
             </thead>
             <tbody>
             <tr v-for="user in users" :key="user.id">
-              <td class="checkbox-cell"><input v-model="selectedIds" :aria-label="`选择${user.name || user.username}`" :value="user.id" class="checkbox"
+              <td class="checkbox-cell"><input v-model="selectedIds" :aria-label="`选择${user.name || user.username}`"
+                                               :value="user.id" class="checkbox"
                                                type="checkbox"></td>
               <td>{{ String(user.id).padStart(4, "0") }}</td>
               <td><strong class="username">{{ user.username }}</strong></td>
@@ -95,7 +96,8 @@
               <td>{{ user.phone || "-" }}</td>
               <td><span class="role-tag">{{ roleName(user) }}</span></td>
               <td>
-                <button v-if="can('user:disable')" :aria-label="user.status === 1 ? '停用用户' : '启用用户'" :aria-pressed="user.status === 1"
+                <button v-if="can('user:disable')" :aria-label="user.status === 1 ? '停用用户' : '启用用户'"
+                        :aria-pressed="user.status === 1"
                         :class="{ enabled: user.status === 1 }" class="status-switch"
                         type="button" @click="toggleStatus(user)">
                   <span/>
@@ -139,12 +141,15 @@
         </header>
         <div class="modal__body">
           <div class="form-grid">
-            <label class="field"><span>账号 <em>*</em></span><input v-model.trim="form.username" class="input" placeholder="请输入登录账号"
+            <label class="field"><span>账号 <em>*</em></span><input v-model.trim="form.username" class="input"
+                                                                    placeholder="请输入登录账号"
                                                                     required></label>
-            <label class="field"><span>用户名 <em>*</em></span><input v-model.trim="form.name" class="input" placeholder="请输入用户名"
+            <label class="field"><span>用户名 <em>*</em></span><input v-model.trim="form.name" class="input"
+                                                                      placeholder="请输入用户名"
                                                                       required></label>
             <label v-if="!editingId" class="field"><span>初始密码 <em>*</em></span><input v-model="form.password"
-                                                                                          class="input" placeholder="请输入初始密码"
+                                                                                          class="input"
+                                                                                          placeholder="请输入初始密码"
                                                                                           required
                                                                                           type="password"></label>
             <label class="field"><span>部门 <em>*</em></span><select v-model="form.deptId" class="select" required>
@@ -156,15 +161,19 @@
             </select></label>
             <label class="field"><span>职务</span><input v-model.trim="form.jobTitle" class="input" maxlength="128"
                                                          placeholder="请输入职务"></label>
-            <label class="field"><span>角色 <em>*</em></span><select v-model="form.roleId" :disabled="editingId !== null && !canManageScope" :title="editingId !== null && !canManageScope ? '只有超级管理员可以分配角色' : ''"
+            <label class="field"><span>角色 <em>*</em></span><select v-model="form.roleId"
+                                                                     :disabled="editingId !== null && !canManageScope"
+                                                                     :title="editingId !== null && !canManageScope ? '只有超级管理员可以分配角色' : ''"
                                                                      class="select"
                                                                      required>
               <option :value="null">请选择角色</option>
               <option v-for="role in roles" :key="role.id" :value="role.id">{{ role.name }}</option>
             </select></label>
-            <label class="field"><span>手机号 <em>*</em></span><input v-model.trim="form.phone" class="input" placeholder="请输入手机号"
+            <label class="field"><span>手机号 <em>*</em></span><input v-model.trim="form.phone" class="input"
+                                                                      placeholder="请输入手机号"
                                                                       required></label>
-            <label class="field"><span>状态</span><select v-model.number="form.status" :disabled="editingId !== null && !canDisableUser"
+            <label class="field"><span>状态</span><select v-model.number="form.status"
+                                                          :disabled="editingId !== null && !canDisableUser"
                                                           :title="editingId !== null && !canDisableUser ? '当前角色不能启停账号' : ''"
                                                           class="select">
               <option :value="1">正常</option>
@@ -619,7 +628,7 @@ useScopeRefresh(initialize);
 .panel {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius:0 0;
+  border-radius: 0 0;
   min-width: 0;
 }
 
@@ -647,7 +656,7 @@ useScopeRefresh(initialize);
 
 .panel__count {
   background: var(--bg);
-  border-radius:0 0;
+  border-radius: 0 0;
   color: var(--text-mute);
   font-size: 11px;
   margin-left: auto;
@@ -686,7 +695,7 @@ useScopeRefresh(initialize);
 
 .department-tree::-webkit-scrollbar-thumb {
   background: var(--border-strong);
-  border-radius:0 0;
+  border-radius: 0 0;
 }
 
 .department-tree::-webkit-scrollbar-track {
@@ -716,7 +725,7 @@ useScopeRefresh(initialize);
 .input, .select {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius:0 0;
+  border-radius: 0 0;
   box-sizing: border-box;
   color: var(--text);
   font: inherit;
@@ -741,7 +750,7 @@ useScopeRefresh(initialize);
 .button {
   align-items: center;
   border: 1px solid transparent;
-  border-radius:0 0;
+  border-radius: 0 0;
   cursor: pointer;
   display: inline-flex;
   font: inherit;
@@ -835,7 +844,7 @@ useScopeRefresh(initialize);
 
 .role-tag {
   background: var(--primary-soft);
-  border-radius:0 0;
+  border-radius: 0 0;
   color: var(--primary);
   display: inline-flex;
   font-size: 12px;
@@ -845,7 +854,7 @@ useScopeRefresh(initialize);
 .status-switch {
   background: var(--neutral-strong);
   border: 0;
-  border-radius:0 0;
+  border-radius: 0 0;
   cursor: pointer;
   height: 18px;
   padding: 2px;
@@ -855,7 +864,7 @@ useScopeRefresh(initialize);
 
 .status-switch span {
   background: var(--card);
-  border-radius:0 0;
+  border-radius: 0 0;
   display: block;
   height: 14px;
   transition: transform var(--tr);
@@ -874,7 +883,7 @@ useScopeRefresh(initialize);
   align-items: center;
   background: transparent;
   border: 0;
-  border-radius:0 0;
+  border-radius: 0 0;
   color: var(--text-mute);
   cursor: pointer;
   display: inline-flex;
@@ -920,7 +929,7 @@ useScopeRefresh(initialize);
   align-items: center;
   background: transparent;
   border: 1px solid transparent;
-  border-radius:0 0;
+  border-radius: 0 0;
   color: var(--text-sub);
   cursor: pointer;
   display: inline-flex;
@@ -972,7 +981,7 @@ useScopeRefresh(initialize);
 
 .modal {
   background: var(--card);
-  border-radius:0 0;
+  border-radius: 0 0;
   box-shadow: 0 16px 48px rgb(0 0 0 / 20%);
   max-width: 620px;
   width: 100%;
@@ -1114,7 +1123,7 @@ useScopeRefresh(initialize);
   background-position: 17px 0;
   background-repeat: no-repeat;
   background-size: calc(var(--dept-level, 0) * 16px) 100%;
-  border-radius:0 0;
+  border-radius: 0 0;
   display: flex;
   margin: 0 8px;
   min-height: 34px;
@@ -1133,7 +1142,7 @@ useScopeRefresh(initialize);
   align-items: center;
   background: transparent;
   border: 0;
-  border-radius:0 0;
+  border-radius: 0 0;
   color: var(--text-mute);
   cursor: pointer;
   display: flex;
@@ -1198,7 +1207,7 @@ useScopeRefresh(initialize);
 
 .department-panel .department-row.active::before {
   background: var(--primary);
-  border-radius:0 0 2px 2px 0;
+  border-radius: 0 0 2px 2px 0;
   content: "";
   height: 18px;
   left: 0;

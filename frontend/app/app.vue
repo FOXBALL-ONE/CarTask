@@ -26,26 +26,26 @@ const naiveTheme = computed(() => (isDark.value ? darkTheme : null));
 
 const naiveThemeOverrides = computed(() => (isDark.value
     ? {
-        common: {
-            primaryColor: "#60a5fa",
-            primaryColorHover: "#93c5fd",
-            primaryColorPressed: "#3b82f6",
-            bodyColor: "#18181b",
-            cardColor: "#27272a",
-            textColorBase: "#fafafa",
-            borderColor: "#3f3f46",
-        },
+      common: {
+        primaryColor: "#60a5fa",
+        primaryColorHover: "#93c5fd",
+        primaryColorPressed: "#3b82f6",
+        bodyColor: "#18181b",
+        cardColor: "#27272a",
+        textColorBase: "#fafafa",
+        borderColor: "#3f3f46",
+      },
     }
     : {
-        common: {
-            primaryColor: "#2563eb",
-            primaryColorHover: "#3b82f6",
-            primaryColorPressed: "#1d4ed8",
-            bodyColor: "#fafafa",
-            cardColor: "#fff",
-            textColorBase: "#18181b",
-            borderColor: "#e4e4e7",
-        },
+      common: {
+        primaryColor: "#2563eb",
+        primaryColorHover: "#3b82f6",
+        primaryColorPressed: "#1d4ed8",
+        bodyColor: "#fafafa",
+        cardColor: "#fff",
+        textColorBase: "#18181b",
+        borderColor: "#e4e4e7",
+      },
     }));
 
 // 首屏主题由 nuxt.config.ts 的内联脚本写进 <html>，这里把它读回状态，供组件库与切换按钮使用。

@@ -105,7 +105,7 @@
             <label class="field"><span class="field__label">设备类型</span><select v-model="form.type" class="select">
               <option>门禁设备</option>
             </select></label><label class="field"><span class="field__label">品牌</span><input
-              class="input" value="Hikvision（海康威视）" readonly></label>
+              class="input" readonly value="Hikvision（海康威视）"></label>
             <label class="field"><span class="field__label">安装位置</span><input v-model.trim="form.location"
                                                                                   class="input"></label><label
               class="field"><span class="field__label">安装时间</span><input v-model="form.installDate" class="input"
@@ -118,11 +118,11 @@
               <label class="field full"><span class="field__label">Host（IP / Domain）</span><input
                   v-model.trim="form.host" class="input"
                   placeholder="https://api2.hik-cloud.com 或 192.168.1.201"></label><label class="field"><span
-                  class="field__label">Username</span><input v-model.trim="form.username" class="input"
-                                                             placeholder="设备用户名"></label><label class="field"><span
-                  class="field__label">Password</span><input v-model="form.password" class="input"
-                                                             placeholder="设备密码"
-                                                             type="password"></label>
+                class="field__label">Username</span><input v-model.trim="form.username" class="input"
+                                                           placeholder="设备用户名"></label><label class="field"><span
+                class="field__label">Password</span><input v-model="form.password" class="input"
+                                                           placeholder="设备密码"
+                                                           type="password"></label>
             </div>
           </section>
           <div class="form-grid form-grid--remark"><label class="field full"><span
@@ -400,7 +400,7 @@ onMounted(loadDevices);
 .card {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius:0 0;
+  border-radius: 0 0;
   overflow: hidden
 }
 
@@ -434,7 +434,7 @@ onMounted(loadDevices);
 .input, .select {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius:0 0;
+  border-radius: 0 0;
   box-sizing: border-box;
   color: var(--text);
   font: inherit;
@@ -453,7 +453,7 @@ onMounted(loadDevices);
 .btn {
   align-items: center;
   border: 1px solid transparent;
-  border-radius:0 0;
+  border-radius: 0 0;
   cursor: pointer;
   display: inline-flex;
   font: inherit;
@@ -554,7 +554,7 @@ onMounted(loadDevices);
 
 .tag {
   align-items: center;
-  border-radius:0 0;
+  border-radius: 0 0;
   display: inline-flex;
   font-size: 12px;
   font-weight: 500;
@@ -565,7 +565,7 @@ onMounted(loadDevices);
 
 .tag:before {
   background: currentcolor;
-  border-radius:0 0;
+  border-radius: 0 0;
   content: "";
   height: 5px;
   width: 5px
@@ -600,7 +600,7 @@ onMounted(loadDevices);
   align-items: center;
   background: transparent;
   border: 0;
-  border-radius:0 0;
+  border-radius: 0 0;
   color: var(--text-mute);
   cursor: pointer;
   display: inline-flex;
@@ -654,7 +654,7 @@ onMounted(loadDevices);
   align-items: center;
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius:0 0;
+  border-radius: 0 0;
   color: var(--text-sub);
   cursor: pointer;
   display: flex;
@@ -693,7 +693,7 @@ onMounted(loadDevices);
 .modal {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius:0 0;
+  border-radius: 0 0;
   display: flex;
   flex-direction: column;
   max-height: calc(100vh - 40px);
@@ -793,7 +793,7 @@ onMounted(loadDevices);
 
 .perm-section__title:before {
   background: var(--primary);
-  border-radius:0 0;
+  border-radius: 0 0;
   content: "";
   height: 14px;
   width: 3px
@@ -810,7 +810,7 @@ onMounted(loadDevices);
   background: var(--card);
   border: 1px solid var(--border-strong);
   border-left: 3px solid var(--primary);
-  border-radius:0 0;
+  border-radius: 0 0;
   display: flex;
   font-size: 13px;
   gap: 8px;

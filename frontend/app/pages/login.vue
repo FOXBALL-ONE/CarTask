@@ -500,7 +500,7 @@ async function submitSmsLogin() {
   max-width: 100%;
   background: var(--g-panel);
   border: 1px solid var(--g-line-strong);
-  border-radius:0 0;
+  border-radius: 0 0;
   box-shadow: var(--g-card-shadow);
   padding: 26px 30px 30px;
   animation: loginIn .45s cubic-bezier(.22, .9, .28, 1);
@@ -557,7 +557,7 @@ async function submitSmsLogin() {
 .login__tabs {
   background: var(--g-surface);
   border: 1px solid var(--g-line);
-  border-radius:0 0;
+  border-radius: 0 0;
   display: grid;
   gap: 4px;
   grid-template-columns: 1fr 1fr;
@@ -568,7 +568,7 @@ async function submitSmsLogin() {
 .login__tab {
   background: transparent;
   border: 0;
-  border-radius:0 0;
+  border-radius: 0 0;
   color: var(--g-sub);
   cursor: pointer;
   font: inherit;
@@ -620,7 +620,7 @@ async function submitSmsLogin() {
   padding: 0 12px 0 40px;
   background: var(--g-panel);
   border: 1px solid var(--g-line-strong);
-  border-radius:0 0;
+  border-radius: 0 0;
   color: var(--g-text);
   font-size: 14px;
   outline: none;
@@ -652,7 +652,7 @@ async function submitSmsLogin() {
   align-items: center;
   background: var(--g-inset);
   border: 1px solid var(--g-line-strong);
-  border-radius:0 0;
+  border-radius: 0 0;
   color: var(--g-sub);
   cursor: pointer;
   display: flex;
@@ -692,7 +692,7 @@ async function submitSmsLogin() {
 .login__sms-btn {
   background: rgb(37 99 235 / 8%);
   border: 1px solid rgb(37 99 235 / 28%);
-  border-radius:0 0;
+  border-radius: 0 0;
   color: var(--g-accent-text);
   cursor: pointer;
   flex: 0 0 auto;
@@ -721,7 +721,7 @@ async function submitSmsLogin() {
 .login__btn {
   background: linear-gradient(180deg, var(--g-accent-deep), var(--g-accent-text));
   border: 0;
-  border-radius:0 0;
+  border-radius: 0 0;
   box-shadow: 0 8px 20px rgb(37 99 235 / 28%);
   color: #fff;
   cursor: pointer;
@@ -755,7 +755,7 @@ async function submitSmsLogin() {
 .login__notice {
   background: var(--g-surface);
   border: 1px dashed var(--g-line-strong);
-  border-radius:0 0;
+  border-radius: 0 0;
   color: var(--g-sub);
   font-size: 12.5px;
   line-height: 1.6;
@@ -767,7 +767,7 @@ async function submitSmsLogin() {
 .login__error {
   background: var(--g-danger-bg);
   border: 1px solid var(--g-danger-border);
-  border-radius:0 0;
+  border-radius: 0 0;
   color: var(--g-danger);
   font-size: 12.5px;
   margin-top: 14px;

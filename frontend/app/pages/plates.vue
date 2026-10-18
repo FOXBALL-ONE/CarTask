@@ -74,7 +74,7 @@
                 plate.status === 1 ? "正常" : "停用"
               }}</span></td>
             <td>
-              <span :class="syncTag(plate.keytopSyncStatus)" class="tag" :title="plate.keytopLastError || undefined">
+              <span :class="syncTag(plate.keytopSyncStatus)" :title="plate.keytopLastError || undefined" class="tag">
                 {{ syncLabel(plate.keytopSyncStatus) }}
               </span>
               <small v-if="plate.keytopCardId" class="sync-card">卡号 {{ plate.keytopCardId }}</small>
@@ -86,7 +86,8 @@
                 <span class="material-icons-outlined">edit</span></button>
               <button v-if="can('plate:manage')" class="row-action row-action--danger" title="删除" type="button"
                       @click="removePlate(plate)"><span class="material-icons-outlined">delete</span></button>
-              <button v-if="can('plate-sync:retry') && retryable(plate.keytopSyncStatus)" class="row-action" title="重试月卡同步"
+              <button v-if="can('plate-sync:retry') && retryable(plate.keytopSyncStatus)" class="row-action"
+                      title="重试月卡同步"
                       type="button" @click="retrySync(plate)"><span class="material-icons-outlined">sync</span></button>
             </td>
           </tr>
@@ -235,7 +236,15 @@ function inspectionTag(state: string) {
 }
 
 function syncLabel(state: string) {
-  return ({SYNCED: "已同步", PENDING: "待同步", PROCESSING: "同步中", FAILED: "同步失败", BLOCKED: "需处理", DELETE_PENDING: "待撤销", DELETED: "已撤销"} as Record<string, string>)[state] || state || "待同步";
+  return ({
+    SYNCED: "已同步",
+    PENDING: "待同步",
+    PROCESSING: "同步中",
+    FAILED: "同步失败",
+    BLOCKED: "需处理",
+    DELETE_PENDING: "待撤销",
+    DELETED: "已撤销"
+  } as Record<string, string>)[state] || state || "待同步";
 }
 
 function syncTag(state: string) {
@@ -437,7 +446,7 @@ useScopeRefresh(loadPlates);
 .card {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius:0 0;
+  border-radius: 0 0;
   overflow: hidden;
 }
 
@@ -471,7 +480,7 @@ useScopeRefresh(loadPlates);
 .input, .select {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius:0 0;
+  border-radius: 0 0;
   box-sizing: border-box;
   color: var(--text);
   font: inherit;
@@ -496,7 +505,7 @@ useScopeRefresh(loadPlates);
 .button {
   align-items: center;
   border: 1px solid transparent;
-  border-radius:0 0;
+  border-radius: 0 0;
   cursor: pointer;
   display: inline-flex;
   font: inherit;
@@ -579,7 +588,7 @@ useScopeRefresh(loadPlates);
 
 .tag {
   align-items: center;
-  border-radius:0 0;
+  border-radius: 0 0;
   display: inline-flex;
   font-size: 12px;
   gap: 4px;
@@ -589,7 +598,7 @@ useScopeRefresh(loadPlates);
 
 .tag::before {
   background: currentColor;
-  border-radius:0 0;
+  border-radius: 0 0;
   content: "";
   height: 5px;
   width: 5px;
@@ -621,7 +630,7 @@ useScopeRefresh(loadPlates);
   align-items: center;
   background: transparent;
   border: 0;
-  border-radius:0 0;
+  border-radius: 0 0;
   color: var(--text-mute);
   cursor: pointer;
   display: inline-flex;
@@ -687,7 +696,7 @@ useScopeRefresh(loadPlates);
   align-items: center;
   background: transparent;
   border: 1px solid transparent;
-  border-radius:0 0;
+  border-radius: 0 0;
   color: var(--text-sub);
   cursor: pointer;
   display: inline-flex;
@@ -723,7 +732,7 @@ useScopeRefresh(loadPlates);
 
 .modal {
   background: var(--card);
-  border-radius:0 0;
+  border-radius: 0 0;
   box-shadow: 0 16px 48px rgb(0 0 0 / 20%);
   max-width: 620px;
   width: 100%;

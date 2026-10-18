@@ -301,7 +301,7 @@ function showMessage(text: string, type: "success" | "error" = "success") {
   align-items: flex-start;
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius:0 0;
+  border-radius: 0 0;
   display: flex;
   gap: 16px;
   padding: 22px;
@@ -310,7 +310,7 @@ function showMessage(text: string, type: "success" | "error" = "success") {
 .transfer-card__icon {
   align-items: center;
   background: var(--primary-soft);
-  border-radius:0 0;
+  border-radius: 0 0;
   color: var(--primary);
   display: flex;
   flex-shrink: 0;
@@ -348,7 +348,7 @@ function showMessage(text: string, type: "success" | "error" = "success") {
 .button, .upload-button {
   align-items: center;
   border: 1px solid transparent;
-  border-radius:0 0;
+  border-radius: 0 0;
   cursor: pointer;
   display: inline-flex;
   font: inherit;
@@ -396,7 +396,7 @@ function showMessage(text: string, type: "success" | "error" = "success") {
 .notice-panel {
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius:0 0;
+  border-radius: 0 0;
   color: var(--text-sub);
   margin-top: 18px;
   padding: 16px 18px;

@@ -212,7 +212,7 @@ useScopeRefresh(loadRecords);
 .card {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius:0 0;
+  border-radius: 0 0;
   overflow: hidden
 }
 
@@ -246,7 +246,7 @@ useScopeRefresh(loadRecords);
 .input, .select {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius:0 0;
+  border-radius: 0 0;
   box-sizing: border-box;
   color: var(--text);
   font: inherit;
@@ -263,7 +263,7 @@ useScopeRefresh(loadRecords);
 .button {
   align-items: center;
   border: 1px solid transparent;
-  border-radius:0 0;
+  border-radius: 0 0;
   cursor: pointer;
   display: inline-flex;
   font: inherit;
@@ -331,7 +331,7 @@ useScopeRefresh(loadRecords);
 
 .record-face {
   border: 1px solid var(--border);
-  border-radius:0 0;
+  border-radius: 0 0;
   height: 48px;
   object-fit: cover;
   width: 48px
@@ -339,7 +339,7 @@ useScopeRefresh(loadRecords);
 
 .record-photo {
   align-items: center;
-  border-radius:0 0;
+  border-radius: 0 0;
   display: inline-flex;
   height: 48px;
   justify-content: center;
@@ -365,7 +365,7 @@ useScopeRefresh(loadRecords);
 
 .tag {
   align-items: center;
-  border-radius:0 0;
+  border-radius: 0 0;
   display: inline-flex;
   font-size: 12px;
   gap: 4px;
@@ -375,7 +375,7 @@ useScopeRefresh(loadRecords);
 
 .tag:before {
   background: currentColor;
-  border-radius:0 0;
+  border-radius: 0 0;
   content: "";
   height: 5px;
   width: 5px
@@ -431,7 +431,7 @@ useScopeRefresh(loadRecords);
   align-items: center;
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius:0 0;
+  border-radius: 0 0;
   color: var(--text-sub);
   cursor: pointer;
   display: flex;

@@ -235,7 +235,7 @@ onMounted(() => {
 .button {
   align-items: center;
   border: 1px solid transparent;
-  border-radius:0 0;
+  border-radius: 0 0;
   cursor: pointer;
   display: inline-flex;
   font: inherit;
@@ -265,7 +265,7 @@ onMounted(() => {
   align-items: center;
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius:0 0;
+  border-radius: 0 0;
   display: flex;
   flex-wrap: wrap;
   gap: 16px;
@@ -287,7 +287,7 @@ onMounted(() => {
 .lot-card__icon {
   align-items: center;
   background: var(--primary-soft);
-  border-radius:0 0;
+  border-radius: 0 0;
   color: var(--primary);
   display: flex;
   flex: 0 0 40px;
@@ -320,7 +320,7 @@ onMounted(() => {
 .metric {
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius:0 0;
+  border-radius: 0 0;
   min-width: 96px;
   padding: 10px 14px;
 }
@@ -351,7 +351,7 @@ onMounted(() => {
 .panel {
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius:0 0;
+  border-radius: 0 0;
   overflow: hidden;
 }
 
@@ -394,7 +394,7 @@ onMounted(() => {
 
 .code-tag, .status-tag {
   align-items: center;
-  border-radius:0 0;
+  border-radius: 0 0;
   display: inline-flex;
   font-size: 12px;
   font-weight: 500;
@@ -410,7 +410,7 @@ onMounted(() => {
 
 .code-tag::before {
   background: var(--text-mute);
-  border-radius:0 0;
+  border-radius: 0 0;
   content: "";
   height: 5px;
   width: 5px;
@@ -423,7 +423,7 @@ onMounted(() => {
 
 .status-tag--normal::before {
   background: var(--success);
-  border-radius:0 0;
+  border-radius: 0 0;
   content: "";
   height: 5px;
   width: 5px;
@@ -436,7 +436,7 @@ onMounted(() => {
 
 .status-tag--disabled::before {
   background: var(--danger);
-  border-radius:0 0;
+  border-radius: 0 0;
   content: "";
   height: 5px;
   width: 5px;
@@ -469,7 +469,7 @@ onMounted(() => {
   align-items: center;
   background: transparent;
   border: 1px solid transparent;
-  border-radius:0 0;
+  border-radius: 0 0;
   color: var(--text-sub);
   cursor: pointer;
   display: inline-flex;
