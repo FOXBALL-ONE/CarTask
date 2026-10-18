@@ -7,9 +7,9 @@ import top.foxball.cartask.repository.AccessRecordRepository
 import top.foxball.cartask.service.FileService
 import top.foxball.cartask.shared.PlateNumbers
 import java.time.Duration
+import java.util.*
 import java.util.concurrent.*
 import java.util.concurrent.atomic.AtomicLong
-import java.util.ArrayDeque
 
 /**
  * 车辆图片下载协调器。
@@ -23,7 +23,7 @@ class VehiclePhotoDownloadCoordinator(
     private val fileService: FileService,
     private val accessRecordRepository: AccessRecordRepository,
 ) : AutoCloseable {
-
+    
     private val executor: ExecutorService = ThreadPoolExecutor(
         concurrency,
         concurrency,
@@ -37,11 +37,11 @@ class VehiclePhotoDownloadCoordinator(
         },
         ThreadPoolExecutor.AbortPolicy()
     )
-
+    
     private val rateLimiter = RateLimiter(startInterval)
     private val logger = LoggerFactory.getLogger(javaClass)
-
-
+    
+    
     /**
      * 提交一批图片下载任务并等待完成。
      *
@@ -51,13 +51,14 @@ class VehiclePhotoDownloadCoordinator(
     /** 将一批图片任务按有界窗口提交，并等待全部任务完成后汇总结果。 */
     fun downloadBatch(tasks: List<PhotoDownloadTask>): DownloadBatchResult {
         if (tasks.isEmpty()) return DownloadBatchResult(0, 0, 0)
-
+        
         var successCount = 0
         var failedCount = 0
         var skippedCount = 0
-
+        
         // 只保留一个不超过并行数的 Future 窗口，避免拒绝策略让提交线程越过并发上限执行任务。
         val futures = ArrayDeque<Future<PhotoDownloadResult>>(concurrency)
+        
         /** 收集单个异步结果，将异常转换为失败计数而不影响其它任务。 */
         fun collect(future: Future<PhotoDownloadResult>) {
             try {
@@ -71,7 +72,7 @@ class VehiclePhotoDownloadCoordinator(
                 failedCount++
             }
         }
-
+        
         tasks.forEach { task ->
             if (futures.size >= concurrency) collect(futures.removeFirst())
             futures.addLast(executor.submit<PhotoDownloadResult> {
@@ -80,11 +81,11 @@ class VehiclePhotoDownloadCoordinator(
             })
         }
         while (futures.isNotEmpty()) collect(futures.removeFirst())
-
+        
         return DownloadBatchResult(successCount, failedCount, skippedCount)
     }
-
-
+    
+    
     /** 下载单张抓拍图片并更新车辆进出记录的同步状态。 */
     private fun downloadSingle(task: PhotoDownloadTask): PhotoDownloadResult {
         try {
@@ -93,7 +94,7 @@ class VehiclePhotoDownloadCoordinator(
                 logger.debug("记录 {} 已删除，跳过图片下载", task.recordId)
                 return PhotoDownloadResult.SKIPPED
             }
-
+            
             val url = task.sourcePhotoUrl?.trim()
             if (url.isNullOrBlank() || (!url.startsWith("http://") && !url.startsWith("https://"))) {
                 record.photoSyncStatus = AccessRecord.PhotoSyncStatus.NOT_AVAILABLE
@@ -101,7 +102,7 @@ class VehiclePhotoDownloadCoordinator(
                 accessRecordRepository.save(record)
                 return PhotoDownloadResult.SKIPPED
             }
-
+            
             val fileData = fileService.importRemote(
                 url,
                 FileService.FileOrigin(
@@ -109,12 +110,12 @@ class VehiclePhotoDownloadCoordinator(
                     businessId = PlateNumbers.normalize(task.plateNumber),
                 ),
             )
-
+            
             record.photoUrl = fileData.downloadUrl
             record.photoSyncStatus = AccessRecord.PhotoSyncStatus.LOCAL
             record.photoSyncError = null
             accessRecordRepository.save(record)
-
+            
             return PhotoDownloadResult.SUCCESS
         } catch (exception: Exception) {
             try {
@@ -132,8 +133,8 @@ class VehiclePhotoDownloadCoordinator(
             return PhotoDownloadResult.FAILED
         }
     }
-
-
+    
+    
     /** 关闭图片下载线程池，等待已提交任务完成后再强制停止。 */
     override fun close() {
         executor.shutdown()
@@ -149,29 +150,29 @@ class VehiclePhotoDownloadCoordinator(
             Thread.currentThread().interrupt()
         }
     }
-
-
+    
+    
     data class PhotoDownloadTask(
         val recordId: Long,
         val sourcePhotoUrl: String?,
         val plateNumber: String?,
     )
-
-
+    
+    
     data class DownloadBatchResult(
         val successCount: Int,
         val failedCount: Int,
         val skippedCount: Int,
     )
-
-
+    
+    
     private enum class PhotoDownloadResult {
         SUCCESS,
         FAILED,
         SKIPPED,
     }
-
-
+    
+    
     /**
      * 全局启动间隔限速器。
      *
@@ -181,18 +182,18 @@ class VehiclePhotoDownloadCoordinator(
     private class RateLimiter(private val interval: Duration) {
         private val intervalNanos = interval.toNanos()
         private val nextAvailable = AtomicLong(0)
-
-
+        
+        
         /** 原子预占下一次请求时间，保证并发下载的全局启动间隔。 */
         fun acquire() {
             if (intervalNanos <= 0) return
-
+            
             val now = System.nanoTime()
             while (true) {
                 val expected = nextAvailable.get()
                 val target = maxOf(now, expected)
                 val next = target + intervalNanos
-
+                
                 if (nextAvailable.compareAndSet(expected, next)) {
                     val waitNanos = target - now
                     if (waitNanos > 0) {
@@ -208,8 +209,8 @@ class VehiclePhotoDownloadCoordinator(
             }
         }
     }
-
-
+    
+    
     companion object {
         private val threadCounter = AtomicLong(0)
     }

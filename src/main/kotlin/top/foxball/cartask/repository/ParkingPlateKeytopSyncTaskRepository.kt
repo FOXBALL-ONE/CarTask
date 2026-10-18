@@ -8,18 +8,18 @@ interface ParkingPlateKeytopSyncTaskRepository : JpaRepository<ParkingPlateKeyto
     fun findFirstByStatusInAndNextAttemptAtIsNullOrderByIdAsc(
         statuses: Collection<ParkingPlateKeytopSyncTask.Status>,
     ): ParkingPlateKeytopSyncTask?
-
+    
     fun findFirstByStatusInAndNextAttemptAtLessThanEqualOrderByIdAsc(
         statuses: Collection<ParkingPlateKeytopSyncTask.Status>,
         now: LocalDateTime,
     ): ParkingPlateKeytopSyncTask?
-
+    
     fun findByStatus(status: ParkingPlateKeytopSyncTask.Status): List<ParkingPlateKeytopSyncTask>
-
+    
     fun findByStatusInOrderByUpdatedAtDesc(
         statuses: Collection<ParkingPlateKeytopSyncTask.Status>,
     ): List<ParkingPlateKeytopSyncTask>
-
+    
     fun findByPlateIdAndVersionAndOperation(
         plateId: Long,
         version: Long,

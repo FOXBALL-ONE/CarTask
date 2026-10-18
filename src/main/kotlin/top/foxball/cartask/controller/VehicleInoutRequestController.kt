@@ -5,11 +5,11 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.web.bind.annotation.*
+import top.foxball.cartask.entity.ParkingPlateKeytopSyncTask
 import top.foxball.cartask.entity.VehicleInoutRequest
-import top.foxball.cartask.service.VehicleInoutRequestService
 import top.foxball.cartask.repository.ParkingPlateKeytopSyncTaskRepository
 import top.foxball.cartask.repository.VehicleInoutRequestRepository
-import top.foxball.cartask.entity.ParkingPlateKeytopSyncTask
+import top.foxball.cartask.service.VehicleInoutRequestService
 import top.foxball.cartask.shared.Response
 import top.foxball.cartask.shared.ResponseBuilder
 import java.time.LocalDate
@@ -213,7 +213,7 @@ class VehicleInoutRequestController(
         )
         return responseBuilder.ok().data(rs).build()
     }
-
+    
     @GetMapping("/monthly-card-failures")
     @PreAuthorize("hasAuthority('vehicle-inout-request:read')")
     fun monthlyCardFailures(): ResponseEntity<Response> {
@@ -227,7 +227,7 @@ class VehicleInoutRequestController(
             val status: String,
             val reason: String,
         )
-
+        
         val manualFailures = vehicleInoutRequestRepository
             .findBySyncStatusOrderByUpdatedAtDesc(VehicleInoutRequest.SyncStatus.FAILED)
             .map { request ->

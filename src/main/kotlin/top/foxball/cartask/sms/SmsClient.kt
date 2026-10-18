@@ -4,7 +4,6 @@ import com.aliyun.dysmsapi20170525.models.SendSmsRequest
 import com.aliyun.tea.TeaException
 import com.aliyun.teaopenapi.models.Config
 import com.aliyun.teautil.models.RuntimeOptions
-import com.google.gson.Gson
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.stereotype.Component
 import tools.jackson.databind.ObjectMapper

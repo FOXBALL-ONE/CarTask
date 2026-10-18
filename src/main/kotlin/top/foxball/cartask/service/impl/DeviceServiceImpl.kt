@@ -146,7 +146,7 @@ class DeviceServiceImpl(
                 targetWrapper.setPropertyValue(property, sourceWrapper.getPropertyValue(property))
             }
     }
-
+    
     private fun requireSupportedDevice(device: Device) {
         require(device.brand.equals("Hikvision", ignoreCase = true) || device.brand == "海康威视") {
             "设备品牌仅支持海康威视（Hikvision）"

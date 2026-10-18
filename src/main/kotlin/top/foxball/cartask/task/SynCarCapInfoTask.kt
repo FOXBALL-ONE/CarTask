@@ -7,7 +7,6 @@ import tools.jackson.databind.JsonNode
 import tools.jackson.databind.ObjectMapper
 import top.foxball.cartask.audit.AuditRequestContext
 import top.foxball.cartask.entity.AccessRecord
-import top.foxball.cartask.entity.StoredFile
 import top.foxball.cartask.entity.SyncCheckpoint
 import top.foxball.cartask.entity.SyncTaskRun
 import top.foxball.cartask.handler.VehicleAccessRecordSyncInProgressException
@@ -16,11 +15,7 @@ import top.foxball.cartask.keytop.KeytopService
 import top.foxball.cartask.keytop.KeytopSyncRateLimiter
 import top.foxball.cartask.repository.AccessRecordRepository
 import top.foxball.cartask.repository.ParkingPlateRepository
-import top.foxball.cartask.service.FileService
-import top.foxball.cartask.service.SyncCheckpointService
-import top.foxball.cartask.service.SyncTaskHistoryService
-import top.foxball.cartask.service.SyncTaskProgressService
-import top.foxball.cartask.service.SyncTaskRunCommand
+import top.foxball.cartask.service.*
 import top.foxball.cartask.shared.PlateNumbers
 import java.math.BigDecimal
 import java.time.LocalDateTime
@@ -82,12 +77,12 @@ class SynCarCapInfoTask(
             }
         }
     }
-
-
+    
+    
     /** 手动执行车辆进出记录增量同步。 */
     fun synchronize(): CarCapInfoSyncResult = executeIncremental(SyncTaskRun.Trigger.MANUAL)
-
-
+    
+    
     /** 定时执行车辆进出记录补偿同步，不推进增量检查点。 */
     fun reconcileCarCapInfoList() {
         AuditRequestContext.withRun {
@@ -100,13 +95,13 @@ class SynCarCapInfoTask(
             }
         }
     }
-
-
+    
+    
     @Scheduled(
         initialDelayString = "\${keytop.car-cap-info-backfill-initial-delay:5m}",
         fixedDelayString = "\${keytop.car-cap-info-backfill-interval:5d}",
     )
-    /** 定时执行车辆进出记录补空同步，固定回看补空窗口，不推进增量检查点。 */
+            /** 定时执行车辆进出记录补空同步，固定回看补空窗口，不推进增量检查点。 */
     fun backfillCarCapInfoList() {
         AuditRequestContext.withRun {
             try {
@@ -118,12 +113,12 @@ class SynCarCapInfoTask(
             }
         }
     }
-
-
+    
+    
     /** 手动执行车辆进出记录补空同步。 */
     fun backfill(): CarCapInfoSyncResult = executeBackfill(SyncTaskRun.Trigger.MANUAL)
-
-
+    
+    
     /** 为增量同步填充任务标识并委托统一执行包装器。 */
     private fun executeIncremental(trigger: SyncTaskRun.Trigger): CarCapInfoSyncResult = execute(
         trigger = trigger,
@@ -140,8 +135,8 @@ class SynCarCapInfoTask(
         taskName = RECONCILIATION_TASK_NAME,
         synchronization = ::synchronizeReconciliation,
     )
-
-
+    
+    
     /** 为补空同步填充任务标识并委托统一执行包装器。 */
     private fun executeBackfill(trigger: SyncTaskRun.Trigger): CarCapInfoSyncResult = execute(
         trigger = trigger,
@@ -149,8 +144,8 @@ class SynCarCapInfoTask(
         taskName = BACKFILL_TASK_NAME,
         synchronization = ::synchronizeBackfill,
     )
-
-
+    
+    
     /** 固定本次限频快照，维护进度并记录成功或失败历史。 */
     private fun execute(
         trigger: SyncTaskRun.Trigger,
@@ -223,7 +218,7 @@ class SynCarCapInfoTask(
         }
     }
     
-
+    
     /** 按检查点和重叠窗口拉取增量记录，成功后推进检查点。 */
     private fun synchronizeIncrementally(): CarCapInfoSyncResult {
         if (!executionLock.tryLock()) {
@@ -308,8 +303,8 @@ class SynCarCapInfoTask(
             executionLock.unlock()
         }
     }
-
-
+    
+    
     /** 按补空窗口重新拉取历史记录用于补空，发现的数据只做本地收敛，不推进主检查点。 */
     private fun synchronizeBackfill(): CarCapInfoSyncResult {
         if (!executionLock.tryLock()) {
@@ -345,8 +340,8 @@ class SynCarCapInfoTask(
             executionLock.unlock()
         }
     }
-
-
+    
+    
     /** 分页读取 Keytop 车辆进出记录，并按页完成入库与图片下载屏障。 */
     private fun synchronizeRange(startTime: LocalDateTime, syncEndTime: LocalDateTime, taskKey: String): ProcessResult {
         val rateLimitSnapshot = keytopSyncRateLimiter?.snapshot()
@@ -530,7 +525,8 @@ class SynCarCapInfoTask(
                 } else if (sourceChanged || existing.photoSyncStatus !in setOf(
                         AccessRecord.PhotoSyncStatus.LOCAL,
                         AccessRecord.PhotoSyncStatus.PENDING
-                    )) {
+                    )
+                ) {
                     existing.photoSyncStatus = AccessRecord.PhotoSyncStatus.PENDING
                     existing.photoUrl = record.sourcePhotoUrl
                 }
@@ -724,7 +720,7 @@ class SynCarCapInfoTask(
             listOf(AccessRecord.PhotoSyncStatus.FAILED, AccessRecord.PhotoSyncStatus.PENDING)
         )
         if (retryRecords.isEmpty()) return
-
+        
         val retryTasks = retryRecords.map { record ->
             VehiclePhotoDownloadCoordinator.PhotoDownloadTask(
                 recordId = requireNotNull(record.id),
@@ -732,7 +728,7 @@ class SynCarCapInfoTask(
                 plateNumber = record.carNumber,
             )
         }
-
+        
         val result = coordinator.downloadBatch(retryTasks)
         logger.info(
             "重试历史失败图片：提交 {} 个，成功 {}，失败 {}，跳过 {}",
@@ -742,8 +738,8 @@ class SynCarCapInfoTask(
             result.skippedCount
         )
     }
-
-
+    
+    
     /** 解析放行渠道字段，未知值不强行映射为有效枚举。 */
     private fun parseReleaseChannel(node: JsonNode): AccessRecord.ReleaseChannel? {
         val raw = firstText(node, "passType", "pass_type", "releaseChannel", "release_channel")
@@ -809,7 +805,7 @@ class SynCarCapInfoTask(
         val skippedCount: Int = 0,
         val insertedCount: Int = 0,
     )
-
+    
     companion object {
         val logger = LoggerFactory.getLogger(SynCarCapInfoTask::class.java)
         val executionLock = ReentrantLock()

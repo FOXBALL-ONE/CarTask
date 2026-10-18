@@ -3,25 +3,19 @@ package top.foxball.cartask.service
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.ObjectMapper
 import top.foxball.cartask.audit.AuditAction
 import top.foxball.cartask.audit.AuditCommand
 import top.foxball.cartask.audit.AuditService
 import top.foxball.cartask.entity.AuditEvent
 import top.foxball.cartask.entity.ParkingPlate
 import top.foxball.cartask.entity.ParkingPlateKeytopSyncTask
-import top.foxball.cartask.keytop.KeytopCardInfo
-import top.foxball.cartask.keytop.KeytopPayCarCardFeeRequest
-import top.foxball.cartask.keytop.KeytopPlateNo
-import top.foxball.cartask.keytop.KeytopProperties
-import top.foxball.cartask.keytop.KeytopResponse
-import top.foxball.cartask.keytop.KeytopService
-import top.foxball.cartask.keytop.KeytopSyncRateLimiter
-import top.foxball.cartask.repository.ParkingPlateKeytopSyncTaskRepository
+import top.foxball.cartask.keytop.*
 import top.foxball.cartask.repository.ParkingOwnerRepository
+import top.foxball.cartask.repository.ParkingPlateKeytopSyncTaskRepository
 import top.foxball.cartask.repository.ParkingPlateRepository
 import top.foxball.cartask.shared.PlateNumbers
-import tools.jackson.databind.JsonNode
-import tools.jackson.databind.ObjectMapper
 import java.time.Duration
 import java.time.LocalDateTime
 import java.util.concurrent.atomic.AtomicBoolean
@@ -46,7 +40,7 @@ class PlateKeytopSyncService(
 ) {
     private val running = AtomicBoolean(false)
     private val logger = LoggerFactory.getLogger(javaClass)
-
+    
     @Transactional
     fun enqueueAfterChange(
         plate: ParkingPlate,
@@ -70,7 +64,8 @@ class PlateKeytopSyncService(
         }
         if (plate.status == STATUS_ENABLED) {
             val normalizedPrevious = PlateNumbers.normalize(previousPlate)
-            val replacingCard = previousStatus == STATUS_ENABLED && normalizedPrevious != null && normalizedPrevious != normalizedPlate
+            val replacingCard =
+                previousStatus == STATUS_ENABLED && normalizedPrevious != null && normalizedPrevious != normalizedPlate
             task.operation = ParkingPlateKeytopSyncTask.Operation.UPSERT
             task.oldPlateNo = normalizedPrevious?.takeIf {
                 replacingCard || (previousStatus != STATUS_ENABLED && previousCardId != null)
@@ -97,7 +92,7 @@ class PlateKeytopSyncService(
         val savedTask = taskRepository.save(task)
         return PlateKeytopSyncResult(plateId, plate.keytopSyncStatus, savedTask.id, "月卡同步任务已创建")
     }
-
+    
     @Transactional
     fun enqueueDelete(plate: ParkingPlate): PlateKeytopSyncResult {
         val previousStatus = plate.status
@@ -110,14 +105,14 @@ class PlateKeytopSyncService(
             previousCardId = previousCardId,
         )
     }
-
+    
     @Transactional
     fun retry(plateId: Long): PlateKeytopSyncResult {
         val plate = plateRepository.findById(plateId).orElseThrow { IllegalArgumentException("车牌不存在") }
         val previousStatus = if (plate.status == STATUS_ENABLED) STATUS_ENABLED else STATUS_DISABLED
         return enqueueAfterChange(plate, plate.plate, previousStatus, plate.keytopCardId)
     }
-
+    
     fun processBatch(): Int {
         if (!running.compareAndSet(false, true)) return 0
         return try {
@@ -138,7 +133,7 @@ class PlateKeytopSyncService(
             running.set(false)
         }
     }
-
+    
     private fun ensurePendingTasks() {
         plateRepository.findAll().forEach { plate ->
             if (plate.status == STATUS_ENABLED && plate.keytopSyncStatus == ParkingPlate.KeytopSyncStatus.PENDING) {
@@ -155,7 +150,7 @@ class PlateKeytopSyncService(
             }
         }
     }
-
+    
     fun reconcile(): Int {
         val snapshot = keytopSyncRateLimiter?.snapshot()
         val reconcile = {
@@ -176,7 +171,7 @@ class PlateKeytopSyncService(
         }
         return if (snapshot == null) reconcile() else keytopSyncRateLimiter.withSnapshot(snapshot, reconcile)
     }
-
+    
     private fun claimNext(): ParkingPlateKeytopSyncTask? {
         val statuses = listOf(ParkingPlateKeytopSyncTask.Status.PENDING, ParkingPlateKeytopSyncTask.Status.RETRYING)
         val now = LocalDateTime.now()
@@ -189,7 +184,7 @@ class PlateKeytopSyncService(
         task.nextAttemptAt = null
         return taskRepository.saveAndFlush(task)
     }
-
+    
     private fun resetStaleTasks() {
         val threshold = LocalDateTime.now().minusMinutes(10)
         taskRepository.findByStatus(ParkingPlateKeytopSyncTask.Status.PROCESSING)
@@ -200,7 +195,7 @@ class PlateKeytopSyncService(
                 taskRepository.save(it)
             }
     }
-
+    
     private fun process(task: ParkingPlateKeytopSyncTask) {
         try {
             if (task.operation == ParkingPlateKeytopSyncTask.Operation.DELETE) syncDelete(task) else syncUpsert(task)
@@ -213,26 +208,26 @@ class PlateKeytopSyncService(
             markFailure(task, exception.message ?: exception.javaClass.simpleName, blocked = false)
         }
     }
-
+    
     private fun syncUpsert(task: ParkingPlateKeytopSyncTask) {
         val plateId = requireNotNull(task.plateId)
         val plate = plateRepository.findById(plateId).orElseThrow { BlockedSyncException("车牌已不存在") }
         if (plate.keytopSyncVersion > task.version || plate.status != STATUS_ENABLED) return
-
+        
         val requiresActivation = task.keytopCardId == null || task.oldPlateNo != null
         if (task.oldPlateNo != null) {
             deleteCard(task.keytopCardId, task.oldPlateNo!!)
             task.keytopCardId = null
             task.keytopPlateId = null
         }
-
+        
         val normalized = requireNotNull(PlateNumbers.normalize(plate.plate)) { "车牌号不能为空" }
         var card = task.keytopCardId?.let { readCardById(it, normalized) } ?: readCardByPlate(normalized)
         val existingOwner = card?.cardId?.let { plateRepository.findByKeytopCardId(it) }
         if (existingOwner != null && existingOwner.id != plate.id) {
             throw BlockedSyncException("Keytop 月卡 ${card.cardId} 已绑定其它车牌")
         }
-
+        
         var created = false
         if (card == null) {
             requireSuccess(
@@ -251,7 +246,7 @@ class PlateKeytopSyncService(
         val cardId = requireNotNull(card.cardId) { "Keytop 月卡缺少 cardId" }
         if (!created) {
             val plateItemId = card.plateId ?: task.keytopPlateId
-                ?: throw BlockedSyncException("Keytop 月卡缺少车牌项 ID，无法安全修改")
+            ?: throw BlockedSyncException("Keytop 月卡缺少车牌项 ID，无法安全修改")
             requireSuccess(
                 keytopService.modifyCarCardNo(
                     userId = keytopProperties.plateSyncOperatorId,
@@ -283,7 +278,7 @@ class PlateKeytopSyncService(
         task.keytopPlateId = card.plateId
         markPlateSynced(task, cardId, card.plateId)
     }
-
+    
     private fun syncDelete(task: ParkingPlateKeytopSyncTask) {
         deleteCard(task.keytopCardId, task.oldPlateNo ?: task.plateNo)
         task.plateId?.let { plateId ->
@@ -312,13 +307,13 @@ class PlateKeytopSyncService(
             )
         }.onFailure { logger.warn("车牌月卡删除成功审计写入失败：taskId={}", task.id, it) }
     }
-
+    
     private fun deleteCard(cardId: Long?, plateNo: String) {
         val card = cardId?.let { readCardById(it, plateNo) } ?: readCardByPlate(plateNo)
         val id = card?.cardId ?: return
         requireSuccess(keytopService.delCarCardInfo(id), "月卡删除")
     }
-
+    
     private fun markPlateSynced(task: ParkingPlateKeytopSyncTask, cardId: Long, plateItemId: Long?) {
         val plateId = requireNotNull(task.plateId)
         val plate = plateRepository.findById(plateId).orElseThrow { BlockedSyncException("车牌已不存在") }
@@ -344,7 +339,7 @@ class PlateKeytopSyncService(
             )
         }.onFailure { logger.warn("车牌月卡成功审计写入失败：plateId={}", plate.id, it) }
     }
-
+    
     private fun markFailure(task: ParkingPlateKeytopSyncTask, message: String, blocked: Boolean) {
         val clean = message.take(2048)
         task.lastError = clean
@@ -367,7 +362,13 @@ class PlateKeytopSyncService(
                 plateRepository.save(plate)
             }
         }
-        logger.error("车牌月卡同步失败：taskId={}, plateId={}, status={}, error={}", task.id, task.plateId, task.status, clean)
+        logger.error(
+            "车牌月卡同步失败：taskId={}, plateId={}, status={}, error={}",
+            task.id,
+            task.plateId,
+            task.status,
+            clean
+        )
         runCatching {
             auditService.record(
                 AuditCommand(
@@ -385,7 +386,7 @@ class PlateKeytopSyncService(
             )
         }.onFailure { logger.warn("车牌月卡失败审计写入失败：taskId={}", task.id, it) }
     }
-
+    
     private fun retryDelay(attempt: Int): Duration = when (attempt.coerceAtMost(5)) {
         1 -> Duration.ofMinutes(1)
         2 -> Duration.ofMinutes(5)
@@ -393,27 +394,32 @@ class PlateKeytopSyncService(
         4 -> Duration.ofHours(1)
         else -> Duration.ofHours(6)
     }
-
+    
     private fun readCardById(cardId: Long, plateNo: String): CardDetails? {
         val response = keytopService.getCarCardInfo(cardId)
         if (isNotFound(response)) return null
         requireSuccess(response, "月卡查询")
         return parseCard(response.data, plateNo)
     }
-
+    
     private fun readCardByPlate(plateNo: String): CardDetails? {
         val response = keytopService.getCarCardInfo(plateNo)
         if (isNotFound(response)) return null
         requireSuccess(response, "月卡查询")
         return parseCard(response.data, plateNo)
     }
-
+    
     private fun isNotFound(response: KeytopResponse?): Boolean {
         val message = response?.message.orEmpty()
         return response != null && response.code != SUCCESS_CODE &&
-                listOf("不存在", "未找到", "无数据", "没有卡", "not found").any { message.contains(it, ignoreCase = true) }
+                listOf("不存在", "未找到", "无数据", "没有卡", "not found").any {
+                    message.contains(
+                        it,
+                        ignoreCase = true
+                    )
+                }
     }
-
+    
     private fun parseCard(data: JsonNode?, expectedPlate: String): CardDetails? {
         if (data == null || data.isNull) return null
         val raw = if (data.isString) objectMapper.readTree(data.asString()) else data
@@ -428,11 +434,19 @@ class PlateKeytopSyncService(
             plateNode.isString -> objectMapper.readTree(plateNode.asString())
             else -> plateNode
         }
-        val item = if (plates?.isArray == true) plates.firstOrNull { PlateNumbers.normalize(firstText(it, "plateNo", "plate_no")) == expectedPlate } else null
+        val item = if (plates?.isArray == true) plates.firstOrNull {
+            PlateNumbers.normalize(
+                firstText(
+                    it,
+                    "plateNo",
+                    "plate_no"
+                )
+            ) == expectedPlate
+        } else null
         val returnedPlate = firstText(item, "plateNo", "plate_no") ?: expectedPlate
         return CardDetails(cardId, PlateNumbers.normalize(returnedPlate), firstLong(item, "id", "plateId", "plate_id"))
     }
-
+    
     private fun cardInfo(plate: ParkingPlate) = KeytopCardInfo(
         cardName = "车牌月卡-${requireNotNull(plate.id)}",
         useName = plate.owner,
@@ -440,25 +454,25 @@ class PlateKeytopSyncService(
         roomId = "",
         remak = "carTask plateId=${plate.id}",
     )
-
+    
     private fun findOwnerPhone(ownerId: Long): String = ownerRepository.findById(ownerId).orElse(null)?.phone.orEmpty()
-
+    
     private fun requireSuccess(response: KeytopResponse?, action: String) {
         require(response != null && response.code == SUCCESS_CODE) {
             "科拓${action}失败：${response?.code ?: "无响应"} ${response?.message.orEmpty()}".trim()
         }
     }
-
+    
     private fun firstText(node: JsonNode?, vararg names: String): String? = node?.let { source ->
         names.asSequence().mapNotNull { source.get(it)?.takeIf { value -> !value.isNull }?.asString() }
             .firstOrNull { it.isNotBlank() }
     }
-
+    
     private fun firstLong(node: JsonNode?, vararg names: String): Long? = firstText(node, *names)?.toLongOrNull()
-
+    
     private data class CardDetails(val cardId: Long, val plateNo: String?, val plateId: Long?)
     private class BlockedSyncException(message: String) : IllegalStateException(message)
-
+    
     private companion object {
         const val STATUS_ENABLED = 1
         const val STATUS_DISABLED = 0

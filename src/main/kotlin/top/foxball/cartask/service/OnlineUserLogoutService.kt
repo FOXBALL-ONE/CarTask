@@ -25,7 +25,7 @@ class OnlineUserLogoutService(
     private val onlinePresenceService: OnlinePresenceService,
     private val auditService: AuditService,
 ) {
-
+    
     /**
      * 一次强制登出的结果。
      *
@@ -36,16 +36,16 @@ class OnlineUserLogoutService(
         val loggedOut: List<Long>,
         val skipped: List<Long>,
     )
-
+    
     fun forceLogout(userIds: Collection<Long>): Result {
         val targets = userIds.filter { it > 0 }.distinct()
         require(targets.isNotEmpty()) { "请至少选择一个用户" }
         require(targets.size <= MAX_TARGETS) { "一次最多登出 $MAX_TARGETS 个用户" }
-
+        
         val users = userRepository.findAllById(targets).associateBy { it.id }
         val loggedOut = mutableListOf<Long>()
         val skipped = mutableListOf<Long>()
-
+        
         targets.forEach { userId ->
             val user = users[userId]
             if (user == null) {
@@ -60,7 +60,7 @@ class OnlineUserLogoutService(
         }
         return Result(loggedOut, skipped)
     }
-
+    
     /**
      * 审计写失败不回滚登出。
      *
@@ -80,7 +80,7 @@ class OnlineUserLogoutService(
             )
         }
     }
-
+    
     private companion object {
         /** 在线名册一次也就几十个人，这个上限只是挡住构造超大请求体的情况。 */
         const val MAX_TARGETS = 200

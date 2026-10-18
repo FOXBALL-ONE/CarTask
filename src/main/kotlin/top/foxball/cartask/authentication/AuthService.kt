@@ -40,7 +40,7 @@ interface AuthService {
         @param:JsonProperty("captchaToken") val captchaToken: String?,
         @param:JsonProperty("captchaAnswer") val captchaAnswer: String?,
     )
-
+    
     /**
      * LoginData 的职责与行为说明。
      * 该声明负责认证域中的相关数据处理、校验或服务调用。
@@ -69,7 +69,7 @@ interface AuthService {
         @param:JsonProperty("captchaToken") val captchaToken: String?,
         @param:JsonProperty("captchaAnswer") val captchaAnswer: String?,
     )
-
+    
     /**
      * SmsLoginCommand 的职责与行为说明。
      * 该声明负责认证域中的相关数据处理、校验或服务调用。
@@ -142,8 +142,8 @@ class AuthServiceImpl(
     private val auditService: AuditService? = null,
     private val smsVerificationService: SmsVerificationService,
 ) : AuthService {
-
-
+    
+    
     /** login：执行认证组件中的一项具体操作，完成输入校验并返回处理结果。 */
     override fun login(command: AuthService.LoginCommand): AuthService.LoginData {
         captchaService.verify(command.captchaToken, command.captchaAnswer)

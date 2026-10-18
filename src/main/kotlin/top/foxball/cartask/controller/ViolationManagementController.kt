@@ -21,7 +21,7 @@ import top.foxball.cartask.service.FileService
 import top.foxball.cartask.shared.Response
 import top.foxball.cartask.shared.ResponseBuilder
 import java.time.LocalDateTime
-import java.util.Locale
+import java.util.*
 
 
 @RestController
@@ -187,7 +187,7 @@ class ViolationManagementController(
         val rs = Response(requireNotNull(record.id))
         return responseBuilder.created().message("违规记录已新增").data(rs).build()
     }
-
+    
     /**
      * 证据图片按表单上传：录入页只上传本地文件，不再让用户手填图片 URL。
      * 内容校验必须放在服务端，否则任何文件都能被塞进 evidence_info 并在详情里当图片渲染。
@@ -538,7 +538,7 @@ class ViolationManagementController(
             if (score >= setting().scoreThreshold) ViolationSubject.Status.BANNED else ViolationSubject.Status.Activity
         violationSubjectRepository.save(subject)
     }
-
+    
     private fun requireEvidenceImage(file: MultipartFile) {
         require(file.size <= EVIDENCE_IMAGE_MAX_BYTES) { "证据图片不能超过 5MB" }
         require(file.contentType?.startsWith("image/", ignoreCase = true) == true) { "证据图片必须为图片格式" }
@@ -548,7 +548,7 @@ class ViolationManagementController(
         require(extension in EVIDENCE_IMAGE_EXTENSIONS) { "证据图片格式不受支持" }
         require(matchesImageSignature(file)) { "证据图片内容不是受支持的图片" }
     }
-
+    
     private fun matchesImageSignature(file: MultipartFile): Boolean {
         val header = ByteArray(IMAGE_HEADER_BYTES)
         val size = file.inputStream.use { it.read(header) }
@@ -567,7 +567,7 @@ class ViolationManagementController(
                     'P'.code
                 ))
     }
-
+    
     private companion object {
         /** 与 spring.servlet.multipart.max-file-size 的 5MB 对齐，超限的请求在容器层就被拒。 */
         const val EVIDENCE_IMAGE_MAX_BYTES = 5 * 1024 * 1024

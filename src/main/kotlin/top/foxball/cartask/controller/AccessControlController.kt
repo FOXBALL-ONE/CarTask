@@ -60,8 +60,8 @@ data class AccessControlView(
             faceInfo = entity.faceInfo,
             accessControlList = entity.accessControlList,
             accessControlPermissionId = entity.accessControlPermission?.id,
-            accessControlPermissionName = entity.accessControlPermission?.let {
-                permission -> uninitializedAsNull { permission.accessControlName }
+            accessControlPermissionName = entity.accessControlPermission?.let { permission ->
+                uninitializedAsNull { permission.accessControlName }
             },
             departmentId = entity.department?.id,
             departmentName = entity.department?.name,

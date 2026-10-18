@@ -59,7 +59,7 @@ class SynOwnerArchiveTask(
     
     
     @Transactional(noRollbackFor = [RuntimeException::class])
-    /** 手动补建车主档案，并返回车主和车牌处理统计。 */
+            /** 手动补建车主档案，并返回车主和车牌处理统计。 */
     fun generate(): OwnerArchiveResult = generate(SyncTaskRun.Trigger.MANUAL)
     
     

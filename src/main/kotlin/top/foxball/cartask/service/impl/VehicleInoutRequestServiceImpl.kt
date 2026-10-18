@@ -247,7 +247,7 @@ class VehicleInoutRequestServiceImpl(
         return if (snapshot == null) synchronizeInternal(id)
         else keytopSyncRateLimiter.withSnapshot(snapshot) { synchronizeInternal(id) }
     }
-
+    
     private fun synchronizeInternal(id: Long): VehicleInoutRequestService.SyncOutcome {
         val request = requireVisible(id)
         require(request.status == VehicleInoutRequest.Status.APPROVED) { "只有已通过的申请可以下发给科拓" }

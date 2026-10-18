@@ -20,8 +20,8 @@ class OnlinePresenceService(
     fun touch(userId: Long) {
         redisTemplate.opsForZSet().add(PRESENCE_KEY, userId.toString(), System.currentTimeMillis().toDouble())
     }
-
-
+    
+    
     /**
      * 把用户从在线集合里摘掉。
      *

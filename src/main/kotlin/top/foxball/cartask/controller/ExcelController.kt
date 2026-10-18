@@ -19,11 +19,7 @@ import top.foxball.cartask.repository.*
 import top.foxball.cartask.scope.DataScopeResolver
 import top.foxball.cartask.scope.ExcelResourcePolicy
 import top.foxball.cartask.scope.ScopeQuerySupport
-import top.foxball.cartask.service.DepartmentService
-import top.foxball.cartask.service.DeviceService
-import top.foxball.cartask.service.PositionService
-import top.foxball.cartask.service.PlateKeytopSyncService
-import top.foxball.cartask.service.UserService
+import top.foxball.cartask.service.*
 import top.foxball.cartask.shared.GatePersonFields
 import top.foxball.cartask.shared.PlateNumbers
 import top.foxball.cartask.shared.ResponseBuilder

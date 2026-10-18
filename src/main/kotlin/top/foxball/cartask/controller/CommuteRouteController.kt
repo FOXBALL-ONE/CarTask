@@ -3,15 +3,7 @@ package top.foxball.cartask.controller
 import com.fasterxml.jackson.annotation.JsonProperty
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
-import org.springframework.web.bind.annotation.DeleteMapping
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.PathVariable
-import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.PutMapping
-import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RequestParam
-import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.bind.annotation.*
 import top.foxball.cartask.entity.CommuteRoute
 import top.foxball.cartask.service.CommuteRouteService
 import top.foxball.cartask.shared.Response
@@ -35,6 +27,7 @@ class CommuteRouteController(
             val season: String?,
             @param:JsonProperty("vehicle_count") val vehicleCount: Int?,
         )
+        
         data class RouteData(
             val id: Long,
             @param:JsonProperty("route_name") val routeName: String,
@@ -43,8 +36,9 @@ class CommuteRouteController(
             val departures: List<DepartureData>,
             val remark: String?,
         )
+        
         data class Response(val items: List<RouteData>, val total: Long)
-
+        
         val result = service.list(keyword, page, pageSize)
         val rs = Response(
             result.content.map {
@@ -57,7 +51,7 @@ class CommuteRouteController(
         )
         return responseBuilder.ok().data(rs).build()
     }
-
+    
     @GetMapping("/public")
     fun listPublic(): ResponseEntity<Response> {
         data class DepartureData(
@@ -65,6 +59,7 @@ class CommuteRouteController(
             val season: String?,
             @param:JsonProperty("vehicle_count") val vehicleCount: Int?,
         )
+        
         data class RouteData(
             val id: Long,
             @param:JsonProperty("route_name") val routeName: String,
@@ -73,8 +68,9 @@ class CommuteRouteController(
             val departures: List<DepartureData>,
             val remark: String?,
         )
+        
         data class Response(val items: List<RouteData>)
-
+        
         val routes = service.list(null, 1, 100).content
         val rs = Response(routes.map {
             RouteData(
@@ -84,7 +80,7 @@ class CommuteRouteController(
         })
         return responseBuilder.ok().data(rs).build()
     }
-
+    
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     fun get(@PathVariable id: Long): ResponseEntity<Response> {
@@ -93,6 +89,7 @@ class CommuteRouteController(
             val season: String?,
             @param:JsonProperty("vehicle_count") val vehicleCount: Int?,
         )
+        
         data class Response(
             val id: Long,
             @param:JsonProperty("route_name") val routeName: String,
@@ -101,7 +98,7 @@ class CommuteRouteController(
             val departures: List<DepartureData>,
             val remark: String?,
         )
-
+        
         val route = service.get(id)
         val rs = Response(
             requireNotNull(route.id), route.routeName, route.startAddress, route.endAddress,
@@ -109,32 +106,32 @@ class CommuteRouteController(
         )
         return responseBuilder.ok().data(rs).build()
     }
-
+    
     @PostMapping
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     fun create(@RequestBody route: CommuteRoute): ResponseEntity<Response> {
         data class Response(val id: Long)
-
+        
         val saved = service.create(route)
         val rs = Response(requireNotNull(saved.id))
         return responseBuilder.created().data(rs).build()
     }
-
+    
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     fun update(@PathVariable id: Long, @RequestBody route: CommuteRoute): ResponseEntity<Response> {
         data class Response(val id: Long)
-
+        
         val saved = service.update(id, route)
         val rs = Response(requireNotNull(saved.id))
         return responseBuilder.ok().data(rs).build()
     }
-
+    
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     fun delete(@PathVariable id: Long): ResponseEntity<Response> {
         data class Response(val id: Long)
-
+        
         service.delete(id)
         val rs = Response(id)
         return responseBuilder.ok().data(rs).build()

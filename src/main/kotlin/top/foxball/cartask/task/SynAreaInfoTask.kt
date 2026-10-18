@@ -5,8 +5,8 @@ import org.springframework.stereotype.Component
 import top.foxball.cartask.audit.AuditRequestContext
 import top.foxball.cartask.entity.SyncTaskRun
 import top.foxball.cartask.handler.ParkingAreaSyncInProgressException
-import top.foxball.cartask.service.*
 import top.foxball.cartask.keytop.KeytopSyncRateLimiter
+import top.foxball.cartask.service.*
 import java.time.LocalDateTime
 
 

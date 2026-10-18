@@ -4,11 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.security.core.annotation.AuthenticationPrincipal
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.PathVariable
-import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RequestParam
-import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.bind.annotation.*
 import top.foxball.cartask.authentication.CurrentUserPrincipal
 import top.foxball.cartask.entity.ViolationRecord
 import top.foxball.cartask.repository.ViolationRecordRepository
@@ -34,7 +30,7 @@ class WxViolationNoticeController(
     ): ResponseEntity<Response> {
         require(page >= 1) { "页码必须大于 0" }
         require(pageSize in 1..50) { "每页数量必须在 1 到 50 之间" }
-
+        
         data class NoticeData(
             val id: Long,
             @param:JsonProperty("subject_number") val subjectNumber: String,
@@ -48,14 +44,18 @@ class WxViolationNoticeController(
             @param:JsonProperty("handling_remark") val handlingRemark: String?,
             @param:JsonProperty("handled_at") val handledAt: String?,
         )
+        
         data class Response(val items: List<NoticeData>, val total: Int)
-
+        
         // 通报栏只展示已经通过审核的记录，待复核与撤销记录不会公开显示。
         val scope = dataScopeResolver.forPrincipal(principal)
         val records = violationRecordRepository.findAllWithViolationType()
             .filter {
-                it.handlingStatus in setOf(ViolationRecord.HandlingStatus.CONFIRMED, ViolationRecord.HandlingStatus.HANDLED) &&
-                    scopeQuerySupport.violationSubjectVisible(scope, it.subject)
+                it.handlingStatus in setOf(
+                    ViolationRecord.HandlingStatus.CONFIRMED,
+                    ViolationRecord.HandlingStatus.HANDLED
+                ) &&
+                        scopeQuerySupport.violationSubjectVisible(scope, it.subject)
             }
             .sortedByDescending { it.violationTime }
         val from = ((page - 1) * pageSize).coerceAtMost(records.size)
@@ -77,7 +77,7 @@ class WxViolationNoticeController(
         val rs = Response(items, records.size)
         return responseBuilder.ok().data(rs).build()
     }
-
+    
     @GetMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
     fun getNotice(
@@ -97,12 +97,15 @@ class WxViolationNoticeController(
             @param:JsonProperty("handling_remark") val handlingRemark: String?,
             @param:JsonProperty("handled_at") val handledAt: String?,
         )
-
+        
         val record = violationRecordRepository.findById(id).orElseThrow { IllegalArgumentException("通报记录不存在") }
         val scope = dataScopeResolver.forPrincipal(principal)
         require(
-            record.handlingStatus in setOf(ViolationRecord.HandlingStatus.CONFIRMED, ViolationRecord.HandlingStatus.HANDLED) &&
-                scopeQuerySupport.violationSubjectVisible(scope, record.subject)
+            record.handlingStatus in setOf(
+                ViolationRecord.HandlingStatus.CONFIRMED,
+                ViolationRecord.HandlingStatus.HANDLED
+            ) &&
+                    scopeQuerySupport.violationSubjectVisible(scope, record.subject)
         ) {
             "通报记录不存在"
         }

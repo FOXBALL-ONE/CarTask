@@ -30,22 +30,25 @@ class AnnouncementServiceImpl(
             }
             builder.and(*predicates.toTypedArray())
         }
-        return repository.findAll(specification, PageRequest.of(page - 1, pageSize, Sort.by(Sort.Direction.DESC, "publishedAt")))
+        return repository.findAll(
+            specification,
+            PageRequest.of(page - 1, pageSize, Sort.by(Sort.Direction.DESC, "publishedAt"))
+        )
     }
-
+    
     @Transactional(readOnly = true)
     override fun get(id: Long): Announcement {
         require(id > 0) { "ID 必须大于 0" }
         return repository.findById(id).orElseThrow { IllegalArgumentException("通告不存在: $id") }
     }
-
+    
     @Transactional
     override fun create(entity: Announcement): Announcement {
         require(entity.id == null) { "创建通告时不能指定 ID" }
         validate(entity)
         return repository.save(entity)
     }
-
+    
     @Transactional
     override fun update(id: Long, entity: Announcement): Announcement {
         require(id > 0) { "ID 必须大于 0" }
@@ -57,12 +60,12 @@ class AnnouncementServiceImpl(
         current.publishedAt = entity.publishedAt
         return repository.save(current)
     }
-
+    
     @Transactional
     override fun delete(id: Long) {
         repository.delete(get(id))
     }
-
+    
     private fun validate(entity: Announcement) {
         require(entity.title.isNotBlank()) { "标题不能为空" }
         require(entity.title.length <= 160) { "标题不能超过 160 个字符" }

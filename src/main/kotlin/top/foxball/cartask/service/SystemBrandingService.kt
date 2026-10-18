@@ -4,7 +4,7 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import top.foxball.cartask.entity.SystemBranding
 import top.foxball.cartask.repository.SystemBrandingRepository
-import java.util.Base64
+import java.util.*
 
 /** 系统品牌（图标 + 标题）的读写。logo 为 null 表示使用前端自带的默认图标。 */
 data class BrandingData(

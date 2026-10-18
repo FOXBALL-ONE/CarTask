@@ -6,13 +6,7 @@ import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.security.core.annotation.AuthenticationPrincipal
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.PathVariable
-import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RequestParam
-import org.springframework.web.bind.annotation.RequestPart
-import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.bind.annotation.*
 import org.springframework.web.multipart.MultipartFile
 import top.foxball.cartask.authentication.CurrentUserPrincipal
 import top.foxball.cartask.entity.ViolationReport
@@ -23,7 +17,7 @@ import top.foxball.cartask.service.FileService
 import top.foxball.cartask.shared.Response
 import top.foxball.cartask.shared.ResponseBuilder
 import java.time.LocalDateTime
-import java.util.Locale
+import java.util.*
 
 @RestController
 @RequestMapping("/api/wx/violation-reports")
@@ -38,7 +32,7 @@ class ViolationReportController(
     fun listReportTypes(): ResponseEntity<Response> {
         data class TypeData(val id: Long, val name: String, val description: String?)
         data class Response(val items: List<TypeData>)
-
+        
         val items = violationTypeRepository.findAll()
             .filter { it.status == ViolationType.Status.Activity }
             .sortedWith(compareBy<ViolationType> { it.orderNumber }.thenBy { it.id })
@@ -46,7 +40,7 @@ class ViolationReportController(
         val rs = Response(items)
         return responseBuilder.ok().data(rs).build()
     }
-
+    
     @GetMapping
     @PreAuthorize("isAuthenticated()")
     fun listReports(
@@ -61,7 +55,7 @@ class ViolationReportController(
         if (normalizedStatus != null) {
             require(runCatching { ViolationReport.Status.valueOf(normalizedStatus) }.isSuccess) { "不支持的举报状态" }
         }
-
+        
         data class ReportData(
             val id: Long,
             @param:JsonProperty("vehicle_number") val vehicleNumber: String,
@@ -75,8 +69,9 @@ class ViolationReportController(
             @param:JsonProperty("handled_at") val handledAt: String?,
             @param:JsonProperty("created_at") val createdAt: String,
         )
+        
         data class Response(val items: List<ReportData>, val total: Int)
-
+        
         val reports = violationReportRepository.findByReporterUserIdOrderByCreatedAtDesc(principal.userId)
             .filter { normalizedStatus == null || it.status.name == normalizedStatus }
         val fromIndex = ((page - 1) * pageSize).coerceAtMost(reports.size)
@@ -98,7 +93,7 @@ class ViolationReportController(
         val rs = Response(items, reports.size)
         return responseBuilder.ok().data(rs).build()
     }
-
+    
     @GetMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
     fun getReport(
@@ -108,7 +103,7 @@ class ViolationReportController(
         val report = violationReportRepository.findById(id)
             .orElseThrow { IllegalArgumentException("举报记录不存在") }
         require(report.reporterUserId == principal.userId) { "举报记录不存在" }
-
+        
         data class Response(
             val id: Long,
             @param:JsonProperty("vehicle_number") val vehicleNumber: String,
@@ -122,7 +117,7 @@ class ViolationReportController(
             @param:JsonProperty("handled_at") val handledAt: String?,
             @param:JsonProperty("created_at") val createdAt: String,
         )
-
+        
         val rs = Response(
             requireNotNull(report.id),
             report.vehicleNumber,
@@ -138,7 +133,7 @@ class ViolationReportController(
         )
         return responseBuilder.ok().data(rs).build()
     }
-
+    
     @PostMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     @PreAuthorize("isAuthenticated()")
     @Transactional
@@ -158,7 +153,7 @@ class ViolationReportController(
         require(violationType.trim().length <= 64) { "违规类型不能超过 64 个字符" }
         require(description.trim().length <= 1024) { "违规说明不能超过 1024 个字符" }
         require(location.isNullOrBlank() || location.trim().length <= 255) { "发生地点不能超过 255 个字符" }
-
+        
         val evidenceInfo = evidence?.takeUnless { it.isEmpty }?.let { file ->
             require(file.size <= EVIDENCE_IMAGE_MAX_BYTES) { "证据图片不能超过 5MB" }
             require(file.contentType?.startsWith("image/", ignoreCase = true) == true) { "证据图片必须为图片格式" }
@@ -168,18 +163,19 @@ class ViolationReportController(
             val size = file.inputStream.use { it.read(header) }
             fun matches(offset: Int, vararg expected: Int): Boolean =
                 size >= offset + expected.size && expected.indices.all { header[offset + it] == expected[it].toByte() }
+            
             val validImage = size >= 4 && (
-                matches(0, 0xFF, 0xD8, 0xFF) ||
-                    matches(0, 0x89, 'P'.code, 'N'.code, 'G'.code) ||
-                    matches(0, 'G'.code, 'I'.code, 'F'.code) ||
-                    matches(0, 'B'.code, 'M'.code) ||
-                    (matches(0, 'R'.code, 'I'.code, 'F'.code, 'F'.code) &&
-                        matches(8, 'W'.code, 'E'.code, 'B'.code, 'P'.code))
-                )
+                    matches(0, 0xFF, 0xD8, 0xFF) ||
+                            matches(0, 0x89, 'P'.code, 'N'.code, 'G'.code) ||
+                            matches(0, 'G'.code, 'I'.code, 'F'.code) ||
+                            matches(0, 'B'.code, 'M'.code) ||
+                            (matches(0, 'R'.code, 'I'.code, 'F'.code, 'F'.code) &&
+                                    matches(8, 'W'.code, 'E'.code, 'B'.code, 'P'.code))
+                    )
             require(validImage) { "证据图片内容不是受支持的图片" }
             fileService.upload(file).downloadUrl
         }
-
+        
         val report = violationReportRepository.save(
             ViolationReport().apply {
                 reporterUserId = principal.userId
@@ -191,12 +187,13 @@ class ViolationReportController(
                 this.evidenceInfo = evidenceInfo
             },
         )
-
+        
         data class Response(val id: Long, val status: String)
+        
         val rs = Response(requireNotNull(report.id), report.status.name)
         return responseBuilder.created().message("举报已提交").data(rs).build()
     }
-
+    
     private companion object {
         const val EVIDENCE_IMAGE_MAX_BYTES = 5 * 1024 * 1024
         const val IMAGE_HEADER_BYTES = 12

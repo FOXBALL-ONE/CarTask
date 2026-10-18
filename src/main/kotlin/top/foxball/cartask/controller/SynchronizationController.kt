@@ -10,11 +10,7 @@ import top.foxball.cartask.service.SyncTaskHistoryService
 import top.foxball.cartask.service.SyncTaskProgressService
 import top.foxball.cartask.shared.Response
 import top.foxball.cartask.shared.ResponseBuilder
-import top.foxball.cartask.task.SynAccountGenerateTask
-import top.foxball.cartask.task.SynAreaInfoTask
-import top.foxball.cartask.task.SynCarCapInfoTask
-import top.foxball.cartask.task.SynOwnerArchiveTask
-import top.foxball.cartask.task.PlateKeytopSyncTask
+import top.foxball.cartask.task.*
 import java.time.LocalDateTime
 
 
@@ -130,8 +126,8 @@ class SynchronizationController(
     
     @PostMapping("/access-records")
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('vehicle-record:sync')")
-
-
+            
+            
             /** synchronizeAccessRecords：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun synchronizeAccessRecords(): ResponseEntity<Response> {
         data class Response(
@@ -142,7 +138,7 @@ class SynchronizationController(
             @param:JsonProperty("cursor_time") val cursorTime: LocalDateTime,
             @param:JsonProperty("executed_at") val executedAt: LocalDateTime,
         )
-
+        
         val result = synCarCapInfoTask.synchronize()
         val rs = Response(
             processedCount = result.processedCount,
@@ -157,8 +153,8 @@ class SynchronizationController(
             .data(rs)
             .build()
     }
-
-
+    
+    
     @PostMapping("/access-records/backfill")
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('vehicle-record:sync')")
             /** backfillAccessRecords：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
@@ -171,7 +167,7 @@ class SynchronizationController(
             @param:JsonProperty("end_time") val endTime: LocalDateTime,
             @param:JsonProperty("executed_at") val executedAt: LocalDateTime,
         )
-
+        
         val result = synCarCapInfoTask.backfill()
         val rs = Response(
             processedCount = result.processedCount,
@@ -236,7 +232,7 @@ class SynchronizationController(
             .data(rs)
             .build()
     }
-
+    
     @PostMapping("/monthly-cards")
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('plate-sync:reconcile')")
     fun synchronizeMonthlyCards(): ResponseEntity<Response> {
@@ -244,7 +240,7 @@ class SynchronizationController(
             @param:JsonProperty("processed_count") val processedCount: Int,
             @param:JsonProperty("executed_at") val executedAt: LocalDateTime,
         )
-
+        
         val result = plateKeytopSyncTask.synchronizeManually()
         val rs = Response(result.processedCount, result.executedAt)
         return responseBuilder.ok().message("车辆月卡同步完成").data(rs).build()

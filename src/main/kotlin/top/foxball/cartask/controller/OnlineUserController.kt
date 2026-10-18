@@ -3,11 +3,7 @@ package top.foxball.cartask.controller
 import com.fasterxml.jackson.annotation.JsonProperty
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.bind.annotation.*
 import top.foxball.cartask.entity.User
 import top.foxball.cartask.repository.UserRepository
 import top.foxball.cartask.service.OnlinePresenceService
@@ -55,8 +51,8 @@ class OnlineUserController(
         val rs = Response(items, items.size, LocalDateTime.now(), OnlinePresenceService.STALE_AFTER_SECONDS)
         return responseBuilder.ok().data(rs).build()
     }
-
-
+    
+    
     /**
      * 强制登出在线用户，支持一次多个。
      *
@@ -65,13 +61,13 @@ class OnlineUserController(
      */
     @PostMapping("/logout", consumes = ["application/json"])
     @PreAuthorize("hasRole('SUPER_ADMIN') and hasAuthority('online-user:logout')")
-    /** forceLogout：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
+            /** forceLogout：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun forceLogout(@RequestBody body: ForceLogoutRequest): ResponseEntity<Response> {
         data class Response(
             @param:JsonProperty("logged_out") val loggedOut: List<Long>,
             val skipped: List<Long>,
         )
-
+        
         val result = onlineUserLogoutService.forceLogout(body.userIds.orEmpty())
         return responseBuilder.ok().data(Response(result.loggedOut, result.skipped)).build()
     }

@@ -12,12 +12,12 @@ class GeoIpService(
     @Value("\${amap.api.key:}") private val amapApiKey: String
 ) {
     private val ipCache = mutableMapOf<String, String?>()
-
+    
     fun getLocation(ip: String?): String? {
         if (ip.isNullOrBlank()) return null
         if (isPrivateNetwork(ip)) return "内网"
         if (amapApiKey.isBlank()) return null
-
+        
         return ipCache.getOrPut(ip) {
             try {
                 queryGeoIp(ip)
@@ -26,7 +26,7 @@ class GeoIpService(
             }
         }
     }
-
+    
     private fun queryGeoIp(ip: String): String? {
         return try {
             println(ip)
@@ -36,7 +36,7 @@ class GeoIpService(
             connection.connectTimeout = 3000
             connection.readTimeout = 3000
             connection.setRequestProperty("User-Agent", "Mozilla/5.0")
-
+            
             BufferedReader(InputStreamReader(connection.getInputStream())).use { reader ->
                 val response = reader.readText()
                 parseLocation(response)
@@ -45,7 +45,7 @@ class GeoIpService(
             null
         }
     }
-
+    
     private fun parseLocation(json: String): String? {
         return try {
             
@@ -53,12 +53,12 @@ class GeoIpService(
             val provinceEnd = json.indexOf("\"", provinceStart)
             val cityStart = json.indexOf("\"city\":\"") + 8
             val cityEnd = json.indexOf("\"", cityStart)
-
+            
             if (provinceStart < 12 || provinceEnd < 0 || cityStart < 8 || cityEnd < 0) return null
-
+            
             val province = json.substring(provinceStart, provinceEnd)
             val city = json.substring(cityStart, cityEnd)
-
+            
             if (province.isNotEmpty() && city.isNotEmpty() && province != "XX" && city != "XX") {
                 "$province$city"
             } else {
@@ -68,7 +68,7 @@ class GeoIpService(
             null
         }
     }
-
+    
     private fun isPrivateNetwork(ip: String): Boolean {
         println(ip)
         return ip == "127.0.0.1" || ip == "::1" || ip.startsWith("10.") ||

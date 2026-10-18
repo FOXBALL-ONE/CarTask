@@ -29,7 +29,7 @@ object PermissionCatalog {
     const val LEGACY_SYSTEM_MONITOR_READ = "system:monitor:read"
     const val SYSTEM_CONFIG_READ = "system-config:read"
     const val SYSTEM_CONFIG_WRITE = "system-config:write"
-
+    
     val definitions = listOf(
         Definition("dashboard:read", "查看仪表盘"),
         Definition(SYSTEM_MONITOR_READ, "查看系统监控"),

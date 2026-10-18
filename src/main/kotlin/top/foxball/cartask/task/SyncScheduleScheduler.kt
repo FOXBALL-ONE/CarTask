@@ -6,7 +6,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.event.ApplicationReadyEvent
 import org.springframework.context.event.EventListener
 import org.springframework.scheduling.TaskScheduler
-import org.springframework.scheduling.annotation.EnableScheduling
 import org.springframework.scheduling.support.CronTrigger
 import org.springframework.stereotype.Component
 import org.springframework.transaction.event.TransactionPhase
@@ -30,26 +29,26 @@ class SyncScheduleScheduler(
     private val jobs = ConcurrentHashMap<String, ScheduledFuture<*>>()
     
     @EventListener(ApplicationReadyEvent::class)
-    /** 应用启动完成后注册目录中的全部同步任务。 */
+            /** 应用启动完成后注册目录中的全部同步任务。 */
     fun scheduleAll() {
         catalog.definitions.forEach { register(it.key) }
     }
-
-
+    
+    
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    /** 同步周期变更事务提交后，仅重新注册受影响的任务。 */
+            /** 同步周期变更事务提交后，仅重新注册受影响的任务。 */
     fun onScheduleChanged(event: SyncScheduleChangedEvent) {
         register(event.taskKey)
     }
     
     @PreDestroy
-    /** 应用关闭时取消所有已注册的定时任务，避免线程继续触发同步。 */
+            /** 应用关闭时取消所有已注册的定时任务，避免线程继续触发同步。 */
     fun cancelAll() {
         jobs.values.forEach { it.cancel(false) }
         jobs.clear()
     }
     
-
+    
     /** 根据任务键解析当前 cron，并替换调度句柄。 */
     private fun register(taskKey: String) {
         val definition = catalog.find(taskKey)

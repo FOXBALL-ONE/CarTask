@@ -31,15 +31,18 @@ class CommuteRouteServiceImpl(
             }
             builder.and(*predicates.toTypedArray())
         }
-        return repository.findAll(specification, PageRequest.of(page - 1, pageSize, Sort.by(Sort.Direction.ASC, "routeName")))
+        return repository.findAll(
+            specification,
+            PageRequest.of(page - 1, pageSize, Sort.by(Sort.Direction.ASC, "routeName"))
+        )
     }
-
+    
     @Transactional(readOnly = true)
     override fun get(id: Long): CommuteRoute {
         require(id > 0) { "ID 必须大于 0" }
         return repository.findById(id).orElseThrow { IllegalArgumentException("发车线路不存在: $id") }
     }
-
+    
     @Transactional
     override fun create(entity: CommuteRoute): CommuteRoute {
         require(entity.id == null) { "创建路线时不能指定 ID" }
@@ -47,7 +50,7 @@ class CommuteRouteServiceImpl(
         validate(entity)
         return repository.save(entity)
     }
-
+    
     @Transactional
     override fun update(id: Long, entity: CommuteRoute): CommuteRoute {
         require(id > 0) { "ID 必须大于 0" }
@@ -62,12 +65,12 @@ class CommuteRouteServiceImpl(
         current.remark = entity.remark
         return repository.save(current)
     }
-
+    
     @Transactional
     override fun delete(id: Long) {
         repository.delete(get(id))
     }
-
+    
     private fun normalize(entity: CommuteRoute) {
         entity.routeName = entity.routeName.trim()
         entity.startAddress = entity.startAddress.trim()
@@ -82,7 +85,7 @@ class CommuteRouteServiceImpl(
             .toMutableList()
         entity.remark = entity.remark?.trim()?.takeIf(String::isNotBlank)
     }
-
+    
     private fun validate(entity: CommuteRoute) {
         require(entity.routeName.isNotBlank()) { "路线名称不能为空" }
         require(entity.routeName.length <= 120) { "路线名称不能超过 120 个字符" }

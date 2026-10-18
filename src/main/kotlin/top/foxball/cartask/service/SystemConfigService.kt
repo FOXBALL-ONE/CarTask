@@ -24,16 +24,16 @@ class SystemConfigService(
     private val environment: Environment,
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
-
-
+    
+    
     /** read：返回所有可编辑项的当前生效值；密钥一律以掩码返回，避免明文回显到浏览器。 */
     fun read(): Map<String, String> = EDITABLE_KEYS.associateWith { key ->
         val fileValue = DotenvLoader.read(DotenvLoader.defaultPath())[key]
         val value = fileValue ?: environment.getProperty(propertyKey(key)).orEmpty()
         if (key in SECRET_KEYS && value.isNotBlank()) MASK else value
     }
-
-
+    
+    
     /**
      * write：把提交上来的项写回 .env。
      *
@@ -43,7 +43,7 @@ class SystemConfigService(
     fun write(values: Map<String, String>) {
         val accepted = values.filterKeys { it in EDITABLE_KEYS }
         require(accepted.isNotEmpty()) { "没有可保存的配置项" }
-
+        
         val effective = read().toMutableMap()
         val changed = linkedMapOf<String, String>()
         accepted.forEach { (key, raw) ->
@@ -54,12 +54,12 @@ class SystemConfigService(
             changed[key] = value
         }
         require(changed.isNotEmpty()) { "没有发生变化，密钥留空表示不修改" }
-
+        
         validate(effective)
         writeEnv(changed)
     }
-
-
+    
+    
     /**
      * validate：跨字段校验，规则与启动时 CorsProperties.validate 保持一致，
      * 让用户在保存这一刻就拿到中文报错，而不是重启之后应用起不来。
@@ -77,21 +77,21 @@ class SystemConfigService(
         require(!(allowCredentials && "*" in origins)) {
             "允许携带凭据时不能把跨域来源配置为 *，请填写具体的前端地址"
         }
-
+        
         values["KEYTOP_CAR_CAP_INFO_PHOTO_DOWNLOAD_INTERVAL"]?.let { raw ->
             require(raw.isNotBlank()) { "图片下载间隔不能为空" }
             val interval = parseDuration(raw)
             require(!interval.isNegative) { "图片下载间隔不能为负数" }
             require(interval <= java.time.Duration.ofSeconds(60)) { "图片下载间隔不能超过 60 秒" }
         }
-
+        
         values["KEYTOP_CAR_CAP_INFO_PHOTO_DOWNLOAD_CONCURRENCY"]?.let { raw ->
             require(raw.isNotBlank()) { "图片下载并行数不能为空" }
             val concurrency = raw.toIntOrNull()
                 ?: throw IllegalArgumentException("图片下载并行数必须是整数")
             require(concurrency in 1..16) { "图片下载并行数必须在 1 到 16 之间" }
         }
-
+        
         values["KEYTOP_SYNC_REQUEST_INTERVAL"]?.let { raw ->
             require(raw.isNotBlank()) { "Keytop 同步请求限频间隔不能为空" }
             val interval = parseDuration(raw)
@@ -99,8 +99,8 @@ class SystemConfigService(
             require(interval <= java.time.Duration.ofSeconds(60)) { "Keytop 同步请求限频间隔不能超过 60 秒" }
         }
     }
-
-
+    
+    
     private fun parseDuration(raw: String): java.time.Duration {
         return try {
             val value = raw.trim()
@@ -121,13 +121,13 @@ class SystemConfigService(
             throw IllegalArgumentException("无法解析时长格式：$raw（示例：200ms、1s、30s）")
         }
     }
-
-
+    
+    
     /** writeEnv：按行替换 .env 中的目标键，缺失的追加到末尾；写前留备份，写时走原子替换。 */
     private fun writeEnv(updates: Map<String, String>): Path {
         val path = DotenvLoader.defaultPath()
         val lines = if (Files.exists(path)) Files.readAllLines(path).toMutableList() else mutableListOf()
-
+        
         updates.forEach { (key, value) ->
             val rendered = "$key=${quote(value)}"
             val index = lines.indexOfFirst { line ->
@@ -135,7 +135,7 @@ class SystemConfigService(
             }
             if (index >= 0) lines[index] = rendered else lines.add(rendered)
         }
-
+        
         backup(path)
         path.parent?.let { Files.createDirectories(it) }
         val temporary = path.resolveSibling("${path.fileName}.tmp")
@@ -144,29 +144,29 @@ class SystemConfigService(
         logger.info("系统配置已写入 {}：{}", path, updates.keys.joinToString(", "))
         return path
     }
-
-
+    
+    
     /** backup：改动前留一份带时间戳的副本，配错了还能手工还原。 */
     private fun backup(path: Path) {
         if (!Files.exists(path)) return
         val stamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"))
         Files.copy(path, path.resolveSibling("${path.fileName}.bak.$stamp"), StandardCopyOption.REPLACE_EXISTING)
     }
-
-
+    
+    
     /** quote：含 # 或首尾空格的值必须加引号，否则 DotenvLoader 解析出来的值会被截断。 */
     private fun quote(value: String): String =
         if (value.contains('#') || value != value.trim()) "\"$value\"" else value
-
-
+    
+    
     /** propertyKey：环境变量名到 Spring 属性名的映射，用于从 Environment 读取生效值。 */
     private fun propertyKey(envKey: String): String = PROPERTY_KEYS.getValue(envKey)
-
-
+    
+    
     private companion object {
         const val MASK = "******"
-
-
+        
+        
         val EDITABLE_KEYS = setOf(
             "CORS_ALLOWED_ORIGINS",
             "CORS_ALLOW_CREDENTIALS",
@@ -181,16 +181,16 @@ class SystemConfigService(
             "KEYTOP_CAR_CAP_INFO_PHOTO_DOWNLOAD_CONCURRENCY",
             "KEYTOP_SYNC_REQUEST_INTERVAL",
         )
-
-
+        
+        
         val SECRET_KEYS = setOf("SMS_ACCESS_KEY_SECRET")
-
-
+        
+        
         val BOOLEAN_KEYS = setOf(
             "CORS_ALLOW_CREDENTIALS", "SMS_ENABLED", "SMS_SKIP_VERIFICATION",
         )
-
-
+        
+        
         val PROPERTY_KEYS = mapOf(
             "CORS_ALLOWED_ORIGINS" to "cartask.security.cors.allowed-origins",
             "CORS_ALLOW_CREDENTIALS" to "cartask.security.cors.allow-credentials",

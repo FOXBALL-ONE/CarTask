@@ -123,10 +123,11 @@ class PermissionCatalogInitializer(
         }
         return changed
     }
-
+    
     private fun migrateLegacyPermissionCodes(existingPermissions: MutableList<Permission>) {
         LEGACY_PERMISSION_CODES.forEach { (legacyCode, currentCode) ->
-            val legacy = existingPermissions.singleOrNull { it.code.equals(legacyCode, ignoreCase = true) } ?: return@forEach
+            val legacy =
+                existingPermissions.singleOrNull { it.code.equals(legacyCode, ignoreCase = true) } ?: return@forEach
             val current = existingPermissions.singleOrNull { it.code.equals(currentCode, ignoreCase = true) }
             if (current == null) {
                 legacy.code = currentCode
@@ -217,7 +218,7 @@ class PermissionCatalogInitializer(
             "person-record:read",
             "file:read",
         )
-
+        
         val LEGACY_PERMISSION_CODES = mapOf(
             "plate:sync:read" to "plate-sync:read",
             "plate:sync:retry" to "plate-sync:retry",

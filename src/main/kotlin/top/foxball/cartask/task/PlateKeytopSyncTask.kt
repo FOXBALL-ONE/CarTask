@@ -2,11 +2,11 @@ package top.foxball.cartask.task
 
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
+import top.foxball.cartask.entity.SyncTaskRun
 import top.foxball.cartask.service.PlateKeytopSyncService
 import top.foxball.cartask.service.SyncTaskHistoryService
 import top.foxball.cartask.service.SyncTaskProgressService
 import top.foxball.cartask.service.SyncTaskRunCommand
-import top.foxball.cartask.entity.SyncTaskRun
 import java.time.LocalDateTime
 
 @Component
@@ -16,20 +16,20 @@ class PlateKeytopSyncTask(
     private val syncTaskProgressService: SyncTaskProgressService,
 ) {
     @Scheduled(cron = "\${keytop.plate-sync-cron:*/30 * * * * *}")
-    /** 定时处理一批待同步的车牌月卡任务。 */
+            /** 定时处理一批待同步的车牌月卡任务。 */
     fun synchronize() {
         run(SyncTaskRun.Trigger.SCHEDULED)
     }
-
+    
     /** 手动处理一批车牌月卡任务，并返回处理数量。 */
     fun synchronizeManually(): PlateKeytopSyncResult = run(SyncTaskRun.Trigger.MANUAL)
-
+    
     @Scheduled(cron = "\${keytop.plate-reconcile-cron:0 0 * * * *}")
-    /** 定时对账 Keytop 月卡状态，并为发现差异的车牌重新排队。 */
+            /** 定时对账 Keytop 月卡状态，并为发现差异的车牌重新排队。 */
     fun reconcile() {
         plateKeytopSyncService.reconcile()
     }
-
+    
     /** 执行月卡同步任务的公共包装逻辑，包括进度、历史和异常处理。 */
     private fun run(trigger: SyncTaskRun.Trigger): PlateKeytopSyncResult {
         val startedAt = LocalDateTime.now()
@@ -68,12 +68,12 @@ class PlateKeytopSyncTask(
             syncTaskProgressService.finish(TASK_KEY, startedAt)
         }
     }
-
+    
     data class PlateKeytopSyncResult(
         val processedCount: Int,
         val executedAt: LocalDateTime,
     )
-
+    
     companion object {
         const val TASK_KEY = "plate.keytop.sync"
         const val TASK_NAME = "车辆月卡同步"

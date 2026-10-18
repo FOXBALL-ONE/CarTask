@@ -56,7 +56,7 @@ class SynAccountGenerateTask(
     
     
     @Transactional(noRollbackFor = [RuntimeException::class])
-    /** 手动生成车辆业主账号，并返回创建、跳过和失败统计。 */
+            /** 手动生成车辆业主账号，并返回创建、跳过和失败统计。 */
     fun generate(): AccountGenerateResult = generate(SyncTaskRun.Trigger.MANUAL)
     
     

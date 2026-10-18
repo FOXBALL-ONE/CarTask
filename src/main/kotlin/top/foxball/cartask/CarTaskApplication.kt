@@ -27,11 +27,11 @@ class CarTaskApplication
 fun main(args: Array<String>) {
     val logger = LoggerFactory.getLogger("top.foxball.cartask.Bootstrap")
     var setup = SetupMode.required()
-
+    
     while (true) {
         val application = SpringApplication(if (setup) SetupApplication::class.java else CarTaskApplication::class.java)
         val context = application.run(*args)
-
+        
         val restart = if (setup) {
             val requested = context.getBean(SetupRestartSignal::class.java).await()
             if (requested) logger.info("配置引导已结束，按新写入的配置重新启动（引导模式={}）", SetupMode.required())
@@ -41,10 +41,10 @@ fun main(args: Array<String>) {
             if (requested) logger.info("收到配置重载请求，按新写入的配置重新启动")
             requested
         }
-
+        
         context.close()
         if (!restart) return
-
+        
         setup = SetupMode.required()
     }
 }

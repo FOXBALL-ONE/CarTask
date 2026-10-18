@@ -21,8 +21,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 class AppRestartSignal {
     private val latch = CountDownLatch(1)
     private val restartRequested = AtomicBoolean(false)
-
-
+    
+    
     /** request：请求重启。重复调用只有第一次生效。 */
     fun request() {
         if (!restartRequested.compareAndSet(false, true)) return
@@ -34,20 +34,20 @@ class AppRestartSignal {
             name = "app-restart"
         }.start()
     }
-
-
+    
+    
     /** await：阻塞到收到重启请求或被关闭为止，返回是否真的需要重启。 */
     fun await(): Boolean {
         latch.await()
         return restartRequested.get()
     }
-
+    
     @PreDestroy
-    /** release：上下文关闭时放行，避免 main() 卡在 await 上。 */
+            /** release：上下文关闭时放行，避免 main() 卡在 await 上。 */
     fun release() {
         latch.countDown()
     }
-
+    
     private companion object {
         const val RESTART_DELAY_MILLIS = 900L
     }

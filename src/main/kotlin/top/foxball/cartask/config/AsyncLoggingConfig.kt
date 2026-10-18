@@ -25,8 +25,8 @@ import java.util.concurrent.ThreadPoolExecutor
  */
 class AsyncLoggingConfig {
     @Bean("operationLogExecutor")
-
-
+            
+            
             /**
              * operationLogExecutor 函数：执行与该组件职责相关的业务操作。
              * 参数和返回值遵循调用方与领域服务之间的约定。
@@ -63,7 +63,7 @@ class AsyncLoggingConfig {
         setRejectedExecutionHandler(ThreadPoolExecutor.CallerRunsPolicy())
         initialize()
     }
-
+    
     @Bean("syncTaskExecutor")
     fun syncTaskExecutor(): ThreadPoolTaskExecutor = ThreadPoolTaskExecutor().apply {
         corePoolSize = 3

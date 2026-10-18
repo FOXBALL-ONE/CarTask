@@ -20,18 +20,12 @@ import top.foxball.cartask.repository.*
 import top.foxball.cartask.scope.DataScopeResolver
 import top.foxball.cartask.scope.ScopeGuard
 import top.foxball.cartask.scope.ScopeQuerySupport
-import top.foxball.cartask.service.DashboardSpotStatsService
-import top.foxball.cartask.service.DepartmentService
-import top.foxball.cartask.service.FileService
-import top.foxball.cartask.service.GeoIpService
-import top.foxball.cartask.service.PositionService
-import top.foxball.cartask.service.PlateKeytopSyncService
+import top.foxball.cartask.service.*
 import top.foxball.cartask.shared.*
 import java.math.BigDecimal
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.util.*
-
 
 
 @RestController
@@ -743,7 +737,7 @@ class ParkingApiController(
             mapOf("id" to id, "keytop_sync_status" to "DELETE_PENDING", "keytop_sync_task_id" to sync.taskId)
         ).build()
     }
-
+    
     @PostMapping("/plates/{id}/keytop-sync/retry")
     @PreAuthorize("hasAuthority('plate-sync:retry')")
     fun retryPlateKeytopSync(@PathVariable id: Long): ResponseEntity<Response> {
@@ -757,7 +751,7 @@ class ParkingApiController(
             mapOf("plate_id" to result.plateId, "keytop_sync_status" to result.status.name, "task_id" to result.taskId)
         ).build()
     }
-
+    
     @PostMapping("/plates/keytop-sync/reconcile")
     @PreAuthorize("hasAuthority('plate-sync:reconcile')")
     fun reconcilePlateKeytopSync(): ResponseEntity<Response> {

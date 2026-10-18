@@ -23,19 +23,19 @@ import top.foxball.cartask.repository.SyncCheckpointRepository
 class SyncCheckpointService(
     private val repository: SyncCheckpointRepository,
 ) {
-
-
+    
+    
     /** loadOrCreate：取出检查点并加悲观写锁，不存在时返回尚未持久化的新实例；锁随本方法的事务释放。 */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     fun loadOrCreate(syncKey: String): SyncCheckpoint =
         repository.findBySyncKey(syncKey) ?: SyncCheckpoint().apply { this.syncKey = syncKey }
-
-
+    
+    
     /** find：不加锁地读取检查点，用于预检这类只看不改的场景。 */
     @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true)
     fun find(syncKey: String): SyncCheckpoint? = repository.findFirstBySyncKey(syncKey)
-
-
+    
+    
     /**
      * save：保存检查点。
      *

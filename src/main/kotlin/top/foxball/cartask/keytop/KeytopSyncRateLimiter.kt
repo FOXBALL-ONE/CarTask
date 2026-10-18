@@ -19,7 +19,7 @@ class KeytopSyncRateLimiter(
 ) {
     private val nextAvailableNanos = AtomicLong(0)
     private val snapshotContext = ThreadLocal<Snapshot?>()
-
+    
     fun snapshot(): Snapshot = snapshotContext.get() ?: Snapshot(
         interval = readInterval(ENV_KEY, PROPERTY_KEY, DEFAULT_INTERVAL),
         photoDownloadInterval = readInterval(
@@ -29,9 +29,9 @@ class KeytopSyncRateLimiter(
         ),
         photoDownloadConcurrency = readConcurrency(),
     )
-
+    
     fun hasSnapshot(): Boolean = snapshotContext.get() != null
-
+    
     fun <T> withSnapshot(snapshot: Snapshot, action: () -> T): T {
         val previous = snapshotContext.get()
         snapshotContext.set(snapshot)
@@ -41,23 +41,23 @@ class KeytopSyncRateLimiter(
             if (previous == null) snapshotContext.remove() else snapshotContext.set(previous)
         }
     }
-
+    
     /** KeytopServiceImpl 在真正发起 HTTP 请求前调用。 */
     fun acquire() {
         snapshotContext.get()?.let(::acquire)
     }
-
+    
     private fun acquire(snapshot: Snapshot) {
         val intervalNanos = snapshot.interval.toNanos()
         if (intervalNanos <= 0) return
-
+        
         while (true) {
             val now = System.nanoTime()
             val expected = nextAvailableNanos.get()
             val target = maxOf(now, expected)
             val next = target + intervalNanos
             if (!nextAvailableNanos.compareAndSet(expected, next)) continue
-
+            
             val waitNanos = target - now
             if (waitNanos <= 0) return
             try {
@@ -69,7 +69,7 @@ class KeytopSyncRateLimiter(
             return
         }
     }
-
+    
     private fun readInterval(envKey: String, propertyKey: String, defaultValue: String): Duration {
         val raw = DotenvLoader.read(DotenvLoader.defaultPath())[envKey]
             ?: environment.getProperty(propertyKey)
@@ -79,7 +79,7 @@ class KeytopSyncRateLimiter(
         require(interval <= MAX_INTERVAL) { "$envKey 不能超过 60 秒" }
         return interval
     }
-
+    
     private fun readConcurrency(): Int {
         val raw = DotenvLoader.read(DotenvLoader.defaultPath())[PHOTO_CONCURRENCY_ENV_KEY]
             ?: environment.getProperty(PHOTO_CONCURRENCY_PROPERTY_KEY)
@@ -89,7 +89,7 @@ class KeytopSyncRateLimiter(
         require(concurrency in 1..16) { "$PHOTO_CONCURRENCY_ENV_KEY 必须在 1 到 16 之间" }
         return concurrency
     }
-
+    
     private fun parseDuration(raw: String, envKey: String): Duration {
         val value = raw.trim()
         require(value.isNotEmpty()) { "$envKey 不能为空" }
@@ -111,13 +111,13 @@ class KeytopSyncRateLimiter(
             throw IllegalArgumentException("无法解析 Keytop 限频间隔：$value（示例：200ms、1s、30s）", exception)
         }
     }
-
+    
     data class Snapshot(
         val interval: Duration,
         val photoDownloadInterval: Duration = Duration.ofMillis(200),
         val photoDownloadConcurrency: Int = 4,
     )
-
+    
     private companion object {
         const val ENV_KEY = "KEYTOP_SYNC_REQUEST_INTERVAL"
         const val PROPERTY_KEY = "keytop.sync-request-interval"
