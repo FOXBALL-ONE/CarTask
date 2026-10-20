@@ -66,6 +66,8 @@ object PermissionCatalog {
         Definition("device:read", "查看设备"),
         Definition("device:manage", "管理设备"),
         Definition("gate-person:read", "查看门禁人员"),
+        Definition("gate-person:sensitive-read", "查看门禁人员敏感信息"),
+        Definition("gate-person:department-scope", "按当前工作单位管理人脸数据"),
         Definition("gate-person:manage", "管理门禁人员"),
         Definition("gate-person:review", "审核门禁人员"),
         Definition("gate-person:export", "导出门禁人员"),

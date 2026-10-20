@@ -49,6 +49,14 @@ class RoleAssignmentPolicy {
         
         requireSuperAdmin()
     }
+
+    /** 人脸审核与车辆审核的联合授权属于超级管理员治理范围。 */
+    fun validatePermissionCombination(permissions: Collection<String>) {
+        val normalized = permissions.map(SecurityPermission::normalize).toSet()
+        if ("gate-person:review" in normalized && "vehicle-inout-request:review" in normalized) {
+            requireSuperAdmin()
+        }
+    }
     
     
     /** requireSuperAdmin：执行认证组件中的一项具体操作，完成输入校验并返回处理结果。 */

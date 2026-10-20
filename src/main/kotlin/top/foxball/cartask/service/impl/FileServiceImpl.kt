@@ -3,6 +3,8 @@ package top.foxball.cartask.service.impl
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.stereotype.Service
 import org.springframework.transaction.support.TransactionOperations
+import org.springframework.transaction.support.TransactionSynchronization
+import org.springframework.transaction.support.TransactionSynchronizationManager
 import org.springframework.web.multipart.MultipartFile
 import org.springframework.web.util.UriComponentsBuilder
 import top.foxball.cartask.audit.AuditAction
@@ -39,6 +41,7 @@ class FileServiceImpl(
     private val scopeQuerySupport: ScopeQuerySupport,
     private val departmentLinkResolver: DepartmentLinkResolver,
     private val auditService: AuditService? = null,
+    private val faceScopePolicy: top.foxball.cartask.scope.FaceRegistrationScopePolicy? = null,
 ) : FileService {
     private val remoteHttpClient = HttpClient.newBuilder()
         .connectTimeout(java.time.Duration.ofSeconds(10))
@@ -214,6 +217,13 @@ class FileServiceImpl(
                 Files.move(temporary, target)
             }
             moved = true
+            if (TransactionSynchronizationManager.isSynchronizationActive()) {
+                TransactionSynchronizationManager.registerSynchronization(object : TransactionSynchronization {
+                    override fun afterCompletion(status: Int) {
+                        if (status != TransactionSynchronization.STATUS_COMMITTED) deleteQuietly(target)
+                    }
+                })
+            }
             val metadata = StoredFile().apply {
                 this.id = id
                 originalFilename = safeFilename.value
@@ -252,6 +262,15 @@ class FileServiceImpl(
     
     private fun findVisibleFile(id: UUID): StoredFile {
         val storedFile = findFile(id)
+        if (storedFile.businessType == StoredFile.BUSINESS_GATE_PERSON_ORPHAN) throw ResourceNotFoundException("文件不存在")
+        if (storedFile.businessType == StoredFile.BUSINESS_GATE_PERSON && faceScopePolicy != null) {
+            try {
+                faceScopePolicy.requirePhotoFile(storedFile)
+            } catch (_: IllegalArgumentException) {
+                throw ResourceNotFoundException("文件不存在")
+            }
+            return storedFile
+        }
         val scope = dataScopeResolver.current()
         if (!scope.unrestricted && !scopeQuerySupport.fileVisible(scope, storedFile)) {
             throw ResourceNotFoundException("文件不存在")
@@ -280,6 +299,9 @@ class FileServiceImpl(
         val storedFile = findFile(id)
         storedFile.businessType = businessType
         storedFile.businessId = businessId
+        if (businessType == StoredFile.BUSINESS_GATE_PERSON) {
+            storedFile.departmentCode = faceScopePolicy?.departmentOf(businessId) ?: storedFile.departmentCode
+        }
         fileRepository.save(storedFile)
     }
     

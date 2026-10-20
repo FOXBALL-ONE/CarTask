@@ -1,5 +1,21 @@
 <template>
   <section class="page">
+    <div class="tabs">
+      <button :class="{ 'gp-tab--active': activeTab === 'all' }" class="gp-tab" type="button"
+              @click="activeTab = 'all'">人员信息
+      </button>
+      <button :class="{ 'gp-tab--active': activeTab === 'pending' }" class="gp-tab" type="button"
+              @click="activeTab = 'pending'">待审核人员
+      </button>
+      <button :class="{ 'gp-tab--active': activeTab === 'delete' }" class="gp-tab" type="button"
+              @click="activeTab = 'delete'">申请删除人员
+      </button>
+      <button :class="{ 'gp-tab--active': activeTab === 'faces' }" class="gp-tab" type="button"
+              @click="activeTab = 'faces'">人脸登记
+      </button>
+    </div>
+    <FaceRegistrationsPage v-if="activeTab === 'faces'" />
+    <template v-else>
     <header class="page__header">
       <div>
         <h1 class="page__title">人员信息</h1>
@@ -25,18 +41,6 @@
         </button>
       </div>
     </header>
-
-    <div class="tabs">
-      <button :class="{ 'gp-tab--active': activeTab === 'all' }" class="gp-tab" type="button"
-              @click="activeTab = 'all'">人员信息
-      </button>
-      <button :class="{ 'gp-tab--active': activeTab === 'pending' }" class="gp-tab" type="button"
-              @click="activeTab = 'pending'">待审核人员
-      </button>
-      <button :class="{ 'gp-tab--active': activeTab === 'delete' }" class="gp-tab" type="button"
-              @click="activeTab = 'delete'">申请删除人员
-      </button>
-    </div>
 
     <p v-if="successMessage" class="notice">{{ successMessage }}</p>
     <p v-if="actionError" class="notice notice--error">{{ actionError }}</p>
@@ -287,8 +291,8 @@
                                                                                      placeholder="18 位身份证号"
                                                                                      required></label><label
               class="field field--full"><span class="field__label">人脸照片<em v-if="!editingId">*</em></span><input
-              ref="faceInput" :required="!editingId" accept="image/*" class="input file-input" type="file"
-              @change="selectFace"><span class="field__hint">支持 jpg/png/gif/webp/bmp，不超过 2MB</span></label></div>
+              ref="faceInput" :required="!editingId" accept=".jpg,.jpeg,.png,.webp" class="input file-input" type="file"
+              @change="selectFace"><span class="field__hint">支持 JPEG、PNG、WEBP，不超过 2MB</span></label></div>
           <p v-if="formError" class="form-error">{{ formError }}</p></div>
         <footer class="modal__foot">
           <button class="btn btn--ghost" type="button" @click="editorVisible = false">取消</button>
@@ -323,10 +327,13 @@
         </footer>
       </div>
     </div>
+    </template>
   </section>
 </template>
 
 <script lang="ts" setup>
+import FaceRegistrationsPage from "./face-registrations.vue";
+
 interface Person {
   id: number;
   code: string;
@@ -351,7 +358,8 @@ const {can} = usePermission();
 const runtimeConfig = useRuntimeConfig();
 const token = useCookie<string | null>("cartask_auth_token");
 const fallbackFace = "/favicon.ico";
-const activeTab = ref<"all" | "pending" | "delete">("all");
+const route = useRoute();
+const activeTab = ref<"all" | "pending" | "delete" | "faces">(route.query.tab === "faces" ? "faces" : "all");
 const persons = ref<Person[]>([]);
 const requests = ref<DeleteRequest[]>([]);
 const personTotal = ref(0);
@@ -399,8 +407,9 @@ const pageNumbers = computed(() => Array.from({length: totalPages.value}, (_, in
 const visiblePersons = computed(() => activeTab.value === "delete" ? [] : persons.value as Person[]);
 const visibleRequests = computed(() => activeTab.value === "delete" ? requests.value as DeleteRequest[] : []);
 
-watch(activeTab, () => {
+watch(activeTab, (tab) => {
   page.value = 1;
+  if (tab === "faces") return;
   resetFilters(false);
 });
 watch([filters, deleteStatus], () => {
@@ -441,11 +450,17 @@ function faceSrc(face?: string | null) {
 }
 
 async function loadFace(face?: string | null) {
-  // 只处理真正的下载地址；历史数据里的档案标识不是 URL，取不到就保持占位图。
-  if (!face || !/^https?:\/\//i.test(face) || faceObjectUrls.value[face] || loadingFaces.has(face)) return;
+  if (!face || faceObjectUrls.value[face] || loadingFaces.has(face)) return;
+  const url = /^https?:\/\//i.test(face)
+      ? face
+      : face.startsWith("/")
+          ? `${apiBase().replace(/\/api$/, "")}${face}`
+          : null;
+  // 历史档案标识不是 URL；新登记照片使用带权限校验的相对 API 路由。
+  if (!url) return;
   loadingFaces.add(face);
   try {
-    const response = await fetch(face, {headers: authorization()});
+    const response = await fetch(url, {headers: authorization()});
     if (!response.ok) return;
     faceObjectUrls.value = {...faceObjectUrls.value, [face]: URL.createObjectURL(await response.blob())};
   } catch {
@@ -853,7 +868,7 @@ function saveBlob(blob: Blob, filename: string) {
 }
 
 onMounted(async () => {
-  await Promise.all([loadDepartments(), loadData()]);
+  if (activeTab.value !== "faces") await Promise.all([loadDepartments(), loadData()]);
 });
 onBeforeUnmount(() => {
   Object.values(faceObjectUrls.value).forEach((url) => URL.revokeObjectURL(url));

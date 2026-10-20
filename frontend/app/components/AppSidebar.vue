@@ -193,7 +193,7 @@ const navigation: { title: string; items: NavigationItem[] }[] = [
       label: "门禁管理",
       icon: "door_front",
       children: [{
-        label: "人员信息",
+        label: "人员与人脸登记",
         icon: "badge",
         page: "gate-persons",
         route: "/gate-persons",

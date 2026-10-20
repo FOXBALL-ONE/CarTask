@@ -686,7 +686,7 @@ class ExcelController(
                         it.dept,
                         it.name,
                         it.phone,
-                        it.idCard,
+                        "************${it.idCard.takeLast(4)}",
                         it.createTime.toString(),
                         it.approveStatus.value(),
                         it.syncStatus.value()
@@ -790,7 +790,7 @@ class ExcelController(
         }
         val gateRows = gatePersonRepository.findAll().map {
             GatePersonExportRow(
-                requireNotNull(it.id), it.code, it.dept, it.name, it.phone, it.idCard,
+                requireNotNull(it.id), it.code, it.dept, it.name, it.phone, "************${it.idCard.takeLast(4)}",
                 it.createTime.toString(), it.approveStatus.value(), it.syncStatus.value()
             )
         }
@@ -1161,7 +1161,7 @@ class ExcelController(
                             departmentCode = forcedDepartment?.code ?: scopeQuerySupport.stampDepartmentCode(dept, null)
                             name = GatePersonFields.requireName(row.name, line)
                             phone = GatePersonFields.requirePhone(row.phone, line)
-                            idCard = GatePersonFields.requireIdCard(row.idCard, line)
+                            idCard = GatePersonFields.requireLegacyIdCard(row.idCard, line)
                             createTime = LocalDateTime.now()
                             updatedAt = createTime
                         }

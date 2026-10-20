@@ -69,6 +69,25 @@ object GatePersonFields {
      */
     fun requireIdCard(value: String?, linePrefix: String = ""): String =
         requireNotBlank(value, "${linePrefix}身份证号", ID_CARD_MAX)
+            .uppercase()
+            .also {
+                require(it.matches(ID_CARD_PATTERN)) { "${linePrefix}身份证号必须为 18 位" }
+                val birthDate = runCatching {
+                    java.time.LocalDate.parse(it.substring(6, 14), java.time.format.DateTimeFormatter.BASIC_ISO_DATE)
+                }.getOrNull()
+                require(birthDate != null && !birthDate.isAfter(java.time.LocalDate.now())) {
+                    "${linePrefix}身份证号出生日期不合法"
+                }
+                val weights = intArrayOf(7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2)
+                val checks = charArrayOf('1', '0', 'X', '9', '8', '7', '6', '5', '4', '3', '2')
+                val sum = weights.indices.sumOf { index -> (it[index] - '0') * weights[index] }
+                require(it[17] == checks[sum % 11]) { "${linePrefix}身份证号校验码不正确" }
+            }
+
+    /** 旧 /api/gate-persons 兼容入口保留历史数据的宽松校验；新登记入口使用 requireIdCard。 */
+    fun requireLegacyIdCard(value: String?, linePrefix: String = ""): String =
+        requireNotBlank(value, "${linePrefix}身份证号", ID_CARD_MAX)
+            .uppercase()
             .also { require(it.matches(ID_CARD_PATTERN)) { "${linePrefix}身份证号必须为 18 位" } }
     
     

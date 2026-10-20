@@ -63,5 +63,6 @@ class StoredFile {
         
         
         const val BUSINESS_GATE_PERSON = "gate_person"
+        const val BUSINESS_GATE_PERSON_ORPHAN = "gate_person_orphan"
     }
 }

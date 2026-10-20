@@ -21,6 +21,7 @@ const routePermissions: Record<string, string[]> = {
     "/zones": ["dictionary:read"],
     "/devices": ["device:read"],
     "/gate-persons": ["gate-person:read"],
+    "/face-registrations": ["gate-person:read"],
     "/person-records": ["person-record:read"],
     "/vehicle-records": ["vehicle-record:read"],
     "/violations": ["violation:read"],
@@ -68,6 +69,11 @@ export default defineNuxtRouteMiddleware(async (to) => {
     // 初始密码未修改时只放行个人中心改密页（服务端另有过滤器强制拦截）。
     if (authStore.mustChangePassword && to.path !== "/profile") {
         return navigateTo({path: "/profile", query: {tab: "password"}});
+    }
+
+    // 人脸登记已经并入门禁人员页面，保留旧地址作为兼容入口。
+    if (to.path === "/face-registrations") {
+        return navigateTo({path: "/gate-persons", query: {tab: "faces"}});
     }
 
     const required = routePermissions[to.path];

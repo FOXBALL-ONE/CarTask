@@ -5,6 +5,7 @@ import org.springframework.beans.BeanWrapperImpl
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageRequest
 import org.springframework.security.access.AccessDeniedException
+import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.stereotype.Service
 import top.foxball.cartask.audit.AuditAction
@@ -292,6 +293,12 @@ class RoleServiceImpl(
             .filter { it.enabled }
             .map { SecurityPermission.normalize(it.code) }
             .toSet()
+        if ("gate-person:review" in enabledCodes && "vehicle-inout-request:review" in enabledCodes) {
+            val authentication = SecurityContextHolder.getContext().authentication
+            require(authentication?.authorities?.any { it.authority == SecurityRole.authority("SUPER_ADMIN") } == true) {
+                "只有超级管理员可以配置人脸和车辆联合审核权限"
+            }
+        }
         require(SecurityRole.SUPER_ADMIN_GOVERNANCE_PERMISSIONS.all(enabledCodes::contains)) {
             "超级管理员必须保留完整的安全治理权限"
         }
