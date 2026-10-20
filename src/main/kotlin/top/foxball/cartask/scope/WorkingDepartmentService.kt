@@ -17,6 +17,7 @@ import top.foxball.cartask.entity.UserManagedDepartment
 import top.foxball.cartask.repository.DepartmentRepository
 import top.foxball.cartask.repository.UserManagedDepartmentRepository
 import top.foxball.cartask.repository.UserRepository
+import top.foxball.cartask.repository.UserResourcePermissionRepository
 
 
 data class WorkingDepartmentOption(val id: Long, val name: String)
@@ -47,6 +48,8 @@ class WorkingDepartmentService(
     private val userManagedDepartmentRepository: UserManagedDepartmentRepository,
     private val userRepository: UserRepository,
     private val sessionRepository: RedisTokenSessionRepository,
+    private val userResourcePermissionRepository: UserResourcePermissionRepository? = null,
+    private val departmentLinkResolver: DepartmentLinkResolver? = null,
 ) {
     @Transactional(readOnly = true)
             
@@ -58,7 +61,7 @@ class WorkingDepartmentService(
     fun stateOf(userId: Long, role: String, workingDepartmentId: Long?): WorkingDepartmentState {
         val normalizedRole = SecurityRole.normalizeOrNull(role)
         val scope = when (normalizedRole) {
-            SecurityRole.USER -> "SELF"
+            SecurityRole.USER -> if (isOperator(userId)) "DEPARTMENT" else "SELF"
             SecurityRole.DEPT_ADMIN -> "DEPARTMENT"
             else -> if (workingDepartmentId == null) "ALL" else "DEPARTMENT"
         }
@@ -83,7 +86,7 @@ class WorkingDepartmentService(
              * 参数和返回值遵循调用方与领域服务之间的约定。
              */
     fun switchTo(principal: CurrentUserPrincipal, departmentId: Long?): WorkingDepartmentState {
-        if (principal.role == SecurityRole.USER) {
+        if (principal.role == SecurityRole.USER && !isOperator(principal.userId)) {
             throw AccessDeniedException("普通用户没有工作部门")
         }
         val allowed = allowedDepartmentIds(principal.userId, principal.role)
@@ -115,9 +118,17 @@ class WorkingDepartmentService(
             (assigned + setOfNotNull(ownDepartment)).toSet()
         }
         
-        SecurityRole.USER -> emptySet()
+        SecurityRole.USER -> if (!isOperator(userId)) emptySet() else {
+            val assignments = userManagedDepartmentRepository.findByUserId(userId)
+            val roots = assignments.mapNotNull { it.department.id }.toSet() +
+                    setOfNotNull(userRepository.findById(userId).orElse(null)?.department?.id)
+            departmentLinkResolver?.snapshot()?.withDescendants(roots) ?: roots
+        }
         else -> null
     }
+
+    private fun isOperator(userId: Long): Boolean =
+        userResourcePermissionRepository?.findByUserId(userId).orEmpty().isNotEmpty()
     
     
     @Transactional(readOnly = true)

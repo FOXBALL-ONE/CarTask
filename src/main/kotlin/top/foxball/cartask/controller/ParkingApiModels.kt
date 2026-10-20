@@ -15,6 +15,9 @@ data class DocumentUserRequest(
     @param:JsonProperty("email") val email: String? = null,
     @param:JsonProperty("roleIds") val roleIds: List<Long>? = null,
     @param:JsonProperty("status") val status: Int? = null,
+    @param:JsonProperty("resource_kinds") val resourceKinds: List<String>? = null,
+    @param:JsonProperty("review_resource_kinds") val reviewResourceKinds: List<String>? = null,
+    @param:JsonProperty("managed_department_ids") val managedDepartmentIds: List<Long>? = null,
 )
 
 data class DocumentRoleRequest(

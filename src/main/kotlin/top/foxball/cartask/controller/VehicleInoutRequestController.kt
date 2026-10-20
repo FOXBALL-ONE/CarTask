@@ -74,7 +74,6 @@ data class VehicleInoutRequestCancelBody(
     @param:JsonProperty("reason") val reason: String? = null,
 )
 
-
 @RestController
 @RequestMapping("/api/vehicle-inout-requests")
 /** class VehicleInoutRequestController：Web 控制器，负责接收 HTTP 请求、调用领域服务并构造统一响应。 */
@@ -346,6 +345,18 @@ class VehicleInoutRequestController(
             .message(if (approved) "审核通过" else "已驳回")
             .data(rs)
             .build()
+    }
+
+    @PutMapping("/reviews")
+    @PreAuthorize("hasAuthority('vehicle-inout-request:review')")
+    fun reviewBatch(
+        @RequestParam ids: List<Long>,
+        @RequestParam approved: Boolean,
+        @RequestParam(required = false) reason: String?,
+    ): ResponseEntity<Response> {
+        data class Response(val reviewed: Int)
+        val result = service.reviewBatch(ids, approved, reason)
+        return responseBuilder.ok().message("已审核 ${result.reviewed} 条申请").data(Response(result.reviewed)).build()
     }
     
     

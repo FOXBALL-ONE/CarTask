@@ -8,7 +8,9 @@ import org.mockito.kotlin.whenever
 import org.springframework.dao.DataAccessResourceFailureException
 import top.foxball.cartask.entity.Permission
 import top.foxball.cartask.entity.Role
+import top.foxball.cartask.entity.UserResourcePermission
 import top.foxball.cartask.repository.RoleRepository
+import top.foxball.cartask.repository.UserResourcePermissionRepository
 
 class RolePermissionServiceTests {
     private val roleRepository = mock<RoleRepository>()
@@ -87,5 +89,52 @@ class RolePermissionServiceTests {
         assertThrows(JwtAuthenticationException::class.java) {
             service.permissionsFor("ADMIN")
         }
+    }
+
+    @Test
+    fun `经办资源授权只增加选定资源及对应审核权限`() {
+        val userResourcePermissionRepository = mock<UserResourcePermissionRepository>()
+        val role = Role().apply {
+            name = "USER"
+            permissions = linkedSetOf(
+                Permission().apply { code = "dashboard:read" },
+                Permission().apply { code = "vehicle-record:read" },
+                Permission().apply { code = "person-record:read" },
+                Permission().apply { code = "gate-person:review" },
+                Permission().apply { code = "vehicle-inout-request:review" },
+            )
+        }
+        whenever(roleRepository.findByNameIgnoreCase("USER")).thenReturn(role)
+        whenever(userResourcePermissionRepository.findByUserId(42L)).thenReturn(
+            listOf(UserResourcePermission().apply {
+                user = top.foxball.cartask.entity.User()
+                resourceType = UserResourcePermission.ResourceType.FACE
+                reviewEnabled = true
+            }),
+        )
+
+        val permissions = RolePermissionService(roleRepository, userResourcePermissionRepository).permissionsFor("USER", 42L)
+
+        assertEquals(true, "gate-person:read" in permissions)
+        assertEquals(true, "gate-person:review" in permissions)
+        assertEquals(true, "person-record:read" in permissions)
+        assertEquals(false, "vehicle-record:read" in permissions)
+        assertEquals(false, "vehicle-inout-request:review" in permissions)
+        assertEquals(true, "dashboard:read" in permissions)
+    }
+
+    @Test
+    fun `非超级管理员角色配置不能授予车辆或人脸审核`() {
+        val role = Role().apply {
+            name = "ADMIN"
+            permissions = linkedSetOf(
+                Permission().apply { code = "vehicle-inout-request:review" },
+                Permission().apply { code = "gate-person:review" },
+                Permission().apply { code = "vehicle-inout-request:read" },
+            )
+        }
+        whenever(roleRepository.findByNameIgnoreCase("ADMIN")).thenReturn(role)
+
+        assertEquals(setOf("vehicle-inout-request:read"), service.permissionsFor("ADMIN", 10L))
     }
 }

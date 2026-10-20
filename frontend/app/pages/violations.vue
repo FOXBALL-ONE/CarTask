@@ -10,7 +10,7 @@
         <button class="button button--ghost" type="button" @click="exportRecords">
           <span class="material-icons-outlined">download</span>导出记录
         </button>
-        <button v-if="can('violation:manage')" class="button button--primary" type="button" @click="openCreateRecord">
+        <button v-if="canAny('violation:entry', 'violation:manage')" class="button button--primary" type="button" @click="openCreateRecord">
           <span class="material-icons-outlined">add</span>新增违规
         </button>
       </div>
@@ -57,7 +57,7 @@
             <label class="date-control"><span>至</span><input v-model="recordFilters.endDate" type="date"></label>
           </div>
           <div class="toolbar-actions">
-            <button v-if="selectedIds.length" class="button button--danger-soft" type="button" @click="removeSelected">
+            <button v-if="selectedIds.length && can('violation:manage')" class="button button--danger-soft" type="button" @click="removeSelected">
               <span class="material-icons-outlined">delete</span>删除 {{ selectedIds.length }} 项
             </button>
             <button class="button button--soft" type="button" @click="searchRecords"><span
@@ -82,7 +82,7 @@
           <table class="table records-table">
             <thead>
             <tr>
-              <th class="check-cell"><input :checked="allVisibleSelected" aria-label="选择当前页" type="checkbox"
+              <th v-if="can('violation:manage')" class="check-cell"><input :checked="allVisibleSelected" aria-label="选择当前页" type="checkbox"
                                             @change="toggleVisibleSelection"></th>
               <th>违规车辆</th>
               <th>违规事项</th>
@@ -96,7 +96,7 @@
             <tbody>
             <tr v-for="record in records" :key="record.id"
                 :class="{ 'row--selected': selectedIds.includes(record.id) }">
-              <td class="check-cell"><input v-model="selectedIds" :aria-label="`选择 ${record.subject_number}`"
+              <td v-if="can('violation:manage')" class="check-cell"><input v-model="selectedIds" :aria-label="`选择 ${record.subject_number}`"
                                             :value="record.id"
                                             type="checkbox"></td>
               <td>
@@ -119,7 +119,7 @@
               </td>
               <td class="actions-cell">
                 <button class="text-action" type="button" @click="openDetails(record)">详情</button>
-                <button v-if="record.status === 'PENDING'" class="text-action text-action--accent" type="button"
+                <button v-if="record.status === 'PENDING' && canAny('violation:review', 'violation:manage')" class="text-action text-action--accent" type="button"
                         @click="openHandling(record)">处理
                 </button>
                 <button v-if="can('violation:manage')" class="row-icon row-icon--danger" title="删除" type="button"
@@ -135,7 +135,7 @@
                    :class="{ 'mobile-card--selected': selectedIds.includes(record.id) }"
                    class="mobile-card">
             <header class="mobile-card__head">
-              <label class="mobile-card__check">
+              <label v-if="can('violation:manage')" class="mobile-card__check">
                 <input v-model="selectedIds" :value="record.id" type="checkbox">
               </label>
               <button class="mobile-card__vehicle" type="button" @click="openDetails(record)">
@@ -174,7 +174,7 @@
               <button class="button button--ghost" type="button" @click="openDetails(record)">
                 <span class="material-icons-outlined">visibility</span>详情
               </button>
-              <button v-if="record.status === 'PENDING'" class="button button--soft" type="button"
+              <button v-if="record.status === 'PENDING' && canAny('violation:review', 'violation:manage')" class="button button--soft" type="button"
                       @click="openHandling(record)">
                 <span class="material-icons-outlined">fact_check</span>处理
               </button>
@@ -467,9 +467,7 @@
           <div class="form-grid"><label class="field"><span>车牌号</span><input v-model.trim="recordForm.subjectNumber"
                                                                                 placeholder="例如：粤A·12345"
                                                                                 required></label><label
-              class="field"><span>车主名称</span><input v-model.trim="recordForm.subjectName"
-                                                        placeholder="请输入车主名称"
-                                                        required></label><label
+              class="field"><span>车主名称</span><span class="form-hint">由车牌档案自动识别，未建档显示“临时车”</span></label><label
               class="field"><span>违规类型</span><select
               v-model.number="recordForm.typeId" required>
             <option :value="null">请选择违规类型</option>
@@ -696,7 +694,7 @@ interface PenaltyList {
 }
 
 const http = useHttp();
-const {can} = usePermission();
+const {can, canAny} = usePermission();
 const authStore = useAuthStore();
 const authToken = useCookie<string | null>("cartask_auth_token", {sameSite: "lax", path: "/"});
 const tabs: { key: TabKey; label: string; icon: string }[] = [
@@ -735,7 +733,6 @@ const formError = ref("");
 const releaseRemark = ref("");
 const recordForm = reactive({
   subjectNumber: "",
-  subjectName: "",
   typeId: null as number | null,
   violationTime: "",
   location: ""
@@ -1038,7 +1035,6 @@ function closeDetails() {
 function openCreateRecord() {
   Object.assign(recordForm, {
     subjectNumber: "",
-    subjectName: "",
     typeId: activeViolationTypes.value[0]?.id ?? null,
     violationTime: nowForInput(),
     location: ""
@@ -1098,7 +1094,6 @@ async function saveRecord() {
     // 不能像以前那样先自己上传再把地址当普通字符串塞进 evidence_info。
     const body = new FormData();
     body.append("subject_number", recordForm.subjectNumber);
-    body.append("subject_name", recordForm.subjectName);
     body.append("type_id", String(recordForm.typeId));
     body.append("violation_time", `${recordForm.violationTime}:00`);
     if (recordForm.location) body.append("location", recordForm.location);

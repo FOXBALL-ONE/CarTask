@@ -21,6 +21,7 @@ import top.foxball.cartask.entity.ParkingOwner
 import top.foxball.cartask.entity.ParkingPlate
 import top.foxball.cartask.entity.StoredFile
 import top.foxball.cartask.entity.ViolationSubject
+import top.foxball.cartask.entity.UserResourcePermission
 import top.foxball.cartask.repository.DepartmentRepository
 import top.foxball.cartask.repository.GatePersonRepository
 import top.foxball.cartask.repository.ParkingOwnerRepository
@@ -228,6 +229,33 @@ class ExcelResourcePolicyTests {
         assertThrows(IllegalArgumentException::class.java) { policy.requireScopable("departments") }
         policy.requireScopable("owners")
         policy.requireScopable("plates")
+    }
+
+    @Test
+    fun `人脸范围不能读取车辆或违规主体`() {
+        val faceScope = DataScope.departments(
+            ids = setOf(1L),
+            codes = setOf("PARKING"),
+            names = setOf("停车管理组"),
+            resourceKinds = setOf(UserResourcePermission.ResourceType.FACE),
+        )
+        val visibility = ScopeQuerySupport(
+            mock(),
+            mock(),
+            mock(),
+            mock(),
+        )
+        val plate = ParkingPlate().apply { plate = "粤A12345"; owner = "车主"; ownerId = 22L }
+        val violationSubject = ViolationSubject().apply {
+            subjectType = ViolationSubject.SubjectType.VEHICLE
+            subjectName = "车主"
+            subjectNumber = "粤A12345"
+            departmentCode = "PARKING"
+        }
+
+        assertFalse(visibility.plateVisible(null, null, plate, faceScope))
+        assertFalse(visibility.violationSubjectVisible(faceScope, violationSubject))
+        assertTrue(visibility.gatePersonCodesInScope(faceScope).isEmpty())
     }
 
     @Test

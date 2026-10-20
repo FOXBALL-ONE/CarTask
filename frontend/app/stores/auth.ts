@@ -12,6 +12,7 @@ export interface AuthUser {
     username: string;
     role: string;
     permissions: string[];
+    resource_permissions?: string[];
     /** 头像 data URL；未设置时为 null。 */
     avatar?: string | null;
     /** 为 true 时前端需强制跳转到改密页，服务端也会拦截其他接口。 */

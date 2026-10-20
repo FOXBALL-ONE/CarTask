@@ -189,4 +189,26 @@ class DataScopeResolverTests {
 
         assertTrue(scope.deniesEverything)
     }
+
+    @Test
+    fun `人脸经办工作部门向下展开且只携带人脸资源范围`() {
+        whenever(departmentLinkResolver.snapshot()).thenReturn(DepartmentSnapshot(listOf(root, parking, security)))
+        whenever(userManagedDepartmentRepository.findDepartmentIds(7L)).thenReturn(listOf(root.id!!))
+        whenever(userManagedDepartmentRepository.findDepartmentIdsWithDescendants(7L)).thenReturn(listOf(root.id!!))
+
+        val scope = resolver.forPrincipal(
+            CurrentUserPrincipal(
+                userId = 7L,
+                username = "face.operator",
+                role = "USER",
+                tokenId = "jti-operator",
+                resourcePermissions = setOf("face"),
+                workingDepartmentId = root.id,
+            ),
+        )
+
+        assertEquals(ScopeKind.DEPARTMENTS, scope.kind)
+        assertEquals(setOf(1L, 2L, 3L), scope.departmentIds)
+        assertEquals(setOf(top.foxball.cartask.entity.UserResourcePermission.ResourceType.FACE), scope.resourceKinds)
+    }
 }

@@ -183,7 +183,23 @@
               <option :value="0">停用</option>
             </select></label>
           </div>
-          <div v-if="editingId && canManageScope" class="field field--full managed-scope">
+          <div v-if="canManageScope && isOperatorRole" class="field field--full managed-scope">
+            <span>经办部门范围</span>
+            <DepartmentTreePicker v-model="managedDepartments" :departments="departments"
+                                  hint="绑定部门及其下级部门的数据将作为经办账号的工作范围；请把主部门包含在所选部门中。"/>
+            <div class="resource-permissions">
+              <span>可办理资源</span>
+              <div v-for="resource in operatorResources" :key="resource.code" class="resource-option">
+                <label><input v-model="resourceKinds" :value="resource.code" type="checkbox">{{ resource.label }}</label>
+                <label v-if="resource.reviewable && resourceKinds.includes(resource.code)" class="review-option">
+                  <input v-model="reviewResourceKinds" :value="resource.code" type="checkbox">
+                  可审核
+                </label>
+              </div>
+              <small>录入权限随资源绑定自动开通；审核权限按资源单独授予。</small>
+            </div>
+          </div>
+          <div v-else-if="editingId && canManageScope" class="field field--full managed-scope">
             <span>部门管理范围</span>
             <DepartmentTreePicker v-model="managedDepartments" :departments="departments"/>
           </div>
@@ -203,6 +219,7 @@
 
 <script lang="ts" setup>
 import {MIN_PASSWORD_LENGTH, passwordPolicyError} from "~/utils/password";
+import type {ManagedDepartment} from "~/components/DepartmentTreePicker.vue";
 
 interface User {
   id: number;
@@ -338,6 +355,13 @@ const editorVisible = ref(false);
 const editingId = ref<number | null>(null);
 const originalRoleId = ref<number | null>(null);
 const originalStatus = ref(1);
+const resourceKinds = ref<string[]>([]);
+const reviewResourceKinds = ref<string[]>([]);
+const operatorResources = [
+  {code: "vehicle", label: "车辆", reviewable: true},
+  {code: "face", label: "人脸", reviewable: true},
+  {code: "violation", label: "违规", reviewable: true},
+];
 const selectedIds = ref<number[]>([]);
 const form = reactive({
   username: "",
@@ -351,6 +375,7 @@ const form = reactive({
 });
 /** 该用户的部门管理范围；仅编辑已有用户时可配置（接口按用户 ID 整体替换）。 */
 const managedDepartments = ref<ManagedDepartment[]>([]);
+const isOperatorRole = computed(() => (roles.value.find((role) => role.id === form.roleId)?.code || "").toUpperCase() === "USER");
 
 const departmentRoots = computed(() => departments.value.filter((department) => (department.parent ?? 0) === 0));
 const departmentChildren = computed(() => departments.value);
@@ -466,6 +491,8 @@ function openCreate() {
   originalRoleId.value = null;
   originalStatus.value = 1;
   managedDepartments.value = [];
+  resourceKinds.value = [];
+  reviewResourceKinds.value = [];
   Object.assign(form, {
     username: "",
     name: "",
@@ -480,17 +507,10 @@ function openCreate() {
   editorVisible.value = true;
 }
 
-function openEdit(user: User) {
+async function openEdit(user: User) {
   managedDepartments.value = [];
-  if (canManageScope.value) {
-    void http.get<{ departments: ManagedDepartment[] }>(`/users/${user.id}/managed-departments`)
-        .then((result) => {
-          managedDepartments.value = result.departments || [];
-        })
-        .catch(() => {
-          managedDepartments.value = [];
-        });
-  }
+  resourceKinds.value = [];
+  reviewResourceKinds.value = [];
   editingId.value = user.id;
   originalRoleId.value = user.roleIds?.[0] ?? null;
   originalStatus.value = user.status;
@@ -504,6 +524,28 @@ function openEdit(user: User) {
     phone: user.phone || "",
     status: user.status
   });
+  if (canManageScope.value) {
+    try {
+      if ((roles.value.find((role) => role.id === form.roleId)?.code || "").toUpperCase() === "USER") {
+        const result = await http.get<{
+          resources: { resource_type: string; review_enabled: boolean }[];
+          departments: ManagedDepartment[];
+        }>(`/users/${user.id}/resource-permissions`);
+        if (editingId.value === user.id) {
+          managedDepartments.value = result.departments || [];
+          resourceKinds.value = (result.resources || []).map((item) => item.resource_type);
+          reviewResourceKinds.value = (result.resources || []).filter((item) => item.review_enabled).map((item) => item.resource_type);
+        }
+      } else {
+        const result = await http.get<{ departments: ManagedDepartment[] }>(`/users/${user.id}/managed-departments`);
+        if (editingId.value === user.id) managedDepartments.value = result.departments || [];
+      }
+    } catch {
+      managedDepartments.value = [];
+      resourceKinds.value = [];
+      reviewResourceKinds.value = [];
+    }
+  }
   formError.value = "";
   editorVisible.value = true;
 }
@@ -524,6 +566,19 @@ async function saveUser() {
       return;
     }
   }
+  if (isOperatorRole.value && resourceKinds.value.length > 0) {
+    const departmentIds = managedDepartments.value.map((item) => item.department_id);
+    if (!departmentIds.length || !departmentIds.includes(form.deptId!)) {
+      formError.value = "经办账号需绑定至少一个部门，且主部门必须包含在绑定范围内";
+      saving.value = false;
+      return;
+    }
+    if (reviewResourceKinds.value.some((kind) => !resourceKinds.value.includes(kind))) {
+      formError.value = "审核权限必须属于已绑定的资源种类";
+      saving.value = false;
+      return;
+    }
+  }
   const payload = {
     username: form.username,
     name: form.name,
@@ -535,6 +590,7 @@ async function saveUser() {
     roleIds: form.roleId ? [form.roleId] : []
   };
   try {
+    let savedUserId = editingId.value;
     if (editingId.value) {
       // 改手机号只需要 user:update，其余三项各有自己的权限：无权限时控件已置灰，
       // 这里再挡一次，避免一个可选的越权请求失败把整次编辑一起带崩。
@@ -551,8 +607,20 @@ async function saveUser() {
           status: form.status === 1 ? "Activity" : "BANNED"
         }
       });
-      if (canManageScope.value) await http.put(`/users/${editingId.value}/managed-departments`, {departments: managedDepartments.value}, {payloadMode: "json"});
-    } else await http.post("/users", {...payload, email: `${form.username}@local.invalid`}, {payloadMode: "json"});
+      if (canManageScope.value && !isOperatorRole.value) await http.put(`/users/${editingId.value}/managed-departments`, {departments: managedDepartments.value}, {payloadMode: "json"});
+    } else {
+      const created = await http.post<{ id: number }>("/users", {...payload, email: `${form.username}@local.invalid`}, {payloadMode: "json"});
+      savedUserId = created.id;
+    }
+    if (canManageScope.value && isOperatorRole.value && savedUserId) {
+      const params: Record<string, unknown> = {
+        primary_department_id: form.deptId,
+        department_id: managedDepartments.value.map((item) => item.department_id),
+        resource_type: resourceKinds.value,
+        review_resource_type: reviewResourceKinds.value,
+      };
+      await http.put(`/users/${savedUserId}/resource-permissions`, undefined, {params});
+    }
     editorVisible.value = false;
     await loadUsers();
   } catch (error) {
@@ -1114,6 +1182,42 @@ useScopeRefresh(initialize);
   color: var(--text-sub);
   font-size: 11px;
   font-weight: 550;
+}
+
+.resource-permissions {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.resource-permissions > span {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.resource-option, .resource-option > label, .review-option {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.resource-option > label:first-child {
+  min-width: 105px;
+}
+
+.resource-option input {
+  accent-color: var(--primary);
+}
+
+.review-option {
+  color: var(--text-sub);
+  font-size: 12px;
+}
+
+.resource-permissions small {
+  color: var(--text-mute);
+  font-size: 11px;
 }
 </style>
 

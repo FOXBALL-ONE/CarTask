@@ -5,16 +5,21 @@ import jakarta.transaction.Transactional
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
+import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.multipart.MultipartFile
 import top.foxball.cartask.entity.ViolationRecord
 import top.foxball.cartask.entity.ViolationSetting
 import top.foxball.cartask.entity.ViolationSubject
+import top.foxball.cartask.authentication.CurrentUserPrincipal
 import top.foxball.cartask.entity.type.ViolationType
 import top.foxball.cartask.repository.ViolationRecordRepository
 import top.foxball.cartask.repository.ViolationSettingRepository
 import top.foxball.cartask.repository.ViolationSubjectRepository
 import top.foxball.cartask.repository.ViolationTypeRepository
+import top.foxball.cartask.repository.ParkingPlateRepository
+import top.foxball.cartask.repository.ParkingOwnerRepository
+import top.foxball.cartask.repository.DepartmentRepository
 import top.foxball.cartask.scope.DataScopeResolver
 import top.foxball.cartask.scope.ScopeQuerySupport
 import top.foxball.cartask.service.FileService
@@ -36,6 +41,9 @@ class ViolationManagementController(
     private val dataScopeResolver: DataScopeResolver,
     private val scopeQuerySupport: ScopeQuerySupport,
     private val fileService: FileService,
+    private val parkingPlateRepository: ParkingPlateRepository,
+    private val parkingOwnerRepository: ParkingOwnerRepository,
+    private val departmentRepository: DepartmentRepository,
 ) {
     @GetMapping("/violations")
     @PreAuthorize("hasAuthority('violation:read')")
@@ -87,9 +95,9 @@ class ViolationManagementController(
         data class Response(val items: List<ViolationData>, val total: Int, val summary: SummaryData)
         
         val scope = dataScopeResolver.current()
-        val all = violationRecordRepository.findAllWithViolationType()
-        val filtered = all.filter { record ->
-            scopeQuerySupport.violationSubjectVisible(scope, record.subject) &&
+        val visibleRecords = violationRecordRepository.findAllWithViolationType()
+            .filter { record -> scopeQuerySupport.violationSubjectVisible(scope, record.subject) }
+        val filtered = visibleRecords.filter { record ->
                     (keyword.isNullOrBlank() || listOf(
                         record.subject.subjectNumber,
                         record.subject.subjectName,
@@ -124,7 +132,7 @@ class ViolationManagementController(
             )
         }
         val setting = setting()
-        val scoredRecords = all.filter {
+        val scoredRecords = visibleRecords.filter {
             it.handlingStatus in setOf(
                 ViolationRecord.HandlingStatus.CONFIRMED,
                 ViolationRecord.HandlingStatus.HANDLED
@@ -134,7 +142,7 @@ class ViolationManagementController(
             scoredRecords.groupBy { it.subject.id }.mapValues { (_, records) -> records.sumOf { it.violationFraction } }
         val nearLine = (setting.scoreThreshold * 0.7).toInt().coerceAtLeast(1)
         val summary = SummaryData(
-            all.count { it.handlingStatus == ViolationRecord.HandlingStatus.PENDING },
+            visibleRecords.count { it.handlingStatus == ViolationRecord.HandlingStatus.PENDING },
             scores.count { (_, score) -> score in nearLine until setting.scoreThreshold },
             scores.count { (subjectId, score) -> score >= setting.scoreThreshold && scoredRecords.first { it.subject.id == subjectId }.subject.status == ViolationSubject.Status.BANNED },
             setting.scoreThreshold,
@@ -144,32 +152,64 @@ class ViolationManagementController(
     }
     
     @PostMapping("/violations")
-    @PreAuthorize("hasAuthority('violation:manage')")
+    @PreAuthorize("hasAuthority('violation:entry') or hasAuthority('violation:manage')")
     @Transactional
             
             
             /** createViolation：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun createViolation(
         @RequestParam(name = "subject_number") subjectNumber: String,
-        @RequestParam(name = "subject_name") subjectName: String,
+        @RequestParam(name = "subject_name", required = false) subjectName: String?,
         @RequestParam(name = "type_id") typeId: Long,
         @RequestParam(name = "violation_time") violationTime: LocalDateTime,
         @RequestParam(required = false) location: String?,
         @RequestParam(name = "evidence_info", required = false) evidenceInfo: String?,
+        @RequestParam(name = "department_id", required = false) requestedDepartmentId: Long? = null,
     ): ResponseEntity<Response> {
         require(subjectNumber.isNotBlank()) { "车牌号不能为空" }
-        require(subjectName.isNotBlank()) { "车主名称不能为空" }
         val type = violationTypeRepository.findById(typeId).orElseThrow { IllegalArgumentException("违规类型不存在") }
         require(type.status == ViolationType.Status.Activity) { "违规类型已停用" }
         val normalizedSubjectNumber = subjectNumber.trim().uppercase()
-        val subject =
-            violationSubjectRepository.findBySubjectNumber(normalizedSubjectNumber) ?: violationSubjectRepository.save(
-                ViolationSubject().apply {
-                    subjectType = ViolationSubject.SubjectType.VEHICLE
-                    this.subjectName = subjectName.trim()
-                    this.subjectNumber = normalizedSubjectNumber
-                },
-            )
+        val scope = dataScopeResolver.current()
+        val existing = violationSubjectRepository.findBySubjectNumber(normalizedSubjectNumber)
+        if (existing != null) {
+            require(scopeQuerySupport.violationSubjectVisible(scope, existing)) { "无权在该部门下录入违规记录" }
+        }
+        val plate = parkingPlateRepository.findAll().firstOrNull { it.plate.equals(normalizedSubjectNumber, ignoreCase = true) }
+        val owner = plate?.let { parkingOwnerRepository.findById(it.ownerId).orElse(null) }
+        val currentPrincipal = SecurityContextHolder.getContext().authentication?.principal as? CurrentUserPrincipal
+        val currentDepartmentId = currentPrincipal?.workingDepartmentId ?: scope.departmentIds.singleOrNull()
+        if (requestedDepartmentId != null) {
+            require(scope.unrestricted || requestedDepartmentId in scope.departmentIds) { "无权在该部门下录入违规记录" }
+            require(
+                currentPrincipal?.resourcePermissions?.contains("violation") != true || requestedDepartmentId == currentPrincipal.workingDepartmentId,
+            ) { "经办账号只能使用当前工作部门" }
+        }
+        val workingDepartment = (requestedDepartmentId ?: currentDepartmentId)
+            ?.let { departmentRepository.findById(it).orElse(null) }
+        val ownerDepartmentCode = owner?.departmentCode ?: owner?.dept?.let { name ->
+            departmentRepository.findAll().firstOrNull { it.name == name }?.departmentNumber
+        }
+        val departmentCode = ownerDepartmentCode ?: existing?.departmentCode ?: workingDepartment?.departmentNumber
+        val inferredName = owner?.name ?: plate?.owner ?: "临时车"
+        if (!scope.unrestricted) {
+            require(!departmentCode.isNullOrBlank() && departmentCode in scope.departmentCodes) {
+                "当前工作部门不在你的违规录入范围内"
+            }
+        }
+        val subject = existing ?: violationSubjectRepository.save(
+            ViolationSubject().apply {
+                subjectType = ViolationSubject.SubjectType.VEHICLE
+                this.subjectName = inferredName
+                this.subjectNumber = normalizedSubjectNumber
+                this.departmentCode = departmentCode
+            },
+        )
+        if (existing != null && existing.departmentCode == null && departmentCode != null) {
+            existing.departmentCode = departmentCode
+            existing.subjectName = inferredName
+            violationSubjectRepository.save(existing)
+        }
         val record = violationRecordRepository.save(
             ViolationRecord().apply {
                 this.subject = subject
@@ -193,15 +233,16 @@ class ViolationManagementController(
      * 内容校验必须放在服务端，否则任何文件都能被塞进 evidence_info 并在详情里当图片渲染。
      */
     @PostMapping("/violations", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
-    @PreAuthorize("hasAuthority('violation:manage')")
+    @PreAuthorize("hasAuthority('violation:entry') or hasAuthority('violation:manage')")
     @Transactional
     fun createViolationWithEvidence(
         @RequestParam(name = "subject_number") subjectNumber: String,
-        @RequestParam(name = "subject_name") subjectName: String,
+        @RequestParam(name = "subject_name", required = false) subjectName: String?,
         @RequestParam(name = "type_id") typeId: Long,
         @RequestParam(name = "violation_time") violationTime: LocalDateTime,
         @RequestParam(required = false) location: String?,
         @RequestPart(name = "evidence", required = false) evidence: MultipartFile?,
+        @RequestParam(name = "department_id", required = false) departmentId: Long? = null,
     ): ResponseEntity<Response> {
         val evidenceInfo = evidence
             ?.takeUnless { it.isEmpty }
@@ -209,11 +250,11 @@ class ViolationManagementController(
                 requireEvidenceImage(file)
                 fileService.upload(file).downloadUrl
             }
-        return createViolation(subjectNumber, subjectName, typeId, violationTime, location, evidenceInfo)
+        return createViolation(subjectNumber, subjectName, typeId, violationTime, location, evidenceInfo, departmentId)
     }
     
     @PutMapping("/violations/{id}/handling")
-    @PreAuthorize("hasAuthority('violation:manage')")
+    @PreAuthorize("hasAuthority('violation:review') or hasAuthority('violation:manage')")
     @Transactional
             
             
@@ -228,7 +269,7 @@ class ViolationManagementController(
             .getOrElse { throw IllegalArgumentException("不支持的处理状态") }
         require(nextStatus != ViolationRecord.HandlingStatus.PENDING) { "请选择处理结果" }
         require(handlerName.isNotBlank()) { "处理人不能为空" }
-        val record = violationRecordRepository.findById(id).orElseThrow { IllegalArgumentException("违规记录不存在") }
+        val record = requireVisibleViolation(id)
         record.handlingStatus = nextStatus
         record.handlerName = handlerName.trim()
         record.handlingRemark = handlingRemark?.trim()?.takeIf(String::isNotEmpty)
@@ -248,7 +289,7 @@ class ViolationManagementController(
             
             /** deleteViolation：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun deleteViolation(@PathVariable id: Long): ResponseEntity<Response> {
-        val record = violationRecordRepository.findById(id).orElseThrow { IllegalArgumentException("违规记录不存在") }
+        val record = requireVisibleViolation(id)
         val subject = record.subject
         violationRecordRepository.delete(record)
         violationRecordRepository.flush()
@@ -508,6 +549,7 @@ class ViolationManagementController(
     ): ResponseEntity<Response> {
         val subject =
             violationSubjectRepository.findById(subjectId).orElseThrow { IllegalArgumentException("处罚主体不存在") }
+        require(scopeQuerySupport.violationSubjectVisible(dataScopeResolver.current(), subject)) { "处罚主体不存在" }
         subject.status = ViolationSubject.Status.Activity
         if (!releaseRemark.isNullOrBlank()) subject.remark = releaseRemark.trim()
         violationSubjectRepository.save(subject)
@@ -516,9 +558,6 @@ class ViolationManagementController(
         val rs = Response(subjectId)
         return responseBuilder.ok().message("处罚已解除").data(rs).build()
     }
-    
-    @Transactional
-    
     
     private fun setting(): ViolationSetting = violationSettingRepository.findFirstByOrderByIdAsc()
         ?: violationSettingRepository.save(ViolationSetting())
@@ -537,6 +576,12 @@ class ViolationManagementController(
         subject.status =
             if (score >= setting().scoreThreshold) ViolationSubject.Status.BANNED else ViolationSubject.Status.Activity
         violationSubjectRepository.save(subject)
+    }
+
+    private fun requireVisibleViolation(id: Long): ViolationRecord {
+        val record = violationRecordRepository.findById(id).orElseThrow { IllegalArgumentException("违规记录不存在") }
+        require(scopeQuerySupport.violationSubjectVisible(dataScopeResolver.current(), record.subject)) { "违规记录不存在" }
+        return record
     }
     
     private fun requireEvidenceImage(file: MultipartFile) {

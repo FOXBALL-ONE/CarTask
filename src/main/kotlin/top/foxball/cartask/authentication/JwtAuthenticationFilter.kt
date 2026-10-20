@@ -25,6 +25,7 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.stereotype.Component
 import org.springframework.web.filter.OncePerRequestFilter
 import top.foxball.cartask.service.OnlinePresenceService
+import top.foxball.cartask.repository.UserResourcePermissionRepository
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 
@@ -39,6 +40,7 @@ class JwtAuthenticationFilter(
     private val sessionRepository: RedisTokenSessionRepository,
     private val rolePermissionService: RolePermissionService,
     private val onlinePresenceService: OnlinePresenceService? = null,
+    private val userResourcePermissionRepository: UserResourcePermissionRepository? = null,
 ) : OncePerRequestFilter() {
     private val log = LoggerFactory.getLogger(javaClass)
     private val tokenResolver = DefaultBearerTokenResolver()
@@ -92,7 +94,13 @@ class JwtAuthenticationFilter(
                 username = verified.username,
                 role = verified.role,
                 tokenId = verified.tokenId,
-                permissions = rolePermissionService.permissionsFor(verified.role),
+                permissions = if (userResourcePermissionRepository == null) {
+                    rolePermissionService.permissionsFor(verified.role)
+                } else {
+                    rolePermissionService.permissionsFor(verified.role, verified.userId)
+                },
+                resourcePermissions = userResourcePermissionRepository?.findByUserId(verified.userId)
+                    ?.map { it.resourceType.wireName }.orEmpty(),
                 mustChangePassword = session.mustChangePassword,
                 workingDepartmentId = session.workingDepartmentId,
             )

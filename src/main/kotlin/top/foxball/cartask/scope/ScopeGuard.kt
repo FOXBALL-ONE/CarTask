@@ -45,7 +45,7 @@ class ScopeGuard(
      * 参数和返回值遵循调用方与领域服务之间的约定。
      */
     fun requireVisiblePlate(row: ParkingPlate?, scope: DataScope, notFoundMessage: String): ParkingPlate {
-        if (row == null || !scopeQuerySupport.plateVisible(visibleOwnerIds(scope), scope.userId, row)) {
+        if (row == null || !scopeQuerySupport.plateVisible(visibleOwnerIds(scope), scope.userId, row, scope)) {
             throw IllegalArgumentException(notFoundMessage)
         }
         return row

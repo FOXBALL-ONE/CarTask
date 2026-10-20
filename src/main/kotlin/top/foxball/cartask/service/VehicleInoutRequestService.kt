@@ -50,6 +50,8 @@ interface VehicleInoutRequestService {
         val message: String,
         val cardId: Long?,
     )
+
+    data class BatchReviewResult(val reviewed: Int)
     
     
     fun list(filter: ListFilter, page: Int, pageSize: Int): Page<VehicleInoutRequest>
@@ -65,6 +67,8 @@ interface VehicleInoutRequestService {
     
     
     fun review(id: Long, approved: Boolean, reason: String?): VehicleInoutRequest
+
+    fun reviewBatch(ids: List<Long>, approved: Boolean, reason: String?): BatchReviewResult
     
     
     fun cancel(id: Long, reason: String?): VehicleInoutRequest

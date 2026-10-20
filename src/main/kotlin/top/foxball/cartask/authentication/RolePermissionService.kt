@@ -16,6 +16,7 @@ import org.springframework.dao.DataAccessException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import top.foxball.cartask.repository.RoleRepository
+import top.foxball.cartask.repository.UserResourcePermissionRepository
 
 
 @Service
@@ -25,6 +26,7 @@ import top.foxball.cartask.repository.RoleRepository
  */
 class RolePermissionService(
     private val roleRepository: RoleRepository,
+    private val userResourcePermissionRepository: UserResourcePermissionRepository? = null,
 ) {
     @Transactional(readOnly = true)
             
@@ -34,13 +36,13 @@ class RolePermissionService(
              * 参数和返回值遵循调用方与领域服务之间的约定。
              */
             /** permissionsFor：执行认证组件中的一项具体操作，完成输入校验并返回处理结果。 */
-    fun permissionsFor(role: String): Set<String> = try {
+    fun permissionsFor(role: String, userId: Long? = null): Set<String> = try {
         val configuredRole = roleRepository.findByNameIgnoreCase(SecurityRole.normalize(role))
         if (configuredRole != null && !configuredRole.enabled) {
             throw JwtAuthenticationException("用户角色已禁用")
         }
-        val role = configuredRole ?: throw JwtAuthenticationException("用户角色未配置")
-        val permissions = role.permissions
+        val configured = configuredRole ?: throw JwtAuthenticationException("用户角色未配置")
+        val permissions = configured.permissions
             .asSequence()
             .filter { it.enabled }
             .map { permission ->
@@ -54,7 +56,29 @@ class RolePermissionService(
         if (permissions.distinct().size != permissions.size) {
             throw AuthenticationInfrastructureException("角色权限配置重复")
         }
-        permissions.toSortedSet()
+        val rolePermissions = permissions.toSet()
+        val normalizedRole = SecurityRole.normalize(role)
+        if (normalizedRole == SecurityRole.SUPER_ADMIN) {
+            rolePermissions.toSortedSet()
+        } else {
+            val reviewPermissions = setOf(
+                "gate-person:review",
+                "vehicle-inout-request:review",
+                "violation:review",
+            )
+            val allowedRolePermissions = rolePermissions - reviewPermissions
+            if (normalizedRole != SecurityRole.USER || userId == null) {
+                allowedRolePermissions.toSortedSet()
+            } else {
+                val grants = userResourcePermissionRepository?.findByUserId(userId).orEmpty()
+                if (grants.isEmpty()) {
+                    allowedRolePermissions.toSortedSet()
+                } else {
+                    (allowedRolePermissions - ResourcePermissionCatalog.resourcePermissions + ResourcePermissionCatalog.permissionsFor(grants))
+                        .toSortedSet()
+                }
+            }
+        }
     } catch (ex: DataAccessException) {
         throw AuthenticationInfrastructureException("读取角色权限失败", ex)
     }

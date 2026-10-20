@@ -57,6 +57,8 @@ class RoleAssignmentPolicy {
             requireSuperAdmin()
         }
     }
+
+    fun requireSuperAdminForUserResourceAssignment() = requireSuperAdmin()
     
     
     /** requireSuperAdmin：执行认证组件中的一项具体操作，完成输入校验并返回处理结果。 */

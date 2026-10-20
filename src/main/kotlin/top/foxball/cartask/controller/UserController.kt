@@ -1,6 +1,7 @@
 package top.foxball.cartask.controller
 
 import com.fasterxml.jackson.annotation.JsonProperty
+import jakarta.transaction.Transactional
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.web.bind.annotation.*
@@ -9,6 +10,7 @@ import top.foxball.cartask.scope.ManagedDepartmentInput
 import top.foxball.cartask.scope.ScopeGuard
 import top.foxball.cartask.scope.WorkingDepartmentService
 import top.foxball.cartask.service.UserService
+import top.foxball.cartask.service.UserResourcePermissionService
 import top.foxball.cartask.shared.Response
 import top.foxball.cartask.shared.ResponseBuilder
 import java.time.LocalDateTime
@@ -22,9 +24,11 @@ class UserController(
     private val responseBuilder: ResponseBuilder,
     private val scopeGuard: ScopeGuard,
     private val workingDepartmentService: WorkingDepartmentService,
+    private val userResourcePermissionService: UserResourcePermissionService,
 ) {
     
     @PostMapping(consumes = ["application/json"])
+    @Transactional
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('user:create')")
             /** createDocument：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun createDocument(@RequestBody body: DocumentUserRequest): ResponseEntity<Response> {
@@ -65,6 +69,15 @@ class UserController(
                 roleIds = roleIds,
             ),
         )
+        if (body.resourceKinds != null || body.managedDepartmentIds != null) {
+            userResourcePermissionService.configure(
+                user.id,
+                user.departmentId,
+                body.managedDepartmentIds.orEmpty(),
+                body.resourceKinds.orEmpty(),
+                body.reviewResourceKinds.orEmpty(),
+            )
+        }
         val rs = Response(
             user.id,
             user.username,
@@ -83,6 +96,7 @@ class UserController(
     
     
     @PutMapping("/{id}", consumes = ["application/json"])
+    @Transactional
     @PreAuthorize("(hasRole('SUPER_ADMIN') or hasRole('ADMIN') or hasRole('DEPT_ADMIN')) and hasAuthority('user:update')")
             /** updateDocument：处理对应的 HTTP 接口请求，完成参数绑定、业务调用和响应封装。 */
     fun updateDocument(@PathVariable id: Long, @RequestBody body: DocumentUserRequest): ResponseEntity<Response> {
@@ -115,6 +129,15 @@ class UserController(
                 roleIds = body.roleIds,
             ),
         )
+        if (body.resourceKinds != null || body.managedDepartmentIds != null) {
+            userResourcePermissionService.configure(
+                user.id,
+                body.deptId ?: user.departmentId,
+                body.managedDepartmentIds.orEmpty(),
+                body.resourceKinds.orEmpty(),
+                body.reviewResourceKinds.orEmpty(),
+            )
+        }
         val rs = Response(
             user.id,
             user.username,
@@ -680,5 +703,52 @@ class UserController(
             },
         )
         return responseBuilder.ok().message("部门管理范围已更新").data(rs).build()
+    }
+
+    @GetMapping("/{id}/resource-permissions")
+    @PreAuthorize("hasRole('SUPER_ADMIN') and hasAuthority('user:role-assign')")
+    fun resourcePermissions(@PathVariable id: Long): ResponseEntity<Response> {
+        data class ResourceData(
+            @param:JsonProperty("resource_type") val resourceType: String,
+            val label: String,
+            @param:JsonProperty("review_enabled") val reviewEnabled: Boolean,
+        )
+        data class DepartmentData(
+            @param:JsonProperty("department_id") val departmentId: Long,
+            @param:JsonProperty("department_name") val departmentName: String,
+            @param:JsonProperty("include_descendants") val includeDescendants: Boolean,
+        )
+        data class Response(val resources: List<ResourceData>, val departments: List<DepartmentData>)
+        val resources = userResourcePermissionService.grantsFor(id).map {
+            ResourceData(it.resourceType.wireName, it.resourceType.label, it.reviewEnabled)
+        }
+        val departments = userResourcePermissionService.departmentBindingsFor(id).map {
+            DepartmentData(it.departmentId, it.departmentName, it.includeDescendants)
+        }
+        return responseBuilder.ok().data(Response(resources, departments)).build()
+    }
+
+    @PutMapping("/{id}/resource-permissions")
+    @PreAuthorize("hasRole('SUPER_ADMIN') and hasAuthority('user:role-assign')")
+    fun replaceResourcePermissions(
+        @PathVariable id: Long,
+        @RequestParam(name = "primary_department_id", required = false) primaryDepartmentId: Long?,
+        @RequestParam(name = "department_id", required = false) departmentIds: List<Long>?,
+        @RequestParam(name = "resource_type", required = false) resourceTypes: List<String>?,
+        @RequestParam(name = "review_resource_type", required = false) reviewResourceTypes: List<String>?,
+    ): ResponseEntity<Response> {
+        data class ResourceData(
+            @param:JsonProperty("resource_type") val resourceType: String,
+            val label: String,
+            @param:JsonProperty("review_enabled") val reviewEnabled: Boolean,
+        )
+        val resources = userResourcePermissionService.configure(
+            id,
+            primaryDepartmentId,
+            departmentIds.orEmpty(),
+            resourceTypes.orEmpty(),
+            reviewResourceTypes.orEmpty(),
+        ).map { ResourceData(it.resourceType.wireName, it.resourceType.label, it.reviewEnabled) }
+        return responseBuilder.ok().message("经办资源权限已更新").data(resources).build()
     }
 }

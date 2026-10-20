@@ -5,10 +5,12 @@ import org.springframework.stereotype.Component
 import top.foxball.cartask.authentication.CurrentUserPrincipal
 import top.foxball.cartask.authentication.SecurityRole
 import top.foxball.cartask.entity.GatePerson
+import top.foxball.cartask.entity.Department
 import top.foxball.cartask.repository.DepartmentRepository
 import top.foxball.cartask.repository.UserRepository
 import top.foxball.cartask.repository.GatePersonRepository
 import top.foxball.cartask.entity.StoredFile
+import top.foxball.cartask.entity.UserResourcePermission
 
 /** 人脸登记所有读写、审核和文件读取共用的范围策略。 */
 @Component
@@ -24,6 +26,7 @@ class FaceRegistrationScopePolicy(
 
     fun visible(person: GatePerson): Boolean {
         val scope = dataScopeResolver.current()
+        if (scope.resourceKinds != null && UserResourcePermission.ResourceType.FACE !in scope.resourceKinds) return false
         if (scope.unrestricted) return true
         if (scope.departmentCodes.isNotEmpty()) {
             return person.departmentCode in scope.departmentCodes ||
@@ -44,22 +47,24 @@ class FaceRegistrationScopePolicy(
     fun resolveDepartment(requestedCode: String?): DepartmentInfo {
         val principal = principal()
         val current = currentDepartment()
-        if (principal.role == SecurityRole.USER) {
+        require(
+            principal.role != SecurityRole.USER || principal.resourcePermissions.isEmpty() ||
+                    "face" in principal.resourcePermissions,
+        ) { "当前账号没有人脸资源权限" }
+        if (principal.role == SecurityRole.USER && principal.resourcePermissions.isEmpty()) {
             require("gate-person:department-scope" in principal.permissions) { "当前账号没有人脸部门范围授权" }
         }
         val requested = requestedCode?.trim()?.takeIf { it.isNotEmpty() }?.let {
             departmentRepository.findByDepartmentNumber(it) ?: throw IllegalArgumentException("工作部门不存在")
         }
         val selected = when {
-            requested != null && principal.role == SecurityRole.SUPER_ADMIN -> requested
-            requested != null && principal.role == SecurityRole.ADMIN -> {
+            requested != null -> {
                 val scope = dataScopeResolver.current()
                 require(scope.unrestricted || requested.departmentNumber in scope.departmentCodes) {
                     "无权使用该工作部门"
                 }
                 requested
             }
-            requested != null -> throw IllegalArgumentException("当前账号不能切换工作部门")
             current != null -> current
             else -> throw IllegalArgumentException("当前账号没有可用的工作部门")
         }
@@ -87,9 +92,14 @@ class FaceRegistrationScopePolicy(
 
     fun departmentOf(code: String): String? = gatePersonRepository.findByCode(code)?.departmentCode
 
-    private fun currentDepartment() = principal().workingDepartmentId?.let {
-        departmentRepository.findById(it).orElse(null)
-    } ?: userRepository.findById(principal().userId).orElse(null)?.department
+    private fun currentDepartment(): Department? {
+        val currentPrincipal = principal()
+        if (currentPrincipal.role == SecurityRole.USER && currentPrincipal.resourcePermissions.isNotEmpty() && currentPrincipal.workingDepartmentId == null) {
+            return null
+        }
+        return currentPrincipal.workingDepartmentId?.let { departmentRepository.findById(it).orElse(null) }
+            ?: userRepository.findById(currentPrincipal.userId).orElse(null)?.department
+    }
 
     data class DepartmentInfo(val name: String, val code: String)
 }

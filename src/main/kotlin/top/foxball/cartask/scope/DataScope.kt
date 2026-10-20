@@ -1,5 +1,7 @@
 package top.foxball.cartask.scope
 
+import top.foxball.cartask.entity.UserResourcePermission
+
 /**
  * DataScope 组件。
  * 
@@ -41,6 +43,7 @@ data class DataScope(
     val gatePersonCodes: Set<String> = emptySet(),
     
     val gatePersonNames: Set<String> = emptySet(),
+    val resourceKinds: Set<UserResourcePermission.ResourceType>? = null,
 ) {
     
     val unrestricted: Boolean get() = kind == ScopeKind.ALL
@@ -62,8 +65,18 @@ data class DataScope(
          * departments 函数：执行与该组件职责相关的业务操作。
          * 参数和返回值遵循调用方与领域服务之间的约定。
          */
-        fun departments(ids: Set<Long>, codes: Set<String>, names: Set<String>): DataScope =
-            DataScope(ScopeKind.DEPARTMENTS, departmentIds = ids, departmentCodes = codes, departmentNames = names)
+        fun departments(
+            ids: Set<Long>,
+            codes: Set<String>,
+            names: Set<String>,
+            resourceKinds: Set<UserResourcePermission.ResourceType>? = null,
+        ): DataScope = DataScope(
+            ScopeKind.DEPARTMENTS,
+            departmentIds = ids,
+            departmentCodes = codes,
+            departmentNames = names,
+            resourceKinds = resourceKinds,
+        )
         
         
         /**

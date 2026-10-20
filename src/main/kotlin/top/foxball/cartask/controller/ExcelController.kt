@@ -615,7 +615,7 @@ class ExcelController(
             
             "plates" -> writeWorkbook(
                 "车牌列表.xlsx",
-                plateRepository.findAll().filter { scopeQuerySupport.plateVisible(visibleOwnerIds, scope.userId, it) }
+                plateRepository.findAll().filter { scopeQuerySupport.plateVisible(visibleOwnerIds, scope.userId, it, scope) }
                     .map {
                         PlateExportRow(
                             requireNotNull(it.id),
@@ -635,7 +635,7 @@ class ExcelController(
                 writeWorkbook(
                     "车辆年检信息.xlsx",
                     plateRepository.findAll()
-                        .filter { scopeQuerySupport.plateVisible(visibleOwnerIds, scope.userId, it) }.sortedBy { it.id }
+                        .filter { scopeQuerySupport.plateVisible(visibleOwnerIds, scope.userId, it, scope) }.sortedBy { it.id }
                         .map {
                             PlateInspectionExportRow(
                                 requireNotNull(it.id), it.plate, it.owner, it.regDate.toString(),
@@ -1080,7 +1080,8 @@ class ExcelController(
                             scopeQuerySupport.plateVisible(
                                 visibleOwnerIds,
                                 scope.userId,
-                                plate
+                                plate,
+                                scope,
                             )
                         ) { "第${line}行车牌号不在当前数据范围内：$number" }
                         val plateId = requireNotNull(plate.id)

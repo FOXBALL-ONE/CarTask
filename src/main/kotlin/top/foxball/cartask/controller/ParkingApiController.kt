@@ -582,7 +582,8 @@ class ParkingApiController(
             scopeQuerySupport.plateVisible(
                 visibleOwnerIds,
                 scope.userId,
-                it
+                it,
+                scope,
             ) && (keyword.isNullOrBlank() || SerialNumbers.matches(it.id, keyword) || it.plate.contains(
                 keyword,
                 true

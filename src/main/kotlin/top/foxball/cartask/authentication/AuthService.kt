@@ -20,7 +20,8 @@ import top.foxball.cartask.audit.AuditAction
 import top.foxball.cartask.audit.AuditCommand
 import top.foxball.cartask.audit.AuditService
 import top.foxball.cartask.entity.User
-import top.foxball.cartask.repository.UserRepository
+import top.foxball.cartask.repository.UserResourcePermissionRepository
+import top.foxball.cartask.repository.UserManagedDepartmentRepository
 import java.time.Duration
 import java.time.LocalDateTime
 
@@ -52,6 +53,7 @@ interface AuthService {
         val username: String,
         val role: String,
         val permissions: Set<String>,
+        @param:JsonProperty("resource_permissions") val resourcePermissions: Set<String> = emptySet(),
         
         val mustChangePassword: Boolean = false,
         val avatar: String? = null,
@@ -141,6 +143,8 @@ class AuthServiceImpl(
     private val rolePermissionService: RolePermissionService,
     private val auditService: AuditService? = null,
     private val smsVerificationService: SmsVerificationService,
+    private val userResourcePermissionRepository: UserResourcePermissionRepository? = null,
+    private val userManagedDepartmentRepository: UserManagedDepartmentRepository? = null,
 ) : AuthService {
     
     
@@ -178,8 +182,9 @@ class AuthServiceImpl(
             throw ex
         }
         loginAttemptLimiter.clear(command.username)
-        val permissions = rolePermissionService.permissionsFor(role)
         val userId = user.id ?: throw IllegalStateException("用户 ID 缺失")
+        val permissions = permissionsFor(role, userId)
+        val resourcePermissions = resourcePermissionsOf(userId)
         val version = sessionRepository.currentTokenVersion(userId)
         val issued = jwtTokenService.issue(userId, user.username, role, version)
         sessionRepository.save(
@@ -196,7 +201,7 @@ class AuthServiceImpl(
                 issuedAt = issued.issuedAt,
                 expiresAt = issued.expiresAt,
                 mustChangePassword = user.mustChangePassword,
-                workingDepartmentId = defaultWorkingDepartment(user, role),
+                workingDepartmentId = defaultWorkingDepartment(user, role, userId, resourcePermissions),
             ),
             Duration.between(issued.issuedAt, issued.expiresAt),
         )
@@ -217,9 +222,10 @@ class AuthServiceImpl(
             user.username,
             role,
             permissions,
+            resourcePermissions,
             user.mustChangePassword,
             user.avatar,
-            defaultWorkingDepartment(user, role),
+            defaultWorkingDepartment(user, role, userId, resourcePermissions),
         )
     }
     
@@ -266,8 +272,9 @@ class AuthServiceImpl(
     
     /** issueToken：执行认证组件中的一项具体操作，完成输入校验并返回处理结果。 */
     private fun issueToken(user: User, role: String): AuthService.LoginData {
-        val permissions = rolePermissionService.permissionsFor(role)
         val userId = user.id ?: throw IllegalStateException("用户 ID 缺失")
+        val permissions = permissionsFor(role, userId)
+        val resourcePermissions = resourcePermissionsOf(userId)
         val version = sessionRepository.currentTokenVersion(userId)
         val issued = jwtTokenService.issue(userId, user.username, role, version)
         sessionRepository.save(
@@ -284,7 +291,7 @@ class AuthServiceImpl(
                 issuedAt = issued.issuedAt,
                 expiresAt = issued.expiresAt,
                 mustChangePassword = user.mustChangePassword,
-                workingDepartmentId = defaultWorkingDepartment(user, role),
+                workingDepartmentId = defaultWorkingDepartment(user, role, userId, resourcePermissions),
             ),
             Duration.between(issued.issuedAt, issued.expiresAt),
         )
@@ -295,16 +302,31 @@ class AuthServiceImpl(
             user.username,
             role,
             permissions,
+            resourcePermissions,
             user.mustChangePassword,
             user.avatar,
-            defaultWorkingDepartment(user, role),
+            defaultWorkingDepartment(user, role, userId, resourcePermissions),
         )
     }
     
     
     /** defaultWorkingDepartment：执行认证组件中的一项具体操作，完成输入校验并返回处理结果。 */
-    private fun defaultWorkingDepartment(user: User, role: String): Long? =
-        if (role == SecurityRole.DEPT_ADMIN) user.department?.id else null
+    private fun defaultWorkingDepartment(user: User, role: String, userId: Long, resourcePermissions: Set<String>): Long? = when {
+        role == SecurityRole.DEPT_ADMIN -> user.department?.id
+        role == SecurityRole.USER && resourcePermissions.isNotEmpty() -> {
+            val departments = userManagedDepartmentRepository?.findDepartmentIds(userId).orEmpty().toSet() +
+                    setOfNotNull(user.department?.id)
+            departments.singleOrNull()
+        }
+        else -> null
+    }
+
+    private fun resourcePermissionsOf(userId: Long): Set<String> =
+        userResourcePermissionRepository?.findByUserId(userId)?.map { it.resourceType.wireName }?.toSet().orEmpty()
+
+    private fun permissionsFor(role: String, userId: Long): Set<String> =
+        if (userResourcePermissionRepository == null) rolePermissionService.permissionsFor(role)
+        else rolePermissionService.permissionsFor(role, userId)
     
     
     /** logout：执行认证组件中的一项具体操作，完成输入校验并返回处理结果。 */

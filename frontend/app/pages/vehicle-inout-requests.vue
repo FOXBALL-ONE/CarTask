@@ -8,6 +8,10 @@
       <button v-if="can('vehicle-inout-request:apply')" class="button button--primary" type="button"
               @click="openCreate"><span class="material-icons-outlined">add</span>登记申请
       </button>
+      <div v-if="can('vehicle-inout-request:review') && selectedReviewIds.length" class="header-review-actions">
+        <button class="button button--primary" type="button" @click="reviewSelected(true)">批量通过 {{ selectedReviewIds.length }}</button>
+        <button class="button button--soft" type="button" @click="reviewSelected(false)">批量驳回</button>
+      </div>
     </header>
 
     <div class="tabs">
@@ -68,6 +72,7 @@
         <table class="table">
           <thead>
           <tr>
+            <th v-if="can('vehicle-inout-request:review')"><input :checked="allPendingSelected" aria-label="选择本页待审核申请" type="checkbox" @change="toggleReviewSelection"></th>
             <th>编号</th>
             <th>车牌号</th>
             <th>车主</th>
@@ -83,6 +88,7 @@
           </thead>
           <tbody>
           <tr v-for="request in requests" :key="request.id">
+            <td v-if="can('vehicle-inout-request:review')"><input v-if="request.status === '待审核'" v-model="selectedReviewIds" :value="request.id" :aria-label="`选择 ${request.plate}`" type="checkbox"></td>
             <td>{{ String(request.id).padStart(4, "0") }}</td>
             <td><strong class="primary-text">{{ request.plate }}</strong></td>
             <td>{{ request.owner }}</td>
@@ -97,7 +103,7 @@
             <td class="right actions-cell">
               <button class="row-action" title="详情" type="button" @click="openDetail(request)"><span
                   class="material-icons-outlined">visibility</span></button>
-              <button v-if="request.status === '待审核' && can('vehicle-inout-request:apply')" class="row-action"
+              <button v-if="['待审核', '已驳回', '已撤销'].includes(request.status) && can('vehicle-inout-request:apply')" class="row-action"
                       title="编辑" type="button" @click="openEdit(request)"><span
                   class="material-icons-outlined">edit</span></button>
               <button v-if="request.status === '待审核' && can('vehicle-inout-request:review')"
@@ -278,7 +284,7 @@
                                                                             required></label>
               <label class="field">
                 <span>部门 <em>*</em></span>
-                <select v-model.number="form.departmentId" class="select" required>
+                <select v-model.number="form.departmentId" :disabled="operatorVehicle" class="select" required>
                   <option :value="null">请选择部门</option>
                   <option v-for="department in departments" :key="department.id" :value="department.id">
                     {{ department.name }}
@@ -373,6 +379,7 @@ interface ZonePage {
 }
 
 const http = useHttp();
+const authStore = useAuthStore();
 const {can} = usePermission();
 const tabs = [
   {key: "all", label: "全部申请"},
@@ -386,6 +393,7 @@ const keyword = ref("");
 const page = ref(1);
 const pageSize = 8;
 const requests = ref<Request[]>([]);
+const selectedReviewIds = ref<number[]>([]);
 
 interface MonthlyCardFailure {
   id: string;
@@ -438,6 +446,10 @@ let plateQueryTimer: ReturnType<typeof setTimeout> | null = null;
 let loadSequence = 0;
 
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize)));
+const allPendingSelected = computed(() => {
+  const pendingIds = requests.value.filter((request) => request.status === "待审核").map((request) => request.id);
+  return pendingIds.length > 0 && pendingIds.every((id) => selectedReviewIds.value.includes(id));
+});
 const pageNumbers = computed(() => Array.from({length: totalPages.value}, (_, index) => index + 1).slice(Math.max(0, page.value - 3), page.value + 2));
 /** 表单里输入的车牌若与某条已建档车牌完全一致，就在表单里带出车主信息供确认。 */
 const selectedPlate = computed(() => {
@@ -450,7 +462,8 @@ const selectedOwnerPhone = computed(() => (selectedPlate.value ? ownerPhones.val
  * 顺带建档等同手工建账号 + 建车主 + 建车牌，因此入口要求三项权限齐全。
  * 这只是体验层：真正的拦截在服务端（VehicleInoutArchiveService.requireAuthorities）。
  */
-const canCreateArchives = computed(() => can("user:create") && can("owner:manage") && can("plate:manage"));
+const operatorVehicle = computed(() => authStore.user?.role === "USER" && authStore.user.resource_permissions?.includes("vehicle") === true);
+const canCreateArchives = computed(() => operatorVehicle.value || (can("user:create") && can("owner:manage") && can("plate:manage")));
 
 /** 标签页映射到服务端的精确筛选：已通过看审批结论，已下发看下发结论，两个维度独立。 */
 function tabFilters() {
@@ -487,6 +500,7 @@ async function loadRequests() {
     // 连续切换标签页会并发多次加载，晚到的旧响应不能覆盖新结果。
     if (requestId !== loadSequence) return;
     requests.value = result.items || [];
+    selectedReviewIds.value = selectedReviewIds.value.filter((id) => requests.value.some((request) => request.id === id && request.status === "待审核"));
     total.value = result.total || 0;
   } catch (error) {
     if (requestId === loadSequence) errorMessage.value = (error as {
@@ -540,10 +554,17 @@ async function loadOwnerPhone(plate: PlateOption) {
 }
 
 async function loadDepartments() {
+  if (operatorVehicle.value) {
+    const departmentId = authStore.user?.working_department_id;
+    const departmentName = authStore.user?.working_department_name;
+    departments.value = departmentId && departmentName ? [{id: departmentId, name: departmentName}] : [];
+    return;
+  }
   if (!can("department:read")) return;
   try {
     const result = await http.get<DepartmentOption[]>("/depts");
-    departments.value = (result || []).filter((item) => item.id != null && Boolean(item.name));
+    departments.value = (result || []).filter((item) => item.id != null && Boolean(item.name))
+        .filter((item) => !operatorVehicle.value || item.id === authStore.user?.working_department_id);
   } catch {
     // 拿不到部门字典时下拉是空的，保存会被 required 拦下，不会造出没有部门的账号。
   }
@@ -619,7 +640,7 @@ function openCreate() {
     createArchives: false,
     ownerName: "",
     phone: "",
-    departmentId: null,
+    departmentId: operatorVehicle.value ? authStore.user?.working_department_id ?? null : null,
     jobTitle: "",
     password: "", ...defaultValidity()
   });
@@ -719,6 +740,29 @@ async function review(request: Request, approved: boolean) {
     await loadRequests();
   } catch (error) {
     actionError.value = (error as { statusMessage?: string }).statusMessage || "审核失败";
+  }
+}
+
+function toggleReviewSelection(event: Event) {
+  selectedReviewIds.value = (event.target as HTMLInputElement).checked
+      ? requests.value.filter((request) => request.status === "待审核").map((request) => request.id)
+      : [];
+}
+
+async function reviewSelected(approved: boolean) {
+  const ids = [...selectedReviewIds.value];
+  if (!ids.length) return;
+  const reason = approved ? undefined : window.prompt("请输入本批申请的驳回原因");
+  if (!approved && !reason?.trim()) return;
+  try {
+    const result = await http.put<{ reviewed: number }>("/vehicle-inout-requests/reviews", undefined, {
+      params: {ids, approved, reason: reason?.trim()},
+    });
+    selectedReviewIds.value = [];
+    successMessage.value = `已审核 ${result.reviewed} 条申请`;
+    await loadRequests();
+  } catch (error) {
+    actionError.value = (error as { statusMessage?: string }).statusMessage || "批量审核失败";
   }
 }
 

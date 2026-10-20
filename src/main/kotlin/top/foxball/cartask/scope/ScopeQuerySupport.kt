@@ -57,8 +57,10 @@ class ScopeQuerySupport(
     fun ownersInScope(scope: DataScope): List<ParkingOwner> = when (scope.kind) {
         ScopeKind.ALL -> parkingOwnerRepository.findAll()
         ScopeKind.DEPARTMENTS -> {
-            val departments = departmentLinkResolver.snapshot()
-            parkingOwnerRepository.findAll().filter { ownerVisibleInDepartments(departments, it, scope) }
+            if (!allows(scope, UserResourcePermission.ResourceType.VEHICLE)) emptyList() else {
+                val departments = departmentLinkResolver.snapshot()
+                parkingOwnerRepository.findAll().filter { ownerVisibleInDepartments(departments, it, scope) }
+            }
         }
         
         ScopeKind.SELF -> ownersOf(requireNotNull(scope.userId), scope.phone)
@@ -86,6 +88,7 @@ class ScopeQuerySupport(
      * 参数和返回值遵循调用方与领域服务之间的约定。
      */
     fun plateNumbersInScope(scope: DataScope): Set<String> {
+        if (scope.kind == ScopeKind.DEPARTMENTS && !allows(scope, UserResourcePermission.ResourceType.VEHICLE)) return emptySet()
         if (scope.kind == ScopeKind.SELF) return scope.carNumbers
         val ownerIds = ownerIdsInScope(scope)
         if (ownerIds.isEmpty()) return emptySet()
@@ -97,10 +100,11 @@ class ScopeQuerySupport(
      * plateVisible 函数：执行与该组件职责相关的业务操作。
      * 参数和返回值遵循调用方与领域服务之间的约定。
      */
-    fun plateVisible(visibleOwnerIds: Set<Long>?, scopeUserId: Long?, plate: ParkingPlate): Boolean =
-        visibleOwnerIds == null ||
+    fun plateVisible(visibleOwnerIds: Set<Long>?, scopeUserId: Long?, plate: ParkingPlate, scope: DataScope): Boolean =
+        (scope.resourceKinds == null || UserResourcePermission.ResourceType.VEHICLE in scope.resourceKinds) &&
+                (visibleOwnerIds == null ||
                 plate.ownerId in visibleOwnerIds ||
-                (scopeUserId != null && plate.linkedUserId == scopeUserId)
+                (scopeUserId != null && plate.linkedUserId == scopeUserId))
     
     
     fun <T : DepartmentScoped> visibleInScope(scope: DataScope, rows: List<T>): List<T> =
@@ -148,16 +152,20 @@ class ScopeQuerySupport(
             }
             
             ScopeKind.DEPARTMENTS -> {
-                val plates = plateNumbersInScope(scope)
-                val names = scope.departmentNames
-                when {
-                    plates.isEmpty() && names.isEmpty() -> cb.disjunction()
-                    plates.isEmpty() -> cb.and(root.get<String>("departmentName").`in`(names))
-                    names.isEmpty() -> cb.and(root.get<String>("carNumberNormalized").`in`(plates))
-                    else -> cb.or(
-                        root.get<String>("carNumberNormalized").`in`(plates),
-                        root.get<String>("departmentName").`in`(names),
-                    )
+                if (!allows(scope, UserResourcePermission.ResourceType.VEHICLE)) {
+                    cb.disjunction()
+                } else {
+                    val plates = plateNumbersInScope(scope)
+                    val names = scope.departmentNames
+                    when {
+                        plates.isEmpty() && names.isEmpty() -> cb.disjunction()
+                        plates.isEmpty() -> cb.and(root.get<String>("departmentName").`in`(names))
+                        names.isEmpty() -> cb.and(root.get<String>("carNumberNormalized").`in`(plates))
+                        else -> cb.or(
+                            root.get<String>("carNumberNormalized").`in`(plates),
+                            root.get<String>("departmentName").`in`(names),
+                        )
+                    }
                 }
             }
         }
@@ -172,7 +180,12 @@ class ScopeQuerySupport(
         ScopeKind.ALL -> true
         
         ScopeKind.DEPARTMENTS ->
-            (file.departmentCode != null && file.departmentCode in scope.departmentCodes) ||
+            (file.departmentCode != null && file.departmentCode in scope.departmentCodes &&
+                    (scope.resourceKinds == null || when (file.businessType) {
+                        StoredFile.BUSINESS_VEHICLE_PLATE -> UserResourcePermission.ResourceType.VEHICLE in scope.resourceKinds
+                        StoredFile.BUSINESS_GATE_PERSON -> UserResourcePermission.ResourceType.FACE in scope.resourceKinds
+                        else -> true
+                    })) ||
                     (
                             file.businessType == StoredFile.BUSINESS_VEHICLE_PLATE &&
                                     file.businessId != null && file.businessId in plateNumbersInScope(scope)
@@ -202,7 +215,7 @@ class ScopeQuerySupport(
     fun gatePersonCodesInScope(scope: DataScope): Set<String> = when (scope.kind) {
         ScopeKind.ALL -> emptySet()
         ScopeKind.SELF -> scope.gatePersonCodes
-        ScopeKind.DEPARTMENTS -> gatePersonRepository.findAll()
+        ScopeKind.DEPARTMENTS -> if (!allows(scope, UserResourcePermission.ResourceType.FACE)) emptySet() else gatePersonRepository.findAll()
             .filter { it.departmentCode != null && it.departmentCode in scope.departmentCodes }
             .map { it.code }
             .toSet()
@@ -217,7 +230,8 @@ class ScopeQuerySupport(
         ScopeKind.ALL -> true
         
         ScopeKind.DEPARTMENTS ->
-            subject.departmentCode != null && subject.departmentCode in scope.departmentCodes
+            allows(scope, UserResourcePermission.ResourceType.VIOLATION) &&
+                    subject.departmentCode != null && subject.departmentCode in scope.departmentCodes
         
         ScopeKind.SELF ->
             (scope.userId != null && subject.linkedUserId == scope.userId) ||
@@ -237,6 +251,7 @@ class ScopeQuerySupport(
      * 参数和返回值遵循调用方与领域服务之间的约定。
      */
     fun personRecordsInScope(scope: DataScope, rows: List<PersonAccessRecord>): List<PersonAccessRecord> {
+        if (scope.kind == ScopeKind.DEPARTMENTS && !allows(scope, UserResourcePermission.ResourceType.FACE)) return emptyList()
         if (scope.kind == ScopeKind.ALL) return rows
         val departments = if (scope.kind == ScopeKind.DEPARTMENTS) departmentLinkResolver.snapshot() else null
         return rows.filter { record ->
@@ -255,6 +270,9 @@ class ScopeQuerySupport(
             }
         }
     }
+
+    private fun allows(scope: DataScope, kind: UserResourcePermission.ResourceType): Boolean =
+        scope.resourceKinds == null || kind in scope.resourceKinds
 }
 
 

@@ -22,9 +22,7 @@
         </label>
       </div>
     </div>
-    <p class="picker__hint">
-      仅当该用户的角色是「部门管理」时生效：他只能在被勾选的部门之间切换工作部门，看到的数据也限定在这些部门内。
-    </p>
+    <p class="picker__hint">{{ hint }}</p>
   </div>
 </template>
 
@@ -52,7 +50,10 @@ export interface ManagedDepartment {
 const props = defineProps<{
   departments: Department[];
   modelValue: ManagedDepartment[];
+  hint?: string;
 }>();
+
+const hint = computed(() => props.hint || "仅当该用户的角色是「部门管理」时生效：他只能在被勾选的部门之间切换工作部门，看到的数据也限定在这些部门内。");
 
 const emit = defineEmits<{
   "update:modelValue": [ManagedDepartment[]];

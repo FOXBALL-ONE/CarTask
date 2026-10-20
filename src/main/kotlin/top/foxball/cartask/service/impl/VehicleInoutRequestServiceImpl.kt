@@ -122,7 +122,9 @@ class VehicleInoutRequestServiceImpl(
     override fun update(id: Long, command: VehicleInoutRequestService.UpdateCommand): VehicleInoutRequest {
         val scope = scopeGuard.currentScope()
         val request = requireVisible(id, scope)
-        require(request.status == VehicleInoutRequest.Status.PENDING) { "只有待审核的申请可以编辑" }
+        require(request.status in setOf(VehicleInoutRequest.Status.PENDING, VehicleInoutRequest.Status.REJECTED, VehicleInoutRequest.Status.CANCELLED)) {
+            "只有待审核、已驳回或已撤销的申请可以编辑"
+        }
         val before = lifecycleOf(request)
         var changed = false
         
@@ -166,6 +168,13 @@ class VehicleInoutRequestServiceImpl(
         if (validFrom != request.validFrom || validTo != request.validTo) {
             request.validFrom = validFrom
             request.validTo = validTo
+            changed = true
+        }
+        if (request.status != VehicleInoutRequest.Status.PENDING) {
+            request.status = VehicleInoutRequest.Status.PENDING
+            request.reviewedBy = null
+            request.reviewedAt = null
+            request.reviewReason = null
             changed = true
         }
         
@@ -212,6 +221,38 @@ class VehicleInoutRequestServiceImpl(
             ),
         )
         return saved
+    }
+
+    @Transactional
+    override fun reviewBatch(ids: List<Long>, approved: Boolean, reason: String?): VehicleInoutRequestService.BatchReviewResult {
+        require(ids.isNotEmpty()) { "审核列表不能为空" }
+        require(ids.size <= 200) { "单次批量审核不能超过 200 条，请分批提交" }
+        require(ids.distinct().size == ids.size) { "审核记录的 ID 不能重复" }
+        val scope = scopeGuard.currentScope()
+        val requests = ids.map { id -> requireVisible(id, scope) }
+        requests.forEach { request -> require(request.status == VehicleInoutRequest.Status.PENDING) { "存在不是待审核状态的申请" } }
+        val normalizedReason = reason?.trim()?.takeIf(String::isNotEmpty)
+        if (!approved) require(normalizedReason != null) { "驳回原因不能为空" }
+        requests.forEach { request ->
+            val before = request.status
+            request.status = if (approved) VehicleInoutRequest.Status.APPROVED else VehicleInoutRequest.Status.REJECTED
+            request.reviewedBy = actorName()
+            request.reviewedAt = LocalDateTime.now()
+            request.reviewReason = normalizedReason
+            auditService.record(
+                AuditCommand(
+                    action = ACTION_REVIEWED,
+                    targetType = TARGET_TYPE,
+                    targetId = request.id.toString(),
+                    reason = normalizedReason,
+                    targetSummary = targetSummaryOf(request),
+                    beforeData = mapOf("review_status" to before.value()),
+                    afterData = mapOf("review_status" to request.status.value(), "synchronized" to false),
+                ),
+            )
+        }
+        repository.saveAll(requests)
+        return VehicleInoutRequestService.BatchReviewResult(requests.size)
     }
     
     @Transactional

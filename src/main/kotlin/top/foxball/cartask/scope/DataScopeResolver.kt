@@ -15,6 +15,7 @@ import top.foxball.cartask.repository.GatePersonRepository
 import top.foxball.cartask.repository.ParkingPlateRepository
 import top.foxball.cartask.repository.UserManagedDepartmentRepository
 import top.foxball.cartask.repository.UserRepository
+import top.foxball.cartask.entity.UserResourcePermission
 import top.foxball.cartask.shared.PlateNumbers
 
 
@@ -52,7 +53,20 @@ class DataScopeResolver(
     fun forPrincipal(principal: CurrentUserPrincipal): DataScope {
         val departments = departmentLinkResolver.snapshot()
         return when (principal.role) {
-            SecurityRole.USER -> selfScope(principal.userId)
+            SecurityRole.USER -> if (principal.resourcePermissions.isEmpty()) {
+                selfScope(principal.userId)
+            } else {
+                val managed = managedDepartmentIds(principal.userId, departments)
+                val selected = principal.workingDepartmentId?.takeIf { it in managed }
+                departmentScope(
+                    departments,
+                    if (selected == null) managed else setOf(selected),
+                    expandDescendants = true,
+                    resourceKinds = principal.resourcePermissions.mapNotNull { raw ->
+                        UserResourcePermission.ResourceType.entries.firstOrNull { it.wireName == raw }
+                    }.toSet(),
+                )
+            }
             
             SecurityRole.DEPT_ADMIN -> {
                 val managed = managedDepartmentIds(principal.userId, departments)
@@ -75,12 +89,14 @@ class DataScopeResolver(
         departments: DepartmentSnapshot,
         departmentIds: Set<Long>,
         expandDescendants: Boolean,
+        resourceKinds: Set<UserResourcePermission.ResourceType>? = null,
     ): DataScope {
         val ids = if (expandDescendants) departments.withDescendants(departmentIds) else departmentIds
         return DataScope.departments(
             ids = ids,
             codes = departments.codesOf(ids),
             names = departments.namesOf(ids),
+            resourceKinds = resourceKinds,
         )
     }
     
@@ -91,8 +107,8 @@ class DataScopeResolver(
         val ids = assigned
             .flatMap { id -> if (id in withDescendants) departments.withDescendants(setOf(id)) else setOf(id) }
             .toSet()
-        if (ids.isNotEmpty()) return ids
-        return setOfNotNull(userRepository.findById(userId).orElse(null)?.department?.id)
+        val ownDepartmentId = userRepository.findById(userId).orElse(null)?.department?.id
+        return ids + setOfNotNull(ownDepartmentId)
     }
     
     

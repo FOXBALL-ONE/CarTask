@@ -19,6 +19,7 @@ import top.foxball.cartask.repository.DepartmentRepository
 import top.foxball.cartask.repository.PositionRepository
 import top.foxball.cartask.repository.RoleRepository
 import top.foxball.cartask.repository.UserRepository
+import top.foxball.cartask.repository.UserResourcePermissionRepository
 import top.foxball.cartask.scope.DataScopeResolver
 import top.foxball.cartask.scope.ScopeGuard
 import top.foxball.cartask.scope.ScopeKind
@@ -38,6 +39,7 @@ class UserServiceImpl(
     private val scopeGuard: ScopeGuard,
     private val auditService: AuditService? = null,
     private val roleRepository: RoleRepository? = null,
+    private val userResourcePermissionRepository: UserResourcePermissionRepository? = null,
 ) : UserService {
     
     
@@ -247,6 +249,8 @@ class UserServiceImpl(
             }
             user.updatedAt = now
         }
+        users.filter { SecurityRole.normalizeOrNull(it.role) != SecurityRole.USER }
+            .forEach { userResourcePermissionRepository?.deleteByUserId(requireNotNull(it.id)) }
         val savedUsers = userRepository.saveAll(users)
         savedUsers.forEach { user ->
             val action = when {
@@ -286,6 +290,7 @@ class UserServiceImpl(
         roleAssignmentPolicy.validateManagement(users.map { it.role })
         requireActiveSuperAdminRemains(users) { false }
         users.forEach { tokenSessionRepository.incrementTokenVersion(it.id!!) }
+        users.forEach { userResourcePermissionRepository?.deleteByUserId(requireNotNull(it.id)) }
         userRepository.deleteAll(users)
         users.forEach { user ->
             auditService?.record(

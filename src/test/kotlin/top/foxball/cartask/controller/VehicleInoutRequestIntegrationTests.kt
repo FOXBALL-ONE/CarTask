@@ -160,7 +160,7 @@ class VehicleInoutRequestIntegrationTests(
 
     @Test
     @WithCurrentUser(role = "ADMIN", authorities = ["vehicle-inout-request:read", "vehicle-inout-request:apply"])
-    fun `已决申请不能编辑撤销后也不能复活`() {
+    fun `撤回申请可以编辑并重新提交`() {
         val owner = saveOwner("赵六", "13800000104")
         val plate = savePlate(uniquePlate("京D"), owner)
         val id = requireNotNull(createRequest(plate.plate).id)
@@ -168,11 +168,29 @@ class VehicleInoutRequestIntegrationTests(
         api.cancel(id, VehicleInoutRequestCancelBody("不再需要"))
         assertEquals(VehicleInoutRequest.Status.CANCELLED, reload(id).status)
 
-        assertTrue(assertFailsWith<IllegalArgumentException> {
-            api.update(id, VehicleInoutRequestUpdateBody().apply { cardName = "改个名字" })
-        }.message!!.contains("只有待审核的申请可以编辑"))
-        assertTrue(assertFailsWith<IllegalArgumentException> { api.cancel(id, VehicleInoutRequestCancelBody()) }
-            .message!!.contains("不允许撤销"))
+        api.update(id, VehicleInoutRequestUpdateBody().apply { cardName = "改个名字" })
+        assertEquals(VehicleInoutRequest.Status.PENDING, reload(id).status)
+        assertEquals("改个名字", reload(id).cardName)
+        api.cancel(id, VehicleInoutRequestCancelBody())
+        assertEquals(VehicleInoutRequest.Status.CANCELLED, reload(id).status)
+    }
+
+    @Test
+    @WithCurrentUser(role = "ADMIN", authorities = ["vehicle-inout-request:read", "vehicle-inout-request:apply", "vehicle-inout-request:review"])
+    fun `车辆申请可批量审核且拒绝后可修改重提`() {
+        val owner = saveOwner("批量审核车主", "13800000114")
+        val first = requireNotNull(createRequest(savePlate(uniquePlate("京M"), owner).plate).id)
+        val second = requireNotNull(createRequest(savePlate(uniquePlate("京N"), owner).plate).id)
+
+        api.reviewBatch(listOf(first, second), approved = false, reason = "资料待补")
+        assertEquals(VehicleInoutRequest.Status.REJECTED, reload(first).status)
+        assertEquals(VehicleInoutRequest.Status.REJECTED, reload(second).status)
+
+        api.update(first, VehicleInoutRequestUpdateBody().apply { cardName = "重新提交" })
+        assertEquals(VehicleInoutRequest.Status.PENDING, reload(first).status)
+        assertNull(reload(first).reviewedAt)
+        api.reviewBatch(listOf(first), approved = true, reason = null)
+        assertEquals(VehicleInoutRequest.Status.APPROVED, reload(first).status)
     }
 
     @Test

@@ -50,6 +50,7 @@
             <span class="material-icons-outlined">apartment</span>
             <select :value="currentDepartmentValue" aria-label="当前工作部门" @change="changeWorkingDepartment">
               <option v-if="canSelectAllDepartments" value="">全部部门</option>
+              <option v-else-if="authStore.user?.role === 'USER' && authStore.user.working_department_id == null" disabled value="">请选择工作部门</option>
               <option v-for="option in departmentOptions" :key="option.id" :value="String(option.id)">{{
                   option.name
                 }}
@@ -114,6 +115,7 @@ const canSelectAllDepartments = computed(() => authStore.user?.scope === "ALL");
 const showDepartmentSwitcher = computed(
     () => !authStore.mustChangePassword
         && departmentOptions.value.length > 0
+        && !(authStore.user?.role === "USER" && departmentOptions.value.length === 1)
         && (authStore.user?.scope === "DEPARTMENT" || authStore.user?.scope === "ALL"),
 );
 const currentDepartmentValue = computed(() => (authStore.user?.working_department_id == null ? "" : String(authStore.user.working_department_id)));

@@ -27,6 +27,7 @@ class CurrentUserPrincipal(
     role: String,
     val tokenId: String,
     permissions: Collection<String> = emptySet(),
+    resourcePermissions: Collection<String> = emptySet(),
     
     val mustChangePassword: Boolean = false,
     
@@ -37,6 +38,7 @@ class CurrentUserPrincipal(
     val permissions: Set<String> = Collections.unmodifiableSet(
         permissions.asSequence().map(SecurityPermission::normalize).toSortedSet(),
     )
+    val resourcePermissions: Set<String> = Collections.unmodifiableSet(resourcePermissions.map(String::lowercase).toSet())
     val authorities: List<GrantedAuthority> = buildList {
         add(SimpleGrantedAuthority(SecurityRole.authority(this@CurrentUserPrincipal.role)))
         addAll(this@CurrentUserPrincipal.permissions.map(::SimpleGrantedAuthority))

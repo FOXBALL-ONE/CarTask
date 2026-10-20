@@ -44,9 +44,17 @@ class VehicleInoutArchiveService(
         require(plateNumber.length <= PLATE_MAX) { "车牌号长度不能超过 $PLATE_MAX 个字符" }
         val plateKey = requireNotNull(PlateNumbers.normalize(plateNumber)) { "车牌号不能为空" }
         
+        val principal = SecurityContextHolder.getContext().authentication?.principal as? CurrentUserPrincipal
+            ?: throw AccessDeniedException("缺少有效的操作人上下文")
+        val operator = principal.role == "USER" && principal.resourcePermissions.isNotEmpty()
+        val effectiveDepartmentId = if (operator) {
+            val current = principal.workingDepartmentId ?: throw AccessDeniedException("请先选择工作部门")
+            require(input.departmentId == current) { "经办账号只能使用当前工作部门" }
+            current
+        } else input.departmentId
         val department =
             requireNotNull(
-                departmentRepository.findById(requireNotNull(input.departmentId) { "部门不能为空" })
+                departmentRepository.findById(requireNotNull(effectiveDepartmentId) { "部门不能为空" })
                     .orElse(null)
             ) {
                 "部门不存在"
@@ -113,6 +121,7 @@ class VehicleInoutArchiveService(
     private fun requireAuthorities() {
         val principal = SecurityContextHolder.getContext().authentication?.principal as? CurrentUserPrincipal
             ?: throw AccessDeniedException("缺少有效的操作人上下文")
+        if (principal.resourcePermissions.contains("vehicle")) return
         val missing = REQUIRED_AUTHORITIES.filterNot { it in principal.permissions }
         if (missing.isNotEmpty()) {
             throw AccessDeniedException("顺带新建档案需要权限：${missing.joinToString("、")}，请改用已建档车牌登记")
