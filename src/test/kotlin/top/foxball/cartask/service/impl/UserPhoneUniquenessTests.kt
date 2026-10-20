@@ -37,12 +37,14 @@ import top.foxball.cartask.service.UserService
 class UserPhoneUniquenessTests {
     private val userRepository = mock<UserRepository>()
     private val dataScopeResolver = mock<DataScopeResolver>()
+    private val passwordEncoder = mock<PasswordEncoder>()
+    private val tokenSessionRepository = mock<RedisTokenSessionRepository>()
     private val service = UserServiceImpl(
         userRepository = userRepository,
         departmentRepository = mock<DepartmentRepository>(),
         positionRepository = mock<PositionRepository>(),
-        passwordEncoder = mock<PasswordEncoder>(),
-        tokenSessionRepository = mock<RedisTokenSessionRepository>(),
+        passwordEncoder = passwordEncoder,
+        tokenSessionRepository = tokenSessionRepository,
         roleAssignmentPolicy = mock<RoleAssignmentPolicy>(),
         dataScopeResolver = dataScopeResolver,
         scopeGuard = ScopeGuard(dataScopeResolver, mock<DepartmentLinkResolver>(), mock<ScopeQuerySupport>()),
@@ -69,13 +71,30 @@ class UserPhoneUniquenessTests {
                 UserService.CreateCommand(
                     username = "new.user",
                     email = "new.user@local.invalid",
-                    credential = "irrelevant",
+                    credential = "Valid-password1",
                     phone = "13800138000",
                 ),
             )
         }
 
         assertTrue(error.message!!.contains("已被其他账号绑定"))
+        verify(userRepository, never()).saveAll(any<List<User>>())
+    }
+
+    @Test
+    fun `新建账号时不符合全局密码规则会被拒绝且不查询账号`() {
+        val error = assertFailsWith<IllegalArgumentException> {
+            service.create(
+                UserService.CreateCommand(
+                    username = "new.user",
+                    email = "new.user@local.invalid",
+                    credential = "abcdefgh1",
+                ),
+            )
+        }
+
+        assertTrue(error.message!!.contains("至少 3 类"))
+        verify(userRepository, never()).existsByUsername(any())
         verify(userRepository, never()).saveAll(any<List<User>>())
     }
 
@@ -94,6 +113,25 @@ class UserPhoneUniquenessTests {
         assertTrue(error.message!!.contains("已被其他账号绑定"))
         assertEquals("13800138021", target.phone)
         verify(userRepository, never()).saveAll(any<List<User>>())
+    }
+
+    @Test
+    fun `批量重置密码不符合规则时不修改账号也不撤销会话`() {
+        val targets = listOf(storedUser(21L), storedUser(22L))
+        whenever(userRepository.findAllById(any<Iterable<Long>>())).thenReturn(targets)
+        targets.forEach { target ->
+            whenever(userRepository.findById(target.id!!)).thenReturn(Optional.of(target))
+        }
+        whenever(dataScopeResolver.current()).thenReturn(DataScope.All)
+
+        assertFailsWith<IllegalArgumentException> {
+            service.updateBatch(listOf(21L, 22L), UserService.UpdateCommand(credential = "abcdef12"))
+        }
+
+        assertTrue(targets.all { it.passwordHash == "encoded" })
+        verify(passwordEncoder, never()).encode(any())
+        verify(userRepository, never()).saveAll(any<List<User>>())
+        verify(tokenSessionRepository, never()).incrementTokenVersion(any())
     }
 
     @Test

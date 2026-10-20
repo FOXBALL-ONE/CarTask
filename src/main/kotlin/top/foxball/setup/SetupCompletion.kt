@@ -13,6 +13,7 @@ package top.foxball.setup
 
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
+import top.foxball.cartask.authentication.PasswordPolicy
 import java.nio.file.Path
 import java.time.LocalDateTime
 
@@ -63,6 +64,9 @@ class SetupCompletion(
         val missingValues = SetupSection.entries.filterNot { it.satisfiedBy(draft.values) }
         if (missingValues.isNotEmpty()) {
             throw SetupException("以下步骤缺少必填项：${missingValues.joinToString("、") { it.title }}")
+        }
+        PasswordPolicy.errorMessage(draft.values.getValue("ADMIN_INITIALIZER_PASSWORD"))?.let {
+            throw SetupException("请重新配置管理员账号：$it")
         }
         
         val now = LocalDateTime.now()

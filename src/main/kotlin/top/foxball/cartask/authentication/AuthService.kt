@@ -252,8 +252,8 @@ class AuthServiceImpl(
     
     /** resetPassword：执行认证组件中的一项具体操作，完成输入校验并返回处理结果。 */
     override fun resetPassword(command: AuthService.ResetPasswordCommand) {
+        PasswordPolicy.errorMessage(command.newPassword, "新密码")?.let { throw IllegalArgumentException(it) }
         smsVerificationService.verify(command.phone, command.code, SmsVerificationService.Purpose.RESET_PASSWORD)
-        require(command.newPassword.isNotBlank()) { "新密码不能为空" }
         val user =
             userRepository.findByPhone(command.phone.trim()) ?: throw BadCredentialsException("手机号或验证码错误")
         user.passwordHash = passwordEncoder.encode(command.newPassword).toString()

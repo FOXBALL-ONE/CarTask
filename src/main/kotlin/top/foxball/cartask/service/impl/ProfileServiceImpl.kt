@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service
 import top.foxball.cartask.audit.AuditAction
 import top.foxball.cartask.audit.AuditCommand
 import top.foxball.cartask.audit.AuditService
+import top.foxball.cartask.authentication.PasswordPolicy
 import top.foxball.cartask.authentication.RedisTokenSessionRepository
 import top.foxball.cartask.authentication.SecurityRole
 import top.foxball.cartask.authentication.SmsVerificationService
@@ -100,10 +101,8 @@ class ProfileServiceImpl(
         val user = findUser(userId)
         require(passwordEncoder.matches(command.currentPassword, user.passwordHash)) { "原密码不正确" }
         val newPassword = command.newPassword
-        require(newPassword.length in MIN_PASSWORD_LENGTH..MAX_PASSWORD_LENGTH) {
-            "新密码长度需为 $MIN_PASSWORD_LENGTH-$MAX_PASSWORD_LENGTH 位"
-        }
-        require(newPassword.none(Char::isWhitespace)) { "新密码不能包含空白字符" }
+        PasswordPolicy.errorMessage(newPassword, "新密码")?.let { throw IllegalArgumentException(it) }
+        require(newPassword.length <= MAX_PASSWORD_LENGTH) { "新密码不能超过 $MAX_PASSWORD_LENGTH 位" }
         require(!passwordEncoder.matches(newPassword, user.passwordHash)) { "新密码不能与原密码相同" }
         
         user.passwordHash = passwordEncoder.encode(newPassword).toString()
@@ -198,7 +197,6 @@ class ProfileServiceImpl(
     )
     
     private companion object {
-        const val MIN_PASSWORD_LENGTH = 6
         const val MAX_PASSWORD_LENGTH = 128
         
         

@@ -176,7 +176,7 @@ class MockDataInitializer(
                     username = "mock.operator"
                     nickName = "模拟运营员"
                     email = "mock.operator@example.com"
-                    passwordHash = passwordEncoder.encode("mock-password").toString()
+                    passwordHash = passwordEncoder.encode("Mock-password1").toString()
                     phone = "13800000001"
                     gender = User.Gender.UNKNOWN
                     department = parkingDepartment
@@ -198,7 +198,7 @@ class MockDataInitializer(
                     username = "mock.security"
                     nickName = "模拟安全主管"
                     email = "mock.security@example.com"
-                    passwordHash = passwordEncoder.encode("mock-password").toString()
+                    passwordHash = passwordEncoder.encode("Mock-password1").toString()
                     phone = "13800000004"
                     gender = User.Gender.MALE
                     department = securityDepartment
@@ -220,7 +220,7 @@ class MockDataInitializer(
                     username = "mock.property"
                     nickName = "模拟物业专员"
                     email = "mock.property@example.com"
-                    passwordHash = passwordEncoder.encode("mock-password").toString()
+                    passwordHash = passwordEncoder.encode("Mock-password1").toString()
                     phone = "13800000005"
                     gender = User.Gender.FEMALE
                     department = propertyDepartment

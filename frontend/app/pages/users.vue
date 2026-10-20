@@ -148,10 +148,13 @@
                                                                       placeholder="请输入用户名"
                                                                       required></label>
             <label v-if="!editingId" class="field"><span>初始密码 <em>*</em></span><input v-model="form.password"
+                                                                                          :minlength="MIN_PASSWORD_LENGTH"
                                                                                           class="input"
                                                                                           placeholder="请输入初始密码"
                                                                                           required
-                                                                                          type="password"></label>
+                                                                                          type="password">
+              <small>至少 8 位，且大写字母、小写字母、数字、特殊符号至少包含 3 类。</small>
+            </label>
             <label class="field"><span>部门 <em>*</em></span><select v-model="form.deptId" class="select" required>
               <option :value="null">请选择部门</option>
               <option v-for="department in departments" :key="department.id" :value="department.id">{{
@@ -199,6 +202,8 @@
 </template>
 
 <script lang="ts" setup>
+import {MIN_PASSWORD_LENGTH, passwordPolicyError} from "~/utils/password";
+
 interface User {
   id: number;
   username: string;
@@ -510,6 +515,14 @@ async function saveUser() {
     formError.value = "请完整填写账号、用户名、密码、部门、角色和手机号";
     saving.value = false;
     return;
+  }
+  if (!editingId.value) {
+    const passwordError = passwordPolicyError(form.password, "初始密码");
+    if (passwordError) {
+      formError.value = passwordError;
+      saving.value = false;
+      return;
+    }
   }
   const payload = {
     username: form.username,

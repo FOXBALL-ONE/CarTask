@@ -364,7 +364,7 @@
             </label>
           </div>
           <p class="field__hint">
-            需包含大写字母、小写字母、数字、符号中的至少两类。登录后建议在「个人中心」再改一次。
+            至少 8 位，且大写字母、小写字母、数字、特殊符号至少包含 3 类。登录后建议在「个人中心」再改一次。
           </p>
         </div>
 
@@ -436,6 +436,7 @@
 // 保存草稿，因此这里的等待时间是真的，失败信息也是外部依赖原样返回的原因。不做「先保存后测试」：
 // 那样页面上会出现「存了但没验过」的中间态，而没验过的配置要到重启之后才暴露。
 import {type SetupStepId, useSetup} from "~/composables/useSetup";
+import {passwordPolicyError} from "~/utils/password";
 
 const setup = useSetup();
 
@@ -775,6 +776,14 @@ async function verifyCurrent(): Promise<void> {
 async function next() {
   clearMessages();
   const id = currentStep.value.id;
+
+  if (id === "administrator" && (!isDone(id) || dirty[id])) {
+    const passwordError = passwordPolicyError(administrator.password);
+    if (passwordError) {
+      errorMessage.value = passwordError;
+      return;
+    }
+  }
 
   // 已经验证过、且没有再改动：直接前进，不必逼着操作者把密码重敲一遍（草稿里的值仍然有效）。
   if (isDone(id) && !dirty[id]) {

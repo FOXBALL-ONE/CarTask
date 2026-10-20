@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service
 import top.foxball.cartask.audit.AuditAction
 import top.foxball.cartask.audit.AuditCommand
 import top.foxball.cartask.audit.AuditService
+import top.foxball.cartask.authentication.PasswordPolicy
 import top.foxball.cartask.authentication.RedisTokenSessionRepository
 import top.foxball.cartask.authentication.RoleAssignmentPolicy
 import top.foxball.cartask.authentication.SecurityRole
@@ -53,7 +54,7 @@ class UserServiceImpl(
         commands.forEach { command ->
             require(command.username.isNotBlank()) { "用户名不能为空" }
             require(command.email.isNotBlank()) { "邮箱不能为空" }
-            require(command.credential.isNotBlank()) { "凭据不能为空" }
+            PasswordPolicy.errorMessage(command.credential)?.let { throw IllegalArgumentException(it) }
             roleAssignmentPolicy.validateAssignment(command.role)
             require(!userRepository.existsByUsername(command.username)) { "用户名已存在" }
             require(!userRepository.existsByEmail(command.email)) { "邮箱已存在" }
@@ -191,7 +192,9 @@ class UserServiceImpl(
             require(email.isNotBlank()) { "邮箱不能为空" }
             require(users.all { it.email == email } || !userRepository.existsByEmail(email)) { "邮箱已存在" }
         }
-        command.credential?.let { require(it.isNotBlank()) { "凭据不能为空" } }
+        command.credential?.let { credential ->
+            PasswordPolicy.errorMessage(credential)?.let { throw IllegalArgumentException(it) }
+        }
         command.phone?.let { phone ->
             val normalized = phone.trim()
             users.forEach { user ->
@@ -360,6 +363,9 @@ class UserServiceImpl(
         require(roles.size == roleIds.size) { "部分角色不存在" }
         val rolesById = roles.associateBy { requireNotNull(it.id) }
         val orderedRoles = roleIds.map { rolesById.getValue(it) }
+        roleAssignmentPolicy.validatePermissionCombination(
+            orderedRoles.flatMap { role -> role.permissions.map { permission -> permission.code } },
+        )
         orderedRoles.mapNotNull { SecurityRole.normalizeOrNull(it.name) }
             .forEach(roleAssignmentPolicy::validateAssignment)
         return orderedRoles.toCollection(linkedSetOf())

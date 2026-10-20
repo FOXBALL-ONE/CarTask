@@ -289,7 +289,9 @@
                                                                       maxlength="64" placeholder="如：部门经理" required></label>
               <label class="field"><span>初始密码</span><input v-model="form.password" class="input" maxlength="64"
                                                                placeholder="留空则使用系统初始密码"
-                                                               type="password"></label>
+                                                               type="password">
+                <small>自设密码至少 8 位，且大写字母、小写字母、数字、特殊符号至少包含 3 类。</small>
+              </label>
             </template>
           </div>
           <p class="form-hint">
@@ -317,6 +319,8 @@
 </template>
 
 <script lang="ts" setup>
+import {passwordPolicyError} from "~/utils/password";
+
 interface Request {
   id: number;
   plate: string;
@@ -657,6 +661,14 @@ async function save() {
   if (form.createArchives && (!form.ownerName || !form.phone || !form.departmentId || !form.jobTitle)) {
     formError.value = "新建档案时车主姓名、登录手机号、部门与职务不能为空";
     return;
+  }
+  const customPassword = form.password.trim();
+  if (!editingId.value && form.createArchives && customPassword) {
+    const passwordError = passwordPolicyError(customPassword, "初始密码");
+    if (passwordError) {
+      formError.value = passwordError;
+      return;
+    }
   }
   saving.value = true;
   actionError.value = "";

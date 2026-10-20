@@ -14,6 +14,7 @@ package top.foxball.setup
 import com.fasterxml.jackson.annotation.JsonProperty
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
+import top.foxball.cartask.authentication.PasswordPolicy
 import top.foxball.cartask.shared.Response
 import top.foxball.cartask.shared.ResponseBuilder
 
@@ -357,9 +358,6 @@ class SetupController(
         if (password != confirmPassword) {
             throw SetupException("两次输入的密码不一致")
         }
-        if (password.length < MIN_PASSWORD_LENGTH) {
-            throw SetupException("密码至少 $MIN_PASSWORD_LENGTH 位")
-        }
         if (password.length > MAX_PASSWORD_LENGTH) {
             throw SetupException("密码不能超过 $MAX_PASSWORD_LENGTH 位")
         }
@@ -369,15 +367,7 @@ class SetupController(
         if (password.equals(trimmedUsername, ignoreCase = true) || password.lowercase() in WEAK_PASSWORDS) {
             throw SetupException("密码过于简单，请换一个")
         }
-        val characterClasses = listOf(
-            password.any(Char::isLowerCase),
-            password.any(Char::isUpperCase),
-            password.any(Char::isDigit),
-            password.any { !it.isLetterOrDigit() },
-        ).count { it }
-        if (characterClasses < MIN_CHARACTER_CLASSES) {
-            throw SetupException("密码需包含大写字母、小写字母、数字、符号中的至少 $MIN_CHARACTER_CLASSES 类")
-        }
+        PasswordPolicy.errorMessage(password)?.let { throw SetupException(it) }
         
         draftStore.save(
             SetupSection.ADMINISTRATOR,
@@ -388,7 +378,8 @@ class SetupController(
                 "ADMIN_INITIALIZER_FORCE_WRITE" to "false",
             ),
         )
-        return responseBuilder.ok().data(Response(trimmedUsername)).build()
+        val rs = Response(trimmedUsername)
+        return responseBuilder.ok().data(rs).build()
     }
     
     
@@ -425,9 +416,7 @@ class SetupController(
     
     private companion object {
         const val DEFAULT_KEYTOP_BASE_URL = "https://kp-open.keytop.cn/unite-api"
-        const val MIN_PASSWORD_LENGTH = 8
         const val MAX_PASSWORD_LENGTH = 64
-        const val MIN_CHARACTER_CLASSES = 2
         val USERNAME_PATTERN = Regex("^[A-Za-z0-9._-]{3,32}$")
         val WEAK_PASSWORDS = setOf("admin", "12345678", "password", "admin123", "123456789", "qwerty123")
     }

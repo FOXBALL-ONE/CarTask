@@ -202,9 +202,10 @@
             </label>
             <label class="field">
               <span class="field__label">新密码<em>*</em></span>
-              <input v-model="passwordForm.next" :placeholder="`请输入新密码（至少 ${MIN_PASSWORD_LENGTH} 位）`"
+              <input v-model="passwordForm.next" :minlength="MIN_PASSWORD_LENGTH" placeholder="请输入新密码"
                      autocomplete="new-password" class="input"
                      required type="password">
+              <small>至少 8 位，且大写字母、小写字母、数字、特殊符号至少包含 3 类。</small>
             </label>
             <label class="field">
               <span class="field__label">确认密码<em>*</em></span>
@@ -228,6 +229,7 @@
 
 <script lang="ts" setup>
 import type {Gender, ProfileData} from "~/stores/profile";
+import {MIN_PASSWORD_LENGTH, passwordPolicyError} from "~/utils/password";
 
 // 页面结构对齐原型 20260625115857 的「个人中心」，样式沿用本站的 CSS 变量体系。
 const route = useRoute();
@@ -235,7 +237,6 @@ const router = useRouter();
 const authStore = useAuthStore();
 const store = useProfileStore();
 
-const MIN_PASSWORD_LENGTH = 6;
 /** 头像落库前先压到该边长以内，避免把大图 base64 存进用户表。 */
 const AVATAR_MAX_EDGE = 256;
 /** 原图上限，超过就不做前端压缩直接拒绝，避免卡住浏览器。 */
@@ -475,8 +476,9 @@ function resetPasswordForm() {
 
 async function submitPassword() {
   clearMessages();
-  if (passwordForm.next.length < MIN_PASSWORD_LENGTH) {
-    errorMessage.value = `新密码长度不能少于 ${MIN_PASSWORD_LENGTH} 位`;
+  const passwordError = passwordPolicyError(passwordForm.next, "新密码");
+  if (passwordError) {
+    errorMessage.value = passwordError;
     return;
   }
   if (passwordForm.next !== passwordForm.confirm) {

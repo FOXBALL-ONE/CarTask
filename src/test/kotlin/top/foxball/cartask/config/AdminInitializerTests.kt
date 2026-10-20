@@ -29,7 +29,7 @@ class AdminInitializerTests {
     @Test
     fun `未启用时不访问数据库`() {
         AdminInitializer(
-            AdminInitializerProperties(enabled = false, password = "secret"),
+            AdminInitializerProperties(enabled = false, password = "Valid-admin1!"),
             passwordEncoder,
             roleRepository,
             userRepository,
@@ -52,15 +52,29 @@ class AdminInitializerTests {
     }
 
     @Test
+    fun `初始化密码不满足全局规则时拒绝启动写入`() {
+        val initializer = AdminInitializer(
+            AdminInitializerProperties(enabled = true, username = "admin", password = "abcdefgh1"),
+            passwordEncoder,
+            roleRepository,
+            userRepository,
+        )
+
+        assertThrows(IllegalArgumentException::class.java) { initializer.write() }
+        verify(roleRepository, never()).findByNameIgnoreCase(any())
+        verify(userRepository, never()).findByUsername(any())
+    }
+
+    @Test
     fun `管理员不存在时创建超级管理员`() {
         val role = Role().apply { name = SecurityRole.SUPER_ADMIN }
         whenever(roleRepository.findByNameIgnoreCase(SecurityRole.SUPER_ADMIN)).thenReturn(role)
         whenever(userRepository.findByUsername("admin")).thenReturn(null)
-        whenever(passwordEncoder.encode("secret")).thenReturn("hashed")
+        whenever(passwordEncoder.encode("Valid-admin1!")).thenReturn("hashed")
         val captor = argumentCaptor<User>()
 
         AdminInitializer(
-            AdminInitializerProperties(enabled = true, username = "admin", password = "secret"),
+            AdminInitializerProperties(enabled = true, username = "admin", password = "Valid-admin1!"),
             passwordEncoder,
             roleRepository,
             userRepository,
@@ -69,7 +83,7 @@ class AdminInitializerTests {
         verify(userRepository).save(captor.capture())
         assertEquals(SecurityRole.SUPER_ADMIN, captor.firstValue.role)
         assertEquals(setOf(role), captor.firstValue.roles)
-        verify(passwordEncoder).encode("secret")
+        verify(passwordEncoder).encode("Valid-admin1!")
     }
 
     @Test
@@ -77,11 +91,11 @@ class AdminInitializerTests {
         whenever(roleRepository.findByNameIgnoreCase(SecurityRole.SUPER_ADMIN)).thenReturn(null)
         whenever(roleRepository.save(any<Role>())).thenAnswer { it.arguments[0] }
         whenever(userRepository.findByUsername("admin")).thenReturn(null)
-        whenever(passwordEncoder.encode("secret")).thenReturn("hashed")
+        whenever(passwordEncoder.encode("Valid-admin1!")).thenReturn("hashed")
         val captor = argumentCaptor<Role>()
 
         AdminInitializer(
-            AdminInitializerProperties(enabled = true, username = "admin", password = "secret"),
+            AdminInitializerProperties(enabled = true, username = "admin", password = "Valid-admin1!"),
             passwordEncoder,
             roleRepository,
             userRepository,
@@ -105,7 +119,7 @@ class AdminInitializerTests {
         whenever(userRepository.findByUsername("admin")).thenReturn(existing)
 
         AdminInitializer(
-            AdminInitializerProperties(enabled = true, username = "admin", password = "secret"),
+            AdminInitializerProperties(enabled = true, username = "admin", password = "Valid-admin1!"),
             passwordEncoder,
             roleRepository,
             userRepository,
@@ -130,7 +144,7 @@ class AdminInitializerTests {
         whenever(userRepository.findByUsername("admin")).thenReturn(existing)
 
         AdminInitializer(
-            AdminInitializerProperties(enabled = true, username = "admin", password = "secret"),
+            AdminInitializerProperties(enabled = true, username = "admin", password = "Valid-admin1!"),
             passwordEncoder,
             roleRepository,
             userRepository,
@@ -155,10 +169,10 @@ class AdminInitializerTests {
         }
         whenever(roleRepository.findByNameIgnoreCase(eq(SecurityRole.SUPER_ADMIN))).thenReturn(role)
         whenever(userRepository.findByUsername("admin")).thenReturn(existing)
-        whenever(passwordEncoder.encode("secret")).thenReturn("new-hash")
+        whenever(passwordEncoder.encode("Valid-admin1!")).thenReturn("new-hash")
 
         AdminInitializer(
-            AdminInitializerProperties(enabled = true, username = "admin", password = "secret", forceWrite = true),
+            AdminInitializerProperties(enabled = true, username = "admin", password = "Valid-admin1!", forceWrite = true),
             passwordEncoder,
             roleRepository,
             userRepository,

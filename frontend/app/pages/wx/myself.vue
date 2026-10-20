@@ -133,7 +133,7 @@
               <input
                   v-model="passwordForm.next"
                   :minlength="MIN_PASSWORD_LENGTH"
-                  :placeholder="`至少 ${MIN_PASSWORD_LENGTH} 位字符`"
+                  placeholder="请输入新密码"
                   autocomplete="new-password"
                   enterkeyhint="next"
                   required
@@ -159,7 +159,7 @@
             <button :disabled="store.saving || redirecting" class="submit-button" type="submit">
               {{ store.saving ? "正在保存..." : redirecting ? "正在前往登录..." : "确认修改" }}
             </button>
-            <p class="password-hint">密码修改成功后，需要使用新密码重新登录。</p>
+            <p class="password-hint">至少 8 位，且大写字母、小写字母、数字、特殊符号至少包含 3 类。修改成功后需重新登录。</p>
           </form>
         </div>
       </section>
@@ -171,13 +171,13 @@
 
 <script lang="ts" setup>
 import type {ProfileData} from "~/stores/profile";
+import {MIN_PASSWORD_LENGTH, passwordPolicyError} from "~/utils/password";
 
 definePageMeta({layout: false});
 
 const router = useRouter();
 const store = useProfileStore();
 const authStore = useAuthStore();
-const MIN_PASSWORD_LENGTH = 6;
 
 const profile = ref<ProfileData | null>(null);
 const loading = ref(true);
@@ -218,8 +218,9 @@ async function submitPassword() {
   formError.value = "";
   successMessage.value = "";
 
-  if (passwordForm.next.length < MIN_PASSWORD_LENGTH) {
-    formError.value = `新密码至少需要 ${MIN_PASSWORD_LENGTH} 位字符。`;
+  const passwordError = passwordPolicyError(passwordForm.next, "新密码");
+  if (passwordError) {
+    formError.value = passwordError;
     return;
   }
   if (passwordForm.next !== passwordForm.confirm) {

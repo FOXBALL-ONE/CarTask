@@ -7,6 +7,7 @@ package top.foxball.cartask.config
  */
 
 import org.springframework.boot.context.properties.ConfigurationProperties
+import top.foxball.cartask.authentication.PasswordPolicy
 
 
 @ConfigurationProperties(prefix = "app.admin-initializer")
@@ -25,6 +26,7 @@ data class AdminInitializerProperties(
     fun validate() {
         require(username.isNotBlank()) { "ADMIN_INITIALIZER_USERNAME 不能为空" }
         require(password.isNotBlank()) { "ADMIN_INITIALIZER_PASSWORD 不能为空" }
+        PasswordPolicy.errorMessage(password, "ADMIN_INITIALIZER_PASSWORD")?.let { throw IllegalArgumentException(it) }
     }
 }
 

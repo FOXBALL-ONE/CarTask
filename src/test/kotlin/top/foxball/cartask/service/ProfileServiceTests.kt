@@ -70,10 +70,10 @@ class ProfileServiceTests {
         val user = storedUser()
         stubUser(user)
         whenever(passwordEncoder.matches("old-password", "encoded-old")).thenReturn(true)
-        whenever(passwordEncoder.matches("new-password", "encoded-old")).thenReturn(false)
-        whenever(passwordEncoder.encode("new-password")).thenReturn("encoded-new")
+        whenever(passwordEncoder.matches("New-password1", "encoded-old")).thenReturn(false)
+        whenever(passwordEncoder.encode("New-password1")).thenReturn("encoded-new")
 
-        service.changePassword(7L, ProfileService.ChangePasswordCommand("old-password", "new-password"))
+        service.changePassword(7L, ProfileService.ChangePasswordCommand("old-password", "New-password1"))
 
         assertEquals("encoded-new", user.passwordHash)
         assertFalse(user.mustChangePassword)
@@ -81,21 +81,24 @@ class ProfileServiceTests {
     }
 
     @Test
-    fun `新密码过短或与原密码相同都会被拒绝`() {
+    fun `新密码过短复杂度不足或与原密码相同都会被拒绝`() {
         val user = storedUser()
         stubUser(user)
-        whenever(passwordEncoder.matches("old-password", "encoded-old")).thenReturn(true)
-        whenever(passwordEncoder.matches("short", "encoded-old")).thenReturn(false)
-        whenever(passwordEncoder.matches("old-password", "encoded-old")).thenReturn(true)
+        whenever(passwordEncoder.matches("Old-password1", "encoded-old")).thenReturn(true)
 
         assertThrows(IllegalArgumentException::class.java) {
-            service.changePassword(7L, ProfileService.ChangePasswordCommand("old-password", "short"))
+            service.changePassword(7L, ProfileService.ChangePasswordCommand("Old-password1", "Abcd1!"))
         }
         assertThrows(IllegalArgumentException::class.java) {
-            service.changePassword(7L, ProfileService.ChangePasswordCommand("old-password", "old-password"))
+            service.changePassword(7L, ProfileService.ChangePasswordCommand("Old-password1", "abcdefgh1"))
+        }
+        val samePassword = assertThrows(IllegalArgumentException::class.java) {
+            service.changePassword(7L, ProfileService.ChangePasswordCommand("Old-password1", "Old-password1"))
         }
 
+        assertEquals("新密码不能与原密码相同", samePassword.message)
         assertEquals("encoded-old", user.passwordHash)
+        verify(userRepository, never()).save(any<User>())
         verify(tokenSessionRepository, never()).incrementTokenVersion(any())
     }
 
